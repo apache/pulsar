@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -41,7 +43,17 @@ public class JSONSchema<T> implements Schema<T>{
     private final SchemaInfo schemaInfo;
     private final Class<T> pojo;
     private Map<String, String> properties;
-    private static final ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+
+    // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
+    // return shaded version of object mapper
+    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
+        @Override
+        protected ObjectMapper initialValue() throws Exception {
+            return new ObjectMapper();
+        }
+    };
+
+    private final ObjectMapper objectMapper;
 
     private JSONSchema(Class<T> pojo, Map<String, String> properties) {
         this.pojo = pojo;
@@ -53,6 +65,7 @@ public class JSONSchema<T> implements Schema<T>{
         this.schemaInfo.setProperties(properties);
         this.schemaInfo.setType(SchemaType.JSON);
         this.schemaInfo.setSchema(this.schema.toString().getBytes());
+        this.objectMapper = JSON_MAPPER.get();
     }
 
     @Override
