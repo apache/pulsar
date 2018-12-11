@@ -139,15 +139,19 @@ class ProcessRuntime implements Runtime {
 
         // Note: we create the expected log folder before the function process logger attempts to create it
         // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
-        log.info("Creating function log directory {}", funcLogDir);
-        boolean success = createFolder(funcLogDir);
 
-        if (!success) {
-            log.error("Log folder could not be created : {}", funcLogDir);
-            throw new RuntimeException("Log folder creation error");
+        final File dir = new File(funcLogDir);
+        if (!dir.exists()) {
+            log.info("Creating function log directory {}", funcLogDir);
+            boolean success = createFolder(funcLogDir);
+
+            if (!success) {
+                log.error("Log folder could not be created : {}", funcLogDir);
+                throw new RuntimeException("Log folder creation error");
+            }
+
+            log.info("Created function log directory {}", funcLogDir);
         }
-
-        log.info("Created function log directory {}", funcLogDir);
 
         startProcess();
         if (channel == null && stub == null) {
