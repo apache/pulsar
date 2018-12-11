@@ -103,6 +103,13 @@ public class Policies {
         return bundle;
     }
 
+    public static void setStorageQuota(Policies polices, BacklogQuota quota) {
+        if (polices == null) {
+            return;
+        }
+        polices.backlog_quota_map.put(BacklogQuota.BacklogQuotaType.destination_storage, quota);
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)

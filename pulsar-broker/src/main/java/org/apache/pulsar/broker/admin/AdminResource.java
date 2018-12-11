@@ -48,6 +48,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -304,13 +305,19 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
-            Policies policies = policiesCache().get(AdminResource.path(POLICIES, namespaceName.toString()))
+            final String namespace = namespaceName.toString();
+            final String policyPath = AdminResource.path(POLICIES, namespace);
+            Policies policies = policiesCache().get(policyPath)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+
+            // hydrate the namespace polices
+            mergeNamespaceWithDefaults(policies, namespace, policyPath);
+
             return policies;
         } catch (RestException re) {
             throw re;
@@ -318,6 +325,16 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
+        if (policies.backlog_quota_map.isEmpty()) {
+            Policies.setStorageQuota(policies, namespaceBacklogQuota(namespace, namespacePath));
+        }
+    }
+
+    protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
+        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
     }
 
     public static ObjectMapper jsonMapper() {
