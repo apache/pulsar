@@ -131,16 +131,11 @@
                                     <include>commons-codec:commons-codec</include>
                                     <include>commons-collections:commons-collections</include>
                                     <include>org.asynchttpclient:*</include>
-                                    <include>io.netty:netty-codec-http</include>
-                                    <include>io.netty:netty-transport-native-epoll</include>
                                     <include>org.reactivestreams:reactive-streams</include>
-                                    <include>com.typesafe.netty:netty-reactive-streams</include>
                                     <include>org.javassist:javassist</include>
                                     <include>com.google.guava:guava</include>
                                     <include>com.google.code.gson:gson</include>
                                     <include>com.fasterxml.jackson.core</include>
-                                    <include>io.netty:netty</include>
-                                    <include>io.netty:netty-all</include>
                                     <include>org.apache.bookkeeper:circe-checksum</include>
                                     <include>com.yahoo.datasketches:sketches-core</include>
                                     <include>org.glassfish.jersey*:*</include>
@@ -150,7 +145,6 @@
                                     <include>com.fasterxml.jackson.*:*</include>
                                     <include>io.grpc:*</include>
                                     <include>com.yahoo.datasketches:*</include>
-                                    <include>io.netty:*</include>
                                     <include>com.squareup.*:*</include>
                                     <include>commons-*:*</include>
                                     <include>org.apache.httpcomponents:*</include>
@@ -209,10 +203,6 @@
                                 <relocation>
                                     <pattern>com.fasterxml.jackson</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>io.netty</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.apache.pulsar.policies</pattern>
