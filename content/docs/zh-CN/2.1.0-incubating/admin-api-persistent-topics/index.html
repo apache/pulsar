@@ -240,9 +240,9 @@ admin.persistentTopics().getStats(topic);
 <li><p><strong>lastLedgerCreationFailureTimestamp:</strong> 最后一次ledger创建失败的时间</p></li>
 <li><p><strong>waitingCursorsCount</strong>：被挂起并且等待新消息发布的cursor数量</p></li>
 <li><p><strong>pendingAddEntriesCount</strong>：多少消息已经（异步）写了请求，但是等待完成。</p></li>
-<li><p><strong>lastConfirmedEntry</strong>：最后一条成功写入消息的ledgerid:entryid。 If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.</p></li>
-<li><p><strong>state</strong>: The state of this ledger for writing. LedgerOpened means we have a ledger open for saving published messages.</p></li>
-<li><p><strong>ledgers</strong>: The ordered list of all ledgers for this topic holding its messages</p></li>
+<li><p><strong>lastConfirmedEntry</strong>：最后一条成功写入消息的ledgerid:entryid。 如果entryid是-1，这代表ledger已经被打开或者正在被打开，但是还没有entry被写入。</p></li>
+<li><p><strong>state</strong>: 要写入的ledger的状态。LedgerOpened表示有打开的ledger用来保存发布的消息。</p></li>
+<li><p><strong>ledgers</strong>：本topic保存消息的有序ledger列表。</p></li>
 <li><p><strong>cursors</strong>: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</p></li>
 <li><p><strong>markDeletePosition</strong>: The ack position: the last message the subscriber acknowledged receiving</p></li>
 <li><p><strong>readPosition</strong>: The latest position of subscriber for reading message</p></li>

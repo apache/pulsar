@@ -81,17 +81,17 @@
 <li>函数逻辑本身并不指定主题，订阅类型，租户或命名空间。 而是在 <a href="#example-deployment">部署</a>中指定主题。 也就是，我们可以跨主题、租户和命名空间来重复使用Pulsar Functions而不用对这些属性强制编码。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="部署示例"></a><a href="#部署示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署示例</h3>
-<p>部署Pulsar Function可以使用<a href="/docs/zh-CN/2.1.0-incubating/pulsar-admin"><code>pulsar-admin</code></a> 命令行工具，特别是&lt;a href =“reference-pulsar- admin.md＃functions“&gt; ` functions &lt;/ code&gt; </a>命令。 如下的示例命令，它将在 <a href="functions-deploying.md#local-run-mode">local run</a>模式下运行我们上述的<a href="#example-function"> sanitizer </a>函数：</p></p>
-<pre><code class="bash">$ bin/pulsar-admin functions localrun \
-  --py sanitizer.py \          # The Python file with the function's code
-  --className sanitizer \      # The class or function holding the processing logic
-  --tenant public \            # The function's tenant (derived from the topic name by default)
-  --namespace default \        # The function's namespace (derived from the topic name by default)
-  --name sanitizer-function \  # The name of the function (the class name by default)
-  --inputs dirty-strings-in \  # The input topic(s) for the function
-  --output clean-strings-out \ # The output topic for the function
-  --logTopic sanitizer-logs    # The topic to which all functions logs are published
-`</pre> 
+<p>部署Pulsar Function可以使用<a href="/docs/zh-CN/2.1.0-incubating/pulsar-admin"><code>pulsar-admin</code></a> 命令行工具，特别是<a href="/docs/zh-CN/2.1.0-incubating/pulsar-admin#functions"><code>functions</code></a>命令。 如下的示例命令，它将在 <a href="/docs/zh-CN/2.1.0-incubating/functions-deploying#local-run-mode">local run</a>模式下运行我们上述的<a href="#example-function"> sanitizer </a>函数：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+  --py sanitizer.py \          <span class="hljs-comment"># The Python file with the function's code</span>
+  --className sanitizer \      <span class="hljs-comment"># The class or function holding the processing logic</span>
+  --tenant public \            <span class="hljs-comment"># The function's tenant (derived from the topic name by default)</span>
+  --namespace default \        <span class="hljs-comment"># The function's namespace (derived from the topic name by default)</span>
+  --name sanitizer-function \  <span class="hljs-comment"># The name of the function (the class name by default)</span>
+  --inputs dirty-strings-in \  <span class="hljs-comment"># The input topic(s) for the function</span>
+  --output clean-strings-out \ <span class="hljs-comment"># The output topic for the function</span>
+  --logTopic sanitizer-logs    <span class="hljs-comment"># The topic to which all functions logs are published</span>
+</code></pre>
 <p>有关在Pulsar集群中运行函数的说明，请参阅<a href="/docs/zh-CN/2.1.0-incubating/functions-deploying">部署Pulsar Functions</a> 文档。</p>
 <h3><a class="anchor" aria-hidden="true" id="可用的apis"></a><a href="#可用的apis" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>可用的APIs</h3>
 <p>在写Pulsar Functions时，有Java和Python两种语言可供你选择：</p>
@@ -101,14 +101,14 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">语言原生接口</td><td style="text-align:left">不依赖特定Pulsar库或特殊依赖项（仅使用Java/Python自身的核心库）</td><td style="text-align:left">不需要获取函数 <a href="#context">内容</a>的函数。</td></tr>
-<tr><td style="text-align:left">用于Java/Python的Pulsar函数sdk</td><td style="text-align:left">Pulsar-specific libraries that provide a range of functionality not provided by &quot;native&quot; interfaces</td><td style="text-align:left">Functions that require access to the function's <a href="#context">context</a></td></tr>
+<tr><td style="text-align:left">用于Java/Python的Pulsar函数sdk</td><td style="text-align:left">提供开发语言自身接口不提供的一系列功能的特定Pulsar类库。</td><td style="text-align:left">不需要获取函数 <a href="#context">内容</a>的函数。</td></tr>
 </tbody>
 </table>
-<p>In Python, for example, this language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:</p>
+<p>例如, 在 python 中, 语言自带函数没有外部依赖，它会向所有传入的字符串添加一个感叹号，并将结果字符串发布到主题：</p>
 <pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{}!"</span>.format(input)
 </code></pre>
-<p>This function, however, would use the Pulsar Functions <a href="#python-sdk-functions">SDK for Python</a>:</p>
+<p>然而，在这个函数里你会看到Pulsar Function为Python提供的<a href="#python-sdk-functions">SDK</a>：</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">DisplayFunctionName</span><span class="hljs-params">(Function)</span>:</span>
@@ -119,8 +119,8 @@
 <h3><a class="anchor" aria-hidden="true" id="序列化和反序列化-serde"></a><a href="#序列化和反序列化-serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>序列化和反序列化 (SerDe)</h3>
 <p>SerDe stands for <strong>Ser</strong>ialization and <strong>De</strong>serialization. All Pulsar Functions use SerDe for message handling. How SerDe works by default depends on the language you're using for a particular function:</p>
 <ul>
-<li>In <a href="#python-serde">Python</a>, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns</li>
-<li>In <a href="#java-serde">Java</a>, a number of commonly used types (<code>String</code>s, <code>Integer</code>s, etc.) are supported by default</li>
+<li>在 <a href="#python-serde">Python</a> 中, 默认的 serde 是标识, 这意味着该类型被序列化为生成函数返回的任何类型。</li>
+<li>在<a href="#java-serde">Java</a>里，许多常用的类型(<code>String</code>,<code>Integer</code>, 等等) 都默认支持。</li>
 </ul>
 <p>In both languages, however, you can write your own custom SerDe logic for more complex, application-specific types. See the docs for <a href="#java-serde">Java</a> and <a href="#python-serde">Python</a> for language-specific instructions.</p>
 <h3><a class="anchor" aria-hidden="true" id="context"></a><a href="#context" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Context</h3>
