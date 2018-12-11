@@ -201,9 +201,10 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * By default, message payloads are not compressed. Supported compression types are:
      * <ul>
-     * <li>{@link CompressionType.LZ4}</code></li>
-     * <li>{@link CompressionType.ZLIB}</code></li>
-     * <li>{@link CompressionType.ZSTD}</code></li>
+     * <li>{@link CompressionType.LZ4}</li>
+     * <li>{@link CompressionType.ZLIB}</li>
+     * <li>{@link CompressionType.ZSTD} (Since Pulsar 2.3. Zstd
+     *      cannot be used if consumer applications are not in version >= 2.3 as well)</li>
      * </ul>
      *
      * @param compressionType
