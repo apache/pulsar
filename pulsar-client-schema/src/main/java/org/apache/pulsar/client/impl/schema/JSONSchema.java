@@ -49,7 +49,10 @@ public class JSONSchema<T> implements Schema<T>{
     private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
         @Override
         protected ObjectMapper initialValue() throws Exception {
-            return new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+            return mapper;
         }
     };
 
