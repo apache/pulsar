@@ -223,7 +223,7 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
-            className,
+            null,
             parallelism,
                 null,
                 "Source Package is not provided");
@@ -242,7 +242,7 @@ public class SourceApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "zip file is empty");
+                "Source Package is not provided");
     }
 
     @Test
@@ -256,7 +256,7 @@ public class SourceApiV2ResourceTest {
                 null,
                 outputTopic,
                 outputSerdeClassName,
-                className,
+                null,
                 parallelism,
                 null,
                 "Failed to extract source class from archive");
@@ -292,7 +292,7 @@ public class SourceApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test",
-                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
+                "Invalid Source Jar");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -555,7 +555,7 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
-            className,
+            null,
             parallelism,
                 "Update contains no change");
     }
@@ -574,7 +574,7 @@ public class SourceApiV2ResourceTest {
                 mockedFormData,
                 null,
                 outputSerdeClassName,
-                className,
+                null,
                 parallelism,
                 "Update contains no change");
     }
@@ -1222,7 +1222,7 @@ public class SourceApiV2ResourceTest {
         return sourceConfig;
     }
 
-    private FunctionDetails createDefaultFunctionDetails() throws IOException {
-        return SourceConfigUtils.convert(createDefaultSourceConfig(), null);
+    private FunctionDetails createDefaultFunctionDetails() {
+        return SourceConfigUtils.convert(createDefaultSourceConfig(), new SourceConfigUtils.ExtractedSourceDetails(null, null));
     }
 }
