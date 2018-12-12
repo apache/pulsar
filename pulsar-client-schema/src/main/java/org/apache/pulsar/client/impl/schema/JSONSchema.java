@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
@@ -33,24 +32,35 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 public class JSONSchema<T> implements Schema<T>{
 
     private final org.apache.avro.Schema schema;
     private final SchemaInfo schemaInfo;
-    private final Gson gson;
     private final Class<T> pojo;
     private Map<String, String> properties;
+
+    // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
+    // return shaded version of object mapper
+    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
+        @Override
+        protected ObjectMapper initialValue() throws Exception {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+            return mapper;
+        }
+    };
+
+    private final ObjectMapper objectMapper;
 
     private JSONSchema(Class<T> pojo, Map<String, String> properties) {
         this.pojo = pojo;
         this.properties = properties;
-        this.gson = new Gson();
 
         this.schema = ReflectData.AllowNull.get().getSchema(pojo);
         this.schemaInfo = new SchemaInfo();
@@ -58,14 +68,15 @@ public class JSONSchema<T> implements Schema<T>{
         this.schemaInfo.setProperties(properties);
         this.schemaInfo.setType(SchemaType.JSON);
         this.schemaInfo.setSchema(this.schema.toString().getBytes());
+        this.objectMapper = JSON_MAPPER.get();
     }
 
     @Override
     public byte[] encode(T message) throws SchemaSerializationException {
 
         try {
-            return this.gson.toJson(message).getBytes();
-        } catch (RuntimeException e) {
+            return objectMapper.writeValueAsBytes(message);
+        } catch (JsonProcessingException e) {
             throw new SchemaSerializationException(e);
         }
     }
@@ -73,8 +84,8 @@ public class JSONSchema<T> implements Schema<T>{
     @Override
     public T decode(byte[] bytes) {
         try {
-            return this.gson.fromJson(new String(bytes), this.pojo);
-        } catch (RuntimeException e) {
+            return objectMapper.readValue(bytes, this.pojo);
+        } catch (IOException e) {
             throw new RuntimeException(new SchemaSerializationException(e));
         }
     }
