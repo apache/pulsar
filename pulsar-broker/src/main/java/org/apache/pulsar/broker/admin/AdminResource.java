@@ -37,6 +37,7 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -51,9 +52,11 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
@@ -331,10 +334,60 @@ public abstract class AdminResource extends PulsarWebResource {
         if (policies.backlog_quota_map.isEmpty()) {
             Policies.setStorageQuota(policies, namespaceBacklogQuota(namespace, namespacePath));
         }
+
+        final ServiceConfiguration config = pulsar().getConfiguration();
+        if (policies.max_producers_per_topic < 1) {
+            policies.max_producers_per_topic = config.getMaxProducersPerTopic();
+        }
+
+        if (policies.max_consumers_per_topic < 1) {
+            policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
+        }
+
+        if (policies.max_consumers_per_subscription < 1) {
+            policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
+        }
+
+        final String cluster = config.getClusterName();
+        // attach default dispatch rate polices
+        if (policies.clusterDispatchRate.isEmpty()) {
+            policies.clusterDispatchRate.put(cluster, dispatchRate());
+        }
+
+        if (policies.subscriptionDispatchRate.isEmpty()) {
+            policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
+        }
+
+        if (policies.clusterSubscribeRate.isEmpty()) {
+            policies.clusterSubscribeRate.put(cluster, subscribeRate());
+        }
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
         return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
+    }
+
+    protected DispatchRate dispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
+                1
+        );
+    }
+
+    protected DispatchRate subscriptionDispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte(),
+                1
+        );
+    }
+
+    protected SubscribeRate subscribeRate() {
+        return new SubscribeRate(
+                pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
+        );
     }
 
     public static ObjectMapper jsonMapper() {
