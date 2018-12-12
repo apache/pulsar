@@ -26,7 +26,6 @@ set -e
 PYTHON_VERSIONS=(
    '2.7 cp27-cp27mu'
    '2.7 cp27-cp27m'
-   '3.3 cp33-cp33m'
    '3.4 cp34-cp34m'
    '3.5 cp35-cp35m'
    '3.6 cp36-cp36m'

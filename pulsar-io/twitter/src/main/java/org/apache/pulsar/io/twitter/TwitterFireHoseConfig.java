@@ -29,6 +29,7 @@ import java.util.Map;
 import com.twitter.hbc.core.Constants;
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
 @Setter
@@ -40,18 +41,59 @@ public class TwitterFireHoseConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Your twitter app consumer key. See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
+    )
     private String consumerKey;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Your twitter app consumer secret. See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
+    )
     private String consumerSecret;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Your twitter app token. See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
+    )
     private String token;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Your twitter app token secret. See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
+    )
     private String tokenSecret;
     // Most firehose events have null createdAt time. If this parameter is set to true
     // then we estimate the createdTime of each firehose event to be current time.
+    @FieldDoc(
+        required = false,
+        defaultValue = "false",
+        help = "Most firehose events have null createdAt time."
+            + " If this parameter is set to true, the connector estimates the createdTime of each firehose event to be current time."
+    )
     private Boolean guestimateTweetTime = false;
 
     // ------ Optional property keys
 
-    private String clientName = "openconnector-twitter-source";
+    @FieldDoc(
+        required = false,
+        defaultValue = "pulsario-twitter-source",
+        help = "The Twitter Firehose Client name"
+    )
+    private String clientName = "pulsario-twitter-source";
+    @FieldDoc(
+        required = false,
+        defaultValue = Constants.STREAM_HOST,
+        help = "The Twitter Firehose stream hosts that the connector connects to"
+    )
     private String clientHosts = Constants.STREAM_HOST;
+    @FieldDoc(
+        required = false,
+        defaultValue = "50000",
+        help = "The Twitter Firehose client buffer size"
+    )
     private int clientBufferSize = 50000;
 
     public static TwitterFireHoseConfig load(String yamlFile) throws IOException {

@@ -64,7 +64,7 @@ class BatchMessageContainer {
 
     void clear();
 
-    static void batchMessageCallBack(Result r, MessageContainerListPtr messages);
+    static void batchMessageCallBack(Result r, MessageContainerListPtr messages, FlushCallback callback);
 
     friend inline std::ostream& operator<<(std::ostream& os,
                                            const BatchMessageContainer& batchMessageContainer);
@@ -108,7 +108,7 @@ class BatchMessageContainer {
 
     void startTimer();
 
-    void sendMessage();
+    void sendMessage(FlushCallback callback);
 };
 
 bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {

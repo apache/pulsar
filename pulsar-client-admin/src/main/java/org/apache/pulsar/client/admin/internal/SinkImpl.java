@@ -27,8 +27,8 @@ import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
@@ -82,24 +82,21 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
-    public FunctionStatusList getSinkStatus(
+    public SinkStatus getSinkStatus(
             String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
             Response response = request(sink.path(tenant).path(namespace).path(sinkName).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(SinkStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public FunctionStatus getSinkStatus(
+    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(
             String tenant, String namespace, String sinkName, int id) throws PulsarAdminException {
         try {
             Response response = request(
@@ -108,10 +105,7 @@ public class SinkImpl extends BaseResource implements Sink {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

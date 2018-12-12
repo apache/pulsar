@@ -160,4 +160,16 @@ public interface Message<T> {
      * @return
      */
     Optional<EncryptionContext> getEncryptionCtx();
+
+    /**
+     * Get message redelivery count, redelivery count maintain in pulsar broker. When client acknowledge message
+     * timeout, broker will dispatch message again with message redelivery count in CommandMessage defined.
+     *
+     * Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
+     * redelivery count will be recalculate.
+     *
+     * @since 2.3.0
+     * @return message redelivery count
+     */
+    int getRedeliveryCount();
 }

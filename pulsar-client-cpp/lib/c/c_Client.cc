@@ -152,6 +152,45 @@ void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topi
                                       boost::bind(&handle_reader_callback, _1, _2, callback, ctx));
 }
 
+pulsar_result pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
+                                                 pulsar_string_list_t **partitions) {
+    std::vector<std::string> partitionsList;
+    pulsar::Result res = client->client->getPartitionsForTopic(topic, partitionsList);
+    if (res == pulsar::ResultOk) {
+        (*partitions) = pulsar_string_list_create();
+
+        for (int i = 0; i < partitionsList.size(); i++) {
+            pulsar_string_list_append(*partitions, partitionsList[i].c_str());
+        }
+
+        return pulsar_result_Ok;
+    } else {
+        return (pulsar_result)res;
+    }
+}
+
+static void handle_get_partitions_callback(pulsar::Result result,
+                                           const std::vector<std::string> &partitionsList,
+                                           pulsar_get_partitions_callback callback, void *ctx) {
+    if (result == pulsar::ResultOk) {
+        pulsar_string_list_t *partitions = pulsar_string_list_create();
+
+        for (int i = 0; i < partitionsList.size(); i++) {
+            pulsar_string_list_append(partitions, partitionsList[i].c_str());
+        }
+
+        callback((pulsar_result)result, partitions, ctx);
+    } else {
+        callback((pulsar_result)result, NULL, ctx);
+    }
+}
+
+void pulsar_client_get_topic_partitions_async(pulsar_client_t *client, const char *topic,
+                                              pulsar_get_partitions_callback callback, void *ctx) {
+    client->client->getPartitionsForTopicAsync(
+        topic, boost::bind(&handle_get_partitions_callback, _1, _2, callback, ctx));
+}
+
 pulsar_result pulsar_client_close(pulsar_client_t *client) { return (pulsar_result)client->client->close(); }
 
 static void handle_client_close(pulsar::Result result, pulsar_close_callback callback, void *ctx) {

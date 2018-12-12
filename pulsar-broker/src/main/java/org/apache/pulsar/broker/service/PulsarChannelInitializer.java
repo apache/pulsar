@@ -55,7 +55,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                     serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
                     serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
                     serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
         } else {

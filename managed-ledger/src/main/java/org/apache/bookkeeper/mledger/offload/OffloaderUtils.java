@@ -114,7 +114,7 @@ public class OffloaderUtils {
 
     public static Offloaders searchForOffloaders(String connectorsDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
-        log.info("Searching for connectors in {}", path);
+        log.info("Searching for offloaders in {}", path);
 
         Offloaders offloaders = new Offloaders();
 
@@ -142,6 +142,7 @@ public class OffloaderUtils {
                 }
             });
         }
+        log.info("Found and loaded {} offloaders", offloaders.getOffloaders().size());
         return offloaders;
     }
 

@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.Accessors;
 
 @Data

@@ -42,7 +42,9 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -351,9 +353,16 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             long sizeLimit = validateSizeString(limitStr);
-            int retentionTimeInMin = validateTimeString(retentionTimeStr);
+            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
 
-            int retentionSizeInMB;
+            final int retentionTimeInMin;
+            if (retentionTimeInSec != -1) {
+                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
+            } else {
+                retentionTimeInMin = -1;
+            }
+
+            final int retentionSizeInMB;
             if (sizeLimit != -1) {
                 retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
             } else {
@@ -461,6 +470,41 @@ public class CmdNamespaces extends CmdBase {
             print(admin.namespaces().getDispatchRate(namespace));
         }
     }
+
+    @Parameters(commandDescription = "Set subscribe-rate per consumer for all topics of the namespace")
+    private class SetSubscribeRate extends CliCommand {
+
+        @Parameter(description = "tenant/namespace/\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--subscribe-rate",
+                "-sr" }, description = "subscribe-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int subscribeRate = -1;
+
+        @Parameter(names = { "--subscribe-rate-period",
+                "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)\n", required = false)
+        private int subscribeRatePeriodSec = 30;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscribeRate(namespace,
+                    new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
+        }
+    }
+
+    @Parameters(commandDescription = "Get configured subscribe-rate per consumer for all topics of the namespace")
+    private class GetSubscribeRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getSubscribeRate(namespace));
+        }
+    }
+
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
     private class SetSuscriptionDispatchRate extends CliCommand {
@@ -865,7 +909,8 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().setOffloadDeleteLag(namespace, validateTimeString(lag), TimeUnit.MINUTES);
+            admin.namespaces().setOffloadDeleteLag(namespace, RelativeTimeUtil.parseRelativeTimeInSeconds(lag),
+                    TimeUnit.SECONDS);
         }
     }
 
@@ -972,6 +1017,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
+
+        jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
+        jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 

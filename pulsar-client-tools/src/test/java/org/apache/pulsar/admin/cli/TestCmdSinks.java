@@ -128,7 +128,6 @@ public class TestCmdSinks {
         sinkConfig.setTenant(TENANT);
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
-        sinkConfig.setAutoAck(true);
 
         sinkConfig.setInputs(INPUTS_LIST);
         sinkConfig.setTopicToSerdeClassName(CUSTOM_SERDE_INPUT_MAP);
@@ -246,28 +245,6 @@ public class TestCmdSinks {
                 CUSTOM_SERDE_INPUT_STRING,
                 null,
                 PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(1);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                null,
                 JAR_FILE_PATH,
                 CPU,
                 RAM,
@@ -472,7 +449,7 @@ public class TestCmdSinks {
         testSinkConfig.setResources(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setResources(new Resources());
+        expectedSinkConfig.setResources(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 

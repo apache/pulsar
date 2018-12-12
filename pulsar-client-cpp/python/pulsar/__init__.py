@@ -211,6 +211,24 @@ class AuthenticationTLS(Authentication):
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
 
+
+class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
+
 class AuthenticationAthenz(Authentication):
     """
     Athenz Authentication implementation
@@ -596,6 +614,21 @@ class Client:
         self._consumers.append(c)
         return c
 
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -778,7 +811,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """

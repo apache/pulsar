@@ -26,7 +26,7 @@ using namespace pulsar;
 
 static int totalMessages = 10;
 static int globalCount = 0;
-static std::string lookupUrl = "pulsar://localhost:8885";
+static std::string lookupUrl = "pulsar://localhost:6650";
 static std::string contentBase = "msg-";
 
 static void messageListenerFunction(Consumer consumer, const Message& msg, Latch& latch) {
@@ -41,7 +41,7 @@ static void messageListenerFunction(Consumer consumer, const Message& msg, Latch
 
 TEST(ZeroQueueSizeTest, testProduceConsume) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/zero-queue-size";
+    std::string topicName = "zero-queue-size";
     std::string subName = "my-sub-name";
 
     Producer producer;
@@ -80,7 +80,7 @@ TEST(ZeroQueueSizeTest, testProduceConsume) {
 
 TEST(ZeroQueueSizeTest, testMessageListener) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/zero-queue-size-listener";
+    std::string topicName = "zero-queue-size-listener";
     std::string subName = "my-sub-name";
 
     Producer producer;

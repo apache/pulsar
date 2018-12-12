@@ -24,7 +24,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
-import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -48,6 +47,8 @@ import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,7 +60,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.metrics.PrometheusMetricsServer;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -135,7 +135,6 @@ class KubernetesRuntime implements Runtime {
                       InstanceConfig instanceConfig,
                       String instanceFile,
                       String extraDependenciesDir,
-                      String prometheusMetricsServerJarFile,
                       String logDirectory,
                       String userCodePkgUrl,
                       String originalCodeFileName,
@@ -300,6 +299,11 @@ class KubernetesRuntime implements Runtime {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
         retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support getting metrics via rest"));
         return retval;
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return RuntimeUtils.getPrometheusMetrics(METRICS_PORT);
     }
 
     @Override
@@ -588,6 +592,7 @@ class KubernetesRuntime implements Runtime {
         requests.put("memory", Quantity.fromString(Long.toString(resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824)));
         requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
+        resourceRequirements.setLimits(requests);
         container.setResources(resourceRequirements);
 
         // set container ports

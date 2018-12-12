@@ -53,7 +53,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -148,7 +147,7 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
-        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
     }
 
@@ -1408,6 +1407,10 @@ public class ServerCnx extends PulsarHandler {
      */
     public State getState() {
         return state;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
     }
 
     public BrokerService getBrokerService() {

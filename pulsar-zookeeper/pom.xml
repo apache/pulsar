@@ -75,19 +75,14 @@
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>com.ea.agentloader</groupId>
-      <artifactId>ea-agent-loader</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
+        <groupId>com.github.m50d</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
-        <version>1.10</version>
+        <version>${aspectj-maven-plugin.version}</version>
         <configuration>
           <complianceLevel>1.8</complianceLevel>
           <source>1.8</source>

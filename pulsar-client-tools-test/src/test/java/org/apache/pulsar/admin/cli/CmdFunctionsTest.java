@@ -18,41 +18,18 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.google.gson.Gson;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.GetFunctionStatus;
-import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
-import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
-import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
-import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
-import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
-import org.testng.annotations.Test;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -60,25 +37,34 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertNull;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.GetFunctionStatus;
+import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
+import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.StateGetter;
+import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.IObjectFactory;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.ObjectFactory;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -205,7 +191,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
-        assertEquals(false, creater.isAutoAck());
+        assertEquals(new Boolean(false), creater.getAutoAck());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
@@ -512,42 +498,26 @@ public class CmdFunctionsTest {
 
     @Test
     public void testStateGetter() throws Exception {
-        String tenant = TEST_NAME + "_tenant";
-        String namespace = TEST_NAME + "_namespace";
-        String fnName = TEST_NAME + "_function";
-
-        mockStatic(StorageClientBuilder.class);
-
-        StorageClientBuilder builder = mock(StorageClientBuilder.class);
-        when(builder.withSettings(any(StorageClientSettings.class))).thenReturn(builder);
-        when(builder.withNamespace(eq(tenant + "_" + namespace))).thenReturn(builder);
-        StorageClient client = mock(StorageClient.class);
-        when(builder.build()).thenReturn(client);
-
-        PowerMockito.when(StorageClientBuilder.class, "newBuilder")
-            .thenReturn(builder);
-
-        Table<ByteBuf, ByteBuf> table = mock(Table.class);
-        when(client.openTable(eq(fnName))).thenReturn(FutureUtils.value(table));
-        AtomicReference<ByteBuf> keyHolder = new AtomicReference<>();
-        doAnswer(invocationOnMock -> {
-            ByteBuf buf = invocationOnMock.getArgumentAt(0, ByteBuf.class);
-            keyHolder.set(buf);
-            return FutureUtils.value(null);
-        }).when(table).getKv(any(ByteBuf.class));
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
+        String key = TEST_NAME + "-key";
 
         cmd.run(new String[] {
             "querystate",
             "--tenant", tenant,
             "--namespace", namespace,
             "--name", fnName,
-            "--key", "test-key",
-            "--storage-service-url", "bk://127.0.0.1:4181"
+            "--key", key
         });
 
-        assertEquals(
-            "test-key",
-            new String(ByteBufUtil.getBytes(keyHolder.get()), UTF_8));
+        StateGetter stateGetter = cmd.getStateGetter();
+
+        assertEquals(tenant, stateGetter.getTenant());
+        assertEquals(namespace, stateGetter.getNamespace());
+        assertEquals(fnName, stateGetter.getFunctionName());
+
+        verify(functions, times(1)).getFunctionState(eq(tenant), eq(namespace), eq(fnName), eq(key));
     }
 
     private static final String fnName = TEST_NAME + "-function";
