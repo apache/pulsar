@@ -58,8 +58,8 @@ public class TransientBlobStoreFactoryTests extends AbstractJCloudBlobStoreFacto
     @Override
     protected Map<String, String> getConfig() {
         Map<String, String> metadata = new HashMap<String,String>();
-        metadata.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "TRANSIENT");
-        metadata.put("bucket", TEST_CONTAINER_NAME);
+        metadata.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
+        metadata.put("managedLedgerOffload.bucket", TEST_CONTAINER_NAME);
         return metadata;
     }
 }

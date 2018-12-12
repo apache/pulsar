@@ -22,11 +22,14 @@ import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
@@ -47,8 +50,27 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     public static final String BLOB_STORE_PROVIDER_KEY = "managedLedgerOffloadDriver";
     public static final String METADATA_FIELD_BUCKET = "bucket";
     public static final String METADATA_FIELD_REGION = "region";
-    public static final String METADATA_FIELD_ENDPOINT = "endpoint";
+    public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
+    public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
+    public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+
     protected static final int MB = 1024 * 1024;
+
+    /*
+     * Previous property names, for backwards-compatibility.
+     */
+    static final String BC_S3_REGION = "s3ManagedLedgerOffloadRegion";
+    static final String BC_S3_BUCKET = "s3ManagedLedgerOffloadBucket";
+    static final String BC_S3_ENDPOINT = "s3ManagedLedgerOffloadServiceEndpoint";
+    static final String BC_S3_MAX_BLOCK_SIZE = "s3ManagedLedgerOffloadMaxBlockSizeInBytes";
+    static final String BC_S3_READ_BUFFER_SIZE = "s3ManagedLedgerOffloadReadBufferSizeInBytes";
+
+    static final String BC_GCS_BUCKET = "gcsManagedLedgerOffloadBucket";
+    static final String BC_GCS_REGION = "gcsManagedLedgerOffloadRegion";
+    static final String BC_GCS_MAX_BLOCK_SIZE = "gcsManagedLedgerOffloadMaxBlockSizeInBytes";
+    static final String BC_GCS_READ_BUFFER_SIZE = "gcsManagedLedgerOffloadReadBufferSizeInBytes";
+
+    static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
 
     public static TieredStorageConfiguration create(Properties props) throws IOException {
         Map<String, String> map = new HashMap<String, String>();
@@ -60,8 +82,8 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return new TieredStorageConfiguration(map);
     }
 
-    public static TieredStorageConfiguration create(Map<String, String> metadata) {
-        return new TieredStorageConfiguration(metadata);
+    public static TieredStorageConfiguration create(Map<String, String> props) {
+        return new TieredStorageConfiguration(props);
     }
 
     private final Map<String, String> configProperties;
@@ -76,8 +98,44 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         }
     }
 
+    public List<String> getKeys(String property) {
+        List<String> keys = new ArrayList<String> ();
+
+        String bc = getBackwardCompatibleKey(property);
+        if (StringUtils.isNotBlank(bc)) {
+            keys.add(bc);
+        }
+
+        String key = getKeyName(property);
+        if (StringUtils.isNotBlank(key)) {
+            keys.add(key);
+        }
+        return keys;
+    }
+
+    private String getKeyName(String property) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(OFFLOADER_PROPERTY_PREFIX)
+          .append(property);
+
+        return sb.toString();
+    }
+
+    private String getBackwardCompatibleKey(String property) {
+        switch (getProvider()) {
+            case S3:
+            case AWS_S3: return new StringBuilder().append("s3ManagedLedgerOffload")
+                                                   .append(StringUtils.capitalize(property))
+                                                   .toString();
+            case GOOGLE_CLOUD_STORAGE: return new StringBuilder().append("gcsManagedLedgerOffload")
+                                                                 .append(StringUtils.capitalize(property))
+                                                                 .toString();
+            default: return null;
+        }
+    }
+
     public String getBlobStoreProviderKey() {
-        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, "aws_s3");
+        return configProperties.getOrDefault(BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
     }
 
     public String getDriver() {
@@ -85,23 +143,38 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     }
 
     public String getRegion() {
-        return configProperties.get(METADATA_FIELD_REGION);
+        for (String key : getKeys(METADATA_FIELD_REGION)) {
+            if (configProperties.containsKey(key)) {
+                return configProperties.get(key);
+            }
+        }
+        return null;
     }
 
     public void setRegion(String s) {
-        configProperties.put(METADATA_FIELD_REGION, s);
+        configProperties.put(getKeyName(METADATA_FIELD_REGION), s);
     }
 
     public String getBucket() {
-        return configProperties.get(METADATA_FIELD_BUCKET);
+        for (String key : getKeys(METADATA_FIELD_BUCKET)) {
+            if (configProperties.containsKey(key)) {
+                return configProperties.get(key);
+            }
+        }
+        return null;
     }
 
     public String getServiceEndpoint() {
-        return configProperties.get(METADATA_FIELD_ENDPOINT);
+        for (String key : getKeys(METADATA_FIELD_ENDPOINT)) {
+            if (configProperties.containsKey(key)) {
+                return configProperties.get(key);
+            }
+        }
+        return null;
     }
 
     public void setServiceEndpoint(String s) {
-        configProperties.put(METADATA_FIELD_ENDPOINT, s);
+        configProperties.put(getKeyName(METADATA_FIELD_ENDPOINT), s);
     }
 
     /**
@@ -128,11 +201,21 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     }
 
     public Integer getMaxBlockSizeInBytes() {
-        return Integer.valueOf(configProperties.getOrDefault("maxBlockSizeInBytes", new Integer(64 * MB).toString()));
+        for (String key : getKeys(METADATA_FIELD_MAX_BLOCK_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return new Integer(64 * MB);
     }
 
     public Integer getReadBufferSizeInBytes() {
-        return Integer.valueOf(configProperties.getOrDefault("readBufferSizeInBytes", new Integer(MB).toString()));
+        for (String key : getKeys(METADATA_FIELD_READ_BUFFER_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return new Integer(MB);
     }
 
     public Credentials getProviderCredentials() {

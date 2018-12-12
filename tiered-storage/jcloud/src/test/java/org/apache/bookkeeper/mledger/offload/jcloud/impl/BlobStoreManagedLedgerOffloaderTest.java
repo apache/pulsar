@@ -25,6 +25,7 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -84,7 +85,10 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         super();
         config = getConfiguration(BUCKET);
-        blobStore = getBlobStoreProvider().getBlobStore(config);
+        JCloudBlobStoreProvider provider = getBlobStoreProvider();
+        assertNotNull(provider);
+        provider.validate(config);
+        blobStore = provider.getBlobStore(config);
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader() throws IOException {

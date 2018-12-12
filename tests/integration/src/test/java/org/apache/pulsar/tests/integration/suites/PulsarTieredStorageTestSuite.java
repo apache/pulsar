@@ -58,8 +58,8 @@ public class PulsarTieredStorageTestSuite extends PulsarClusterTestBase implemen
             brokerContainer.withEnv("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
             brokerContainer.withEnv("managedLedgerMinLedgerRolloverTimeMinutes", "0");
             brokerContainer.withEnv("managedLedgerOffloadDriver", "s3");
-            brokerContainer.withEnv("bucket", "pulsar-integtest");
-            brokerContainer.withEnv("endpoint", "http://" + S3Container.NAME + ":9090");
+            brokerContainer.withEnv("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
+            brokerContainer.withEnv("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
         }
 
         pulsarCluster.start();

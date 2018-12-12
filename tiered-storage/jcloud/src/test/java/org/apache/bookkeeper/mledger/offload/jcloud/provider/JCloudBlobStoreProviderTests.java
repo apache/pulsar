@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import static org.testng.Assert.assertEquals;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,9 +35,9 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationSuccessTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
-        map.put("region", "us-east-1");
-        map.put("bucket", "test bucket");
-        map.put("maxBlockSizeInBytes", "99999999");
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -44,8 +46,8 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationDefaultBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
-        map.put("region", "us-east-1");
-        map.put("bucket", "test bucket");
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -55,8 +57,8 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationMissingRegionTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
-        map.put("bucket", "my-bucket");
-        map.put("maxBlockSizeInBytes", "999999");
+        map.put("managedLedgerOffload.bucket", "my-bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "999999");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -66,9 +68,10 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationMissingBucketTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
-        map.put("region", "us-east-1");
-        map.put("maxBlockSizeInBytes", "99999999");
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
         config = new TieredStorageConfiguration(map);
+        assertEquals(config.getRegion(), "us-east-1");
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
     
@@ -78,9 +81,9 @@ public class JCloudBlobStoreProviderTests {
     public void awsValidationBlockSizeTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.name());
-        map.put("region", "us-east-1");
-        map.put("bucket", "test bucket");
-        map.put("maxBlockSizeInBytes", "1");
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
@@ -89,7 +92,7 @@ public class JCloudBlobStoreProviderTests {
     public void transientValidationSuccessTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
-        map.put("bucket", "test bucket");
+        map.put("managedLedgerOffload.bucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
     }

@@ -62,7 +62,10 @@ import org.jclouds.providers.ProviderMetadata;
  *   - providers=[aws-s3, azureblob, b2, google-cloud-storage, rackspace-cloudfiles-us, rackspace-cloudfiles-uk]
  *   - apis=[s3, sts, transient, atmos, openstack-swift, openstack-keystone, openstack-keystone-3,
  *           rackspace-cloudfiles, rackspace-cloudidentity, filesystem]
- * </p>
+ *
+ * Note: The driver name associated with each Enum MUST match one of the above vaules, as it is used to instantiate the
+ * org.jclouds.ContextBuilder used to create the BlobStore.
+ *</p>
  */
 @Slf4j
 public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, BlobStoreBuilder, CredentialBuilder  {
@@ -166,7 +169,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
-            BlobStore bs = ContextBuilder.newBuilder(config.getDriver().toLowerCase())
+            BlobStore bs = ContextBuilder.newBuilder(this.getDriver())
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
 
@@ -218,7 +221,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     static final ConfigValidation VALIDATION = (TieredStorageConfiguration config) -> {
         if (Strings.isNullOrEmpty(config.getRegion()) && Strings.isNullOrEmpty(config.getServiceEndpoint())) {
             throw new IllegalArgumentException(
-                    "Either Region or ServiceEndpoint must specified for " + config.getDriver() + " offload");
+                "Either Region or ServiceEndpoint must specified for " + config.getDriver() + " offload");
         }
 
         if (Strings.isNullOrEmpty(config.getBucket())) {

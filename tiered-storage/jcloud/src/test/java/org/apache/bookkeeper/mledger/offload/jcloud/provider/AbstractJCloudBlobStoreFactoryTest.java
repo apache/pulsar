@@ -60,6 +60,7 @@ public abstract class AbstractJCloudBlobStoreFactoryTest {
     @BeforeTest
     protected final void init() throws Exception {
         config =  TieredStorageConfiguration.create(getConfig());
+        config.getProvider().validate(config);
         blobStore = config.getBlobStore();
     }
     

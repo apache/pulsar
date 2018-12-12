@@ -122,10 +122,10 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     
     protected TieredStorageConfiguration getConfiguration(String bucket) {
         Map<String, String> metaData = new HashMap<String, String> ();
-        metaData.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, provider.name());
-        metaData.put(TieredStorageConfiguration.METADATA_FIELD_REGION, "");
-        metaData.put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, bucket);
-        metaData.put(TieredStorageConfiguration.METADATA_FIELD_ENDPOINT, "");
+        metaData.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, provider.getDriver());
+        metaData.put("managedLedgerOffload." + TieredStorageConfiguration.METADATA_FIELD_REGION, "");
+        metaData.put("managedLedgerOffload." + TieredStorageConfiguration.METADATA_FIELD_BUCKET, bucket);
+        metaData.put("managedLedgerOffload." + TieredStorageConfiguration.METADATA_FIELD_ENDPOINT, "");
         
         TieredStorageConfiguration config = TieredStorageConfiguration.create(metaData);
         config.setProviderCredentials(getBlobStoreCredentials());
