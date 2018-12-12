@@ -31,7 +31,7 @@ public class NettyTcpServerTest {
 
     @Test
     public void testNettyTcpServerConstructor() {
-        NettyTcpServer<String> nettyTcpServer = new NettyTcpServer.Builder<String>()
+        NettyTcpServer nettyTcpServer = new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(10999)
                 .setNumberOfThreads(2)
@@ -51,7 +51,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenHostIsNotSet() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setPort(10999)
                 .setNumberOfThreads(2)
                 .setNettyTcpSource(new NettyTcpSource())
@@ -60,7 +60,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenPortIsNotSet() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setNumberOfThreads(2)
                 .setNettyTcpSource(new NettyTcpSource())
@@ -70,7 +70,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenNumberOfThreadsIsNotSet() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(10999)
                 .setNettyTcpSource(new NettyTcpSource())
@@ -80,7 +80,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = NullPointerException.class)
     public void testNettyTcpServerConstructorWhenNettyTcpSourceIsNotSet() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(10999)
                 .setNumberOfThreads(2)
@@ -89,7 +89,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenHostIsSetAsBlank() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost(" ")
                 .setPort(10999)
                 .setNumberOfThreads(2)
@@ -99,7 +99,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetAsZero() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(0)
                 .setNumberOfThreads(2)
@@ -109,7 +109,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetLowerThan1024() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(1022)
                 .setNumberOfThreads(2)
@@ -119,7 +119,7 @@ public class NettyTcpServerTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenNumberOfThreadsIsSetAsZero() {
-        new NettyTcpServer.Builder<String>()
+        new NettyTcpServer.Builder()
                 .setHost("localhost")
                 .setPort(10999)
                 .setNumberOfThreads(0)

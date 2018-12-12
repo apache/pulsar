@@ -35,7 +35,7 @@ import java.util.Map;
         configClass = NettyTcpSourceConfig.class)
 public class NettyTcpSource extends PushSource<byte[]> {
 
-    private NettyTcpServer<String> nettyTcpServer;
+    private NettyTcpServer nettyTcpServer;
     private Thread thread;
 
     @Override
@@ -63,7 +63,7 @@ public class NettyTcpSource extends PushSource<byte[]> {
 
         @Override
         public void run() {
-            nettyTcpServer = new NettyTcpServer.Builder<String>()
+            nettyTcpServer = new NettyTcpServer.Builder()
                 .setHost(nettyTcpSourceConfig.getHost())
                 .setPort(nettyTcpSourceConfig.getPort())
                 .setNumberOfThreads(nettyTcpSourceConfig.getNumberOfThreads())

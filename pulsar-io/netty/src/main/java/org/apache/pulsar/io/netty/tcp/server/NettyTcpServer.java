@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Netty Tcp Server to accept any incoming data through Tcp.
  */
-public class NettyTcpServer<T> {
+public class NettyTcpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyTcpServer.class);
 
@@ -44,7 +44,7 @@ public class NettyTcpServer<T> {
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
 
-    private NettyTcpServer(Builder<T> builder) {
+    private NettyTcpServer(Builder builder) {
         this.host = builder.host;
         this.port = builder.port;
         this.nettyTcpSource = builder.nettyTcpSource;
@@ -82,41 +82,41 @@ public class NettyTcpServer<T> {
     /**
      * Pulsar Tcp Server Builder.
      */
-    public static class Builder<T> {
+    public static class Builder {
 
         private String host;
         private int port;
         private NettyTcpSource nettyTcpSource;
         private int numberOfThreads;
 
-        public Builder<T> setHost(String host) {
+        public Builder setHost(String host) {
             this.host = host;
             return this;
         }
 
-        public Builder<T> setPort(int port) {
+        public Builder setPort(int port) {
             this.port = port;
             return this;
         }
 
-        public Builder<T> setNettyTcpSource(NettyTcpSource nettyTcpSource) {
+        public Builder setNettyTcpSource(NettyTcpSource nettyTcpSource) {
             this.nettyTcpSource = nettyTcpSource;
             return this;
         }
 
-        public Builder<T> setNumberOfThreads(int numberOfThreads) {
+        public Builder setNumberOfThreads(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
             return this;
         }
 
-        public NettyTcpServer<T> build() {
+        public NettyTcpServer build() {
             Preconditions.checkArgument(StringUtils.isNotBlank(host), "host cannot be blank/null");
             Preconditions.checkArgument(this.port >= 1024, "port must be set equal or bigger than 1024");
             Preconditions.checkNotNull(this.nettyTcpSource, "nettyTcpSource must be set");
             Preconditions.checkArgument(this.numberOfThreads > 0,
                     "numberOfThreads must be set as positive");
 
-            return new NettyTcpServer<>(this);
+            return new NettyTcpServer(this);
         }
     }
 
