@@ -165,6 +165,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |bookkeeperClientHealthCheckErrorThresholdPerInterval||5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800|
 |bookkeeperClientRackawarePolicyEnabled|  Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble  |true|
+|bookkeeperClientRegionawarePolicyEnabled|  Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored  |false|
+|bookkeeperClientReorderReadSequenceEnabled|  Enable/disable reordering read sequence on reading entries.  |false|
 |bookkeeperClientIsolationGroups| Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker  ||
 |managedLedgerDefaultEnsembleSize|  Number of bookies to use when creating a ledger |2|
 |managedLedgerDefaultWriteQuorum| Number of copies to store for each message  |2|
@@ -337,6 +339,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
+|bookkeeperClientRegionawarePolicyEnabled|    |false|
+|bookkeeperClientReorderReadSequenceEnabled|    |false|
 |bookkeeperClientIsolationGroups|||   
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|

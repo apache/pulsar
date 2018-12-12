@@ -310,6 +310,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable rack-aware bookie selection policy. BK will chose bookies from
     // different racks when forming a new bookie ensemble
     private boolean bookkeeperClientRackawarePolicyEnabled = true;
+    // Enable region-aware bookie selection policy. BK will chose bookies from
+    // different regions and racks when forming a new bookie ensemble
+    private boolean bookkeeperClientRegionawarePolicyEnabled = false;
+    // Enable/disable reordering read sequence on reading entries.
+    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     // Enable bookie isolation by specifying a list of bookie groups to choose
     // from. Any bookie outside the specified groups will not be used by the
     // broker
