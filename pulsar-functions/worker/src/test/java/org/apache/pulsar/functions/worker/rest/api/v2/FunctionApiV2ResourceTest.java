@@ -69,6 +69,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.ComponentImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -176,7 +177,7 @@ public class FunctionApiV2ResourceTest {
     // Register Functions
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testRegisterFunctionMissingTenant() throws IOException {
         testRegisterFunctionMissingArguments(
             null,
@@ -193,7 +194,7 @@ public class FunctionApiV2ResourceTest {
                 "Tenant is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testRegisterFunctionMissingNamespace() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -210,7 +211,7 @@ public class FunctionApiV2ResourceTest {
                 "Namespace is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
     public void testRegisterFunctionMissingFunctionName() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -227,7 +228,7 @@ public class FunctionApiV2ResourceTest {
                 "Function Name is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
     public void testRegisterFunctionMissingPackage() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -244,7 +245,7 @@ public class FunctionApiV2ResourceTest {
                 "Function Package is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "No input topic\\(s\\) specified for the function")
     public void testRegisterFunctionMissingInputTopics() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -261,7 +262,7 @@ public class FunctionApiV2ResourceTest {
                 "No input topic(s) specified for the function");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
     public void testRegisterFunctionMissingPackageDetails() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -278,7 +279,7 @@ public class FunctionApiV2ResourceTest {
                 "Function Package is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
     public void testRegisterFunctionMissingClassName() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -295,7 +296,7 @@ public class FunctionApiV2ResourceTest {
                 "Function classname cannot be null");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class must be in class path")
     public void testRegisterFunctionWrongClassName() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -312,7 +313,7 @@ public class FunctionApiV2ResourceTest {
                 "User class must be in class path");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function parallelism should positive number")
     public void testRegisterFunctionWrongParallelism() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -329,7 +330,7 @@ public class FunctionApiV2ResourceTest {
                 "Function parallelism should positive number");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic persistent://sample/standalone/ns1/test_src is also being used as an input topic \\(topics must be one or the other\\)")
     public void testRegisterFunctionSameInputOutput() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -347,7 +348,7 @@ public class FunctionApiV2ResourceTest {
                         + " is also being used as an input topic (topics must be one or the other)");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function + "-output-topic/test:" + " is invalid")
     public void testRegisterFunctionWrongOutputTopic() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -364,7 +365,7 @@ public class FunctionApiV2ResourceTest {
                 "Output topic " + function + "-output-topic/test:" + " is invalid");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Corrupted Jar File")
     public void testRegisterFunctionHttpUrl() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
@@ -448,7 +449,7 @@ public class FunctionApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
     public void testRegisterExistedFunction() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
@@ -457,7 +458,7 @@ public class FunctionApiV2ResourceTest {
         registerDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -491,19 +492,19 @@ public class FunctionApiV2ResourceTest {
         registerDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
     public void testRegisterFunctionNonexistantNamespace() throws Exception {
         this.namespaceList.clear();
         registerDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
     public void testRegisterFunctionNonexistantTenant() throws Exception {
         when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
         registerDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -523,7 +524,7 @@ public class FunctionApiV2ResourceTest {
         registerDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -545,7 +546,7 @@ public class FunctionApiV2ResourceTest {
     // Update Functions
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testUpdateFunctionMissingTenant() throws IOException {
         testUpdateFunctionMissingArguments(
             null,
@@ -561,7 +562,7 @@ public class FunctionApiV2ResourceTest {
                 "Tenant is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testUpdateFunctionMissingNamespace() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -577,7 +578,7 @@ public class FunctionApiV2ResourceTest {
                 "Namespace is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
     public void testUpdateFunctionMissingFunctionName() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -593,7 +594,7 @@ public class FunctionApiV2ResourceTest {
                 "Function Name is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -612,7 +613,7 @@ public class FunctionApiV2ResourceTest {
                 "Update contains no change");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingInputTopic() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -631,7 +632,7 @@ public class FunctionApiV2ResourceTest {
                 "Update contains no change");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -669,7 +670,7 @@ public class FunctionApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
     public void testUpdateFunctionChangedInputs() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -688,7 +689,7 @@ public class FunctionApiV2ResourceTest {
                 "Output topics differ");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -795,14 +796,14 @@ public class FunctionApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
     public void testUpdateNotExistedFunction() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         updateDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -874,7 +875,7 @@ public class FunctionApiV2ResourceTest {
 
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -894,7 +895,7 @@ public class FunctionApiV2ResourceTest {
         updateDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -916,7 +917,7 @@ public class FunctionApiV2ResourceTest {
     // deregister function
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testDeregisterFunctionMissingTenant() throws Exception {
         testDeregisterFunctionMissingArguments(
             null,
@@ -925,7 +926,7 @@ public class FunctionApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testDeregisterFunctionMissingNamespace() throws Exception {
         testDeregisterFunctionMissingArguments(
             tenant,
@@ -934,7 +935,7 @@ public class FunctionApiV2ResourceTest {
             "Namespace");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
     public void testDeregisterFunctionMissingFunctionName() throws Exception {
         testDeregisterFunctionMissingArguments(
             tenant,
@@ -965,7 +966,7 @@ public class FunctionApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
     public void testDeregisterNotExistedFunction() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
         deregisterDefaultFunction();
@@ -984,7 +985,7 @@ public class FunctionApiV2ResourceTest {
         deregisterDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to deregister")
     public void testDeregisterFunctionFailure() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -997,7 +998,7 @@ public class FunctionApiV2ResourceTest {
         deregisterDefaultFunction();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
     public void testDeregisterFunctionInterrupted() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1012,7 +1013,7 @@ public class FunctionApiV2ResourceTest {
     // Get Function Info
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testGetFunctionMissingTenant() throws Exception {
         testGetFunctionMissingArguments(
             null,
@@ -1021,7 +1022,7 @@ public class FunctionApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testGetFunctionMissingNamespace() throws Exception {
         testGetFunctionMissingArguments(
             tenant,
@@ -1030,7 +1031,7 @@ public class FunctionApiV2ResourceTest {
             "Namespace");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
     public void testGetFunctionMissingFunctionName() throws Exception {
         testGetFunctionMissingArguments(
             tenant,
@@ -1061,7 +1062,7 @@ public class FunctionApiV2ResourceTest {
         );
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
     public void testGetNotExistedFunction() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
         getDefaultFunctionInfo();
@@ -1094,7 +1095,7 @@ public class FunctionApiV2ResourceTest {
 
         FunctionConfig functionConfig = getDefaultFunctionInfo();
         assertEquals(
-                new Gson().toJson(FunctionConfigUtils.convertFromDetails(functionDetails)),
+                FunctionConfigUtils.convertFromDetails(functionDetails),
                 functionConfig);
     }
 
@@ -1102,7 +1103,7 @@ public class FunctionApiV2ResourceTest {
     // List Functions
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testListFunctionsMissingTenant() throws Exception {
         testListFunctionsMissingArguments(
             null,
@@ -1110,7 +1111,7 @@ public class FunctionApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testListFunctionsMissingNamespace() throws Exception {
         testListFunctionsMissingArguments(
             tenant,
@@ -1139,8 +1140,8 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testListFunctionsSuccess() throws Exception {
-        List<String> functions = Lists.newArrayList("test-1", "test-2");
-        List<FunctionMetaData> metaDataList = new LinkedList<>();
+        final List<String> functions = Lists.newArrayList("test-1", "test-2");
+        final List<FunctionMetaData> metaDataList = new LinkedList<>();
         FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
                 FunctionDetails.newBuilder().setName("test-1").build()
         ).build();
@@ -1152,7 +1153,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(metaDataList);
 
         List<String> functionList = listDefaultFunctions();
-        assertEquals(new Gson().toJson(functions), functionList);
+        assertEquals(functions, functionList);
     }
 
     @Test
@@ -1174,7 +1175,7 @@ public class FunctionApiV2ResourceTest {
         doReturn(ComponentImpl.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> functionList = listDefaultFunctions();
-        assertEquals(new Gson().toJson(functions), functionList);
+        assertEquals(functions, functionList);
     }
 
     @Test
@@ -1197,7 +1198,7 @@ public class FunctionApiV2ResourceTest {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImpl function = new FunctionsImpl(null);
-        StreamingOutput streamOutput = function.downloadFunction("file://"+fileLocation);
+        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);

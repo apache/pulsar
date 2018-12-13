@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.ComponentImpl;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
@@ -166,7 +167,7 @@ public class SourceApiV2ResourceTest {
     // Register Functions
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testRegisterSourceMissingTenant() throws IOException {
         testRegisterSourceMissingArguments(
             null,
@@ -182,7 +183,7 @@ public class SourceApiV2ResourceTest {
                 "Tenant is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testRegisterSourceMissingNamespace() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
@@ -198,7 +199,7 @@ public class SourceApiV2ResourceTest {
                 "Namespace is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
     public void testRegisterSourceMissingSourceName() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
@@ -214,7 +215,7 @@ public class SourceApiV2ResourceTest {
                 "Source Name is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
     public void testRegisterSourceMissingPackage() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
@@ -230,7 +231,7 @@ public class SourceApiV2ResourceTest {
                 "Source Package is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
     public void testRegisterSourceMissingPackageDetails() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
@@ -246,7 +247,7 @@ public class SourceApiV2ResourceTest {
                 "Source Package is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
         testRegisterSourceMissingArguments(
@@ -263,7 +264,7 @@ public class SourceApiV2ResourceTest {
                 "Failed to extract source class from archive");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
     public void testRegisterSourceNoOutputTopic() throws IOException {
         FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
         testRegisterSourceMissingArguments(
@@ -280,7 +281,7 @@ public class SourceApiV2ResourceTest {
                 "Topic name cannot be null");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Jar")
     public void testRegisterSourceHttpUrl() throws IOException {
         testRegisterSourceMissingArguments(
                 tenant,
@@ -358,7 +359,7 @@ public class SourceApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already exists")
     public void testRegisterExistedSource() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
@@ -367,7 +368,7 @@ public class SourceApiV2ResourceTest {
         registerDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSourceUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -381,7 +382,6 @@ public class SourceApiV2ResourceTest {
         registerDefaultSource();
     }
 
-    @Test
     public void testRegisterSourceSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -443,7 +443,7 @@ public class SourceApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testRegisterSourceFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -463,7 +463,7 @@ public class SourceApiV2ResourceTest {
         registerDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -485,7 +485,7 @@ public class SourceApiV2ResourceTest {
     // Update Functions
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testUpdateSourceMissingTenant() throws IOException {
         testUpdateSourceMissingArguments(
             null,
@@ -500,7 +500,7 @@ public class SourceApiV2ResourceTest {
                 "Tenant is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testUpdateSourceMissingNamespace() throws IOException {
         testUpdateSourceMissingArguments(
             tenant,
@@ -515,7 +515,7 @@ public class SourceApiV2ResourceTest {
                 "Namespace is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
     public void testUpdateSourceMissingFunctionName() throws IOException {
         testUpdateSourceMissingArguments(
             tenant,
@@ -530,7 +530,7 @@ public class SourceApiV2ResourceTest {
                 "Source Name is not provided");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingPackage() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -549,7 +549,7 @@ public class SourceApiV2ResourceTest {
                 "Update contains no change");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingTopicName() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -568,7 +568,7 @@ public class SourceApiV2ResourceTest {
                 "Update contains no change");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceNegativeParallelism() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -606,7 +606,7 @@ public class SourceApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
     public void testUpdateSourceChangedTopic() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -625,7 +625,7 @@ public class SourceApiV2ResourceTest {
                 "Destination topics differ");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceZeroParallelism() throws IOException {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -752,14 +752,14 @@ public class SourceApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
     public void testUpdateNotExistedSource() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
         updateDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSourceUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -843,7 +843,7 @@ public class SourceApiV2ResourceTest {
 
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testUpdateSourceFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -863,7 +863,7 @@ public class SourceApiV2ResourceTest {
         updateDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -885,7 +885,7 @@ public class SourceApiV2ResourceTest {
     // deregister source
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testDeregisterSourceMissingTenant() throws Exception {
         testDeregisterSourceMissingArguments(
             null,
@@ -894,7 +894,7 @@ public class SourceApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testDeregisterSourceMissingNamespace() throws Exception {
         testDeregisterSourceMissingArguments(
             tenant,
@@ -903,7 +903,7 @@ public class SourceApiV2ResourceTest {
             "Namespace");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
     public void testDeregisterSourceMissingFunctionName() throws Exception {
         testDeregisterSourceMissingArguments(
             tenant,
@@ -934,10 +934,9 @@ public class SourceApiV2ResourceTest {
                 null);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp= "Source test-source doesn't exist")
     public void testDeregisterNotExistedSource() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
-
         deregisterDefaultSource();
     }
 
@@ -954,7 +953,7 @@ public class SourceApiV2ResourceTest {
         deregisterDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to deregister")
     public void testDeregisterSourceFailure() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -967,7 +966,7 @@ public class SourceApiV2ResourceTest {
         deregisterDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
     public void testDeregisterSourceInterrupted() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -982,7 +981,7 @@ public class SourceApiV2ResourceTest {
     // Get Source Info
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testGetSourceMissingTenant() throws Exception {
         testGetSourceMissingArguments(
             null,
@@ -991,7 +990,7 @@ public class SourceApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testGetSourceMissingNamespace() throws Exception {
         testGetSourceMissingArguments(
             tenant,
@@ -1000,7 +999,7 @@ public class SourceApiV2ResourceTest {
             "Namespace");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
     public void testGetSourceMissingFunctionName() throws Exception {
         testGetSourceMissingArguments(
             tenant,
@@ -1030,7 +1029,7 @@ public class SourceApiV2ResourceTest {
         );
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
     public void testGetNotExistedSource() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
         getDefaultSourceInfo();
@@ -1064,16 +1063,14 @@ public class SourceApiV2ResourceTest {
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(metaData);
 
         SourceConfig config = getDefaultSourceInfo();
-        assertEquals(
-            new Gson().toJson(SourceConfigUtils.convertFromDetails(functionDetails)),
-                config);
+        assertEquals(SourceConfigUtils.convertFromDetails(functionDetails), config);
     }
 
     //
     // List Sources
     //
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testListSourcesMissingTenant() throws Exception {
         testListSourcesMissingArguments(
             null,
@@ -1081,7 +1078,7 @@ public class SourceApiV2ResourceTest {
             "Tenant");
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testListSourcesMissingNamespace() throws Exception {
         testListSourcesMissingArguments(
             tenant,
@@ -1108,8 +1105,8 @@ public class SourceApiV2ResourceTest {
 
     @Test
     public void testListSourcesSuccess() throws Exception {
-        List<String> functions = Lists.newArrayList("test-1", "test-2");
-        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        final List<String> functions = Lists.newArrayList("test-1", "test-2");
+        final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
                 FunctionDetails.newBuilder().setName("test-1").build()
         ).build());
@@ -1119,13 +1116,13 @@ public class SourceApiV2ResourceTest {
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
 
         List<String> sourceList = listDefaultSources();
-        assertEquals(new Gson().toJson(functions), sourceList);
+        assertEquals(functions, sourceList);
     }
 
     @Test
     public void testOnlyGetSources() throws Exception {
-        List<String> functions = Lists.newArrayList("test-1");
-        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        final List<String> functions = Lists.newArrayList("test-1");
+        final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
                 FunctionDetails.newBuilder().setName("test-1").build()).build();
         functionMetaDataList.add(f1);
@@ -1141,16 +1138,16 @@ public class SourceApiV2ResourceTest {
         doReturn(ComponentImpl.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> sourceList = listDefaultSources();
-        assertEquals(new Gson().toJson(functions), sourceList);
+        assertEquals(functions, sourceList);
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
     public void testRegisterFunctionNonexistantNamespace() throws Exception {
         this.namespaceList.clear();
         registerDefaultSource();
     }
 
-    @Test
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
     public void testRegisterFunctionNonexistantTenant() throws Exception {
         when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
         registerDefaultSource();
