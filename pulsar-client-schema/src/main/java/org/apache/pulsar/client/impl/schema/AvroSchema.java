@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -47,8 +46,8 @@ public class AvroSchema<T> implements Schema<T> {
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
 
-    private static final FastThreadLocal<BinaryDecoder> decoders =
-            new FastThreadLocal<>();
+    private static final ThreadLocal<BinaryDecoder> decoders =
+            new ThreadLocal<>();
 
     private AvroSchema(org.apache.avro.Schema schema,
                        Map<String, String> properties) {

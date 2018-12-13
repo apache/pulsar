@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
@@ -46,15 +45,12 @@ public class JSONSchema<T> implements Schema<T>{
 
     // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
     // return shaded version of object mapper
-    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-            return mapper;
-        }
-    };
+    private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        return mapper;
+    });
 
     private final ObjectMapper objectMapper;
 
