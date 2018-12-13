@@ -27,14 +27,20 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
+import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerService;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import java.io.*;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -118,11 +124,11 @@ public class WorkerImpl {
                 .build();
     }
 
-    public boolean isSuperUser(String clientRole) {
+    public boolean isSuperUser(final String clientRole) {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
     }
 
-    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(String clientRole) throws IOException {
+    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(final String clientRole) {
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
             throw new WebApplicationException(Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
@@ -135,12 +141,12 @@ public class WorkerImpl {
         if (!isWorkerServiceAvailable()) {
             throw new WebApplicationException(
                     Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+                            .entity(new ErrorData("Function worker service is not available")).build());
         }
         return worker().getMetricsGenerator().generate();
     }
 
-    public Response getFunctionsMetrics(String clientRole) throws IOException {
+    public Response getFunctionsMetrics(final String clientRole) {
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
             return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
@@ -156,7 +162,7 @@ public class WorkerImpl {
         public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData metrics;
     }
 
-    private Response getFunctionsMetrics() throws IOException {
+    private Response getFunctionsMetrics() {
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
@@ -171,7 +177,8 @@ public class WorkerImpl {
             String fullyQualifiedInstanceName = entry.getKey();
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
-            FunctionStats.FunctionInstanceStats functionInstanceStats = Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo);
+            FunctionStats.FunctionInstanceStats functionInstanceStats =
+                    Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo);
 
             WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
             workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
