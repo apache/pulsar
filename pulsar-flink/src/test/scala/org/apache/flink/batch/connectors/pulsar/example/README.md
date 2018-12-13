@@ -35,7 +35,7 @@ dependencies {
 # PulsarOutputFormat
 ### Usage
 
-Please find Scala sample usage as follows:
+Please find Scala sample usage of `PulsarOutputFormat` as follows:
 
 ```scala
       /**
@@ -117,7 +117,7 @@ In this example, Flink DataSet is processed as word-count and being written to P
 # PulsarCsvOutputFormat
 ### Usage
 
-Please find Scala sample usage as follows:
+Please find Scala sample usage of `PulsarCsvOutputFormat` as follows:
 
 ```scala
       /**
@@ -189,7 +189,7 @@ In this example, Flink DataSet is processed and written to Pulsar in Csv format.
 # PulsarJsonOutputFormat
 ### Usage
 
-Please find Scala sample usage as follows:
+Please find Scala sample usage of `PulsarJsonOutputFormat` as follows:
 
 ```scala
       /**
@@ -246,7 +246,7 @@ Please find Scala sample usage as follows:
       }
 ```
 
-**Note:** Property definitions of the model should cover `@BeanProperty` to be visible
+**Note:** Property definitions of the model should cover `@BeanProperty` to be visible.
 
 ### Sample Output
 
