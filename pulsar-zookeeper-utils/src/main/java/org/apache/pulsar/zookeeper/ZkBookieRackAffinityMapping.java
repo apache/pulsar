@@ -64,10 +64,29 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         bookieMappingCache = getAndSetZkCache(conf);
 
         try {
-            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElse(new BookiesRackConfiguration());
+            BookiesRackConfiguration racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElse(new BookiesRackConfiguration());
+            updateRacksWithHost(racks);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void updateRacksWithHost(BookiesRackConfiguration racks) {
+        // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
+        // for just the IP/hostname when trying to get the rack for a bookie.
+        // To work around this issue, we insert in the map the bookie ip/hostname with same rack-info
+        BookiesRackConfiguration newRacksWithHost = new BookiesRackConfiguration();
+        racks.forEach((group, bookies) ->
+                bookies.forEach((addr, bi) -> {
+                    try {
+                        BookieSocketAddress bsa = new BookieSocketAddress(addr);
+                        newRacksWithHost.updateBookie(group, bsa.getHostName(), bi);
+                    } catch (UnknownHostException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+        );
+        racksWithHost = newRacksWithHost;
     }
 
     private ZooKeeperDataCache<BookiesRackConfiguration> getAndSetZkCache(Configuration conf) {
@@ -95,15 +114,13 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
         ZooKeeperDataCache<BookiesRackConfiguration> zkDataCache = getZkBookieRackMappingCache(
                 zkCache);
-        if (zkDataCache != null) {
-            zkDataCache.registerListener(this);
-        }
+        zkDataCache.registerListener(this);
         return zkDataCache;
     }
 
     private ZooKeeperDataCache<BookiesRackConfiguration> getZkBookieRackMappingCache(
             ZooKeeperCache zkCache) {
-        ZooKeeperDataCache<BookiesRackConfiguration> zkDataCache = new ZooKeeperDataCache<BookiesRackConfiguration>(
+        return new ZooKeeperDataCache<BookiesRackConfiguration>(
                 zkCache) {
 
             @Override
@@ -114,33 +131,16 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     LOG.debug("Loading the bookie mappings with bookie info data: {}", new String(content));
                 }
                 BookiesRackConfiguration racks = jsonMapper.readValue(content, BookiesRackConfiguration.class);
-
-                // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
-                // for just the IP/hostname when trying to get the rack for a bookie.
-                // To work around this issue, we also insert in the map the bookie ip/hostname with same rack-info
-                BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
-                racks.forEach((group, bookies) -> {
-                    bookies.forEach((addr, bi) -> {
-                        try {
-                            BookieSocketAddress bsa = new BookieSocketAddress(addr);
-                            racksWithHost.updateBookie(group, bsa.getHostName(), bi);
-                        } catch (UnknownHostException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
-                });
-
-                ZkBookieRackAffinityMapping.this.racksWithHost = racksWithHost;
+                updateRacksWithHost(racks);
                 return racks;
             }
 
         };
-        return zkDataCache;
     }
 
     @Override
     public List<String> resolve(List<String> bookieAddressList) {
-        List<String> racks = new ArrayList<String>(bookieAddressList.size());
+        List<String> racks = new ArrayList<>(bookieAddressList.size());
         for (String bookieAddress : bookieAddressList) {
             racks.add(getRack(bookieAddress));
         }
