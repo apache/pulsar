@@ -34,16 +34,18 @@ import static org.junit.Assert.assertNotNull;
  */
 public class NettyTcpSourceConfigTest {
 
+    private static final String LOCALHOST = "127.0.0.1";
+
     @Test
     public void testNettyTcpConfigLoadWithMap() throws IOException {
         Map<String, Object> map = new HashMap<>();
-        map.put("host", "localhost");
+        map.put("host", LOCALHOST);
         map.put("port", 10999);
         map.put("numberOfThreads", 1);
 
         NettyTcpSourceConfig nettyTcpSourceConfig = NettyTcpSourceConfig.load(map);
         assertNotNull(nettyTcpSourceConfig);
-        assertEquals("localhost", nettyTcpSourceConfig.getHost());
+        assertEquals(LOCALHOST, nettyTcpSourceConfig.getHost());
         assertEquals(10999, nettyTcpSourceConfig.getPort());
         assertEquals(1, nettyTcpSourceConfig.getNumberOfThreads());
     }
@@ -61,7 +63,7 @@ public class NettyTcpSourceConfigTest {
         File yamlFile = getFile("nettyTcpSourceConfig.yaml");
         NettyTcpSourceConfig nettyTcpSourceConfig = NettyTcpSourceConfig.load(yamlFile.getAbsolutePath());
         assertNotNull(nettyTcpSourceConfig);
-        assertEquals("localhost", nettyTcpSourceConfig.getHost());
+        assertEquals(LOCALHOST, nettyTcpSourceConfig.getHost());
         assertEquals(10911, nettyTcpSourceConfig.getPort());
         assertEquals(5, nettyTcpSourceConfig.getNumberOfThreads());
     }

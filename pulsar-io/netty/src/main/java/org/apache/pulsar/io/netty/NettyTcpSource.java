@@ -26,12 +26,12 @@ import org.apache.pulsar.io.netty.tcp.server.NettyTcpServer;
 import java.util.Map;
 
 /**
- * A simple connector to listen Tcp messages and write to user-defined Pulsar topic
+ * A simple Netty Tcp Source connector to listen Tcp messages and write to user-defined Pulsar topic
  */
 @Connector(
-        name = "netty",
+        name = "tcp",
         type = IOType.SOURCE,
-        help = "A simple connector to listen Tcp messages and write to user-defined Pulsar topic",
+        help = "A simple Netty Tcp Source connector to listen Tcp messages and write to user-defined Pulsar topic",
         configClass = NettyTcpSourceConfig.class)
 public class NettyTcpSource extends PushSource<byte[]> {
 

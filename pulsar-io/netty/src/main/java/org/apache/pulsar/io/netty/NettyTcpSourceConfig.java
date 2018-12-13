@@ -44,9 +44,9 @@ public class NettyTcpSourceConfig implements Serializable {
 
     @FieldDoc(
             required = true,
-            defaultValue = "localhost",
+            defaultValue = "127.0.0.1",
             help = "The host name used to connect to Netty Tcp Server")
-    private String host = "localhost";
+    private String host = "127.0.0.1";
 
     @FieldDoc(
             required = true,

@@ -17,6 +17,6 @@
 # under the License.
 #
 
-name: netty
+name: tcp
 description: Netty Tcp Source Connector
 sourceClass: org.apache.pulsar.io.netty.NettyTcpSource
