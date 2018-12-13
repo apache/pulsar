@@ -27,6 +27,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -330,7 +331,7 @@ public class SourceApiV2ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
-        Response response = resource.registerFunction(
+        resource.registerFunction(
                 tenant,
                 namespace,
                 function,
@@ -341,13 +342,11 @@ public class SourceApiV2ResourceTest {
                 new Gson().toJson(sourceConfig),
                 null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultSource() throws IOException {
+    private void registerDefaultSource() throws IOException {
         SourceConfig sourceConfig = createDefaultSourceConfig();
-        return resource.registerFunction(
+        resource.registerFunction(
             tenant,
             namespace,
                 source,
@@ -365,9 +364,7 @@ public class SourceApiV2ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        Response response = registerDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Source " + source + " already exists").reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     @Test
@@ -381,9 +378,7 @@ public class SourceApiV2ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        Response response = registerDefaultSource();
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     @Test
@@ -403,8 +398,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultSource();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        registerDefaultSource();
     }
 
     @Test
@@ -437,7 +431,7 @@ public class SourceApiV2ResourceTest {
         sourceConfig.setParallelism(parallelism);
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
-        Response response = resource.registerFunction(
+        resource.registerFunction(
                 actualTenant,
                 actualNamespace,
                 actualName,
@@ -447,7 +441,6 @@ public class SourceApiV2ResourceTest {
                 null,
                 new Gson().toJson(sourceConfig),
                 null);
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
     @Test
@@ -467,9 +460,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     @Test
@@ -487,9 +478,7 @@ public class SourceApiV2ResourceTest {
             new IOException("Function registeration interrupted"));
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultSource();
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     //
@@ -714,7 +703,7 @@ public class SourceApiV2ResourceTest {
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
         }
 
-        Response response = resource.updateFunction(
+        resource.updateFunction(
             tenant,
             namespace,
             function,
@@ -725,15 +714,9 @@ public class SourceApiV2ResourceTest {
             new Gson().toJson(sourceConfig),
                 null);
 
-        if (expectedError == null) {
-            assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        } else {
-            assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-            Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
-        }
     }
 
-    private Response updateDefaultSource() throws IOException {
+    private void updateDefaultSource() throws IOException {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -757,8 +740,7 @@ public class SourceApiV2ResourceTest {
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
 
-
-        return resource.updateFunction(
+        resource.updateFunction(
             tenant,
             namespace,
                 source,
@@ -774,9 +756,7 @@ public class SourceApiV2ResourceTest {
     public void testUpdateNotExistedSource() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        Response response = updateDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Source " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        updateDefaultSource();
     }
 
     @Test
@@ -790,9 +770,7 @@ public class SourceApiV2ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        Response response = updateDefaultSource();
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
+        updateDefaultSource();
     }
 
     @Test
@@ -812,8 +790,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultSource();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        updateDefaultSource();
     }
 
     @Test
@@ -853,7 +830,7 @@ public class SourceApiV2ResourceTest {
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = resource.updateFunction(
+        resource.updateFunction(
             tenant,
             namespace,
                 source,
@@ -864,7 +841,6 @@ public class SourceApiV2ResourceTest {
             new Gson().toJson(sourceConfig),
                 null);
 
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
     @Test
@@ -884,9 +860,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
+        updateDefaultSource();
     }
 
     @Test
@@ -904,9 +878,7 @@ public class SourceApiV2ResourceTest {
             new IOException("Function registeration interrupted"));
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultSource();
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        updateDefaultSource();
     }
 
     //
@@ -946,18 +918,16 @@ public class SourceApiV2ResourceTest {
         String function,
         String missingFieldName
     ) {
-        Response response = resource.deregisterFunction(
+        resource.deregisterFunction(
             tenant,
             namespace,
             function,
                 null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response deregisterDefaultSource() {
-        return resource.deregisterFunction(
+    private void deregisterDefaultSource() {
+        resource.deregisterFunction(
             tenant,
             namespace,
                 source,
@@ -968,9 +938,7 @@ public class SourceApiV2ResourceTest {
     public void testDeregisterNotExistedSource() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        Response response = deregisterDefaultSource();
-        assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Source " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        deregisterDefaultSource();
     }
 
     @Test
@@ -983,9 +951,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultSource();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
+        deregisterDefaultSource();
     }
 
     @Test
@@ -998,9 +964,7 @@ public class SourceApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
+        deregisterDefaultSource();
     }
 
     @Test
@@ -1011,9 +975,7 @@ public class SourceApiV2ResourceTest {
             new IOException("Function deregisteration interrupted"));
         when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultSource();
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        deregisterDefaultSource();
     }
 
     //
@@ -1053,18 +1015,15 @@ public class SourceApiV2ResourceTest {
         String source,
         String missingFieldName
     ) throws IOException {
-        Response response = resource.getFunctionInfo(
+        resource.getFunctionInfo(
             tenant,
             namespace,
             source
         );
-
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response getDefaultSourceInfo() throws IOException {
-        return resource.getFunctionInfo(
+    private SourceConfig getDefaultSourceInfo() throws IOException {
+        return (SourceConfig) resource.getFunctionInfo(
             tenant,
             namespace,
                 source
@@ -1074,10 +1033,7 @@ public class SourceApiV2ResourceTest {
     @Test
     public void testGetNotExistedSource() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
-
-        Response response = getDefaultSourceInfo();
-        assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Source " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        getDefaultSourceInfo();
     }
 
     @Test
@@ -1107,11 +1063,10 @@ public class SourceApiV2ResourceTest {
             .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(metaData);
 
-        Response response = getDefaultSourceInfo();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        SourceConfig config = getDefaultSourceInfo();
         assertEquals(
             new Gson().toJson(SourceConfigUtils.convertFromDetails(functionDetails)),
-            response.getEntity());
+                config);
     }
 
     //
@@ -1139,16 +1094,13 @@ public class SourceApiV2ResourceTest {
         String namespace,
         String missingFieldName
     ) {
-        Response response = resource.listFunctions(
+        resource.listFunctions(
             tenant,
             namespace
         );
-
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response listDefaultSources() {
+    private List<String> listDefaultSources() {
         return resource.listFunctions(
             tenant,
             namespace);
@@ -1166,9 +1118,8 @@ public class SourceApiV2ResourceTest {
         ).build());
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
 
-        Response response = listDefaultSources();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(new Gson().toJson(functions), response.getEntity());
+        List<String> sourceList = listDefaultSources();
+        assertEquals(new Gson().toJson(functions), sourceList);
     }
 
     @Test
@@ -1189,25 +1140,20 @@ public class SourceApiV2ResourceTest {
         doReturn(ComponentImpl.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
         doReturn(ComponentImpl.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
-        Response response = listDefaultSources();
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(new Gson().toJson(functions), response.getEntity());
+        List<String> sourceList = listDefaultSources();
+        assertEquals(new Gson().toJson(functions), sourceList);
     }
 
     @Test
     public void testRegisterFunctionNonexistantNamespace() throws Exception {
         this.namespaceList.clear();
-        Response response = registerDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Namespace does not exist").reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     @Test
     public void testRegisterFunctionNonexistantTenant() throws Exception {
         when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
-        Response response = registerDefaultSource();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Tenant does not exist").reason, ((ErrorData) response.getEntity()).reason);
+        registerDefaultSource();
     }
 
     private SourceConfig createDefaultSourceConfig() {

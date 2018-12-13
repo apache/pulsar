@@ -684,9 +684,9 @@ public abstract class ComponentImpl {
         }
     }
 
-    public void getFunctionInfo(final String tenant,
-                                    final String namespace,
-                                    final String componentName) {
+    public Object getFunctionInfo(final String tenant,
+                                  final String namespace,
+                                  final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
             getUnavailableResponse();
@@ -710,18 +710,8 @@ public abstract class ComponentImpl {
             log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
             throw new RestException(Status.NOT_FOUND, String.format(componentType + " %s doesn't exist", componentName));
         }
-
-        String retVal;
-        if (componentType.equals(FUNCTION)) {
-            FunctionConfig config = FunctionConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retVal = new Gson().toJson(config);
-        } else if (componentType.equals(SOURCE)) {
-            SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retVal = new Gson().toJson(config);
-        } else {
-            SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retVal = new Gson().toJson(config);
-        }
+        FunctionConfig config = FunctionConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+        return config;
     }
 
     public void stopFunctionInstance(final String tenant,
@@ -928,7 +918,7 @@ public abstract class ComponentImpl {
         return functionInstanceStatsData;
     }
 
-    public void listFunctions(final String tenant, final String namespace) {
+    public List<String> listFunctions(final String tenant, final String namespace) {
 
         if (!isWorkerServiceAvailable()) {
             getUnavailableResponse();
@@ -945,12 +935,13 @@ public abstract class ComponentImpl {
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         Collection<FunctionMetaData> functionStateList = functionMetaDataManager.listFunctions(tenant, namespace);
-        List<String> retval = new LinkedList<>();
+        List<String> retVals = new LinkedList<>();
         for (FunctionMetaData functionMetaData : functionStateList) {
             if (calculateSubjectType(functionMetaData).equals(componentType)) {
-                retval.add(functionMetaData.getFunctionDetails().getName());
+                retVals.add(functionMetaData.getFunctionDetails().getName());
             }
         }
+        return retVals;
     }
 
     private void updateRequest(final FunctionMetaData functionMetaData) {
@@ -1162,7 +1153,7 @@ public abstract class ComponentImpl {
         //return Response.status(Status.OK).build();
     }
 
-    public void downloadFunction(final String path) {
+    public StreamingOutput downloadFunction(final String path) {
 
         final StreamingOutput streamingOutput = new StreamingOutput() {
             @Override
@@ -1185,6 +1176,7 @@ public abstract class ComponentImpl {
             }
         };
 
+        return streamingOutput;
     }
 
     private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {
@@ -1585,7 +1577,7 @@ public abstract class ComponentImpl {
         }
     }
 
-    private void getUnavailableResponse() {
+    protected void getUnavailableResponse() {
         throw new RestException(Status.SERVICE_UNAVAILABLE,
                 "Function worker service is not done initializing. " + "Please try again in a little while.");
     }
