@@ -58,7 +58,6 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.apache.pulsar:pulsar-functions-proto</include>
-                                    <include>org.apache.pulsar:pulsar-io-core</include>
                                     <include>org.apache.pulsar:pulsar-client-original</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-original</include>
                                     <include>org.apache.pulsar:managed-ledger-original</include>
@@ -112,12 +111,6 @@
                                 </includes>
                             </artifactSet>
                             <filters>
-                                <filter>
-                                    <artifact>org.apache.pulsar:pulsar-io-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
                                 <filter>
                                     <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                                     <includes>
