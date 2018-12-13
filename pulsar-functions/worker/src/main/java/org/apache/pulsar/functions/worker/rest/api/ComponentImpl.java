@@ -1270,12 +1270,12 @@ public abstract class ComponentImpl {
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String componentName,
                                                         File uploadedInputStreamAsFile, FormDataContentDisposition fileDetail, String functionDetailsJson,
                                                         String componentConfigJson, ComponentType componentType)
-            throws IllegalArgumentException, IOException, URISyntaxException {
+            throws IllegalArgumentException, IOException {
 
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
                 functionDetailsJson, componentConfigJson, componentType,null, uploadedInputStreamAsFile);
         if (!isFunctionCodeBuiltin(functionDetails) && (uploadedInputStreamAsFile == null || fileDetail == null)) {
-            throw new IllegalArgumentException("Function Package is not provided");
+            throw new IllegalArgumentException(componentType + " Package is not provided");
         }
 
         return functionDetails;
@@ -1397,8 +1397,8 @@ public abstract class ComponentImpl {
                     throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
                 }
             }
-            NarClassLoader clsLoader = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            return SourceConfigUtils.convert(sourceConfig, clsLoader);
+            SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         }
         if (componentType.equals(SINK)) {
             Path archivePath = null;
@@ -1419,8 +1419,8 @@ public abstract class ComponentImpl {
                     throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
                 }
             }
-            NarClassLoader clsLoader = SinkConfigUtils.validate(sinkConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            return SinkConfigUtils.convert(sinkConfig, clsLoader);
+            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
