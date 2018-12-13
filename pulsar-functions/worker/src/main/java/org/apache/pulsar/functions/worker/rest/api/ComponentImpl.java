@@ -330,6 +330,10 @@ public abstract class ComponentImpl {
         }
 
         try {
+            // Check tenant exists
+            final TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+            assert tenantInfo != null;
+
             String qualifiedNamespace = tenant + "/" + namespace;
             if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifiedNamespace)) {
                 log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace,
@@ -1639,6 +1643,8 @@ public abstract class ComponentImpl {
                                               final String topic,
                                               final String input,
                                               final InputStream uploadedInputStream) {
+        // Note : Checking topic is not required it can be null
+
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -1647,9 +1653,6 @@ public abstract class ComponentImpl {
         }
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
-        }
-        if (topic == null) {
-            throw new IllegalArgumentException("Topic is not provided");
         }
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
