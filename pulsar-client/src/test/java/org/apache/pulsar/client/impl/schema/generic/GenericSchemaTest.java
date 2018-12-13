@@ -26,8 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.testng.annotations.Test;
 
 /**

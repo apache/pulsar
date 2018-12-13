@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.google.protobuf.util.JsonFormat;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -57,22 +56,22 @@ public class CmdFunctionWorker extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "dump all functions stats")
-    class FunctionsStats extends BaseCommand {
-
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
-
-        @Override
-        void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(admin.worker().getFunctionsStats());
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(new JsonParser().parse(json)));
-        }
-    }
+//    @Parameters(commandDescription = "dump all functions stats")
+//    class FunctionsStats extends BaseCommand {
+//
+//        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+//        boolean indent = false;
+//
+//        @Override
+//        void runCmd() throws Exception {
+//            String json = JsonFormat.printer().print(admin.worker().getFunctionsStats());
+//            GsonBuilder gsonBuilder = new GsonBuilder();
+//            if (indent) {
+//                gsonBuilder.setPrettyPrinting();
+//            }
+//            System.out.println(gsonBuilder.create().toJson(new JsonParser().parse(json)));
+//        }
+//    }
 
     @Parameters(commandDescription = "dump metrics for Monitoring")
     class CmdMonitoringMetrics extends BaseCommand {
@@ -144,7 +143,7 @@ public class CmdFunctionWorker extends CmdBase {
 
     public CmdFunctionWorker(PulsarAdmin admin) throws PulsarClientException {
         super("functions-worker", admin);
-        jcommander.addCommand("function-stats", new FunctionsStats());
+//        jcommander.addCommand("function-stats", new FunctionsStats());
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
         jcommander.addCommand("get-cluster", new GetCluster());
         jcommander.addCommand("get-cluster-leader", new GetClusterLeader());

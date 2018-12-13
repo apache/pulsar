@@ -68,7 +68,6 @@
                   <include>org.apache.kafka:kafka-clients</include>
                   <include>org.apache.pulsar:pulsar-client-kafka-original</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-client-schema</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static org.apache.pulsar.client.admin.internal.FunctionsImpl.mergeJson;
-
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
@@ -35,7 +33,7 @@ import com.google.gson.reflect.TypeToken;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
+//import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -52,21 +50,21 @@ public class WorkerImpl extends BaseResource implements Worker {
         this.workerStats = web.path("/admin/v2/worker-stats");
     }
 
-    @Override
-    public Metrics getFunctionsStats() throws PulsarAdminException {
-        try {
-            Response response = request(workerStats.path("functionsmetrics")).get();
-           if (!response.getStatusInfo().equals(Response.Status.OK)) {
-               throw new ClientErrorException(response);
-           }
-           String jsonResponse = response.readEntity(String.class);
-           Metrics.Builder metricsBuilder = Metrics.newBuilder();
-           mergeJson(jsonResponse, metricsBuilder);
-           return metricsBuilder.build();
-       } catch (Exception e) {
-           throw getApiException(e);
-       }
-   }
+//    @Override
+//    public Metrics getFunctionsStats() throws PulsarAdminException {
+//        try {
+//            Response response = request(workerStats.path("functionsmetrics")).get();
+//           if (!response.getStatusInfo().equals(Response.Status.OK)) {
+//               throw new ClientErrorException(response);
+//           }
+//           String jsonResponse = response.readEntity(String.class);
+//           Metrics.Builder metricsBuilder = Metrics.newBuilder();
+//           mergeJson(jsonResponse, metricsBuilder);
+//           return metricsBuilder.build();
+//       } catch (Exception e) {
+//           throw getApiException(e);
+//       }
+//   }
 
     @Override
     public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException {

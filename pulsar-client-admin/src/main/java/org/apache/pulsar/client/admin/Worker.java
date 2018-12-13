@@ -22,22 +22,22 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
+//import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.common.functions.WorkerInfo;
 
 /**
  * Admin interface for worker stats management.
  */
 public interface Worker {
-    
-    
+
+
     /**
      * Get all functions stats on a worker
      * @return
-     * @throws PulsarAdminException 
+     * @throws PulsarAdminException
      */
-    Metrics getFunctionsStats() throws PulsarAdminException;
-    
+//    Metrics getFunctionsStats() throws PulsarAdminException;
+
     /**
      * Get worker metrics.
      * @return

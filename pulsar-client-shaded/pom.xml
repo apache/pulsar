@@ -42,6 +42,38 @@
 
   <build>
     <plugins>
+
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.1.1</version>
+        <executions>
+          <execution>
+            <id>unpack</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.pulsar</groupId>
+                  <artifactId>pulsar-client-original</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>**/ProtobufSchema.class</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+
+
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <!-- Shade all the dependencies to avoid conflicts -->
         <groupId>org.apache.maven.plugins</groupId>
@@ -58,11 +90,9 @@
               <minimizeJar>false</minimizeJar>
 
               <artifactSet>
-                <excludes>
-                  <exclude>org.apache.pulsar:pulsar-client-schema</exclude>
-                </excludes>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <!--<include>org.apache.pulsar:avro-protobuf-shaded</include>-->
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -72,7 +102,7 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <include>com.google.protobuf:protobuf-java</include>
+                  <!--<include>com.google.protobuf:protobuf-java</include>-->
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
@@ -94,6 +124,15 @@
                   <include>org.apache.httpcomponents:httpcore</include>
                   <include>org.objenesis:*</include>
                   <include>org.yaml:snakeyaml</include>
+
+                  <include>org.apache.avro:*</include>
+                  <!-- Avro transitive dependencies-->
+                  <include>org.codehaus.jackson:jackson-core-asl</include>
+                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
+                  <include>com.thoughtworks.paranamer:paranamer</include>
+                  <include>org.xerial.snappy:snappy-java</include>
+                  <include>org.apache.commons:commons-compress</include>
+                  <include>org.tukaani:xz</include>
 
                 </includes>
               </artifactSet>
@@ -123,6 +162,9 @@
                 <relocation>
                   <pattern>com.google</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
+                  <excludes>
+                    <exclude>com.google.protobuf.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
@@ -171,6 +213,43 @@
                 <relocation>
                   <pattern>org.yaml</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.avro</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
+                  <excludes>
+                    <exclude>org.apache.avro.reflect.AvroAlias</exclude>
+                    <exclude>org.apache.avro.reflect.AvroDefault</exclude>
+                    <exclude>org.apache.avro.reflect.AvroEncode</exclude>
+                    <exclude>org.apache.avro.reflect.AvroIgnore</exclude>
+                    <exclude>org.apache.avro.reflect.AvroMeta</exclude>
+                    <exclude>org.apache.avro.reflect.AvroName</exclude>
+                    <exclude>org.apache.avro.reflect.AvroSchema</exclude>
+                    <exclude>org.apache.avro.reflect.Nullable</exclude>
+                    <exclude>org.apache.avro.reflect.Stringable</exclude>
+                    <exclude>org.apache.avro.reflect.Union</exclude>
+                  </excludes>
+                </relocation>
+                <!--Avro transitive dependencies-->
+                <relocation>
+                  <pattern>org.codehaus.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.thoughtworks.paranamer</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.xerial.snappy</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.tukaani</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

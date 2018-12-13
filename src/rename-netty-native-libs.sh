@@ -22,7 +22,7 @@ set -e
 
 ARTIFACT_ID=$1
 JAR_PATH="$PWD/target/$ARTIFACT_ID.jar"
-
+CLASSES_PATH="$PWD/target/classes"
 FILE_PREFIX='META-INF/native'
 
 FILES_TO_RENAME=(
@@ -30,11 +30,12 @@ FILES_TO_RENAME=(
     'libnetty_tcnative_linux_x86_64.so liborg_apache_pulsar_shade_netty_tcnative_linux_x86_64.so'
 )
 
-echo "----- Renaming epoll lib in $JAR_PATH ------"
 TMP_DIR=`mktemp -d`
 unzip -q $JAR_PATH -d $TMP_DIR
 
 pushd $TMP_DIR
+
+echo "----- Renaming epoll lib in $JAR_PATH ------"
 
 for line in "${FILES_TO_RENAME[@]}"; do
     read -r -a A <<< "$line"

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.schema;
+package org.apache.pulsar.client.impl.schema;
 
 import java.util.List;
 

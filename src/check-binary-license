@@ -84,7 +84,7 @@ for J in $NOTICEJARS; do
 done
 
 # check pulsar sql jars
-JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v 'pulsar-client-schema' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | sed 's!.*/!!' | sort)
+JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | sed 's!.*/!!' | sort)
 LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
 LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
 LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
