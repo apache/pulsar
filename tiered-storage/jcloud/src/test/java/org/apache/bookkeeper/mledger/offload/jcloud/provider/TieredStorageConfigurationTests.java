@@ -162,4 +162,25 @@ public class TieredStorageConfigurationTests {
         assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
         assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
     }
+    
+    /**
+     * Confirm that we can configure AWS using the old properties
+     */
+    @Test
+    public final void s3BackwardCompatiblePropertiesTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put(TieredStorageConfiguration.BC_S3_BUCKET, "test bucket");
+        map.put(TieredStorageConfiguration.BC_S3_ENDPOINT, "http://some-url:9093");
+        map.put(TieredStorageConfiguration.BC_S3_MAX_BLOCK_SIZE, "12");
+        map.put(TieredStorageConfiguration.BC_S3_READ_BUFFER_SIZE, "500");
+        map.put(TieredStorageConfiguration.BC_S3_REGION, "test region");
+        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
+        
+        assertEquals(config.getRegion(), "test region");
+        assertEquals(config.getBucket(), "test bucket");
+        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
+        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
+    }
 }

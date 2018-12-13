@@ -105,4 +105,61 @@ public class JCloudBlobStoreProviderTests {
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
     }
+    
+    @Test
+    public void s3ValidationSuccessTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
+        config = new TieredStorageConfiguration(map);
+        JCloudBlobStoreProvider.S3.validate(config);
+    }
+    
+    @Test
+    public void s3ValidationDefaultBlockSizeTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
+        config = new TieredStorageConfiguration(map);
+        JCloudBlobStoreProvider.S3.validate(config);
+    }
+    
+    @Test(expectedExceptions = IllegalArgumentException.class, 
+            expectedExceptionsMessageRegExp = "Either Region or ServiceEndpoint must specified for s3 offload")
+    public void s3ValidationMissingRegionTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put("managedLedgerOffload.bucket", "my-bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "999999");
+        config = new TieredStorageConfiguration(map);
+        JCloudBlobStoreProvider.S3.validate(config);
+    }
+    
+    @Test(expectedExceptions = IllegalArgumentException.class, 
+            expectedExceptionsMessageRegExp = "Bucket cannot be empty for s3 offload")
+    public void s3ValidationMissingBucketTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "99999999");
+        config = new TieredStorageConfiguration(map);
+        assertEquals(config.getRegion(), "us-east-1");
+        JCloudBlobStoreProvider.S3.validate(config);
+    }
+    
+    @Test(expectedExceptions = IllegalArgumentException.class, 
+            expectedExceptionsMessageRegExp = "ManagedLedgerOffloadMaxBlockSizeInBytes cannot "
+                    + "be less than 5MB for s3 offload")
+    public void s3ValidationBlockSizeTest() {
+        Map<String, String> map = new HashMap<String,String>(); 
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.S3.name());
+        map.put("managedLedgerOffload.region", "us-east-1");
+        map.put("managedLedgerOffload.bucket", "test bucket");
+        map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
+        config = new TieredStorageConfiguration(map);
+        JCloudBlobStoreProvider.S3.validate(config);
+    }
 }
