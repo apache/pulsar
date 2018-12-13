@@ -332,7 +332,6 @@ public abstract class ComponentImpl {
         try {
             // Check tenant exists
             final TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-            assert tenantInfo != null;
 
             String qualifiedNamespace = tenant + "/" + namespace;
             if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifiedNamespace)) {
