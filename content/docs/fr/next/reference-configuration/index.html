@@ -204,6 +204,8 @@
 <tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td></td><td>5</td></tr>
 <tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td></td><td>1800</td></tr>
 <tr><td>bookkeeperClientRackawarePolicyEnabled</td><td>Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble</td><td>true</td></tr>
+<tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored</td><td>false</td></tr>
+<tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td>Enable/disable reordering read sequence on reading entries.</td><td>false</td></tr>
 <tr><td>bookkeeperClientIsolationGroups</td><td>Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker</td><td></td></tr>
 <tr><td>managedLedgerDefaultEnsembleSize</td><td>Number of bookies to use when creating a ledger</td><td>2</td></tr>
 <tr><td>managedLedgerDefaultWriteQuorum</td><td>Number of copies to store for each message</td><td>2</td></tr>
@@ -385,6 +387,8 @@
 <tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td>Error threshold for health checks.</td><td>5</td></tr>
 <tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td>If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds</td><td>1800</td></tr>
 <tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
+<tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
 <tr><td>bookkeeperClientIsolationGroups</td><td></td><td></td></tr>
 <tr><td>managedLedgerDefaultEnsembleSize</td><td></td><td>1</td></tr>
 <tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>

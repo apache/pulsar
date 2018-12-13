@@ -1621,6 +1621,20 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>true</td>
     </tr>
     
+    <tr id="broker-bookkeeperClientRegionawarePolicyEnabled">
+      <td>bookkeeperClientRegionawarePolicyEnabled</td>
+      <td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientReorderReadSequenceEnabled">
+      <td>bookkeeperClientReorderReadSequenceEnabled</td>
+      <td>Enable/disable reordering read sequence on reading entries.
+</td>
+      <td>false</td>
+    </tr>
+    
     <tr id="broker-bookkeeperClientIsolationGroups">
       <td>bookkeeperClientIsolationGroups</td>
       <td>Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker
@@ -2766,6 +2780,20 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>
 </td>
       <td>true</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientRegionawarePolicyEnabled">
+      <td>bookkeeperClientRegionawarePolicyEnabled</td>
+      <td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientReorderReadSequenceEnabled">
+      <td>bookkeeperClientReorderReadSequenceEnabled</td>
+      <td>Enable/disable reordering read sequence on reading entries.
+</td>
+      <td>false</td>
     </tr>
     
     <tr id="standalone-bookkeeperClientIsolationGroups">
