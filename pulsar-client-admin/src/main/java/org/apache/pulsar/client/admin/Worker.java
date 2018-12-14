@@ -22,8 +22,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 
 /**
  * Admin interface for worker stats management.
@@ -36,8 +36,8 @@ public interface Worker {
      * @return
      * @throws PulsarAdminException 
      */
-    Metrics getFunctionsStats() throws PulsarAdminException;
-    
+    List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException;
+
     /**
      * Get worker metrics.
      * @return
