@@ -14,6 +14,6 @@ Otherwise, if the connector is running in process or thread mode, the instances 
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `host` | `false` | `127.0.0.1` | The host name used to connect to Netty Tcp Server. |
-| `port` | `false` | `10999` | The port used to connect to Netty Tcp Server. |
-| `numberOfThreads` | `false` | `1` | The number of threads for Netty Tcp Server to accept incoming connections. |
+| `host` | `false` | `127.0.0.1` | The host name or address that the source instance to listen on. |
+| `port` | `false` | `10999` | The port that the source instance to listen on. |
+| `numberOfThreads` | `false` | `1` | The number of threads of Netty Tcp Server to accept incoming connections and handle the traffic of the accepted connections. |
