@@ -93,7 +93,7 @@ public class CmdFunctionWorker extends CmdBase {
 
     public CmdFunctionWorker(PulsarAdmin admin) throws PulsarClientException {
         super("functions-worker", admin);
-//        jcommander.addCommand("function-stats", new FunctionsStats());
+        jcommander.addCommand("function-stats", new FunctionsStats());
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
         jcommander.addCommand("get-cluster", new GetCluster());
         jcommander.addCommand("get-cluster-leader", new GetClusterLeader());

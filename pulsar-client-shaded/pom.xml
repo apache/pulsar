@@ -92,7 +92,6 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
-                  <!--<include>org.apache.pulsar:avro-protobuf-shaded</include>-->
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -102,7 +101,6 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <!--<include>com.google.protobuf:protobuf-java</include>-->
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
