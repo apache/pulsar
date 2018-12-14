@@ -45,19 +45,20 @@ public class NettyTcpSourceConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "127.0.0.1",
-            help = "The host name used to connect to Netty Tcp Server")
+            help = "The host name or address that the source instance to listen on")
     private String host = "127.0.0.1";
 
     @FieldDoc(
             required = true,
             defaultValue = "10999",
-            help = "The port used to connect to Netty Tcp Server")
+            help = "The port that the source instance to listen on")
     private int port = 10999;
 
     @FieldDoc(
             required = true,
             defaultValue = "1",
-            help = "The number of threads for Netty Tcp Server to accept incoming connections")
+            help = "The number of threads of Netty Tcp Server to accept incoming connections and " +
+                    "handle the traffic of the accepted connections")
     private int numberOfThreads = 1;
 
     public static NettyTcpSourceConfig load(Map<String, Object> map) throws IOException {

@@ -6,8 +6,9 @@ sidebar_label: Netty Tcp Connector
 
 ## Source
 
-The Netty Tcp Source connector is used to listen Tcp messages from
-Tcp Client and write them to user-defined Pulsar topic.
+The Netty Tcp Source connector is used to listen Tcp messages from Tcp Client and write them to user-defined Pulsar topic.
+Also, this connector is suggested to be used in a containerized (e.g. k8s) deployment.
+Otherwise, if the connector is running in process or thread mode, the instances may be conflicting on listening to ports.
 
 ### Source Configuration Options
 
