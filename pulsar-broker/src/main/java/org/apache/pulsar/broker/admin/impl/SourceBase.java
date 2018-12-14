@@ -27,15 +27,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -190,7 +195,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
 
     @POST
     @ApiOperation(value = "Restart source instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
@@ -204,7 +210,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
 
     @POST
     @ApiOperation(value = "Restart all source instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
@@ -217,7 +224,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
 
     @POST
     @ApiOperation(value = "Stop source instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
@@ -231,7 +239,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
 
     @POST
     @ApiOperation(value = "Stop all source instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
