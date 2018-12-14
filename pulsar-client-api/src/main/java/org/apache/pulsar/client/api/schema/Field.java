@@ -18,10 +18,18 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 /**
  * A field in a record, consisting of a field name, index, and
  * {@link org.apache.pulsar.client.api.Schema} for the field value.
  */
+
+@Data
+@EqualsAndHashCode
+@ToString
 public class Field {
 
     /**
@@ -32,43 +40,4 @@ public class Field {
      * The index of the field within the record.
      */
     private final int index;
-
-    public Field(String name, int index) {
-        this.name = name;
-        this.index = index;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getIndex() {
-        return index;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Field field = (Field) o;
-
-        if (index != field.index) return false;
-        return name.equals(field.name);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = name.hashCode();
-        result = 31 * result + index;
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Field{" +
-                "name='" + name + '\'' +
-                ", index=" + index +
-                '}';
-    }
 }
