@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.examples.flink;
+package org.apache.flink.streaming.connectors.pulsar.example;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

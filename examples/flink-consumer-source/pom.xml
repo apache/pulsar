@@ -73,7 +73,7 @@
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.apache.pulsar.examples.flink.PulsarConsumerSourceWordCount</mainClass>
+                  <mainClass>org.apache.flink.streaming.connectors.pulsar.example.PulsarConsumerSourceWordCount</mainClass>
                 </transformer>
               </transformers>
               <finalName>pulsar-flink-streaming-wordcount</finalName>
