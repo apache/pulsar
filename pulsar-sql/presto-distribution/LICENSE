@@ -344,6 +344,7 @@ The Apache Software License, Version 2.0
     - xbean-reflect-3.4.jar
   * Avro
     - avro-1.8.2.jar
+    - avro-protobuf-1.8.2.jar
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
@@ -418,7 +419,6 @@ BSD License
 MIT License
  * Animal Sniffer Annotations
    - animal-sniffer-annotations-1.14.jar
-   - animal-sniffer-annotations-1.17.jar
  * Checker Qua -- checker-compat-qual-2.0.0.jar
  * PCollections
    - pcollections-2.1.2.jar

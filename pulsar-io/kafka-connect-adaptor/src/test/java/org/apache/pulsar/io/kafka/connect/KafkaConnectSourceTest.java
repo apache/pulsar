@@ -23,7 +23,6 @@ import static org.testng.Assert.assertTrue;
 
 import java.io.File;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.AfterMethod;

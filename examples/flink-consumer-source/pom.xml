@@ -39,11 +39,6 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-schema</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-flink</artifactId>
       <version>${project.version}</version>
       <exclusions>

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.schema;
+package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
 
@@ -25,9 +25,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Color;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
