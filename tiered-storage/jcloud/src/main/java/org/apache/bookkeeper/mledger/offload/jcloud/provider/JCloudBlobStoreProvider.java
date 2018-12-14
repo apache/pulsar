@@ -132,7 +132,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             BlobStore bs = null;
 
             if (config.getProviderCredentials() != null) {
-                bs = ContextBuilder.newBuilder("s3")
+                bs = ContextBuilder.newBuilder(getDriver())
                         .credentials(config.getProviderCredentials().identity,
                                 config.getProviderCredentials().credential)
                         .overrides(config.getOverrides())
@@ -169,7 +169,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
-            BlobStore bs = ContextBuilder.newBuilder(this.getDriver())
+            BlobStore bs = ContextBuilder.newBuilder(getDriver())
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
 

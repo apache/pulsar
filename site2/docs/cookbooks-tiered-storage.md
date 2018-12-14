@@ -60,7 +60,7 @@ You can use buckets to organize your data and control access to your data,
 but unlike directories and folders, you cannot nest buckets.
 
 ```conf
-Bucket=pulsar-topic-offload
+managedLedgerOffload.bucket=pulsar-topic-offload
 ```
 
 Bucket Region is the region where bucket located. Bucket Region is not a required
@@ -73,8 +73,20 @@ For Google Cloud Storage, buckets by default are created in the `us multi-region
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
 ```conf
-Region=eu-west-3
+managedLedgerOffload.region=eu-west-3
 ```
+
+#### Configuring the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to your BlobStore provider.
+
+- ```managedLedgerOffload.maxBlockSizeInBytes```  configures the maximum size of
+  a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```managedLedgerOffload.readBufferSizeInBytes``` configures the block size for
+  each individual read when reading back data from your BlobStore provider. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
 
 #### Authentication with AWS
 
@@ -113,17 +125,6 @@ If you are running in EC2 you can also use instance profile credentials, provide
 
 > The broker must be rebooted for credentials specified in pulsar_env to take effect.
 
-#### Configuring the size of block read/write
-
-Pulsar also provides some knobs to configure the size of requests sent to AWS S3.
-
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes```  configures the maximum size of
-  a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for
-  each individual read when reading back data from AWS S3. Default is 1MB.
-
-In both cases, these should not be touched unless you know what you are doing.
-
 
 #### Authentication with GCS
 
@@ -144,17 +145,6 @@ Usually these are the steps to create the authentication file:
 ```conf
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
 ```
-
-#### Configuring the size of block read/write
-
-Pulsar also provides some knobs to configure the size of requests sent to GCS.
-
-- ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent
-  during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-- ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual
-  read when reading back data from GCS. Default is 1MB.
-
-In both cases, these should not be touched unless you know what you are doing.
 
 ## Configuring offload to run automatically
 

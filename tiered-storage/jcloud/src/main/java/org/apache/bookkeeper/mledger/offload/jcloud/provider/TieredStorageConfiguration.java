@@ -53,24 +53,9 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
     public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
     public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+    public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
 
     protected static final int MB = 1024 * 1024;
-
-    /*
-     * Previous property names, for backwards-compatibility.
-     */
-    static final String BC_S3_REGION = "s3ManagedLedgerOffloadRegion";
-    static final String BC_S3_BUCKET = "s3ManagedLedgerOffloadBucket";
-    static final String BC_S3_ENDPOINT = "s3ManagedLedgerOffloadServiceEndpoint";
-    static final String BC_S3_MAX_BLOCK_SIZE = "s3ManagedLedgerOffloadMaxBlockSizeInBytes";
-    static final String BC_S3_READ_BUFFER_SIZE = "s3ManagedLedgerOffloadReadBufferSizeInBytes";
-
-    static final String BC_GCS_BUCKET = "gcsManagedLedgerOffloadBucket";
-    static final String BC_GCS_REGION = "gcsManagedLedgerOffloadRegion";
-    static final String BC_GCS_MAX_BLOCK_SIZE = "gcsManagedLedgerOffloadMaxBlockSizeInBytes";
-    static final String BC_GCS_READ_BUFFER_SIZE = "gcsManagedLedgerOffloadReadBufferSizeInBytes";
-
-    static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload.";
 
     public static TieredStorageConfiguration create(Properties props) throws IOException {
         Map<String, String> map = new HashMap<String, String>();
@@ -124,13 +109,18 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     private String getBackwardCompatibleKey(String property) {
         switch (getProvider()) {
             case S3:
-            case AWS_S3: return new StringBuilder().append("s3ManagedLedgerOffload")
-                                                   .append(StringUtils.capitalize(property))
-                                                   .toString();
-            case GOOGLE_CLOUD_STORAGE: return new StringBuilder().append("gcsManagedLedgerOffload")
-                                                                 .append(StringUtils.capitalize(property))
-                                                                 .toString();
-            default: return null;
+            case AWS_S3:
+                return new StringBuilder().append("s3ManagedLedgerOffload")
+                                          .append(StringUtils.capitalize(property))
+                                          .toString();
+
+            case GOOGLE_CLOUD_STORAGE:
+                return new StringBuilder().append("gcsManagedLedgerOffload")
+                                          .append(StringUtils.capitalize(property))
+                                          .toString();
+
+            default:
+                return null;
         }
     }
 
