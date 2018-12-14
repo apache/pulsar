@@ -16,17 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.schema;
+package org.apache.pulsar.client.impl.schema;
 
-import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON;
 import static org.testng.Assert.assertEquals;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
-import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;

@@ -57,7 +57,6 @@
 
                             <artifactSet>
                                 <includes>
-                                    <include>org.apache.pulsar:pulsar-functions-proto</include>
                                     <include>org.apache.pulsar:pulsar-client-original</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-original</include>
                                     <include>org.apache.pulsar:managed-ledger-original</include>
@@ -130,6 +129,9 @@
                                 <relocation>
                                     <pattern>com.google</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
+                                    <excludes>
+                                        <exclude>com.google.protobuf.*</exclude>
+                                    </excludes>
                                 </relocation>
                                 <relocation>
                                     <pattern>com.fasterxml.jackson</pattern>

@@ -29,12 +29,12 @@ import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
  * Admin interface for worker stats management.
  */
 public interface Worker {
-    
-    
+
+
     /**
      * Get all functions stats on a worker
      * @return
-     * @throws PulsarAdminException 
+     * @throws PulsarAdminException
      */
     List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException;
 

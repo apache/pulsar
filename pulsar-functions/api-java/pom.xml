@@ -38,12 +38,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-schema</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>net.jodah</groupId>
       <artifactId>typetools</artifactId>
       <scope>test</scope>
