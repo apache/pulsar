@@ -442,6 +442,7 @@ The Apache Software License, Version 2.0
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
     - org.apache.avro-avro-1.8.2.jar
+    - org.apache.avro-avro-protobuf-1.8.2.jar
   * Apache Curator
     - org.apache.curator-curator-client-4.0.1.jar
     - org.apache.curator-curator-framework-4.0.1.jar
@@ -492,8 +493,6 @@ MIT License
     - org.slf4j-jul-to-slf4j-1.7.25.jar
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
- * Animal Sniffer Annotations
-    - org.codehaus.mojo-animal-sniffer-annotations-1.17.jar
 
 Protocol Buffers License
  * Protocol Buffers
