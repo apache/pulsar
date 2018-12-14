@@ -380,7 +380,7 @@ public class CmdSources extends CmdBase {
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
             if (isBlank(sourceConfig.getArchive())) {
-                throw new ParameterException("Source archive not specfied");
+                throw new ParameterException("Source archive not specified");
             }
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
             if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
