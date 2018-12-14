@@ -313,7 +313,7 @@ public abstract class ComponentImpl {
                                      final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         if (tenant == null) {
@@ -478,7 +478,7 @@ public abstract class ComponentImpl {
                                final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         if (tenant == null) {
@@ -617,7 +617,7 @@ public abstract class ComponentImpl {
                                    final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         try {
@@ -684,12 +684,12 @@ public abstract class ComponentImpl {
         }
     }
 
-    public Object getFunctionInfo(final String tenant,
-                                  final String namespace,
-                                  final String componentName) {
+    public FunctionConfig getFunctionInfo(final String tenant,
+                                          final String namespace,
+                                          final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters
@@ -738,7 +738,7 @@ public abstract class ComponentImpl {
                                      final URI uri) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters
@@ -791,7 +791,7 @@ public abstract class ComponentImpl {
                                       final boolean restart) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters
@@ -865,7 +865,6 @@ public abstract class ComponentImpl {
         }
 
         return functionStats;
-
     }
 
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
@@ -921,7 +920,7 @@ public abstract class ComponentImpl {
     public List<String> listFunctions(final String tenant, final String namespace) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters
@@ -975,15 +974,15 @@ public abstract class ComponentImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
-    public void triggerFunction(final String tenant,
-                                final String namespace,
-                                final String functionName,
-                                final String input,
-                                final InputStream uploadedInputStream,
-                                final String topic) {
+    public String triggerFunction(final String tenant,
+                                  final String namespace,
+                                  final String functionName,
+                                  final String input,
+                                  final InputStream uploadedInputStream,
+                                  final String topic) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters
@@ -1071,15 +1070,16 @@ public abstract class ComponentImpl {
                 producer.closeAsync();
             }
         }
+        return null;
     }
 
-    public void getFunctionState(final String tenant,
-                                 final String namespace,
-                                 final String functionName,
-                                 final String key) {
+    public FunctionState getFunctionState(final String tenant,
+                                          final String namespace,
+                                          final String functionName,
+                                          final String key) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         if (null == worker().getStateStoreAdminClient()) {
@@ -1110,12 +1110,12 @@ public abstract class ComponentImpl {
                     .build());
         }
 
+        FunctionState value;
         try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
             try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
                 if (null == kv) {
                     throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
                 } else {
-                    FunctionState value;
                     if (kv.isNumber()) {
                         value = new FunctionState(key, null, kv.numberValue(), kv.version());
                     } else {
@@ -1128,6 +1128,7 @@ public abstract class ComponentImpl {
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
+        return value;
     }
 
     public void uploadFunction(final InputStream uploadedInputStream, final String path) {
@@ -1149,8 +1150,6 @@ public abstract class ComponentImpl {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
-        //return Response.status(Status.OK).build();
     }
 
     public StreamingOutput downloadFunction(final String path) {
@@ -1577,7 +1576,7 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected void getUnavailableResponse() {
+    protected void throwUnavailableException() {
         throw new RestException(Status.SERVICE_UNAVAILABLE,
                 "Function worker service is not done initializing. " + "Please try again in a little while.");
     }

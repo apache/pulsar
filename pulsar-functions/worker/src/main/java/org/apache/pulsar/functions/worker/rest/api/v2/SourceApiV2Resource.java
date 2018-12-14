@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
@@ -68,33 +69,33 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateSource(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace,
-                                 final @PathParam("sourceName") String sourceName,
-                                 final @FormDataParam("data") InputStream uploadedInputStream,
-                                 final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                 final @FormDataParam("url") String functionPkgUrl,
-                                 final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                             final @PathParam("namespace") String namespace,
+                             final @PathParam("sourceName") String sourceName,
+                             final @FormDataParam("data") InputStream uploadedInputStream,
+                             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             final @FormDataParam("url") String functionPkgUrl,
+                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, null, sourceConfigJson, clientAppId());
-
     }
 
 
     @DELETE
     @Path("/{tenant}/{namespace}/{sourceName}")
     public void deregisterSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("sourceName") String sourceName) {
         source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
     }
 
     @GET
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public void getSourceInfo(final @PathParam("tenant") String tenant,
-                                  final @PathParam("namespace") String namespace,
-                                  final @PathParam("sourceName") String sourceName)
+    public SourceConfig getSourceInfo(final @PathParam("tenant") String tenant,
+                                      final @PathParam("namespace") String namespace,
+                                      final @PathParam("sourceName") String sourceName)
             throws IOException {
-        source.getFunctionInfo(tenant, namespace, sourceName);
+        return source.getSourceInfo(tenant, namespace, sourceName);
     }
 
     @GET
@@ -138,10 +139,9 @@ public class SourceApiV2Resource extends FunctionApiResource {
 
     @GET
     @Path("/{tenant}/{namespace}")
-    public void listSources(final @PathParam("tenant") String tenant,
-                                final @PathParam("namespace") String namespace) {
-        source.listFunctions(tenant, namespace);
-
+    public List<String> listSources(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace) {
+        return source.listFunctions(tenant, namespace);
     }
 
     @POST
@@ -152,8 +152,9 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
-            final @PathParam("instanceId") String instanceId) {
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("sourceName") String sourceName,
+                              final @PathParam("instanceId") String instanceId) {
         source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
     }
 
@@ -165,7 +166,8 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("sourceName") String sourceName) {
         source.restartFunctionInstances(tenant, namespace, sourceName);
     }
 
@@ -177,8 +179,9 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
-            final @PathParam("instanceId") String instanceId) {
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sourceName") String sourceName,
+                           final @PathParam("instanceId") String instanceId) {
         source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
     }
 
@@ -190,7 +193,8 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sourceName") String sourceName) {
         source.stopFunctionInstances(tenant, namespace, sourceName);
     }
 

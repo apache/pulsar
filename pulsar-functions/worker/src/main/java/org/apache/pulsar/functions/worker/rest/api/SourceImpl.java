@@ -20,13 +20,11 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -250,13 +248,12 @@ public class SourceImpl extends ComponentImpl {
         return sourceInstanceStatusData;
     }
 
-    @Override
-    public Object getFunctionInfo(final String tenant,
-                                  final String namespace,
-                                  final String componentName) {
+    public SourceConfig getSourceInfo(final String tenant,
+                                      final String namespace,
+                                      final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
-            getUnavailableResponse();
+            throwUnavailableException();
         }
 
         // validate parameters

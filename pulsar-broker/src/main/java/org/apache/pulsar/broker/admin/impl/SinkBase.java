@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -127,10 +128,10 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
             @ApiResponse(code = 404, message = "The function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public void getSinkInfo(final @PathParam("tenant") String tenant,
-                            final @PathParam("namespace") String namespace,
-                            final @PathParam("sinkName") String sinkName) throws IOException {
-        sink.getFunctionInfo(tenant, namespace, sinkName);
+    public SinkConfig getSinkInfo(final @PathParam("tenant") String tenant,
+                                  final @PathParam("namespace") String namespace,
+                                  final @PathParam("sinkName") String sinkName) throws IOException {
+        return sink.getSinkInfo(tenant, namespace, sinkName);
     }
 
     @GET
@@ -183,9 +184,9 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}")
-    public void listSinks(final @PathParam("tenant") String tenant,
-                          final @PathParam("namespace") String namespace) {
-        sink.listFunctions(tenant, namespace);
+    public List<String> listSinks(final @PathParam("tenant") String tenant,
+                                  final @PathParam("namespace") String namespace) {
+        return sink.listFunctions(tenant, namespace);
     }
 
     @POST

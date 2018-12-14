@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -89,11 +90,11 @@ public class SinkApiV2Resource extends FunctionApiResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public void getSinkInfo(final @PathParam("tenant") String tenant,
-                            final @PathParam("namespace") String namespace,
-                            final @PathParam("sinkName") String sinkName)
+    public SinkConfig getSinkInfo(final @PathParam("tenant") String tenant,
+                                  final @PathParam("namespace") String namespace,
+                                  final @PathParam("sinkName") String sinkName)
             throws IOException {
-        sink.getFunctionInfo(tenant, namespace, sinkName);
+        return sink.getSinkInfo(tenant, namespace, sinkName);
     }
 
     @GET
@@ -128,17 +129,17 @@ public class SinkApiV2Resource extends FunctionApiResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sinkName}/status")
-    public void getSinkStatus(final @PathParam("tenant") String tenant,
-                              final @PathParam("namespace") String namespace,
-                              final @PathParam("sinkName") String sinkName) throws IOException {
-        sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri());
+    public SinkStatus getSinkStatus(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("sinkName") String sinkName) throws IOException {
+        return sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri());
     }
 
     @GET
     @Path("/{tenant}/{namespace}")
-    public void listSink(final @PathParam("tenant") String tenant,
-                         final @PathParam("namespace") String namespace) {
-        sink.listFunctions(tenant, namespace);
+    public List<String> listSink(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace) {
+        return sink.listFunctions(tenant, namespace);
     }
 
     @POST

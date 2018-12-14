@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -126,10 +127,10 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
             @ApiResponse(code = 404, message = "The function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public void getSourceInfo(final @PathParam("tenant") String tenant,
-                              final @PathParam("namespace") String namespace,
-                              final @PathParam("sourceName") String sourceName) throws IOException {
-        source.getFunctionInfo(tenant, namespace, sourceName);
+    public SourceConfig getSourceInfo(final @PathParam("tenant") String tenant,
+                                      final @PathParam("namespace") String namespace,
+                                      final @PathParam("sourceName") String sourceName) throws IOException {
+        return source.getSourceInfo(tenant, namespace, sourceName);
     }
 
     @GET
@@ -182,10 +183,9 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}")
-    public void listSources(final @PathParam("tenant") String tenant,
-                                final @PathParam("namespace") String namespace) {
-        source.listFunctions(tenant, namespace);
-
+    public List<String> listSources(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace) {
+        return source.listFunctions(tenant, namespace);
     }
 
     @POST

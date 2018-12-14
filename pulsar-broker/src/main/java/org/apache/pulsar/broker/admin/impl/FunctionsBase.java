@@ -34,9 +34,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -231,9 +234,9 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}")
-    public void listFunctions(final @PathParam("tenant") String tenant,
-                                  final @PathParam("namespace") String namespace) {
-        functions.listFunctions(tenant, namespace);
+    public List<String> listFunctions(final @PathParam("tenant") String tenant,
+                                      final @PathParam("namespace") String namespace) {
+        return functions.listFunctions(tenant, namespace);
     }
 
     @POST
@@ -249,13 +252,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void triggerFunction(final @PathParam("tenant") String tenant,
-                                final @PathParam("namespace") String namespace,
-                                final @PathParam("functionName") String functionName,
-                                final @FormDataParam("data") String triggerValue,
-                                final @FormDataParam("dataStream") InputStream triggerStream,
-                                final @FormDataParam("topic") String topic) {
-        functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic);
+    public String triggerFunction(final @PathParam("tenant") String tenant,
+                                  final @PathParam("namespace") String namespace,
+                                  final @PathParam("functionName") String functionName,
+                                  final @FormDataParam("data") String triggerValue,
+                                  final @FormDataParam("dataStream") InputStream triggerStream,
+                                  final @FormDataParam("topic") String topic) {
+        return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic);
     }
 
     @GET
@@ -270,11 +273,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
         @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
-    public void getFunctionState(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace,
-                                 final @PathParam("functionName") String functionName,
-                                 final @PathParam("key") String key) {
-        functions.getFunctionState(tenant, namespace, functionName, key);
+    public FunctionState getFunctionState(final @PathParam("tenant") String tenant,
+                                          final @PathParam("namespace") String namespace,
+                                          final @PathParam("functionName") String functionName,
+                                          final @PathParam("key") String key) {
+        return functions.getFunctionState(tenant, namespace, functionName, key);
     }
 
     @POST
@@ -349,8 +352,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             hidden = true
     )
     @Path("/download")
-    public void downloadFunction(final @QueryParam("path") String path) {
-        functions.downloadFunction(path);
+    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path);
     }
 
     @GET
