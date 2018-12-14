@@ -26,7 +26,6 @@ import lombok.ToString;
  * A field in a record, consisting of a field name, index, and
  * {@link org.apache.pulsar.client.api.Schema} for the field value.
  */
-
 @Data
 @EqualsAndHashCode
 @ToString
@@ -40,4 +39,5 @@ public class Field {
      * The index of the field within the record.
      */
     private final int index;
+    
 }
