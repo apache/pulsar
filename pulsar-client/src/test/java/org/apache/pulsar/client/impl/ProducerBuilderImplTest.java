@@ -237,7 +237,34 @@ public class ProducerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testProducerBuilderImplWhenPropertiesKeyIsBlank()
+    public void testProducerBuilderImplWhenPropertyValueIsNull()
+            throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .property("Test-Key", null)
+                .create();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenPropertyValueIsBlank()
+            throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .property("Test-Key", "   ")
+                .create();
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testProducerBuilderImplWhenPropertiesIsNull()
+            throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .properties(null)
+                .create();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenPropertiesKeyIsNull()
             throws PulsarClientException {
         Map<String, String> properties = new HashMap<>();
         properties.put(null, "Test-Value");
@@ -248,12 +275,39 @@ public class ProducerBuilderImplTest {
                 .create();
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
-    public void testProducerBuilderImplWhenPropertiesIsNull()
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenPropertiesKeyIsBlank()
             throws PulsarClientException {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("   ", "Test-Value");
+
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
         producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(null)
+                .properties(properties)
+                .create();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenPropertiesValueIsNull()
+            throws PulsarClientException {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("Test-Key", null);
+
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .properties(properties)
+                .create();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenPropertiesValueIsBlank()
+            throws PulsarClientException {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("Test-Key", "   ");
+
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .properties(properties)
                 .create();
     }
 

@@ -232,6 +232,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> property(String key, String value) {
         checkArgument(StringUtils.isNotBlank(key), "property key cannot be blank");
+        checkArgument(StringUtils.isNotBlank(value), "property value cannot be blank");
         conf.getProperties().put(key, value);
         return this;
     }
@@ -240,6 +241,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
         properties.keySet().forEach(key ->
                 checkArgument(StringUtils.isNotBlank(key), "properties' key cannot be blank"));
+        properties.values().forEach(value ->
+                checkArgument(StringUtils.isNotBlank(value), "properties' value cannot be blank"));
         conf.getProperties().putAll(properties);
         return this;
     }
