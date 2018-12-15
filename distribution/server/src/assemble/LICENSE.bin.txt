@@ -322,7 +322,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.7.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.7.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.7.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava -- com.google.guava-guava-21.0.jar
