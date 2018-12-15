@@ -1450,4 +1450,21 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return;
     }
+
+    protected MessageId internalGetLastMessageId(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "GetLastMessageId on a non-persistent topic is not allowed");
+        }
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        Position position = topic.getLastMessageId();
+        int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+
+        MessageId messageId = new MessageIdImpl(((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId(), partitionIndex);
+
+        return messageId;
+    }
 }
