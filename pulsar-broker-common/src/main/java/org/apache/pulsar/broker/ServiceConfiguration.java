@@ -178,11 +178,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
     // Default number of message dispatching throttling-limit for a subscription.
-    // Using a value of 0, is disabling.
+    // Using a value of 0, is disabling default message dispatch-throttling.
     @FieldContext(dynamic = true)
     private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
     // Default number of message-bytes dispatching throttling-limit for a subscription.
-    // Using a value of 0, is disabling.
+    // Using a value of 0, is disabling default message-byte dispatch-throttling.
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
@@ -310,6 +310,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable rack-aware bookie selection policy. BK will chose bookies from
     // different racks when forming a new bookie ensemble
     private boolean bookkeeperClientRackawarePolicyEnabled = true;
+    // Enable region-aware bookie selection policy. BK will chose bookies from
+    // different regions and racks when forming a new bookie ensemble
+    private boolean bookkeeperClientRegionawarePolicyEnabled = false;
+    // Enable/disable reordering read sequence on reading entries.
+    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     // Enable bookie isolation by specifying a list of bookie groups to choose
     // from. Any bookie outside the specified groups will not be used by the
     // broker

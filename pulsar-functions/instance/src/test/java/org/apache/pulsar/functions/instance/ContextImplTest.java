@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 
 import io.prometheus.client.CollectorRegistry;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;

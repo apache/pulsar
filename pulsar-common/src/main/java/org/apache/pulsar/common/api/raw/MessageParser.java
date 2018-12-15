@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 
 import java.io.IOException;
 
@@ -53,6 +54,7 @@ public class MessageParser {
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
+        ReferenceCountedObject<MessageMetadata> refCntMsgMetadata = null;
 
         try {
             if (!verifyChecksum(topicName, headersAndPayload, ledgerId, entryId)) {
@@ -80,20 +82,20 @@ public class MessageParser {
             }
 
             final int numMessages = msgMetadata.getNumMessagesInBatch();
+            refCntMsgMetadata = new ReferenceCountedObject<>(msgMetadata, (x) -> x.recycle());
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-
-                processor.process(RawMessageImpl.get(msgMetadata, null, uncompressedPayload, ledgerId, entryId, 0));
+                processor.process(
+                        RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload, ledgerId, entryId, 0));
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(msgMetadata, uncompressedPayload, ledgerId, entryId, processor);
-            }
-        } finally {
-            if (uncompressedPayload != null) {
-                uncompressedPayload.release();
+                receiveIndividualMessagesFromBatch(refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);
             }
 
-            msgMetadata.recycle();
+
+        } finally {
+            ReferenceCountUtil.safeRelease(uncompressedPayload);
+            ReferenceCountUtil.safeRelease(refCntMsgMetadata);
         }
     }
 
@@ -134,9 +136,9 @@ public class MessageParser {
         }
     }
 
-    private static void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata,
+    private static void receiveIndividualMessagesFromBatch(ReferenceCountedObject<MessageMetadata> msgMetadata,
             ByteBuf uncompressedPayload, long ledgerId, long entryId, MessageProcessor processor) {
-        int batchSize = msgMetadata.getNumMessagesInBatch();
+        int batchSize = msgMetadata.get().getNumMessagesInBatch();
 
         try {
             for (int i = 0; i < batchSize; ++i) {

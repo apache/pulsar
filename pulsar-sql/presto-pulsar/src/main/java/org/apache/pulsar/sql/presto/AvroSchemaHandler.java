@@ -40,7 +40,7 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private final List<PulsarColumnHandle> columnHandles;
 
-    public static final FastThreadLocal<BinaryDecoder> decoders =
+    private static final FastThreadLocal<BinaryDecoder> decoders =
             new FastThreadLocal<>();
 
     private static final Logger log = Logger.get(AvroSchemaHandler.class);

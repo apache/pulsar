@@ -18,23 +18,23 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import java.util.function.Supplier;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.WorkerService;
-
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 @Path("/worker")
@@ -53,42 +53,47 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
 
     @GET
     @ApiOperation(
-            value = "Fetches information about the Pulsar cluster running Pulsar Functions"
+            value = "Fetches information about the Pulsar cluster running Pulsar Functions",
+            response = WorkerInfo.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
-
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
     })
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getCluster() {
+    public List<WorkerInfo> getCluster() {
         return worker.getCluster();
     }
 
     @GET
     @ApiOperation(
-            value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions")
+            value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions",
+            response = WorkerInfo.class
+    )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
-
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
     })
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getClusterLeader() {
+    public WorkerInfo getClusterLeader() {
         return worker.getClusterLeader();
     }
 
     @GET
     @ApiOperation(
             value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Function.Assignment.class,
-            responseContainer = "Map"
+            response = Map.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
     })
     @Path("/assignments")
-    public Response getAssignments() {
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Collection<String>> getAssignments() {
         return worker.getAssignments();
     }
 }

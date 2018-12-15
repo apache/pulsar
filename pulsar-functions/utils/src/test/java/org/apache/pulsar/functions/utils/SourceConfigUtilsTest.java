@@ -51,7 +51,7 @@ public class SourceConfigUtilsTest {
         sourceConfig.setParallelism(1);
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sourceConfig.setConfigs(new HashMap<>());
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, null);
+        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
         assertEquals(
                 new Gson().toJson(sourceConfig),
