@@ -69,7 +69,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long ackTimeoutMillis = 0;
 
-    private long tickDurationMillis = 0;
+    private long tickDurationMillis = 1000;
 
     private int priorityLevel = 0;
 

@@ -155,20 +155,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
-     * 10 seconds.
-     *
-     * @param ackTimeout
-     *            for unacked messages.
-     * @param tickDuration
-     *            granularity of timeout checking for unacked messages. tickDuration influence timeout accuracy, if set
-     *            ackTimeout = 10 and tickDuration = 2, actual ackTimeout will be 10 to 12.
-     * @param timeUnit
-     *            unit in which the timeout is provided.
-     */
-    ConsumerBuilder<T> ackTimeout(long ackTimeout, long tickDuration, TimeUnit timeUnit);
-
-    /**
      * Select the subscription type to be used when subscribing to the topic.
      * <p>
      * Default is {@link SubscriptionType#Exclusive}
