@@ -248,6 +248,15 @@ public class ProducerBuilderImplTest {
                 .create();
     }
 
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testProducerBuilderImplWhenPropertiesIsNull()
+            throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .properties(null)
+                .create();
+    }
+
     private class CustomMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
