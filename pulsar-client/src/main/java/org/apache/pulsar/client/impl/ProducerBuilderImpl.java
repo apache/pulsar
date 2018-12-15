@@ -231,8 +231,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> property(String key, String value) {
-        checkArgument(StringUtils.isNotBlank(key), "property key cannot be blank");
-        checkArgument(StringUtils.isNotBlank(value), "property value cannot be blank");
+        checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
+                "property key/value cannot be blank");
         conf.getProperties().put(key, value);
         return this;
     }
