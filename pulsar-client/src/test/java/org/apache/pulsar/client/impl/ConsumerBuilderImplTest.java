@@ -40,87 +40,74 @@ import static org.testng.Assert.assertNotNull;
 public class ConsumerBuilderImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
-    private PulsarClientImpl client;
     private ConsumerBuilderImpl consumerBuilderImpl;
-    ConsumerConfigurationData consumerConfigurationData;
 
     @BeforeTest
     public void setup() {
-        client = mock(PulsarClientImpl.class);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
+        when(consumerConfigurationData.getTopicsPattern()).thenReturn(Pattern.compile("\\w+"));
+        when(consumerConfigurationData.getSubscriptionName()).thenReturn("testSubscriptionName");
+        consumerBuilderImpl = new ConsumerBuilderImpl(client, consumerConfigurationData, Schema.BYTES);
     }
 
     @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
-        consumerConfigurationData = mock(ConsumerConfigurationData.class);
-        when(consumerConfigurationData.getTopicsPattern()).thenReturn(Pattern.compile("\\w+"));
-        when(consumerConfigurationData.getSubscriptionName()).thenReturn("testSubscriptionName");
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, consumerConfigurationData, Schema.BYTES);
         when(consumerBuilderImpl.subscribeAsync())
                 .thenReturn(CompletableFuture.completedFuture(consumer));
-
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsHasNullTopic() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic("my-topic", null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsHasBlankTopic() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic("my-topic", "  ");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topics(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesIsEmpty() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topics(Arrays.asList());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesHasBlankTopic() {
         List<String> topicNames = Arrays.asList("my-topic", " ");
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topics(topicNames);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesHasNullTopic() {
         List<String> topicNames = Arrays.asList("my-topic", null);
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topics(topicNames);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenSubscriptionNameIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenSubscriptionNameIsBlank() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName(" ");
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenConsumerEventListenerIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .consumerEventListener(null);
@@ -128,7 +115,6 @@ public class ConsumerBuilderImplTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenCryptoKeyReaderIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoKeyReader(null);
@@ -136,7 +122,6 @@ public class ConsumerBuilderImplTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenCryptoFailureActionIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoFailureAction(null);
@@ -144,42 +129,32 @@ public class ConsumerBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenConsumerNameIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME).consumerName(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenConsumerNameIsBlank() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
         consumerBuilderImpl.topic(TOPIC_NAME).consumerName(" ");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenPropertyKeyIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .property(null, "Test-Value");
+        consumerBuilderImpl.topic(TOPIC_NAME).property(null, "Test-Value");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenPropertyKeyIsBlank() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .property("   ", "Test-Value");
+        consumerBuilderImpl.topic(TOPIC_NAME).property("   ", "Test-Value");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenPropertyValueIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .property("Test-Key", null);
+        consumerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenPropertyValueIsBlank() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .property("Test-Key", "   ");
+        consumerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", "   ");
     }
 
     @Test
@@ -188,9 +163,7 @@ public class ConsumerBuilderImplTest {
         properties.put("Test-Key", "Test-Value");
         properties.put("Test-Key2", "Test-Value2");
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -198,9 +171,7 @@ public class ConsumerBuilderImplTest {
         Map<String, String> properties = new HashMap<>();
         properties.put(null, "Test-Value");
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -208,9 +179,7 @@ public class ConsumerBuilderImplTest {
         Map<String, String> properties = new HashMap<>();
         properties.put("  ", "Test-Value");
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -218,9 +187,7 @@ public class ConsumerBuilderImplTest {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", null);
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -228,39 +195,29 @@ public class ConsumerBuilderImplTest {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", "   ");
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenPropertiesIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .properties(null);
+        consumerBuilderImpl.topic(TOPIC_NAME).properties(null);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenSubscriptionInitialPositionIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .subscriptionInitialPosition(null);
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionInitialPosition(null);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenSubscriptionTopicsModeIsNull() {
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
-        consumerBuilderImpl.topic(TOPIC_NAME)
-                .subscriptionTopicsMode(null);
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionTopicsMode(null);
     }
 
 }
