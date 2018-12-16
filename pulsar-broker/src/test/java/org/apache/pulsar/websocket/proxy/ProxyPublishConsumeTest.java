@@ -407,7 +407,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getWebServiceAddress()
-                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
+                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()), (Integer.toString(port)))
                     + "/admin/v2/proxy-stats/";
 
             // verify proxy metrics

@@ -52,12 +52,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Configuration Store connection string
     @FieldContext(required = false)
     private String configurationStoreServers;
-    private int brokerServicePort = 6650;
-    private int brokerServicePortTls = 6651;
+    private Integer brokerServicePort = 6650;
+    private Integer brokerServicePortTls = null;
     // Port to use to server HTTP request
-    private int webServicePort = 8080;
+    private Integer webServicePort = 8080;
     // Port to use to server HTTPS request
-    private int webServicePortTls = 8443;
+    private Integer webServicePortTls = null;
 
     // Hostname or IP address the service binds on.
     private String bindAddress = "0.0.0.0";
@@ -228,7 +228,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConsumersPerSubscription = 0;
 
     /***** --- TLS --- ****/
-    // Enable TLS
+    @Deprecated
     private boolean tlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -589,5 +589,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getBookkeeperHealthCheckIntervalSec() {
         return (int) bookkeeperClientHealthCheckIntervalSeconds;
     }
+    
+    public Optional<Integer> getBrokerServicePort() {
+        return Optional.ofNullable(brokerServicePort);
+    }
+    
+    public Optional<Integer> getBrokerServicePortTls() {
+        return Optional.ofNullable(brokerServicePortTls);
+    }
+    
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
+    }
 
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
+    }
 }

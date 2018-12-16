@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -58,9 +59,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private long zooKeeperSessionTimeoutMillis = 30000;
 
     // Port to use to server HTTP request
-    private int webServicePort = 8080;
+    private Integer webServicePort = 8080;
     // Port to use to server HTTPS request
-    private int webServicePortTls = 8443;
+    private Integer webServicePortTls;
     // Hostname or IP address the service binds on, default is 0.0.0.0.
     private String bindAddress;
     // --- Authentication ---
@@ -99,8 +100,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
-    // Enable TLS
+    @Deprecated 
     private boolean tlsEnabled = false;
+    
+    private boolean brokerClientTlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
@@ -189,16 +192,16 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
     }
 
-    public int getWebServicePort() {
-        return webServicePort;
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
     }
 
     public void setWebServicePort(int webServicePort) {
         this.webServicePort = webServicePort;
     }
 
-    public int getWebServicePortTls() {
-        return webServicePortTls;
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
     }
 
     public void setWebServicePortTls(int webServicePortTls) {
@@ -317,12 +320,12 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.anonymousUserRole = anonymousUserRole;
     }
 
-    public boolean isTlsEnabled() {
-        return tlsEnabled;
+    public boolean isBrokerClientTlsEnabled() {
+        return brokerClientTlsEnabled || tlsEnabled;
     }
 
-    public void setTlsEnabled(boolean tlsEnabled) {
-        this.tlsEnabled = tlsEnabled;
+    public void setBrokerClientTlsEnabled(boolean brokerClientTlsEnabled) {
+        this.brokerClientTlsEnabled = brokerClientTlsEnabled;
     }
 
     public String getTlsCertificateFilePath() {
