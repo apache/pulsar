@@ -57,6 +57,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -79,6 +80,8 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     private final String connectorId;
     private final PulsarAdmin pulsarAdmin;
+
+    private static final String INFORMATION_SCHEMA = "information_schema";
 
     private static final Logger log = Logger.get(PulsarMetadata.class);
 
@@ -133,7 +136,14 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @Override
     public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle table) {
-        return getTableMetadata(convertTableHandle(table).toSchemaTableName(), true);
+        ConnectorTableMetadata connectorTableMetadata;
+        SchemaTableName schemaTableName = convertTableHandle(table).toSchemaTableName();
+        connectorTableMetadata = getTableMetadata(schemaTableName, true);
+        if (connectorTableMetadata == null) {
+            ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
+            connectorTableMetadata = new ConnectorTableMetadata(schemaTableName, builder.build());
+        }
+        return connectorTableMetadata;
     }
 
     @Override
@@ -141,20 +151,25 @@ public class PulsarMetadata implements ConnectorMetadata {
         ImmutableList.Builder<SchemaTableName> builder = ImmutableList.builder();
 
         if (schemaNameOrNull != null) {
-            List<String> pulsarTopicList = null;
-            try {
-                pulsarTopicList = this.pulsarAdmin.topics().getList(schemaNameOrNull);
-            } catch (PulsarAdminException e) {
-                if (e.getStatusCode() == 404) {
-                    log.warn("Schema " + schemaNameOrNull + " does not exsit");
-                    return builder.build();
+
+            if (schemaNameOrNull.equals(INFORMATION_SCHEMA)) {
+                // no-op for now but add pulsar connector specific system tables here
+            } else {
+                List<String> pulsarTopicList = null;
+                try {
+                    pulsarTopicList = this.pulsarAdmin.topics().getList(schemaNameOrNull);
+                } catch (PulsarAdminException e) {
+                    if (e.getStatusCode() == 404) {
+                        log.warn("Schema " + schemaNameOrNull + " does not exsit");
+                        return builder.build();
+                    }
+                    throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull + ": "
+                            + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
                 }
-                throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull + ": "
-                        + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
-            }
-            if (pulsarTopicList != null) {
-                pulsarTopicList.forEach(topic -> builder.add(
-                        new SchemaTableName(schemaNameOrNull, TopicName.get(topic).getLocalName())));
+                if (pulsarTopicList != null) {
+                    pulsarTopicList.forEach(topic -> builder.add(
+                            new SchemaTableName(schemaNameOrNull, TopicName.get(topic).getLocalName())));
+                }
             }
         }
         return builder.build();
@@ -165,6 +180,9 @@ public class PulsarMetadata implements ConnectorMetadata {
         PulsarTableHandle pulsarTableHandle = convertTableHandle(tableHandle);
 
         ConnectorTableMetadata tableMetaData = getTableMetadata(pulsarTableHandle.toSchemaTableName(), false);
+        if (tableMetaData == null) {
+            return new HashMap<>();
+        }
 
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
 
@@ -224,7 +242,10 @@ public class PulsarMetadata implements ConnectorMetadata {
         }
 
         for (SchemaTableName tableName : tableNames) {
-            columns.put(tableName, getTableMetadata(tableName, true).getColumns());
+            ConnectorTableMetadata connectorTableMetadata = getTableMetadata(tableName, true);
+            if (connectorTableMetadata != null) {
+                columns.put(tableName, connectorTableMetadata.getColumns());
+            }
         }
 
         return columns.build();
@@ -232,9 +253,11 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     private ConnectorTableMetadata getTableMetadata(SchemaTableName schemaTableName, boolean withInternalColumns) {
 
-        TopicName topicName;
+        if (schemaTableName.getSchemaName().equals(INFORMATION_SCHEMA)) {
+            return null;
+        }
 
-        topicName = TopicName.get(
+        TopicName topicName = TopicName.get(
                 String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName()));
 
         List<String> topics;
@@ -265,7 +288,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
-                throw new PrestoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a schema");
+                // to indicate that we can't read from topic because there is no schema
+                return null;
             }
             throw new RuntimeException("Failed to get schema information for topic "
                     + String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName())
