@@ -47,6 +47,7 @@
     <module>kafka-connect-adaptor</module>
     <module>debezium</module>
     <module>canal</module>
+    <module>netty</module>
   </modules>
 
 </project>
