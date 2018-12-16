@@ -162,7 +162,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		servicePort = PortManager.nextFreePort();
 		conf.setAuthenticationEnabled(true);
 		conf.setAuthorizationEnabled(true);
-		conf.setTlsEnabled(false);
 		conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		// Expires after an hour
 		conf.setBrokerClientAuthenticationParameters(

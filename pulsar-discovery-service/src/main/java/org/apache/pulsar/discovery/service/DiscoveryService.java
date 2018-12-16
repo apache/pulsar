@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.discovery.service;
 
+import com.google.common.base.Preconditions;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Closeable;
@@ -104,15 +105,23 @@ public class DiscoveryService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, config, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(config.getServicePort()).sync();
-        LOG.info("Started Pulsar Discovery service on port {}", config.getServicePort());
-
-        if (config.isTlsEnabled()) {
+        
+        Preconditions.checkArgument(config.getServicePort().isPresent() || config.getServicePortTls().isPresent(), 
+                "Either ServicePort or ServicePortTls should be configured.");
+        
+        if (config.getServicePort().isPresent()) {
+            // Bind and start to accept incoming connections.
+            bootstrap.bind(config.getServicePort().get()).sync();
+            LOG.info("Started Pulsar Discovery service on port {}", config.getServicePort());
+        }
+        
+        if (config.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, config, true));
-            tlsBootstrap.bind(config.getServicePortTls()).sync();
-            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getServicePortTls());
+            tlsBootstrap.bind(config.getServicePortTls().get()).sync();
+            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getServicePortTls().get());
         }
+        
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -153,15 +162,20 @@ public class DiscoveryService implements Closeable {
     }
 
     public String serviceUrl() {
-        return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort()).toString();
+        if (config.getServicePort().isPresent()) {
+            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort().get())
+                    .toString();
+        } else {
+            return null;
+        }
     }
 
     public String serviceUrlTls() {
-        if (config.isTlsEnabled()) {
-            return new StringBuilder("pulsar+ssl://").append(host()).append(":").append(config.getServicePortTls())
+        if (config.getServicePortTls().isPresent()) {
+            return new StringBuilder("pulsar+ssl://").append(host()).append(":").append(config.getServicePortTls().get())
                     .toString();
         } else {
-            return "";
+            return null;
         }
     }
 

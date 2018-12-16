@@ -320,7 +320,7 @@ public abstract class PulsarWebResource {
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         URL webUrl = null;
-        if (isRequestHttps() && pulsar.getConfiguration().isTlsEnabled()
+        if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
                 && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
             webUrl = new URL(differentClusterData.getServiceUrlTls());
         } else {

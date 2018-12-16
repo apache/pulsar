@@ -71,7 +71,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setTlsEnabled(true);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
