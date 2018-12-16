@@ -1057,9 +1057,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1305,9 +1305,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1750,8 +1750,19 @@ and follow the instructions for your OS.</p>
   bin/pulsar standalone
 </code></pre></div></div>
 
+<p>Under Windows, you should use something like the following docker command:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker run <span class="nt">-it</span> <span class="se">\</span>
+  <span class="nt">-p</span> 6650:6650 <span class="se">\</span>
+  <span class="nt">-p</span> 8080:8080 <span class="se">\</span>
+  <span class="nt">-v</span> <span class="s2">"</span><span class="nv">$PWD</span><span class="s2">/data:/pulsar/data"</span>.ToLower<span class="o">()</span> <span class="se">\</span>
+  apachepulsar/pulsar:2.0.1-incubating <span class="se">\</span>
+  bin/pulsar standalone
+</code></pre></div></div>
+
 <p>A few things to note about this command:</p>
 <ul>
+  <li><code class="highlighter-rouge">$PWD/data</code> : The docker host directory under the Windows operating system must be lowercase.<code class="highlighter-rouge">$PWD/data</code> can provide you with the specified directory, for example: <code class="highlighter-rouge">E:/data</code>.</li>
   <li><code class="highlighter-rouge">-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the
 data and metadata in the filesystem outside the container, in order to not start “fresh” every
 time the container is restarted.</li>
