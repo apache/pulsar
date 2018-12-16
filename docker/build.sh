@@ -21,6 +21,6 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/docker
 
-mvn package -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Pdocker
-mvn -f ../dashboard/pom.xml package -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Pdocker
+mvn package -Pdocker
+mvn -f ../dashboard/pom.xml package -Pdocker
 
