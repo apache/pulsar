@@ -234,7 +234,7 @@ public class SinkApiV2ResourceTest {
             null,
             mockedFormData,
             topicsToSerDeClassName,
-            className,
+            null,
             parallelism,
                 null,
                 "Sink Package is not provided");
@@ -249,7 +249,7 @@ public class SinkApiV2ResourceTest {
             mockedInputStream,
             null,
             topicsToSerDeClassName,
-            className,
+            null,
             parallelism,
                 null,
                 "zip file is empty");
@@ -263,9 +263,9 @@ public class SinkApiV2ResourceTest {
                 namespace,
                 sink,
                 inputStream,
-                null,
+                mockedFormData,
                 topicsToSerDeClassName,
-                className,
+                null,
                 parallelism,
                 null,
                 "Failed to extract sink class from archive");
@@ -328,7 +328,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test",
-                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
+                "Invalid Sink Jar");
     }
 
     private void testRegisterSinkMissingArguments(
@@ -582,7 +582,7 @@ public class SinkApiV2ResourceTest {
             null,
             mockedFormData,
             topicsToSerDeClassName,
-            className,
+            null,
             parallelism,
                 "Update contains no change");
     }
@@ -600,7 +600,7 @@ public class SinkApiV2ResourceTest {
                 null,
                 mockedFormData,
                 null,
-                className,
+                null,
                 parallelism,
                 "Update contains no change");
     }
@@ -1219,6 +1219,6 @@ public class SinkApiV2ResourceTest {
     }
 
     private FunctionDetails createDefaultFunctionDetails() throws IOException {
-        return SinkConfigUtils.convert(createDefaultSinkConfig(), null);
+        return SinkConfigUtils.convert(createDefaultSinkConfig(), new SinkConfigUtils.ExtractedSinkDetails(null, null));
     }
 }

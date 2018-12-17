@@ -20,6 +20,7 @@ pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 .project
 .settings/
 .recommenders/
+.factorypath
 
 # Intellij
 .idea/

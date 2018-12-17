@@ -29,12 +29,15 @@ Deploying a Pulsar cluster involves doing the following (in order):
 > If you already have an existing zookeeper cluster and would like to reuse it, you don't need to prepare the machines
 > for running ZooKeeper.
 
-To run Pulsar on bare metal, you will need:
+To run Pulsar on bare metal, you are recommended to have:
 
 * At least 6 Linux machines or VMs
   * 3 running [ZooKeeper](https://zookeeper.apache.org)
   * 3 running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
+
+> However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later),
+> you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
 
@@ -147,6 +150,8 @@ server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
+
+> If you have only one machine to deploy Pulsar, you just need to add one server entry in the configuration file.
 
 On each host, you need to specify the ID of the node in each node's `myid` file, which is in each server's `data/zookeeper` folder by default (this can be changed via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
@@ -267,6 +272,19 @@ You also need to specify the cluster name (matching the name that you provided w
 ```properties
 clusterName=pulsar-cluster-1
 ```
+
+> If you deploy Pulsar in a one-node cluster, you should update the replication settings in `conf/broker.conf` to `1`
+>
+> ```properties
+> # Number of bookies to use when creating a ledger
+> managedLedgerDefaultEnsembleSize=1
+>
+> # Number of copies to store for each message
+> managedLedgerDefaultWriteQuorum=1
+> 
+> # Number of guaranteed copies (acks to wait before write is complete)
+> managedLedgerDefaultAckQuorum=1
+> ```
 
 ### Enabling Pulsar Functions (optional)
 

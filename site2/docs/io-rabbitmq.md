@@ -1,12 +1,12 @@
 ---
 id: io-rabbitmq
 title: RabbitMQ Connector
-sidebar_label: RabittMQ Connector
+sidebar_label: RabbitMQ Connector
 ---
 
 ## Source
 
-The RabittMQ Source connector is used for receiving messages from a RabittMQ cluster and writing
+The RabbitMQ Source connector is used for receiving messages from a RabbitMQ cluster and writing
 messages to Pulsar topics.
 
 ### Source Configuration Options

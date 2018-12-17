@@ -30,6 +30,7 @@ where command is one of:
     websocket           Run a websocket proxy server
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
+    proxy               Run a Proxy Pulsar service
 
 where argument is one of:
     -force (accepted only with stop command): Decides whether to stop the server forcefully if not stopped by normal shutdown
@@ -87,6 +88,9 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (standalone)
+        echo "doing $startStop $command ..."
+        ;;
+    (proxy)
         echo "doing $startStop $command ..."
         ;;
     (*)

@@ -52,12 +52,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Configuration Store connection string
     @FieldContext(required = false)
     private String configurationStoreServers;
-    private int brokerServicePort = 6650;
-    private int brokerServicePortTls = 6651;
+    private Integer brokerServicePort = 6650;
+    private Integer brokerServicePortTls = null;
     // Port to use to server HTTP request
-    private int webServicePort = 8080;
+    private Integer webServicePort = 8080;
     // Port to use to server HTTPS request
-    private int webServicePortTls = 8443;
+    private Integer webServicePortTls = null;
 
     // Hostname or IP address the service binds on.
     private String bindAddress = "0.0.0.0";
@@ -178,11 +178,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
     // Default number of message dispatching throttling-limit for a subscription.
-    // Using a value of 0, is disabling.
+    // Using a value of 0, is disabling default message dispatch-throttling.
     @FieldContext(dynamic = true)
     private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
     // Default number of message-bytes dispatching throttling-limit for a subscription.
-    // Using a value of 0, is disabling.
+    // Using a value of 0, is disabling default message-byte dispatch-throttling.
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
@@ -228,7 +228,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConsumersPerSubscription = 0;
 
     /***** --- TLS --- ****/
-    // Enable TLS
+    @Deprecated
     private boolean tlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -310,6 +310,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable rack-aware bookie selection policy. BK will chose bookies from
     // different racks when forming a new bookie ensemble
     private boolean bookkeeperClientRackawarePolicyEnabled = true;
+    // Enable region-aware bookie selection policy. BK will chose bookies from
+    // different regions and racks when forming a new bookie ensemble
+    private boolean bookkeeperClientRegionawarePolicyEnabled = false;
+    // Enable/disable reordering read sequence on reading entries.
+    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     // Enable bookie isolation by specifying a list of bookie groups to choose
     // from. Any bookie outside the specified groups will not be used by the
     // broker
@@ -584,5 +589,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getBookkeeperHealthCheckIntervalSec() {
         return (int) bookkeeperClientHealthCheckIntervalSeconds;
     }
+    
+    public Optional<Integer> getBrokerServicePort() {
+        return Optional.ofNullable(brokerServicePort);
+    }
+    
+    public Optional<Integer> getBrokerServicePortTls() {
+        return Optional.ofNullable(brokerServicePortTls);
+    }
+    
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
+    }
 
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
+    }
 }

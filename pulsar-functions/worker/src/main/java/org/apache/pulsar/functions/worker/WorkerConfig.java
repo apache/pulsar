@@ -55,8 +55,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     private String workerId;
     private String workerHostname;
-    private int workerPort;
-    private int workerPortTls;
+    private Integer workerPort;
+    private Integer workerPortTls;
     private String connectorsDirectory = "./connectors";
     private String functionMetadataTopicName;
     private String functionWebServiceUrl;
@@ -80,7 +80,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     // Frequency how often worker performs compaction on function-topics
     private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
     /***** --- TLS --- ****/
-    // Enable TLS
+    @Deprecated
     private boolean tlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -91,6 +91,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    // TLS for Functions -> Broker
     private boolean useTls = false;
     private boolean tlsHostnameVerificationEnable = false;
     // Enforce authentication
@@ -104,6 +105,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     
     private Properties properties = new Properties();
 
+    public boolean getTlsEnabled() {
+    	return tlsEnabled || workerPortTls != null;
+    }
+    
+    
     @Data
     @Setter
     @Getter
