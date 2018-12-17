@@ -23,6 +23,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
@@ -136,10 +137,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 404, message = "The function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
-    public void getFunctionInfo(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace,
-                                    final @PathParam("functionName") String functionName) throws IOException {
-         functions.getFunctionInfo(tenant, namespace, functionName);
+    public FunctionConfig getFunctionInfo(final @PathParam("tenant") String tenant,
+                                          final @PathParam("namespace") String namespace,
+                                          final @PathParam("functionName") String functionName) throws IOException {
+         return functions.getFunctionInfo(tenant, namespace, functionName);
     }
 
     @GET
