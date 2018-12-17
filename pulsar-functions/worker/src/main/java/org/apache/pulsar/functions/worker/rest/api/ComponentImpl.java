@@ -363,7 +363,7 @@ public abstract class ComponentImpl {
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
             log.error("{} {}/{}/{} already exists", componentType, tenant, namespace, componentName);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("%s %s already exists", componentType, componentName));
+            throw new RestException(Status.BAD_REQUEST, String.format("%s %s already exists", componentType, componentName));
         }
 
         FunctionDetails functionDetails;
