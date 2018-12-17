@@ -25,7 +25,7 @@ import org.apache.flink.batch.connectors.pulsar.avro.generated.NasaMission
 /**
   * Implements a batch Scala program on Pulsar topic by writing Flink DataSet as Avro.
   */
-object FlinkPulsarBatchAvroSinkExample {
+object FlinkPulsarBatchAvroSinkScalaExample {
 
   private val SERVICE_URL = "pulsar://127.0.0.1:6650"
   private val TOPIC_NAME = "my-flink-topic"

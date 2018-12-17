@@ -37,7 +37,7 @@ public class AvroSerializationSchema<T extends SpecificRecord> implements Serial
 
     @Override
     public byte[] serialize(T t) {
-        if (null == t){
+        if (null == t) {
             return null;
         }
 
@@ -51,7 +51,7 @@ public class AvroSerializationSchema<T extends SpecificRecord> implements Serial
         try {
             writer.write(t,encoder);
             encoder.flush();
-        }catch (IOException e){
+        } catch (IOException e) {
             throw new RuntimeException("Error while serializing the record to Avro", e);
         }
 

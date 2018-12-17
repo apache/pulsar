@@ -86,6 +86,24 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Generate Test class from avro schema -->
+      <plugin>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-maven-plugin</artifactId>
+        <version>${avro.version}</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>schema</goal>
+            </goals>
+            <configuration>
+              <testSourceDirectory>${project.basedir}/src/main/resources/avro</testSourceDirectory>
+              <testOutputDirectory>${project.basedir}/src/main/java/</testOutputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
