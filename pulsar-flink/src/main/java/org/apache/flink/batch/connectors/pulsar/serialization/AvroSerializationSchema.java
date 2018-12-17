@@ -54,6 +54,8 @@ public class AvroSerializationSchema<T extends SpecificRecord> implements Serial
         }catch (IOException e){
             throw new RuntimeException("Error while serializing the record to Avro", e);
         }
+
         return arrayOutputStream.toByteArray();
     }
+
 }

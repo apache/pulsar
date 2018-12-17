@@ -32,4 +32,5 @@ public class PulsarAvroOutputFormat<T extends SpecificRecord> extends BasePulsar
         super(serviceUrl, topicName);
         this.serializationSchema = new AvroSerializationSchema();
     }
+
 }

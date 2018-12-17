@@ -69,5 +69,4 @@ object FlinkPulsarBatchAvroSinkExample {
     env.execute("Flink - Pulsar Batch Avro")
   }
 
-
 }
