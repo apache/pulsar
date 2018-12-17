@@ -1043,6 +1043,7 @@ public abstract class ComponentImpl {
             }
             MessageId msgId = producer.send(targetArray);
             if (reader == null) {
+                return null;
             }
             long curTime = System.currentTimeMillis();
             long maxTime = curTime + 1000;
@@ -1056,10 +1057,12 @@ public abstract class ComponentImpl {
                             Base64.getDecoder().decode((String) msg.getProperties().get("__pfn_input_msg_id__")));
                     if (msgId.equals(newMsgId)
                             && msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
+                       return new String(msg.getData());
                     }
                 }
                 curTime = System.currentTimeMillis();
             }
+            throw new RestException(Status.REQUEST_TIMEOUT, "Requeste Timed Out");
         } catch (Exception e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } finally {
@@ -1070,7 +1073,6 @@ public abstract class ComponentImpl {
                 producer.closeAsync();
             }
         }
-        return null;
     }
 
     public FunctionState getFunctionState(final String tenant,
