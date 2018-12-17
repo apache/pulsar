@@ -195,8 +195,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                null,
-                "Tenant is not provided");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
@@ -212,8 +211,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                null,
-                "Namespace is not provided");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
@@ -229,8 +227,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                null,
-                "Function Name is not provided");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
@@ -246,8 +243,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                null,
-                "Function Package is not provided");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "No input topic\\(s\\) specified for the function")
@@ -263,8 +259,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 parallelism,
-                null,
-                "No input topic(s) specified for the function");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
@@ -280,8 +275,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                null,
-                "Function Package is not provided");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
@@ -297,8 +291,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
-                null,
-                "Function classname cannot be null");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class must be in class path")
@@ -314,8 +307,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 "UnknownClass",
                 parallelism,
-                null,
-                "User class must be in class path");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function parallelism should positive number")
@@ -331,8 +323,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 -2,
-                null,
-                "Function parallelism should positive number");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic persistent://sample/standalone/ns1/test_src is also being used as an input topic \\(topics must be one or the other\\)")
@@ -348,9 +339,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 parallelism,
-                null,
-                "Output topic " + topicsToSerDeClassName.keySet().iterator().next()
-                        + " is also being used as an input topic (topics must be one or the other)");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function + "-output-topic/test:" + " is invalid")
@@ -366,8 +355,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 parallelism,
-                null,
-                "Output topic " + function + "-output-topic/test:" + " is invalid");
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Corrupted Jar File")
@@ -383,8 +371,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 parallelism,
-                "http://localhost:1234/test",
-                "Corrupted Jar File");
+                "http://localhost:1234/test");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -398,8 +385,7 @@ public class FunctionApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String functionPkgUrl,
-            String errorExpected) throws IOException {
+            String functionPkgUrl) throws IOException {
         FunctionConfig functionConfig = new FunctionConfig();
         if (tenant != null) {
             functionConfig.setTenant(tenant);
