@@ -18,36 +18,24 @@
  */
 package org.apache.pulsar.io.datagenerator;
 
-import io.codearte.jfairy.Fairy;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Source;
-import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
 import java.util.Map;
-import java.util.Optional;
 
-
-public class DataGeneratorSource implements Source<Person> {
+@Slf4j
+public class DataGeneratorPrintSink implements Sink<Person> {
 
     @Override
-    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 
     }
 
     @Override
-    public Record<Person> read() throws Exception {
-        Thread.sleep(50);
-        return new Record<Person>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
-
-            @Override
-            public Person getValue() {
-                return new Person(Fairy.create().person());
-            }
-        };
+    public void write(Record<Person> record) throws Exception {
+        log.info("RECV: {}", record.getValue());
     }
 
     @Override

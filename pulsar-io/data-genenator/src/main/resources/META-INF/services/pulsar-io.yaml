@@ -20,3 +20,4 @@
 name: data-generator
 description: Test data generator source
 sourceClass: org.apache.pulsar.io.datagenerator.DataGeneratorSource
+sinkClass: org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink
