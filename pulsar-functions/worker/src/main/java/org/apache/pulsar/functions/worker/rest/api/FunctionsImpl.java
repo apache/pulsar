@@ -24,13 +24,11 @@ import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -74,9 +72,25 @@ public class FunctionsImpl extends ComponentImpl {
             }
             functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
 
-            functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+            // For regular functions source/sink errors are system exceptions
+            functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
+                    + status.getNumSourceExceptions() + status.getNumSinkExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
@@ -139,7 +153,10 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         @Override
-        public FunctionStatus getStatusExternal(String tenant, String namespace, String name, int parallelism) {
+        public FunctionStatus getStatusExternal(final String tenant,
+                                                final String namespace,
+                                                final String name,
+                                                final int parallelism) {
             FunctionStatus functionStatus = new FunctionStatus();
             for (int i = 0; i < parallelism; ++i) {
                 FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
@@ -161,7 +178,7 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         @Override
-        public FunctionStatus emptyStatus(int parallelism) {
+        public FunctionStatus emptyStatus(final int parallelism) {
             FunctionStatus functionStatus = new FunctionStatus();
             functionStatus.setNumInstances(parallelism);
             functionStatus.setNumRunning(0);
@@ -193,8 +210,11 @@ public class FunctionsImpl extends ComponentImpl {
      * @param instanceId the function instance id
      * @return the function status
      */
-    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant, final String namespace, final String componentName,
-                                                                                                      final String instanceId, URI uri) throws IOException {
+    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
+                                                                                                      final String namespace,
+                                                                                                      final String componentName,
+                                                                                                      final String instanceId,
+                                                                                                      final URI uri) {
 
         // validate parameters
         componentInstanceStatusRequestValidate(tenant, namespace, componentName, Integer.parseInt(instanceId));
@@ -221,8 +241,10 @@ public class FunctionsImpl extends ComponentImpl {
      * @return a list of function statuses
      * @throws PulsarAdminException
      */
-    public FunctionStatus getFunctionStatus(final String tenant, final String namespace, final String componentName,
-                                            URI uri) {
+    public FunctionStatus getFunctionStatus(final String tenant,
+                                            final String namespace,
+                                            final String componentName,
+                                            final URI uri) {
 
         // validate parameters
         componentStatusRequestValidate(tenant, namespace, componentName);

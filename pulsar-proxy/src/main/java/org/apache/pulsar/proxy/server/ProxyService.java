@@ -104,8 +104,17 @@ public class ProxyService implements Closeable {
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
-        this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
+        if (proxyConfig.getServicePort().isPresent()) {
+            this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort().get());
+        } else {
+            this.serviceUrl = null;
+        }
+        
+        if (proxyConfig.getServicePortTls().isPresent()) {
+            this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls().get());
+        } else {
+            this.serviceUrlTls = null;
+        }
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
@@ -132,18 +141,21 @@ public class ProxyService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
-        try {
-            bootstrap.bind(proxyConfig.getServicePort()).sync();
-        } catch (Exception e) {
-            throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort(), e);
+        if (proxyConfig.getServicePort().isPresent()) {
+            try {
+                bootstrap.bind(proxyConfig.getServicePort().get()).sync();
+                LOG.info("Started Pulsar Proxy at {}", serviceUrl);
+            } catch (Exception e) {
+                throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
+            }
         }
         LOG.info("Started Pulsar Proxy at {}", serviceUrl);
 
-        if (proxyConfig.isTlsEnabledInProxy()) {
+        if (proxyConfig.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-            tlsBootstrap.bind(proxyConfig.getServicePortTls()).sync();
-            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls());
+            tlsBootstrap.bind(proxyConfig.getServicePortTls().get()).sync();
+            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls().get());
         }
     }
 

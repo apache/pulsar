@@ -27,7 +27,9 @@ import java.util.List;
 
 @Data
 public class SourceStatus {
+    // The total number of source instances that ought to be running
     public int numInstances;
+    // The number of source instances that are actually running
     public int numRunning;
     public List<SourceInstanceStatus> instances = new LinkedList<>();
 
@@ -38,21 +40,37 @@ public class SourceStatus {
 
         @Data
         public static class SourceInstanceStatusData {
-
+            // Is this instance running?
             public boolean running;
 
+            // Do we have any error while running this instance
             public String error;
 
+            // Number of times this instance has restarted
             public long numRestarts;
 
-            public long numReceived;
+            // Number of messages received from source
+            public long numReceivedFromSource;
 
+            // Number of times there was a system exception handling messages
             public long numSystemExceptions;
 
+            // A list of the most recent system exceptions
             public List<ExceptionInformation> latestSystemExceptions;
 
-            public long lastInvocationTime;
+            // Number of times there was a exception from source while reading messages
+            public long numSourceExceptions;
 
+            // A list of the most recent source exceptions
+            public List<ExceptionInformation> latestSourceExceptions;
+
+            // Number of messages written into pulsar
+            public long numWritten;
+
+            // When was the last time we received a message from the source
+            public long lastReceivedTime;
+
+            // The worker id on which the source is running
             public String workerId;
         }
     }

@@ -24,13 +24,11 @@ import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -59,20 +57,40 @@ public class SourceImpl extends ComponentImpl {
             sourceInstanceStatusData.setRunning(status.getRunning());
             sourceInstanceStatusData.setError(status.getFailureException());
             sourceInstanceStatusData.setNumRestarts(status.getNumRestarts());
-            sourceInstanceStatusData.setNumReceived(status.getNumReceived());
+            sourceInstanceStatusData.setNumReceivedFromSource(status.getNumReceived());
 
-            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            sourceInstanceStatusData.setNumSourceExceptions(status.getNumSourceExceptions());
+            List<ExceptionInformation> sourceExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                sourceExceptionInformationList.add(exceptionInformation);
+            }
+            sourceInstanceStatusData.setLatestSourceExceptions(sourceExceptionInformationList);
+
+            // Source treats all system and sink exceptions as system exceptions
+            sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
+                    + status.getNumUserExceptions() + status.getNumSinkExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
-                userExceptionInformationList.add(exceptionInformation);
+                systemExceptionInformationList.add(exceptionInformation);
             }
 
-            sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
-            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
@@ -81,7 +99,8 @@ public class SourceImpl extends ComponentImpl {
             }
             sourceInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
 
-            sourceInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sourceInstanceStatusData.setNumWritten(status.getNumSuccessfullyProcessed());
+            sourceInstanceStatusData.setLastReceivedTime(status.getLastInvocationTime());
             sourceInstanceStatusData.setWorkerId(assignedWorkerId);
 
             return sourceInstanceStatusData;
@@ -101,7 +120,11 @@ public class SourceImpl extends ComponentImpl {
         }
 
         @Override
-        public SourceStatus getStatus(String tenant, String namespace, String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException {
+        public SourceStatus getStatus(final String tenant,
+                                      final String namespace,
+                                      final String name,
+                                      final Collection<Function.Assignment> assignments,
+                                      final URI uri) throws PulsarAdminException {
             SourceStatus sourceStatus = new SourceStatus();
             for (Function.Assignment assignment : assignments) {
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
@@ -132,7 +155,10 @@ public class SourceImpl extends ComponentImpl {
         }
 
         @Override
-        public SourceStatus getStatusExternal(String tenant, String namespace, String name, int parallelism) {
+        public SourceStatus getStatusExternal(final String tenant,
+                                              final String namespace,
+                                              final String name,
+                                              final int parallelism) {
             SourceStatus sinkStatus = new SourceStatus();
             for (int i = 0; i < parallelism; ++i) {
                 SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
@@ -154,7 +180,7 @@ public class SourceImpl extends ComponentImpl {
         }
 
         @Override
-        public SourceStatus emptyStatus(int parallelism) {
+        public SourceStatus emptyStatus(final int parallelism) {
             SourceStatus sourceStatus = new SourceStatus();
             sourceStatus.setNumInstances(parallelism);
             sourceStatus.setNumRunning(0);
@@ -178,8 +204,10 @@ public class SourceImpl extends ComponentImpl {
         super(workerServiceSupplier, ComponentType.SOURCE);
     }
 
-    public SourceStatus getSourceStatus(final String tenant, final String namespace,
-                                        final String componentName, URI uri) throws IOException {
+    public SourceStatus getSourceStatus(final String tenant,
+                                        final String namespace,
+                                        final String componentName,
+                                        final URI uri) {
         // validate parameters
         componentStatusRequestValidate(tenant, namespace, componentName);
 
@@ -196,8 +224,11 @@ public class SourceImpl extends ComponentImpl {
         return sourceStatus;
     }
 
-    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
-            String tenant, String namespace, String sourceName, String instanceId, URI uri) {
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(final String tenant,
+                                                                                              final String namespace,
+                                                                                              final String sourceName,
+                                                                                              final String instanceId,
+                                                                                              final URI uri) {
         // validate parameters
         componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId));
 

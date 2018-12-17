@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import java.util.function.Supplier;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -28,18 +36,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.apache.pulsar.broker.web.AuthenticationFilter;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.WorkerService;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 @Path("/worker")
@@ -76,33 +76,48 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     }
 
     @GET
+    @ApiOperation(
+            value = "Fetches information about the Pulsar cluster running Pulsar Functions",
+            response = WorkerInfo.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
     @Path("/cluster")
-    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
-    @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "WorkerApiV2Resource service is not running") })
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getCluster() {
+    public List<WorkerInfo> getCluster() {
         return worker.getCluster();
     }
 
     @GET
+    @ApiOperation(
+            value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions",
+            response = WorkerInfo.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
     @Path("/cluster/leader")
-    @ApiOperation(value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions")
-    @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "WorkerApiV2Resource service is not running") })
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getClusterLeader() {
+    public WorkerInfo getClusterLeader() {
         return worker.getClusterLeader();
     }
 
     @GET
+    @ApiOperation(
+            value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
+            response = Map.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
     @Path("/assignments")
-    @ApiOperation(value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Function.Assignment.class,
-            responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "WorkerApiV2Resource service is not running") })
-    public Response getAssignments() {
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Collection<String>> getAssignments() {
         return worker.getAssignments();
     }
 }

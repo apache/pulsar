@@ -65,13 +65,13 @@ public class ProxyServer {
         this.server = new Server(executorService);
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new ServerConnector(server);
-
-        connector.setPort(config.getWebServicePort());
-        connectors.add(connector);
-
+        if (config.getWebServicePort().isPresent()) {
+			ServerConnector connector = new ServerConnector(server);
+			connector.setPort(config.getWebServicePort().get());
+			connectors.add(connector);
+        }
         // TLS enabled connector
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
@@ -80,12 +80,11 @@ public class ProxyServer {
                         config.getTlsKeyFilePath(),
                         config.getTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
-
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of
@@ -117,7 +116,7 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", conf.getWebServicePort());
+        log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             Slf4jRequestLog requestLog = new Slf4jRequestLog();

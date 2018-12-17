@@ -30,9 +30,7 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.util.JsonFormat;
 
 import java.io.File;
 import java.lang.reflect.Field;

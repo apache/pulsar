@@ -217,8 +217,8 @@ public class SLAMonitoringTest {
         try {
             pulsarServices[crashIndex] = new PulsarService(configurations[crashIndex]);
             pulsarServices[crashIndex].start();
-            assertEquals(pulsarServices[crashIndex].getConfiguration().getBrokerServicePort(),
-                    brokerNativeBrokerPorts[crashIndex]);
+            assertEquals(pulsarServices[crashIndex].getConfiguration().getBrokerServicePort().get(),
+                    new Integer(brokerNativeBrokerPorts[crashIndex]));
         } catch (PulsarServerException e) {
             e.printStackTrace();
             fail("The broker should be able to start without exception");

@@ -49,6 +49,8 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
 /**
  * Utils used for runtime.
  */
@@ -211,6 +213,19 @@ public class Utils {
         return typeArg;
     }
 
+    public static ClassLoader extractClassLoader(Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) throws Exception {
+        if (!isEmpty(functionPkgUrl)) {
+            return extractClassLoader(functionPkgUrl);
+        }
+        if (archivePath != null) {
+            return loadJar(archivePath.toFile());
+        }
+        if (uploadedInputStreamAsFile != null) {
+            return loadJar(uploadedInputStreamAsFile);
+        }
+        return null;
+    }
+
     /**
      * Load a jar
      * @param jar file of jar
@@ -293,7 +308,7 @@ public class Utils {
                 throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
             }
         }
-        if (!StringUtils.isEmpty(pkgUrl)) {
+        if (!isEmpty(pkgUrl)) {
             if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                 try {
                     URL url = new URL(pkgUrl);

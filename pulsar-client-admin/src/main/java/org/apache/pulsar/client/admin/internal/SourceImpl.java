@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
@@ -33,14 +31,12 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 @Slf4j
@@ -58,7 +54,7 @@ public class SourceImpl extends BaseResource implements Source {
         try {
             Response response = request(source.path(tenant).path(namespace)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<String>>() {
             });
@@ -72,7 +68,7 @@ public class SourceImpl extends BaseResource implements Source {
         try {
              Response response = request(source.path(tenant).path(namespace).path(sourceName)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SourceConfig.class);
         } catch (Exception e) {
@@ -86,7 +82,7 @@ public class SourceImpl extends BaseResource implements Source {
         try {
             Response response = request(source.path(tenant).path(namespace).path(sourceName).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SourceStatus.class);
         } catch (Exception e) {
@@ -102,7 +98,7 @@ public class SourceImpl extends BaseResource implements Source {
                     source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status"))
                             .get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class);
         } catch (Exception e) {
@@ -241,17 +237,11 @@ public class SourceImpl extends BaseResource implements Source {
         try {
             Response response = request(source.path("builtinsources")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<ConnectorDefinition>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
-
-
-    public static void mergeJson(String json, Builder builder) throws IOException {
-        JsonFormat.parser().merge(json, builder);
-    }
-
 }

@@ -344,7 +344,7 @@ public class ClustersBase extends AdminResource {
                     .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-            // construct the response to NamespaceisolationData map
+            // construct the response to Namespace isolation data map
             return nsIsolationPolicies.getPolicies();
         } catch (Exception e) {
             log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies", clientAppId(), cluster, e);
@@ -368,7 +368,7 @@ public class ClustersBase extends AdminResource {
                     .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-            // construct the response to NamespaceisolationData map
+            // construct the response to Namespace isolation data map
             if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
                 log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", policyName, cluster);
                 throw new RestException(Status.NOT_FOUND,
