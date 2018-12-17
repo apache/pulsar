@@ -205,7 +205,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
-        checkArgument(delay >= 0, "delay needs to be >= 0");
+        checkArgument(delay >= 0, "acknowledgmentGroupTime needs to be >= 0");
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
         return this;
     }
