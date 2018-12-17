@@ -288,7 +288,6 @@ public class PulsarWorkerAssignmentTest {
         // (3) Restart worker service and check registered functions
         URI dlUri = functionsWorkerService.getDlogUri();
         functionsWorkerService.stop();
-        workerConfig.setRescheduleTimeoutMs(60000);
         functionsWorkerService = new WorkerService(workerConfig);
         functionsWorkerService.start(dlUri);
         FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
