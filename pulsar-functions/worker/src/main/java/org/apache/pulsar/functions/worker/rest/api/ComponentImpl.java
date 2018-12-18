@@ -89,7 +89,6 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -752,7 +751,7 @@ public abstract class ComponentImpl {
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
             log.error("{} does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("%s %s doesn't exist", componentType, componentName));
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
@@ -1085,7 +1084,7 @@ public abstract class ComponentImpl {
         }
 
         if (null == worker().getStateStoreAdminClient()) {
-            getStateStoreUnvailableResponse();
+            throwStateStoreUnvailableResponse();
         }
 
         // validate parameters
@@ -1583,7 +1582,7 @@ public abstract class ComponentImpl {
                 "Function worker service is not done initializing. " + "Please try again in a little while.");
     }
 
-    private void getStateStoreUnvailableResponse() {
+    private void throwStateStoreUnvailableResponse() {
         throw new RestException(Status.SERVICE_UNAVAILABLE,
                 "State storage client is not done initializing. " + "Please try again in a little while.");
     }
