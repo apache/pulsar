@@ -61,6 +61,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -183,136 +184,177 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testRegisterFunctionMissingTenant() throws IOException {
-        testRegisterFunctionMissingArguments(
-            null,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null);
+    public void testRegisterFunctionMissingTenant() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    null,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testRegisterFunctionMissingNamespace() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            null,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
-    public void testRegisterFunctionMissingFunctionName() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            null,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
-    public void testRegisterFunctionMissingPackage() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            null,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "No input topic\\(s\\) specified for the function")
-    public void testRegisterFunctionMissingInputTopics() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterFunctionMissingNamespace() {
+        try {
+            testRegisterFunctionMissingArguments(
                 tenant,
-                namespace,
-                function,
                 null,
-                null,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
-    public void testRegisterFunctionMissingPackageDetails() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            null,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
-    public void testRegisterFunctionMissingClassName() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                null);
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class must be in class path")
-    public void testRegisterFunctionWrongClassName() throws IOException {
-        testRegisterFunctionMissingArguments(
-                tenant,
-                namespace,
                 function,
                 mockedInputStream,
                 topicsToSerDeClassName,
                 mockedFormData,
                 outputTopic,
-                outputSerdeClassName,
-                "UnknownClass",
+                    outputSerdeClassName,
+                className,
                 parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    public void testRegisterFunctionMissingFunctionName() {
+        try {
+        testRegisterFunctionMissingArguments(
+            tenant,
+            namespace,
+            null,
+            mockedInputStream,
+            topicsToSerDeClassName,
+            mockedFormData,
+            outputTopic,
+                outputSerdeClassName,
+            className,
+            parallelism,
                 null);
+    } catch (RestException re){
+        assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+        throw re;
+    }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
+    public void testRegisterFunctionMissingPackage() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "No input topic\\(s\\) specified for the function")
+    public void testRegisterFunctionMissingInputTopics() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
+    public void testRegisterFunctionMissingPackageDetails() {
+        try {
+            testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                null,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
+    public void testRegisterFunctionMissingClassName() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class must be in class path")
+    public void testRegisterFunctionWrongClassName() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    "UnknownClass",
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function parallelism should positive number")
-    public void testRegisterFunctionWrongParallelism() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterFunctionWrongParallelism() {
+        try {
+            testRegisterFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -324,27 +366,38 @@ public class FunctionApiV2ResourceTest {
                 className,
                 -2,
                 null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic persistent://sample/standalone/ns1/test_src is also being used as an input topic \\(topics must be one or the other\\)")
-    public void testRegisterFunctionSameInputOutput() throws IOException {
-        testRegisterFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
-                mockedInputStream,
-                topicsToSerDeClassName,
-                mockedFormData,
-                topicsToSerDeClassName.keySet().iterator().next(),
-                outputSerdeClassName,
-                className,
-                parallelism,
-                null);
+    @Test(expectedExceptions = RestException.class,
+            expectedExceptionsMessageRegExp = "Output topic persistent://sample/standalone/ns1/test_src is also being used as an input topic \\(topics must be one or the other\\)")
+    public void testRegisterFunctionSameInputOutput() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    topicsToSerDeClassName.keySet().iterator().next(),
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function + "-output-topic/test:" + " is invalid")
-    public void testRegisterFunctionWrongOutputTopic() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterFunctionWrongOutputTopic() {
+        try {
+            testRegisterFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -356,11 +409,16 @@ public class FunctionApiV2ResourceTest {
                 className,
                 parallelism,
                 null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Corrupted Jar File")
-    public void testRegisterFunctionHttpUrl() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterFunctionHttpUrl() {
+        try {
+            testRegisterFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -372,6 +430,10 @@ public class FunctionApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -385,7 +447,7 @@ public class FunctionApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String functionPkgUrl) throws IOException {
+            String functionPkgUrl) {
         FunctionConfig functionConfig = new FunctionConfig();
         if (tenant != null) {
             functionConfig.setTenant(tenant);
@@ -441,96 +503,130 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
-    public void testRegisterExistedFunction() throws IOException {
-        Configurator.setRootLevel(Level.DEBUG);
-
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
-
-        registerDefaultFunction();
+    public void testRegisterExistedFunction() {
+        try {
+            Configurator.setRootLevel(Level.DEBUG);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
+
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-            any(File.class),
-            any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                any(File.class),
+                any(Namespace.class));
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-        registerDefaultFunction();
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     @Test
     public void testRegisterFunctionSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("function registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultFunction();
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
-    public void testRegisterFunctionNonexistantNamespace() throws Exception {
-        this.namespaceList.clear();
-        registerDefaultFunction();
+    public void testRegisterFunctionNonExistingNamespace() {
+        try {
+            this.namespaceList.clear();
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
     public void testRegisterFunctionNonexistantTenant() throws Exception {
-        when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
-        registerDefaultFunction();
+        try {
+            when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("function failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("function failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultFunction();
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function registeration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultFunction();
+            registerDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -538,116 +634,147 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testUpdateFunctionMissingTenant() throws IOException {
-        testUpdateFunctionMissingArguments(
-            null,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Tenant is not provided");
+    public void testUpdateFunctionMissingTenant() {
+        try {
+            testUpdateFunctionMissingArguments(
+                null,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Tenant is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testUpdateFunctionMissingNamespace() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            null,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Namespace is not provided");
+    public void testUpdateFunctionMissingNamespace() {
+        try {
+            testUpdateFunctionMissingArguments(
+                tenant,
+                null,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Namespace is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
-    public void testUpdateFunctionMissingFunctionName() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            null,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Function Name is not provided");
+    public void testUpdateFunctionMissingFunctionName() {
+        try {
+            testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                null,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Function Name is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            null,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Update contains no change");
-    }
-
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateFunctionMissingInputTopic() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        testUpdateFunctionMissingArguments(
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
                 null,
-                null,
+                topicsToSerDeClassName,
                 mockedFormData,
                 outputTopic,
-                outputSerdeClassName,
+                    outputSerdeClassName,
                 className,
                 parallelism,
-                "Update contains no change");
+                    "Update contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
+    public void testUpdateFunctionMissingInputTopic() throws IOException {
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            testUpdateFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Update contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            null,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                "Update contains no change");
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                null,
+                parallelism,
+                    "Update contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test
     public void testUpdateFunctionChangedParallelism() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        testUpdateFunctionMissingArguments(
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -659,14 +786,19 @@ public class FunctionApiV2ResourceTest {
                 null,
                 parallelism + 1,
                 null);
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
     public void testUpdateFunctionChangedInputs() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        testUpdateFunctionMissingArguments(
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -678,16 +810,21 @@ public class FunctionApiV2ResourceTest {
                 null,
                 parallelism,
                 "Output topics differ");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        Map<String, String> someOtherInput = new HashMap<>();
-        someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
-        testUpdateFunctionMissingArguments(
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            Map<String, String> someOtherInput = new HashMap<>();
+            someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
+            testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
@@ -699,6 +836,10 @@ public class FunctionApiV2ResourceTest {
                 null,
                 parallelism,
                 "Input Topics cannot be altered");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testUpdateFunctionMissingArguments(
@@ -712,7 +853,7 @@ public class FunctionApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String expectedError) throws IOException {
+            String expectedError) {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -763,7 +904,7 @@ public class FunctionApiV2ResourceTest {
 
     }
 
-    private void updateDefaultFunction() throws IOException {
+    private void updateDefaultFunction() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -788,24 +929,33 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
-    public void testUpdateNotExistedFunction() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
-
-        updateDefaultFunction();
+    public void testUpdateNotExistedFunction() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            updateDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-            any(File.class),
-            any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                any(File.class),
+                any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        updateDefaultFunction();
+            updateDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     @Test
@@ -829,7 +979,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionWithUrl() throws IOException {
+    public void testUpdateFunctionWithUrl() {
         Configurator.setRootLevel(Level.DEBUG);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
@@ -868,40 +1018,50 @@ public class FunctionApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("function failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("function failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultFunction();
+            updateDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function registeration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultFunction();
+            updateDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -909,44 +1069,58 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testDeregisterFunctionMissingTenant() throws Exception {
-        testDeregisterFunctionMissingArguments(
-            null,
-            namespace,
-            function,
-            "Tenant");
+    public void testDeregisterFunctionMissingTenant() {
+        try {
+
+            testDeregisterFunctionMissingArguments(
+                null,
+                namespace,
+                function
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testDeregisterFunctionMissingNamespace() throws Exception {
-        testDeregisterFunctionMissingArguments(
-            tenant,
-            null,
-            function,
-            "Namespace");
+    public void testDeregisterFunctionMissingNamespace() {
+        try {
+            testDeregisterFunctionMissingArguments(
+                tenant,
+                null,
+                function
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
-    public void testDeregisterFunctionMissingFunctionName() throws Exception {
-        testDeregisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Function Name");
+    public void testDeregisterFunctionMissingFunctionName() {
+        try {
+             testDeregisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testDeregisterFunctionMissingArguments(
-        String tenant,
-        String namespace,
-        String function,
-        String missingFieldName
+            String tenant,
+            String namespace,
+            String function
     ) {
         resource.deregisterFunction(
             tenant,
             namespace,
             function,
                 null);
-
     }
 
     private void deregisterDefaultFunction() {
@@ -959,12 +1133,17 @@ public class FunctionApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
     public void testDeregisterNotExistedFunction() {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
-        deregisterDefaultFunction();
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            deregisterDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testDeregisterFunctionSuccess() throws Exception {
+    public void testDeregisterFunctionSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
@@ -977,27 +1156,38 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to deregister")
-    public void testDeregisterFunctionFailure() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+    public void testDeregisterFunctionFailure() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("function failed to deregister");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("function failed to deregister");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
 
-        deregisterDefaultFunction();
+            deregisterDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
-    public void testDeregisterFunctionInterrupted() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+    public void testDeregisterFunctionInterrupted() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function deregisteration interrupted"));
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                    new IOException("Function deregisteration interrupted"));
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
 
-        deregisterDefaultFunction();
+            deregisterDefaultFunction();
+        }
+        catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -1005,39 +1195,56 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testGetFunctionMissingTenant() throws Exception {
-        testGetFunctionMissingArguments(
-            null,
-            namespace,
-            function,
-            "Tenant");
+    public void testGetFunctionMissingTenant() {
+        try {
+            testGetFunctionMissingArguments(
+                null,
+                namespace,
+                function
+            );
+        }
+        catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testGetFunctionMissingNamespace() throws Exception {
-        testGetFunctionMissingArguments(
-            tenant,
-            null,
-            function,
-            "Namespace");
+    public void testGetFunctionMissingNamespace() {
+        try {
+            testGetFunctionMissingArguments(
+                tenant,
+                null,
+                function
+            );
+        }
+        catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
-    public void testGetFunctionMissingFunctionName() throws Exception {
-        testGetFunctionMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Function Name");
+    public void testGetFunctionMissingFunctionName() {
+        try {
+            testGetFunctionMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        }
+        catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testGetFunctionMissingArguments(
-        String tenant,
-        String namespace,
-        String function,
-        String missingFieldName
-    ) throws IOException {
-        FunctionConfig config = resource.getFunctionInfo(
+            String tenant,
+            String namespace,
+            String function
+    ) {
+        resource.getFunctionInfo(
             tenant,
             namespace,
             function
@@ -1045,7 +1252,7 @@ public class FunctionApiV2ResourceTest {
 
     }
 
-    private FunctionConfig getDefaultFunctionInfo() throws IOException {
+    private FunctionConfig getDefaultFunctionInfo() {
         return resource.getFunctionInfo(
             tenant,
             namespace,
@@ -1054,13 +1261,18 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
-    public void testGetNotExistedFunction() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
-        getDefaultFunctionInfo();
+    public void testGetNotExistedFunction() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            getDefaultFunctionInfo();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testGetFunctionSuccess() throws Exception {
+    public void testGetFunctionSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
@@ -1095,25 +1307,34 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testListFunctionsMissingTenant() throws Exception {
-        testListFunctionsMissingArguments(
-            null,
-            namespace,
-            "Tenant");
+    public void testListFunctionsMissingTenant() {
+        try {
+            testListFunctionsMissingArguments(
+                null,
+                namespace
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testListFunctionsMissingNamespace() throws Exception {
-        testListFunctionsMissingArguments(
-            tenant,
-            null,
-            "Namespace");
+    public void testListFunctionsMissingNamespace() {
+        try {
+            testListFunctionsMissingArguments(
+                tenant,
+                null
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testListFunctionsMissingArguments(
-        String tenant,
-        String namespace,
-        String missingFieldName
+            String tenant,
+            String namespace
     ) {
         resource.listFunctions(
             tenant,
@@ -1130,7 +1351,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testListFunctionsSuccess() throws Exception {
+    public void testListFunctionsSuccess() {
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
         FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1148,7 +1369,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testOnlyGetSources() throws Exception {
+    public void testOnlyGetSources() {
         List<String> functions = Lists.newArrayList("test-2");
         List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1200,7 +1421,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionFileUrlWithValidSinkClass() throws IOException {
+    public void testRegisterFunctionFileUrlWithValidSinkClass() {
         Configurator.setRootLevel(Level.DEBUG);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
@@ -1227,7 +1448,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionWithConflictingFields() throws IOException {
+    public void testRegisterFunctionWithConflictingFields() {
         Configurator.setRootLevel(Level.DEBUG);
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";

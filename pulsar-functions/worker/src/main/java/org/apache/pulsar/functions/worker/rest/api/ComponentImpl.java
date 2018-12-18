@@ -303,14 +303,14 @@ public abstract class ComponentImpl {
     }
 
     public void registerFunction(final String tenant,
-                                     final String namespace,
-                                     final String componentName,
-                                     final InputStream uploadedInputStream,
-                                     final FormDataContentDisposition fileDetail,
-                                     final String functionPkgUrl,
-                                     final String functionDetailsJson,
-                                     final String componentConfigJson,
-                                     final String clientRole) {
+                                 final String namespace,
+                                 final String componentName,
+                                 final InputStream uploadedInputStream,
+                                 final FormDataContentDisposition fileDetail,
+                                 final String functionPkgUrl,
+                                 final String functionDetailsJson,
+                                 final String componentConfigJson,
+                                 final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

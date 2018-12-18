@@ -59,6 +59,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -182,53 +183,68 @@ public class SinkApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testRegisterSinkMissingTenant() throws IOException {
-        testRegisterSinkMissingArguments(
-            null,
-            namespace,
-                sink,
-            mockedInputStream,
-            mockedFormData,
-            topicsToSerDeClassName,
-            className,
-            parallelism,
+    public void testRegisterSinkMissingTenant() {
+        try {
+            testRegisterSinkMissingArguments(
                 null,
-                "Tenant is not provided");
+                namespace,
+                    sink,
+                mockedInputStream,
+                mockedFormData,
+                topicsToSerDeClassName,
+                className,
+                parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testRegisterSinkMissingNamespace() throws IOException {
-        testRegisterSinkMissingArguments(
-            tenant,
-            null,
-                sink,
-            mockedInputStream,
-            mockedFormData,
-            topicsToSerDeClassName,
-            className,
-            parallelism,
+    public void testRegisterSinkMissingNamespace() {
+        try {
+            testRegisterSinkMissingArguments(
+                tenant,
                 null,
-                "Namespace is not provided");
+                    sink,
+                mockedInputStream,
+                mockedFormData,
+                topicsToSerDeClassName,
+                className,
+                parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testRegisterSinkMissingFunctionName() throws IOException {
-        testRegisterSinkMissingArguments(
-            tenant,
-            namespace,
-            null,
-            mockedInputStream,
-            mockedFormData,
-            topicsToSerDeClassName,
-            className,
-            parallelism,
+    public void testRegisterSinkMissingFunctionName() {
+        try {
+            testRegisterSinkMissingArguments(
+                tenant,
+                namespace,
                 null,
-                "Sink Name is not provided");
+                mockedInputStream,
+                mockedFormData,
+                topicsToSerDeClassName,
+                className,
+                parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Package is not provided")
-    public void testRegisterSinkMissingPackage() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkMissingPackage() {
+        try {
+            testRegisterSinkMissingArguments(
             tenant,
             namespace,
                 sink,
@@ -237,13 +253,18 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             null,
             parallelism,
-                null,
-                "Sink Package is not provided");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "zip file is empty")
-    public void testRegisterSinkMissingPackageDetails() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkMissingPackageDetails() {
+        try {
+            testRegisterSinkMissingArguments(
             tenant,
             namespace,
                 sink,
@@ -252,14 +273,19 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             null,
             parallelism,
-                null,
-                "zip file is empty");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
-        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
-        testRegisterSinkMissingArguments(
+        try {
+            FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
+            testRegisterSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -268,13 +294,18 @@ public class SinkApiV2ResourceTest {
                 topicsToSerDeClassName,
                 null,
                 parallelism,
-                null,
-                "Failed to extract sink class from archive");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
-    public void testRegisterSinkNoInput() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkNoInput() {
+        try {
+            testRegisterSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -283,13 +314,18 @@ public class SinkApiV2ResourceTest {
                 null,
                 className,
                 parallelism,
-                null,
-                "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testRegisterSinkNegativeParallelism() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkNegativeParallelism() {
+        try {
+            testRegisterSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -298,13 +334,18 @@ public class SinkApiV2ResourceTest {
                 topicsToSerDeClassName,
                 className,
                 -2,
-                null,
-                "Sink parallelism should positive number");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testRegisterSinkZeroParallelism() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkZeroParallelism() {
+        try {
+            testRegisterSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -313,13 +354,18 @@ public class SinkApiV2ResourceTest {
                 topicsToSerDeClassName,
                 className,
                 0,
-                null,
-                "Sink parallelism should positive number");
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink Jar")
-    public void testRegisterSinkHttpUrl() throws IOException {
-        testRegisterSinkMissingArguments(
+    public void testRegisterSinkHttpUrl() {
+        try {
+            testRegisterSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -328,8 +374,12 @@ public class SinkApiV2ResourceTest {
                 topicsToSerDeClassName,
                 className,
                 parallelism,
-                "http://localhost:1234/test",
-                "Invalid Sink Jar");
+                "http://localhost:1234/test"
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testRegisterSinkMissingArguments(
@@ -341,8 +391,7 @@ public class SinkApiV2ResourceTest {
             Map<String, String> inputTopicMap,
             String className,
             Integer parallelism,
-            String pkgUrl,
-            String errorExpected) throws IOException {
+            String pkgUrl) {
         SinkConfig sinkConfig = new SinkConfig();
         if (tenant != null) {
             sinkConfig.setTenant(tenant);
@@ -392,25 +441,35 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink already exists")
     public void testRegisterExistedSink() throws IOException {
-        Configurator.setRootLevel(Level.DEBUG);
+        try {
+            Configurator.setRootLevel(Level.DEBUG);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        registerDefaultSink();
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSinkUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-            any(File.class),
-            any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                any(File.class),
+                any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        registerDefaultSink();
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     @Test
@@ -476,40 +535,50 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testRegisterSinkFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("sink failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("sink failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultSink();
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterSinkInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function registeration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultSink();
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -518,7 +587,8 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testUpdateSinkMissingTenant() throws IOException {
-        testUpdateSinkMissingArguments(
+        try {
+            testUpdateSinkMissingArguments(
             null,
             namespace,
                 sink,
@@ -528,11 +598,16 @@ public class SinkApiV2ResourceTest {
             className,
             parallelism,
                 "Tenant is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testUpdateSinkMissingNamespace() throws IOException {
-        testUpdateSinkMissingArguments(
+        try {
+            testUpdateSinkMissingArguments(
             tenant,
             null,
                 sink,
@@ -542,11 +617,16 @@ public class SinkApiV2ResourceTest {
             className,
             parallelism,
                 "Namespace is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
     public void testUpdateSinkMissingFunctionName() throws IOException {
-        testUpdateSinkMissingArguments(
+        try {
+            testUpdateSinkMissingArguments(
             tenant,
             namespace,
             null,
@@ -556,33 +636,43 @@ public class SinkApiV2ResourceTest {
             className,
             parallelism,
                 "Sink Name is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingPackage() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSinkMissingArguments(
-            tenant,
-            namespace,
-                sink,
-            null,
-            mockedFormData,
-            topicsToSerDeClassName,
-            null,
-            parallelism,
-                "Update contains no change");
+            testUpdateSinkMissingArguments(
+                tenant,
+                namespace,
+                    sink,
+                null,
+                mockedFormData,
+                topicsToSerDeClassName,
+                null,
+                parallelism,
+                    "Update contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingInputs() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSinkMissingArguments(
+            testUpdateSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -592,17 +682,22 @@ public class SinkApiV2ResourceTest {
                 null,
                 parallelism,
                 "Update contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateSinkDifferentInputs() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        Map<String, String> inputTopics = new HashMap<>();
-        inputTopics.put("DifferntTopic", DEFAULT_SERDE);
-        testUpdateSinkMissingArguments(
+            Map<String, String> inputTopics = new HashMap<>();
+            inputTopics.put("DifferntTopic", DEFAULT_SERDE);
+            testUpdateSinkMissingArguments(
                 tenant,
                 namespace,
                 sink,
@@ -612,6 +707,10 @@ public class SinkApiV2ResourceTest {
                 className,
                 parallelism,
                 "Input Topics cannot be altered");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test
@@ -744,23 +843,32 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
     public void testUpdateNotExistedSink() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
-
-        updateDefaultSink();
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            updateDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSinkUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        updateDefaultSink();
+            updateDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     @Test
@@ -836,40 +944,50 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testUpdateSinkFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("sink failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                    .setSuccess(false)
+                    .setMessage("sink failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultSink();
+            updateDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateSinkInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                    new IOException("Function registeration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultSink();
+            updateDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -877,37 +995,51 @@ public class SinkApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testDeregisterSinkMissingTenant() throws Exception {
-        testDeregisterSinkMissingArguments(
-            null,
-            namespace,
-                sink,
-            "Tenant");
+    public void testDeregisterSinkMissingTenant() {
+        try {
+            testDeregisterSinkMissingArguments(
+                null,
+                namespace,
+                sink
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testDeregisterSinkMissingNamespace() throws Exception {
-        testDeregisterSinkMissingArguments(
-            tenant,
-            null,
-                sink,
-            "Namespace");
+    public void testDeregisterSinkMissingNamespace() {
+        try {
+            testDeregisterSinkMissingArguments(
+                tenant,
+                null,
+                    sink
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testDeregisterSinkMissingFunctionName() throws Exception {
-        testDeregisterSinkMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Sink Name");
+    public void testDeregisterSinkMissingFunctionName() {
+        try {
+            testDeregisterSinkMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testDeregisterSinkMissingArguments(
-        String tenant,
-        String namespace,
-        String sink,
-        String missingFieldName
+            String tenant,
+            String namespace,
+            String sink
     ) {
         resource.deregisterFunction(
             tenant,
@@ -927,13 +1059,17 @@ public class SinkApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
     public void testDeregisterNotExistedSink() {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
-
-        deregisterDefaultSink();
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            deregisterDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testDeregisterSinkSuccess() throws Exception {
+    public void testDeregisterSinkSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
@@ -944,27 +1080,37 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to deregister")
-    public void testDeregisterSinkFailure() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+    public void testDeregisterSinkFailure() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("sink failed to deregister");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("sink failed to deregister");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
 
-        deregisterDefaultSink();
+            deregisterDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
-    public void testDeregisterSinkInterrupted() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregistration interrupted")
+    public void testDeregisterSinkInterrupted() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function deregisteration interrupted"));
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function deregistration interrupted"));
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
 
-        deregisterDefaultSink();
+            deregisterDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -972,37 +1118,52 @@ public class SinkApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testGetSinkMissingTenant() throws Exception {
-        testGetSinkMissingArguments(
-            null,
-            namespace,
-                sink,
-            "Tenant");
+    public void testGetSinkMissingTenant() {
+        try {
+            testGetSinkMissingArguments(
+                null,
+                namespace,
+                    sink
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testGetSinkMissingNamespace() throws Exception {
-        testGetSinkMissingArguments(
-            tenant,
-            null,
-                sink,
-            "Namespace");
+    public void testGetSinkMissingNamespace() {
+        try {
+            testGetSinkMissingArguments(
+                    tenant,
+                    null,
+                    sink
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testGetSinkMissingFunctionName() throws Exception {
-        testGetSinkMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Sink Name");
+    public void testGetSinkMissingFunctionName() {
+        try {
+
+            testGetSinkMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testGetSinkMissingArguments(
-        String tenant,
-        String namespace,
-        String sink,
-        String missingFieldName
+            String tenant,
+            String namespace,
+            String sink
     ) {
         resource.getFunctionInfo(
             tenant,
@@ -1021,13 +1182,18 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
-    public void testGetNotExistedSink() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
-        getDefaultSinkInfo();
+    public void testGetNotExistedSink() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            getDefaultSinkInfo();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testGetSinkSuccess() throws Exception {
+    public void testGetSinkSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         Function.SourceSpec sourceSpec = Function.SourceSpec.newBuilder()
@@ -1059,10 +1225,9 @@ public class SinkApiV2ResourceTest {
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(metaData);
 
         getDefaultSinkInfo();
-//        assertEquals(Status.OK.getStatusCode(), response.getStatus());
-//        assertEquals(
-//            new Gson().toJson(SinkConfigUtils.convertFromDetails(functionDetails)),
-//            response.getEntity());
+        assertEquals(
+            SinkConfigUtils.convertFromDetails(functionDetails),
+            getDefaultSinkInfo());
     }
 
     //
@@ -1070,25 +1235,34 @@ public class SinkApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testListSinksMissingTenant() throws Exception {
-        testListSinksMissingArguments(
-            null,
-            namespace,
-            "Tenant");
+    public void testListSinksMissingTenant() {
+        try {
+            testListSinksMissingArguments(
+                null,
+                namespace
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testListFunctionsMissingNamespace() throws Exception {
-        testListSinksMissingArguments(
+    public void testListFunctionsMissingNamespace() {
+        try {
+            testListSinksMissingArguments(
             tenant,
-            null,
-            "Namespace");
+            null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testListSinksMissingArguments(
-        String tenant,
-        String namespace,
-        String missingFieldName
+            String tenant,
+            String namespace
     ) {
         resource.listFunctions(
             tenant,
@@ -1105,7 +1279,7 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test
-    public void testListSinksSuccess() throws Exception {
+    public void testListSinksSuccess() {
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1121,7 +1295,7 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test
-    public void testOnlyGetSinks() throws Exception {
+    public void testOnlyGetSinks() {
         final List<String> functions = Lists.newArrayList("test-3");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1143,15 +1317,25 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
-    public void testRegisterFunctionNonexistantNamespace() throws Exception {
-        this.namespaceList.clear();
-        registerDefaultSink();
+    public void testRegisterFunctionNonExistingNamespace() throws Exception {
+        try {
+            this.namespaceList.clear();
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
-    public void testRegisterFunctionNonexistantTenant() throws Exception {
-        when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
-        registerDefaultSink();
+    public void testRegisterFunctionNonExistingTenant() throws Exception {
+        try {
+            when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
+            registerDefaultSink();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private SinkConfig createDefaultSinkConfig() {
@@ -1166,6 +1350,7 @@ public class SinkApiV2ResourceTest {
     }
 
     private FunctionDetails createDefaultFunctionDetails() throws IOException {
-        return SinkConfigUtils.convert(createDefaultSinkConfig(), new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        return SinkConfigUtils.convert(createDefaultSinkConfig(),
+                new SinkConfigUtils.ExtractedSinkDetails(null, null));
     }
 }

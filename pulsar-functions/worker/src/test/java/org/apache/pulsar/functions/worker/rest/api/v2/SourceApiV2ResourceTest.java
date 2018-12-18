@@ -62,6 +62,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -177,133 +178,173 @@ public class SourceApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testRegisterSourceMissingTenant() throws IOException {
-        testRegisterSourceMissingArguments(
-            null,
-            namespace,
-                source,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null,
-                "Tenant is not provided");
+    public void testRegisterSourceMissingTenant() {
+        try {
+            testRegisterSourceMissingArguments(
+                    null,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testRegisterSourceMissingNamespace() throws IOException {
-        testRegisterSourceMissingArguments(
-            tenant,
-            null,
-                source,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
+    public void testRegisterSourceMissingNamespace() {
+        try {
+            testRegisterSourceMissingArguments(
+                tenant,
                 null,
-                "Namespace is not provided");
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
-    public void testRegisterSourceMissingSourceName() throws IOException {
-        testRegisterSourceMissingArguments(
-            tenant,
-            namespace,
-            null,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                null,
-                "Source Name is not provided");
+    public void testRegisterSourceMissingSourceName() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    null,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
-    public void testRegisterSourceMissingPackage() throws IOException {
-        testRegisterSourceMissingArguments(
-            tenant,
-            namespace,
-                source,
-            null,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                null,
-                "Source Package is not provided");
+    public void testRegisterSourceMissingPackage() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
-    public void testRegisterSourceMissingPackageDetails() throws IOException {
-        testRegisterSourceMissingArguments(
-            tenant,
-            namespace,
-                source,
-            mockedInputStream,
-            null,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
+    public void testRegisterSourceMissingPackageDetails() {
+        try {
+            testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                    source,
+                mockedInputStream,
                 null,
-                "Source Package is not provided");
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
-        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
-        testRegisterSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                inputStream,
-                null,
-                outputTopic,
-                outputSerdeClassName,
-                null,
-                parallelism,
-                null,
-                "Failed to extract source class from archive");
+        try {
+            FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    inputStream,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
     public void testRegisterSourceNoOutputTopic() throws IOException {
-        FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
-        testRegisterSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                inputStream,
-                mockedFormData,
-                null,
-                outputSerdeClassName,
-                className,
-                parallelism,
-                null,
-                "Topic name cannot be null");
+        try {
+            FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    inputStream,
+                    mockedFormData,
+                    null,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Jar")
-    public void testRegisterSourceHttpUrl() throws IOException {
-        testRegisterSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                null,
-                null,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                parallelism,
-                "http://localhost:1234/test",
-                "Invalid Source Jar");
+    public void testRegisterSourceHttpUrl() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "http://localhost:1234/test"
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testRegisterSourceMissingArguments(
@@ -316,8 +357,7 @@ public class SourceApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String pkgUrl,
-            String errorExpected) {
+            String pkgUrl) {
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
             sourceConfig.setTenant(tenant);
@@ -370,25 +410,35 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already exists")
     public void testRegisterExistedSource() throws IOException {
-        Configurator.setRootLevel(Level.DEBUG);
+        try {
+            Configurator.setRootLevel(Level.DEBUG);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        registerDefaultSource();
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSourceUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        registerDefaultSource();
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     public void testRegisterSourceSuccess() throws Exception {
@@ -454,40 +504,50 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testRegisterSourceFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("source failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("source failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultSource();
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function registration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        registerDefaultSource();
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -496,113 +556,144 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testUpdateSourceMissingTenant() throws IOException {
-        testUpdateSourceMissingArguments(
-            null,
-            namespace,
-                source,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Tenant is not provided");
+        try {
+            testUpdateSourceMissingArguments(
+                null,
+                namespace,
+                    source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Tenant is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testUpdateSourceMissingNamespace() throws IOException {
-        testUpdateSourceMissingArguments(
-            tenant,
-            null,
-                source,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Namespace is not provided");
+        try {
+            testUpdateSourceMissingArguments(
+                tenant,
+                null,
+                    source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Namespace is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
     public void testUpdateSourceMissingFunctionName() throws IOException {
-        testUpdateSourceMissingArguments(
-            tenant,
-            namespace,
-            null,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Source Name is not provided");
+        try {
+            testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                null,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
+                className,
+                parallelism,
+                    "Source Name is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingPackage() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
-            tenant,
-            namespace,
-                source,
+            testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                    source,
+                    null,
+                mockedFormData,
+                outputTopic,
+                    outputSerdeClassName,
                 null,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                "Update contains no change");
+                parallelism,
+                    "Update contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingTopicName() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                null,
-                mockedFormData,
-                null,
-                outputSerdeClassName,
-                null,
-                parallelism,
-                "Update contains no change");
+            testUpdateSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    null,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Update contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceNegativeParallelism() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                null,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                -2,
-                "Source parallelism should positive number");
+            testUpdateSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    -2,
+                    "Source parallelism should positive number");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test
     public void testUpdateSourceChangedParallelism() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
+            testUpdateSourceMissingArguments(
                 tenant,
                 namespace,
                 source,
@@ -613,44 +704,58 @@ public class SourceApiV2ResourceTest {
                 className,
                 parallelism + 1,
                 null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
     public void testUpdateSourceChangedTopic() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                null,
-                mockedFormData,
-                "DifferentTopic",
-                outputSerdeClassName,
-                className,
-                parallelism,
-                "Destination topics differ");
+            testUpdateSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    "DifferentTopic",
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Destination topics differ");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceZeroParallelism() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-        testUpdateSourceMissingArguments(
-                tenant,
-                namespace,
-                source,
-                mockedInputStream,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                0,
-                "Source parallelism should positive number");
+            testUpdateSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    0,
+                    "Source parallelism should positive number");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testUpdateSourceMissingArguments(
@@ -763,23 +868,31 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
     public void testUpdateNotExistedSource() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
-
-        updateDefaultSource();
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            updateDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSourceUploadFailure() throws Exception {
-        mockStatic(Utils.class);
-        doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doThrow(new IOException("upload failure")).when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
-
-        updateDefaultSource();
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+            updateDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     @Test
@@ -854,40 +967,50 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testUpdateSourceFailure() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("source failed to register");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                    .setSuccess(false)
+                    .setMessage("source failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultSource();
+            updateDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
-                anyString(),
-                any(File.class),
-                any(Namespace.class));
+        try {
+            mockStatic(Utils.class);
+            doNothing().when(Utils.class);
+            Utils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function registeration interrupted"));
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function registration interrupted"));
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        updateDefaultSource();
+            updateDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -895,37 +1018,51 @@ public class SourceApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testDeregisterSourceMissingTenant() throws Exception {
-        testDeregisterSourceMissingArguments(
-            null,
-            namespace,
-                source,
-            "Tenant");
+    public void testDeregisterSourceMissingTenant() {
+        try {
+            testDeregisterSourceMissingArguments(
+                null,
+                namespace,
+                    source
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testDeregisterSourceMissingNamespace() throws Exception {
-        testDeregisterSourceMissingArguments(
-            tenant,
-            null,
-                source,
-            "Namespace");
+    public void testDeregisterSourceMissingNamespace() {
+        try {
+            testDeregisterSourceMissingArguments(
+                tenant,
+                null,
+                source
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
-    public void testDeregisterSourceMissingFunctionName() throws Exception {
-        testDeregisterSourceMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Source Name");
+    public void testDeregisterSourceMissingFunctionName() {
+        try {
+            testDeregisterSourceMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testDeregisterSourceMissingArguments(
-        String tenant,
-        String namespace,
-        String function,
-        String missingFieldName
+            String tenant,
+            String namespace,
+            String function
     ) {
         resource.deregisterFunction(
             tenant,
@@ -945,12 +1082,17 @@ public class SourceApiV2ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp= "Source test-source doesn't exist")
     public void testDeregisterNotExistedSource() {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
-        deregisterDefaultSource();
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            deregisterDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testDeregisterSourceSuccess() throws Exception {
+    public void testDeregisterSourceSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
@@ -963,27 +1105,37 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to deregister")
-    public void testDeregisterSourceFailure() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+    public void testDeregisterSourceFailure() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(false)
-            .setMessage("source failed to deregister");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
+            RequestResult rr = new RequestResult()
+                .setSuccess(false)
+                .setMessage("source failed to deregister");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
 
-        deregisterDefaultSource();
+            deregisterDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregisteration interrupted")
-    public void testDeregisterSourceInterrupted() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregistration interrupted")
+    public void testDeregisterSourceInterrupted() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-            new IOException("Function deregisteration interrupted"));
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                new IOException("Function deregistration interrupted"));
+            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
 
-        deregisterDefaultSource();
+            deregisterDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
     }
 
     //
@@ -991,38 +1143,52 @@ public class SourceApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testGetSourceMissingTenant() throws Exception {
-        testGetSourceMissingArguments(
-            null,
-            namespace,
-                source,
-            "Tenant");
+    public void testGetSourceMissingTenant() {
+        try {
+            testGetSourceMissingArguments(
+                    null,
+                    namespace,
+                    source
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testGetSourceMissingNamespace() throws Exception {
-        testGetSourceMissingArguments(
-            tenant,
-            null,
-                source,
-            "Namespace");
+    public void testGetSourceMissingNamespace() {
+        try {
+            testGetSourceMissingArguments(
+                tenant,
+                null,
+                    source
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
-    public void testGetSourceMissingFunctionName() throws Exception {
-        testGetSourceMissingArguments(
-            tenant,
-            namespace,
-            null,
-            "Source Name");
+    public void testGetSourceMissingFunctionName() {
+        try {
+            testGetSourceMissingArguments(
+                tenant,
+                namespace,
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testGetSourceMissingArguments(
-        String tenant,
-        String namespace,
-        String source,
-        String missingFieldName
-    ) throws IOException {
+            String tenant,
+            String namespace,
+            String source
+    ) {
         resource.getFunctionInfo(
             tenant,
             namespace,
@@ -1030,7 +1196,7 @@ public class SourceApiV2ResourceTest {
         );
     }
 
-    private SourceConfig getDefaultSourceInfo() throws IOException {
+    private SourceConfig getDefaultSourceInfo() {
         return resource.getSourceInfo(
             tenant,
             namespace,
@@ -1039,13 +1205,18 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
-    public void testGetNotExistedSource() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
-        getDefaultSourceInfo();
+    public void testGetNotExistedSource() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            getDefaultSourceInfo();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
+            throw re;
+        }
     }
 
     @Test
-    public void testGetSourceSuccess() throws Exception {
+    public void testGetSourceSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
         SourceSpec sourceSpec = SourceSpec.newBuilder().setBuiltin("jdbc").build();
@@ -1080,25 +1251,34 @@ public class SourceApiV2ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testListSourcesMissingTenant() throws Exception {
-        testListSourcesMissingArguments(
-            null,
-            namespace,
-            "Tenant");
+    public void testListSourcesMissingTenant() {
+        try {
+            testListSourcesMissingArguments(
+                null,
+                namespace
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testListSourcesMissingNamespace() throws Exception {
-        testListSourcesMissingArguments(
-            tenant,
-            null,
-            "Namespace");
+    public void testListSourcesMissingNamespace() {
+        try {
+            testListSourcesMissingArguments(
+                tenant,
+                null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private void testListSourcesMissingArguments(
-        String tenant,
-        String namespace,
-        String missingFieldName
+            String tenant,
+            String namespace
     ) {
         resource.listFunctions(
             tenant,
@@ -1113,7 +1293,7 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
-    public void testListSourcesSuccess() throws Exception {
+    public void testListSourcesSuccess() {
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1129,7 +1309,7 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
-    public void testOnlyGetSources() throws Exception {
+    public void testOnlyGetSources() {
         final List<String> functions = Lists.newArrayList("test-1");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1151,15 +1331,25 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
-    public void testRegisterFunctionNonexistantNamespace() throws Exception {
-        this.namespaceList.clear();
-        registerDefaultSource();
+    public void testRegisterFunctionNonExistingNamespace() throws Exception {
+        try {
+            this.namespaceList.clear();
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
-    public void testRegisterFunctionNonexistantTenant() throws Exception {
-        when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
-        registerDefaultSource();
+    public void testRegisterFunctionNonExistingTenant() throws Exception {
+        try {
+            when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
+            registerDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
     }
 
     private SourceConfig createDefaultSourceConfig() {
@@ -1175,6 +1365,7 @@ public class SourceApiV2ResourceTest {
     }
 
     private FunctionDetails createDefaultFunctionDetails() {
-        return SourceConfigUtils.convert(createDefaultSourceConfig(), new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        return SourceConfigUtils.convert(createDefaultSourceConfig(),
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
     }
 }
