@@ -54,10 +54,18 @@
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:2.2.0 \
+  apachepulsar/pulsar:{{site.current_version}} \
   bin/pulsar standalone
 </code></pre>
-<p>有关此命令的一些注意事项： * <code>-v $PWD/data:/pulsar/data</code>: 这将使容器内的进程将数据和元数据存储在容器外的文件系统中，为了在每次重新启动容器时都不是“新的”。</p>
+<p>Under Windows, you should use something like the following docker command:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> docker run -it \</span>
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v "$PWD/data:/pulsar/data".ToLower() \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone
+</code></pre>
+<p>A few things to note about this command: * <code>$PWD/data</code> : The docker host directory under the Windows operating system must be lowercase.<code>$PWD/data</code> can provide you with the specified directory, for example: <code>E:/data</code>. * <code>-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the data and metadata in the filesystem outside the container, in order to not start &quot;fresh&quot; every time the container is restarted.</p>
 <p>如果Pulsar已经成功启动，你应该会看到<code>INFO</code>级别的日志消息，如下所示：</p>
 <pre><code class="hljs">2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
 2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
@@ -68,7 +76,7 @@
 <p>当你启动本地独立模式的集群时, Pulsar会自动创建一个<code>public/default</code> 命名空间, 你可以用于开发目的。 所有Pulsar的topic主题都在命名空间中进行管理。 更多信息, 请参考 <a href="/docs/zh-CN/concepts-messaging#topics">主题</a>。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="开始发布和消费消息"></a><a href="#开始发布和消费消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>开始发布和消费消息</h2>
-<p>Pulsar目前提供了<a href="/docs/zh-CN/client-libraries-java">Java</a>，<a href="/docs/zh-CN/client-libraries-python">Python</a>，和<a href="/docs/zh-CN/client-libraries-cpp">C++</a>客户端库。 如果你运行的是本地独立集群，你可以使用下面这些URL中的一个与群集进行交互：</p>
+<p>Pulsar currently offers client libraries for <a href="/docs/zh-CN/client-libraries-java">Java</a>, <a href="/docs/zh-CN/client-libraries-python">Python</a>, and <a href="/docs/zh-CN/client-libraries-cpp">C++</a>. 如果你运行的是本地独立集群，你可以使用下面这些URL中的一个与群集进行交互：</p>
 <ul>
 <li><code>pulsar://localhost:6650</code></li>
 <li><code>http://localhost:8080</code></li>

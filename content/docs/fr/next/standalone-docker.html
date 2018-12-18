@@ -54,10 +54,18 @@
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:2.2.0 \
+  apachepulsar/pulsar:{{site.current_version}} \
   bin/pulsar standalone
 </code></pre>
-<p>A few things to note about this command: * <code>-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the data and metadata in the filesystem outside the container, in order to not start &quot;fresh&quot; every time the container is restarted.</p>
+<p>Under Windows, you should use something like the following docker command:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> docker run -it \</span>
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v "$PWD/data:/pulsar/data".ToLower() \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone
+</code></pre>
+<p>A few things to note about this command: * <code>$PWD/data</code> : The docker host directory under the Windows operating system must be lowercase.<code>$PWD/data</code> can provide you with the specified directory, for example: <code>E:/data</code>. * <code>-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the data and metadata in the filesystem outside the container, in order to not start &quot;fresh&quot; every time the container is restarted.</p>
 <p>If Pulsar has been successfully started, you should see <code>INFO</code>-level log messages like this:</p>
 <pre><code class="hljs">2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
 2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246

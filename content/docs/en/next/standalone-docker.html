@@ -56,11 +56,20 @@ and follow the instructions for your OS.</p>
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:2.2.0 \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone
+</code></pre>
+<p>Under Windows, you should use something like the following docker command:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> docker run -it \</span>
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v "$PWD/data:/pulsar/data".ToLower() \
+  apachepulsar/pulsar:{{site.current_version}} \
   bin/pulsar standalone
 </code></pre>
 <p>A few things to note about this command:</p>
 <ul>
+<li><code>$PWD/data</code> : The docker host directory under the Windows operating system must be lowercase.<code>$PWD/data</code> can provide you with the specified directory, for example: <code>E:/data</code>.</li>
 <li><code>-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the
 data and metadata in the filesystem outside the container, in order to not start &quot;fresh&quot; every
 time the container is restarted.</li>
