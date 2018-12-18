@@ -32,6 +32,7 @@ import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
@@ -45,7 +46,6 @@ import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -55,13 +55,12 @@ public class ProxyServer {
     private final Server server;
     private final List<Handler> handlers = Lists.newArrayList();
     private final WebSocketProxyConfiguration conf;
-    private final ExecutorThreadPool executorService;
+    private final WebExecutorThreadPool executorService;
 
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = new ExecutorThreadPool();
-        executorService.setName("pulsar-websocket-web");
+        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web");
         this.server = new Server(executorService);
         List<ServerConnector> connectors = new ArrayList<>();
 
@@ -142,7 +141,7 @@ public class ProxyServer {
 
     public void stop() throws Exception {
         server.stop();
-        executorService.stop();
+        executorService.join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);

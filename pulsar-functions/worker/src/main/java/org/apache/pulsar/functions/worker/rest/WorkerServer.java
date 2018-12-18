@@ -18,14 +18,22 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import java.net.BindException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -35,10 +43,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.Slf4jRequestLog;
-
-import java.net.BindException;
-import java.net.URI;
-import java.security.GeneralSecurityException;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -47,11 +51,8 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-
-import com.google.common.annotations.VisibleForTesting;
 
 @Slf4j
 public class WorkerServer {
@@ -60,7 +61,7 @@ public class WorkerServer {
     private final WorkerService workerService;
     private static final String MATCH_ALL = "/*";
     private static final int MAX_CONCURRENT_REQUESTS = 1024;
-    private final ExecutorThreadPool webServerExecutor;
+    private final WebExecutorThreadPool webServerExecutor;
     private Server server;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
@@ -75,8 +76,7 @@ public class WorkerServer {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
-        this.webServerExecutor = new ExecutorThreadPool();
-        this.webServerExecutor.setName("function-web");
+        this.webServerExecutor = new WebExecutorThreadPool("function-web");
         init();
     }
 
@@ -84,7 +84,7 @@ public class WorkerServer {
         server.start();
         log.info("Worker Server started at {}", server.getURI());
     }
-    
+
     private void init() {
         server = new Server(webServerExecutor);
 
@@ -153,7 +153,7 @@ public class WorkerServer {
 
         return contextHandler;
     }
-    
+
     @VisibleForTesting
     public void stop() {
         if (this.server != null) {
@@ -163,13 +163,13 @@ public class WorkerServer {
                 log.error("Failed to stop function web-server ", e);
             }
         }
-        if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
+        if (this.webServerExecutor != null) {
             try {
-                this.webServerExecutor.stop();
+                this.webServerExecutor.join();
             } catch (Exception e) {
                 log.warn("Error stopping function web-server executor", e);
             }
         }
     }
-    
+
 }

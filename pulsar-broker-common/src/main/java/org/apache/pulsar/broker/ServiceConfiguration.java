@@ -68,6 +68,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of threads to use for Netty IO
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
+    // Number of threads to use for HTTP requests processing
+    private int numHttpServerThreads = Runtime.getRuntime().availableProcessors();
+
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
 
@@ -589,15 +592,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getBookkeeperHealthCheckIntervalSec() {
         return (int) bookkeeperClientHealthCheckIntervalSeconds;
     }
-    
+
     public Optional<Integer> getBrokerServicePort() {
         return Optional.ofNullable(brokerServicePort);
     }
-    
+
     public Optional<Integer> getBrokerServicePortTls() {
         return Optional.ofNullable(brokerServicePortTls);
     }
-    
+
     public Optional<Integer> getWebServicePort() {
         return Optional.ofNullable(webServicePort);
     }
