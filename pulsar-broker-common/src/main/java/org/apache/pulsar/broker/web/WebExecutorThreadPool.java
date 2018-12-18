@@ -36,7 +36,7 @@ public class WebExecutorThreadPool implements ThreadPool {
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix) {
         this.executor = new ThreadPoolExecutor(
-                Math.max(1, maxThreads) / 3,
+                Math.max(1, maxThreads / 3),
                 maxThreads,
                 1, TimeUnit.MINUTES,
                 new LinkedBlockingQueue<>(),
