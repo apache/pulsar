@@ -109,6 +109,9 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test2.foobar.field1")) {
                             Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test2.foobar.field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field7")) {
+                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
                             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(fooColumnHandles.get(i).getName())) {
                                 columnsSeen.add(fooColumnHandles.get(i).getName());
