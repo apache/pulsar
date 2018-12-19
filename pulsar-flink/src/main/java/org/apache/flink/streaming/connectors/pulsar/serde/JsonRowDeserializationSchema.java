@@ -45,10 +45,19 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
      */
     private boolean ignoreJsonFormatError = false;
 
+
+    /**
+     *
+     * @return true or false
+     */
     public boolean getIgnoreJsonFormatError() {
         return ignoreJsonFormatError;
     }
 
+    /**
+     * set ignoreJsonFormatError
+     * @param ignoreJsonFormatError
+     */
     public void setIgnoreJsonFormatError(boolean ignoreJsonFormatError) {
         this.ignoreJsonFormatError = ignoreJsonFormatError;
     }
@@ -117,7 +126,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
             return row;
         } catch (Throwable t) {
-            if(ignoreJsonFormatError){
+            if (ignoreJsonFormatError) {
                 final int arity = typeInfo.getArity();
                 final Object[] nullsArray = new Object[arity];
                 return Row.of(nullsArray);
@@ -148,7 +157,4 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         this.failOnMissingField = failOnMissingField;
     }
 
-    public void errorPaser(){
-
-    }
 }
