@@ -121,9 +121,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
                 final int arity = typeInfo.getArity();
                 final Object[] nullsArray = new Object[arity];
                 return Row.of(nullsArray);
-            }else
+            } else {
                 throw new IOException("Failed to deserialize JSON object.", t);
-
+            }
         }
     }
 
