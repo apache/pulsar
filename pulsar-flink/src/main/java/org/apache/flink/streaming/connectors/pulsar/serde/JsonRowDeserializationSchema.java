@@ -43,13 +43,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         (1).false : Throw A IOException and Terminate application。
         (2).true  : Ignore the error line and add a null line。
      */
-    private Boolean ignoreJsonFormatError = false;
+    private boolean ignoreJsonFormatError = false;
 
-    public Boolean getIgnoreJsonFormatError() {
+    public boolean getIgnoreJsonFormatError() {
         return ignoreJsonFormatError;
     }
 
-    public void setIgnoreJsonFormatError(Boolean ignoreJsonFormatError) {
+    public void setIgnoreJsonFormatError(boolean ignoreJsonFormatError) {
         this.ignoreJsonFormatError = ignoreJsonFormatError;
     }
 
