@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
@@ -81,21 +82,25 @@ public class WebService implements AutoCloseable {
         this.server = new Server(webServiceExecutor);
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new PulsarServerConnector(server, 1, 1);
-        connector.setPort(pulsar.getConfiguration().getWebServicePort());
-        connector.setHost(pulsar.getBindAddress());
-        connectors.add(connector);
+        Optional<Integer> port = pulsar.getConfiguration().getWebServicePort();
+        if (port.isPresent()) {
+            ServerConnector connector = new PulsarServerConnector(server, 1, 1);
+            connector.setPort(port.get());
+            connector.setHost(pulsar.getBindAddress());
+            connectors.add(connector);
+        }
 
-        if (pulsar.getConfiguration().isTlsEnabled()) {
+        Optional<Integer> tlsPort = pulsar.getConfiguration().getWebServicePortTls();
+        if (tlsPort.isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         pulsar.getConfiguration().isTlsAllowInsecureConnection(),
                         pulsar.getConfiguration().getTlsTrustCertsFilePath(),
                         pulsar.getConfiguration().getTlsCertificateFilePath(),
                         pulsar.getConfiguration().getTlsKeyFilePath(),
-                        pulsar.getConfiguration().getTlsRequireTrustedClientCertOnConnect());
+                        pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
+                tlsConnector.setPort(tlsPort.get());
                 tlsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {

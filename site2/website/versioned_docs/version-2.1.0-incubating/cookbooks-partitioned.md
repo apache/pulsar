@@ -31,10 +31,11 @@ Here's an example:
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-ProducerConfiguration config = new ProducerConfiguration();
-config.setMessageRoutingMode(ProducerConfiguration.MessageRoutingMode.SinglePartition);
-Producer producer = client.createProducer(topic, config);
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
 producer.send("Partitioned topic message".getBytes());
 ```
 
@@ -64,10 +65,11 @@ With that implementation in hand, you can send
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-ProducerConfiguration config = new ProducerConfiguration();
-config.setMessageRouter(AlwaysTenRouter);
-Producer producer = client.createProducer(topic, config);
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(new AlwaysTenRouter())
+        .create();
 producer.send("Partitioned topic message".getBytes());
 ```
 

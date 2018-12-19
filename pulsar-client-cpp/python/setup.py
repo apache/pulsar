@@ -70,6 +70,9 @@ setup(
     license="Apache License v2.0",
     url="http://pulsar.apache.org/",
     install_requires=[
-        'grpcio', 'protobuf', "prometheus_client"
+        'grpcio', 'protobuf',
+        # functions dependencies
+        "prometheus_client",
+        "ratelimit"
     ],
 )

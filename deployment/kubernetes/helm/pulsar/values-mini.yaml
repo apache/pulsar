@@ -31,6 +31,8 @@ persistence: no
 ## will be deployed with emptyDir
 prometheus_persistence: no
 
+prometheus_rbac: yes
+
 ## which extra components to deploy
 extra:
   # Pulsar proxy

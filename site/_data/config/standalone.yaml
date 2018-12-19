@@ -131,6 +131,12 @@ configs:
   description: If bookies have more than the allowed number of failures within the time interval specified by [`bookkeeperClientHealthCheckIntervalSeconds`](#)
 - name: bookkeeperClientRackawarePolicyEnabled
   default: 'true'
+- name: bookkeeperClientRegionawarePolicyEnabled
+  default: 'false'
+  description: Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored
+- name: bookkeeperClientReorderReadSequenceEnabled
+  default: 'false'
+  description: Enable/disable reordering read sequence on reading entries.
 - name: bookkeeperClientIsolationGroups
   default: ''
 - name: managedLedgerDefaultEnsembleSize

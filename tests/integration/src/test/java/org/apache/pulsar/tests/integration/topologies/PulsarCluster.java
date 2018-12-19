@@ -452,6 +452,10 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
+    public ProxyContainer getProxy() {
+        return proxyContainer;
+    }
+
     public Collection<BKContainer> getBookies() {
         return bookieContainers.values();
     }

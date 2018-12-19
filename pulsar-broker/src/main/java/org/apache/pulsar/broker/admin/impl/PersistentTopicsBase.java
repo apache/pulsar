@@ -235,6 +235,36 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
     }
 
+    protected void validateAdminAccessForSubscriber(String subscriptionName, boolean authoritative) {
+        validateTopicOwnership(topicName, authoritative);
+        try {
+            validateAdminAccessForTenant(topicName.getTenant());
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] failed to validate admin access for {}", topicName, clientAppId());
+            }
+            validateAdminAccessForSubscriber(subscriptionName);
+        }
+    }
+
+    private void validateAdminAccessForSubscriber(String subscriptionName) {
+        try {
+            if (!pulsar().getBrokerService().getAuthorizationService().canConsume(topicName, clientAppId(),
+                    clientAuthData(), subscriptionName)) {
+                log.warn("[{}} Subscriber {} is not authorized to access api", topicName, clientAppId());
+                throw new RestException(Status.UNAUTHORIZED,
+                        String.format("Subscriber %s is not authorized to access this operation", clientAppId()));
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            log.warn("Unexpected error while authorizing request. topic={}, role={}. Error: {}", topicName,
+                    clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalGrantPermissionsOnTopic(String role, Set<AuthAction> actions) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenant(namespaceName.getTenant());
@@ -654,7 +684,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }
         } else {
-            validateAdminOperationOnTopic(authoritative);
+            validateAdminAccessForSubscriber(subName, authoritative);
             Topic topic = getTopicReference(topicName);
             try {
                 Subscription sub = topic.getSubscription(subName);
@@ -690,7 +720,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(e);
             }
         } else {
-            validateAdminOperationOnTopic(authoritative);
+            validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             try {
                 if (subName.startsWith(topic.replicatorPrefix)) {
@@ -721,7 +751,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
         }
-        validateAdminOperationOnTopic(authoritative);
+        validateAdminAccessForSubscriber(subName, authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
             if (subName.startsWith(topic.replicatorPrefix)) {
@@ -810,7 +840,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
 
         } else {
-            validateAdminOperationOnTopic(authoritative);
+            validateAdminAccessForSubscriber(subName, authoritative);
             log.info("[{}][{}] received reset cursor on subscription {} to time {}", clientAppId(), topicName,
                     subName, timestamp);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -883,7 +913,7 @@ public class PersistentTopicsBase extends AdminResource {
                     throw exception.get();
                 }
             } else {
-                validateAdminOperationOnTopic(authoritative);
+                validateAdminAccessForSubscriber(subscriptionName, authoritative);
 
                 PersistentTopic topic = (PersistentTopic) getOrCreateTopic(topicName);
 
@@ -925,7 +955,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Reset-cursor at position is not allowed for partitioned-topic");
         } else {
-            validateAdminOperationOnTopic(authoritative);
+            validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
                 throw new RestException(Status.NOT_FOUND, "Topic not found");
@@ -960,7 +990,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
-        validateAdminOperationOnTopic(authoritative);
+        validateAdminAccessForSubscriber(subName, authoritative);
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                     subName);
@@ -1112,7 +1142,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } else {
             // validate ownership and redirect if current broker is not owner
-            validateAdminOperationOnTopic(authoritative);
+            validateAdminAccessForSubscriber(subName, authoritative);
             if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
                 log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                         subName);
@@ -1231,7 +1261,18 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private Topic getTopicReference(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+                .orElseThrow(() -> {
+                    if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+                        TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                        PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
+                        if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
+                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                        } else if (!internalGetList().contains(topicName.toString())) {
+                            return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                        }
+                    }
+                    return new RestException(Status.NOT_FOUND, "Topic not found");
+                });
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {

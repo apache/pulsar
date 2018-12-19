@@ -60,6 +60,8 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-token-client",
+      "security-token-admin",
       "security-athenz",
       "security-authorization",
       "security-encryption",

@@ -41,7 +41,8 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.ComponentImpl;
+import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -107,7 +108,7 @@ public class SourceApiV2ResourceTest {
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
     private RuntimeFactory mockedRuntimeFactory;
     private Namespace mockedNamespace;
-    private FunctionsImpl resource;
+    private SourceImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
@@ -156,8 +157,8 @@ public class SourceApiV2ResourceTest {
             .setPulsarServiceUrl("pulsar://localhost:6650/");
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
+        this.resource = spy(new SourceImpl(() -> mockedWorkerService));
+        Mockito.doReturn(ComponentImpl.ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -222,7 +223,7 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
-            className,
+            null,
             parallelism,
                 null,
                 "Source Package is not provided");
@@ -241,7 +242,7 @@ public class SourceApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "zip file is empty");
+                "Source Package is not provided");
     }
 
     @Test
@@ -255,7 +256,7 @@ public class SourceApiV2ResourceTest {
                 null,
                 outputTopic,
                 outputSerdeClassName,
-                className,
+                null,
                 parallelism,
                 null,
                 "Failed to extract source class from archive");
@@ -291,7 +292,7 @@ public class SourceApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test",
-                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
+                "Invalid Source Jar");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -338,7 +339,6 @@ public class SourceApiV2ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -356,7 +356,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -447,7 +446,6 @@ public class SourceApiV2ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -557,7 +555,7 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
-            className,
+            null,
             parallelism,
                 "Update contains no change");
     }
@@ -576,7 +574,7 @@ public class SourceApiV2ResourceTest {
                 mockedFormData,
                 null,
                 outputSerdeClassName,
-                className,
+                null,
                 parallelism,
                 "Update contains no change");
     }
@@ -725,7 +723,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         if (expectedError == null) {
@@ -770,7 +767,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -866,7 +862,6 @@ public class SourceApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -955,8 +950,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            FunctionsImpl.SOURCE,
-            null);
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -967,8 +961,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            FunctionsImpl.SOURCE,
-            null);
+                null);
     }
 
     @Test
@@ -1063,8 +1056,8 @@ public class SourceApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            source,
-                FunctionsImpl.SOURCE);
+            source
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1074,8 +1067,8 @@ public class SourceApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                source,
-                FunctionsImpl.SOURCE);
+                source
+        );
     }
 
     @Test
@@ -1148,8 +1141,8 @@ public class SourceApiV2ResourceTest {
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace,
-                FunctionsImpl.SOURCE);
+            namespace
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1158,7 +1151,7 @@ public class SourceApiV2ResourceTest {
     private Response listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace,FunctionsImpl.SOURCE);
+            namespace);
     }
 
     @Test
@@ -1192,9 +1185,9 @@ public class SourceApiV2ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn("Source").when(this.resource).calculateSubjectType(f1);
-        doReturn("Function").when(this.resource).calculateSubjectType(f2);
-        doReturn("Sink").when(this.resource).calculateSubjectType(f3);
+        doReturn(ComponentImpl.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(ComponentImpl.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(ComponentImpl.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         Response response = listDefaultSources();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1229,7 +1222,7 @@ public class SourceApiV2ResourceTest {
         return sourceConfig;
     }
 
-    private FunctionDetails createDefaultFunctionDetails() throws IOException {
-        return SourceConfigUtils.convert(createDefaultSourceConfig(), null);
+    private FunctionDetails createDefaultFunctionDetails() {
+        return SourceConfigUtils.convert(createDefaultSourceConfig(), new SourceConfigUtils.ExtractedSourceDetails(null, null));
     }
 }

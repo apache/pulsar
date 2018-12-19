@@ -70,12 +70,12 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testInboundConnection() throws Exception {
         LOG.info("Creating producer 1");
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+        PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
                 .build();
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
 
         LOG.info("Creating producer 2");
-        PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+        PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
                 .build();
         Producer<byte[]> producer2;
         Assert.assertEquals(ProxyService.rejectedConnections.get(), 0.0d);
