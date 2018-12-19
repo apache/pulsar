@@ -21,51 +21,31 @@ package org.apache.pulsar.broker.web;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.jetty.util.thread.ThreadPool;
+import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
-public class WebExecutorThreadPool implements ThreadPool {
+public class WebExecutorThreadPool extends ExecutorThreadPool {
 
-    private final ThreadPoolExecutor executor;
+    private final ThreadFactory threadFactory;
 
     public WebExecutorThreadPool(String namePrefix) {
         this(Runtime.getRuntime().availableProcessors(), namePrefix);
     }
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix) {
-        this.executor = new ThreadPoolExecutor(
+        super(new ThreadPoolExecutor(
                 Math.max(1, maxThreads / 3),
                 maxThreads,
                 1, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<>(),
-                new DefaultThreadFactory(namePrefix));
+                new LinkedBlockingQueue<>()));
+        this.threadFactory = new DefaultThreadFactory(namePrefix);
     }
 
     @Override
-    public void execute(Runnable command) {
-        executor.execute(command);
+    protected Thread newThread(Runnable job) {
+        return threadFactory.newThread(job);
     }
-
-    @Override
-    public void join() throws InterruptedException {
-        executor.shutdown();
-    }
-
-    @Override
-    public int getThreads() {
-        return executor.getPoolSize();
-    }
-
-    @Override
-    public int getIdleThreads() {
-        return getThreads() - executor.getActiveCount();
-    }
-
-    @Override
-    public boolean isLowOnThreads() {
-        return getIdleThreads() == 0;
-    }
-
 }
