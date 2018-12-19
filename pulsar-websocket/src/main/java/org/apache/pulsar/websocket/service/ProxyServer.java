@@ -141,7 +141,7 @@ public class ProxyServer {
 
     public void stop() throws Exception {
         server.stop();
-        executorService.join();
+        executorService.stop();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);

@@ -163,9 +163,9 @@ public class WorkerServer {
                 log.error("Failed to stop function web-server ", e);
             }
         }
-        if (this.webServerExecutor != null) {
+        if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
             try {
-                this.webServerExecutor.join();
+                this.webServerExecutor.stop();
             } catch (Exception e) {
                 log.warn("Error stopping function web-server executor", e);
             }

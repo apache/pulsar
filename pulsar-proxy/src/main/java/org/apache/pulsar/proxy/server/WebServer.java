@@ -221,7 +221,7 @@ public class WebServer {
 
     public void stop() throws Exception {
         server.stop();
-        webServiceExecutor.join();
+        webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
 
