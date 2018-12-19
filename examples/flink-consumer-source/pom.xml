@@ -31,22 +31,39 @@
   <artifactId>flink-consumer-source</artifactId>
   <name>Pulsar Examples :: Flink Consumer Source</name>
 
+  <properties>
+    <log4j2.version>2.10.0</log4j2.version>
+  </properties>
+
   <dependencies>
     <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>${log4j2.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${log4j2.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>${log4j2.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+      <artifactId>flink-scala_${scala.binary.version}</artifactId>
       <version>${flink.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-flink</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-client-original</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
   </dependencies>
 
