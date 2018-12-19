@@ -20,10 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
@@ -36,11 +33,7 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
     }
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix) {
-        super(new ThreadPoolExecutor(
-                Math.max(1, maxThreads / 3),
-                maxThreads,
-                1, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<>()));
+        super(maxThreads);
         this.threadFactory = new DefaultThreadFactory(namePrefix);
     }
 
