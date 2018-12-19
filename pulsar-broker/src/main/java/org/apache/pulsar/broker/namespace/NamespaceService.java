@@ -487,7 +487,7 @@ public class NamespaceService {
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                    candidateBroker + ":" + config.getWebServicePort());
+                    candidateBroker + ":" + config.getWebServicePort().get());
         }
         return false;
     }
@@ -972,11 +972,22 @@ public class NamespaceService {
     }
 
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {
-        return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, config.getWebServicePort());
+        Integer port = null;
+        if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
+        } else if (config.getWebServicePortTls().isPresent()) {
+            port = config.getWebServicePortTls().get();
+        } 
+        return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
-
-    public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
-        return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, config.getWebServicePort());
+     public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
+        Integer port = null;
+        if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
+        } else if (config.getWebServicePortTls().isPresent()) {
+            port = config.getWebServicePortTls().get();
+        } 
+        return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {

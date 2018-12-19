@@ -79,18 +79,23 @@ public class CompactorTool {
                     arguments.brokerConfigFile, ServiceConfiguration.class);
         }
 
-        String pulsarServiceUrl = PulsarService.brokerUrl(brokerConfig);
         ClientBuilder clientBuilder = PulsarClient.builder();
 
         if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
             clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
                     brokerConfig.getBrokerClientAuthenticationParameters());
         }
-        clientBuilder.serviceUrl(pulsarServiceUrl)
-                .enableTls(brokerConfig.isTlsEnabled())
-                .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
+        
 
+        if (brokerConfig.getBrokerServicePortTls().isPresent()) {
+            clientBuilder.serviceUrl(PulsarService.brokerUrlTls(brokerConfig))
+            .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+            .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
+
+        } else {
+            clientBuilder.serviceUrl(PulsarService.brokerUrl(brokerConfig));
+        }
+        
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
 

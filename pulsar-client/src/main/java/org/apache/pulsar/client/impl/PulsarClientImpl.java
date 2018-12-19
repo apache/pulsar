@@ -749,7 +749,7 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
-    /** visiable for pulsar-functions **/
+    /** visible for pulsar-functions **/
     public Timer timer() {
         return timer;
     }

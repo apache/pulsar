@@ -19,9 +19,15 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
+
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.buffer.ByteBufAllocator;
+import org.apache.pulsar.shade.io.netty.util.ReferenceCountUtil;
+import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
@@ -34,6 +40,9 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private final List<PulsarColumnHandle> columnHandles;
 
+    private static final FastThreadLocal<BinaryDecoder> decoders =
+            new FastThreadLocal<>();
+
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
     public AvroSchemaHandler(Schema schema, List<PulsarColumnHandle> columnHandles) {
@@ -42,11 +51,27 @@ public class AvroSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(byte[] bytes) {
+    public Object deserialize(ByteBuf payload) {
+
+        ByteBuf heapBuffer = null;
         try {
-            return this.datumReader.read(null, DecoderFactory.get().binaryDecoder(bytes, null));
+            BinaryDecoder decoderFromCache = decoders.get();
+
+            // Make a copy into a heap buffer, since Avro cannot deserialize directly from direct memory
+            int size = payload.readableBytes();
+            heapBuffer = ByteBufAllocator.DEFAULT.heapBuffer(size, size);
+            heapBuffer.writeBytes(payload);
+
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(heapBuffer.array(), heapBuffer.arrayOffset(),
+                    heapBuffer.readableBytes(), decoderFromCache);
+            if (decoderFromCache==null) {
+                decoders.set(decoder);
+            }
+            return this.datumReader.read(null, decoder);
         } catch (IOException e) {
             log.error(e);
+        } finally {
+            ReferenceCountUtil.safeRelease(heapBuffer);
         }
         return null;
     }

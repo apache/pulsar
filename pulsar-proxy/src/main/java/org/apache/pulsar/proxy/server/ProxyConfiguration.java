@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -129,23 +130,23 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
-    private int servicePort = 6650;
+    private Integer servicePort = 6650;
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf request"
     )
-    private int servicePortTls = 6651;
+    private Integer servicePortTls;
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private int webServicePort = 8080;
+    private Integer webServicePort = 8080;
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private int webServicePortTls = 8443;
+    private Integer webServicePortTls;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -225,10 +226,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithBroker = false;
 
     /***** --- TLS --- ****/
-    @FieldContext(
-        category = CATEGORY_TLS,
-        doc = "Whether TLS is enabled for the proxy"
-    )
+
+    @Deprecated 
     private boolean tlsEnabledInProxy = false;
 
     @FieldContext(
@@ -332,6 +331,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
         return properties;
     }
 
+    public Optional<Integer> getServicePort() {
+        return Optional.ofNullable(servicePort);
+    }
+
+    public Optional<Integer> getServicePortTls() {
+        return Optional.ofNullable(servicePortTls);
+    }
+    
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
+    }
+    
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
+    }
+    
     public void setProperties(Properties properties) {
         this.properties = properties;
 

@@ -101,22 +101,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
-    private int brokerServicePort = 6650;
+    private Integer brokerServicePort = 6650;
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf requests"
     )
-    private int brokerServicePortTls = 6651;
+    private Integer brokerServicePortTls = null;
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private int webServicePort = 8080;
+    private Integer webServicePort = 8080;
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private int webServicePortTls = 8443;
+    private Integer webServicePortTls = null;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -341,13 +341,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
         category = CATEGORY_POLICIES,
         doc = "Default number of message dispatching throttling-limit for a subscription. \n\n"
-            + "Using a value of 0, is disabling.")
+            + "Using a value of 0, is disabling default message dispatch-throttling.")
     private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
         doc = "Default number of message-bytes dispatching throttling-limit for a subscription. \n\n"
-            + "Using a value of 0, is disabling.")
+            + "Using a value of 0, is disabling default message-byte dispatch-throttling.")
     private long dispatchThrottlingRatePerSubscribeInByte = 0;
 
     @FieldContext(
@@ -428,6 +428,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_TLS,
         doc = "Enable TLS"
     )
+    @Deprecated
     private boolean tlsEnabled = false;
     @FieldContext(
         category = CATEGORY_TLS,
@@ -597,6 +598,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable rack-aware bookie selection policy. \n\nBK will chose bookies from"
             + " different racks when forming a new bookie ensemble")
     private boolean bookkeeperClientRackawarePolicyEnabled = true;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enable region-aware bookie selection policy. \n\nBK will chose bookies from"
+            + " different regions and racks when forming a new bookie ensemble")
+    private boolean bookkeeperClientRegionawarePolicyEnabled = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enable/disable reordering read sequence on reading entries")
+    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         required = false,
@@ -1101,5 +1111,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getBookkeeperHealthCheckIntervalSec() {
         return (int) bookkeeperClientHealthCheckIntervalSeconds;
     }
+    
+    public Optional<Integer> getBrokerServicePort() {
+        return Optional.ofNullable(brokerServicePort);
+    }
+    
+    public Optional<Integer> getBrokerServicePortTls() {
+        return Optional.ofNullable(brokerServicePortTls);
+    }
+    
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
+    }
 
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
+    }
 }

@@ -470,7 +470,7 @@ public class PulsarService implements AutoCloseable {
             this.startWorkerService();
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
-                    config.getWebServicePort(), brokerServiceUrl, config.getClusterName(),
+                    config.getWebServicePort().get(), brokerServiceUrl, config.getClusterName(),
                     ReflectionToStringBuilder.toString(config));
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
@@ -549,7 +549,7 @@ public class PulsarService implements AutoCloseable {
 
     private void startNamespaceService() throws PulsarServerException {
 
-        LOG.info("starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
+        LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
 
         this.nsservice = getNamespaceServiceProvider().get();
     }
@@ -855,7 +855,11 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return brokerUrl(advertisedAddress(config), config.getBrokerServicePort());
+        if (config.getBrokerServicePort().isPresent()) {
+            return brokerUrl(advertisedAddress(config), config.getBrokerServicePort().get());
+        } else {
+            return null;
+        }
     }
 
     public static String brokerUrl(String host, int port) {
@@ -863,10 +867,10 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
-        if (config.isTlsEnabled()) {
-            return brokerUrlTls(advertisedAddress(config), config.getBrokerServicePortTls());
+        if (config.getBrokerServicePortTls().isPresent()) {
+            return brokerUrlTls(advertisedAddress(config), config.getBrokerServicePortTls().get());
         } else {
-            return "";
+            return null;
         }
     }
 
@@ -875,7 +879,11 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        return webAddress(advertisedAddress(config), config.getWebServicePort());
+        if (config.getWebServicePort().isPresent()) {        
+            return webAddress(advertisedAddress(config), config.getWebServicePort().get());
+        } else {
+            return null;
+        }
     }
 
     public static String webAddress(String host, int port) {
@@ -883,10 +891,10 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
-        if (config.isTlsEnabled()) {
-            return webAddressTls(advertisedAddress(config), config.getWebServicePortTls());
+        if (config.getWebServicePortTls().isPresent()) {
+            return webAddressTls(advertisedAddress(config), config.getWebServicePortTls().get());
         } else {
-            return "";
+            return null;
         }
     }
 

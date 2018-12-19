@@ -175,6 +175,14 @@ abstract class CliCommand {
         }
     }
 
+    <T> void printList(T item) {
+        try {
+            System.out.println(writer.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     <T> void print(T item) {
         try {
             System.out.println(writer.writeValueAsString(item));

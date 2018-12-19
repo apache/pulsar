@@ -20,6 +20,7 @@ pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 .project
 .settings/
 .recommenders/
+.factorypath
 
 # Intellij
 .idea/
@@ -77,3 +78,6 @@ docker.debug-info
 
 **/website/i18n/*
 **/website/translated_docs*
+
+examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/avro/generated
+pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/avro/generated

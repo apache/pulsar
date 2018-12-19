@@ -39,6 +39,10 @@ message FunctionStatus {
     repeated ExceptionInformation latestUserExceptions = 7;
     int64 numSystemExceptions = 8;
     repeated ExceptionInformation latestSystemExceptions = 9;
+    int64 numSourceExceptions = 18;
+    repeated ExceptionInformation latestSourceExceptions = 19;
+    int64 numSinkExceptions = 20;
+    repeated ExceptionInformation latestSinkExceptions = 21;
     // map from topic name to number of deserialization exceptions
 //    map<string, int64> deserializationExceptions = 10;
     // number of serialization exceptions on the output
