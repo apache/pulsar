@@ -38,6 +38,30 @@ import java.io.IOException;
  */
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
 
+    /*
+        What to do when detecting that a json line cannot be deserialized :
+        (1).false : Throw A IOException and Terminate application。
+        (2).true  : Ignore the error line and add a null line。
+     */
+    private boolean ignoreJsonFormatError = false;
+
+
+    /**
+     *
+     * @return true or false
+     */
+    public boolean getIgnoreJsonFormatError() {
+        return ignoreJsonFormatError;
+    }
+
+    /**
+     * set ignoreJsonFormatError
+     * @param ignoreJsonFormatError
+     */
+    public void setIgnoreJsonFormatError(boolean ignoreJsonFormatError) {
+        this.ignoreJsonFormatError = ignoreJsonFormatError;
+    }
+
     /**
      * Type information describing the result type.
      */
@@ -102,7 +126,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
             return row;
         } catch (Throwable t) {
-            throw new IOException("Failed to deserialize JSON object.", t);
+            if (ignoreJsonFormatError) {
+                final int arity = typeInfo.getArity();
+                final Object[] nullsArray = new Object[arity];
+                return Row.of(nullsArray);
+            } else {
+                throw new IOException("Failed to deserialize JSON object.", t);
+            }
         }
     }
 

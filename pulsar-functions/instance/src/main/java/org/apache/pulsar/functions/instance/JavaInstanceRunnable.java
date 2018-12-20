@@ -272,7 +272,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getFunctionDetails().getName(),
                     instanceConfig.getInstanceId()), t);
             deathException = t;
-            stats.incrSysExceptions(t);
+            if (stats != null) {
+                stats.incrSysExceptions(t);
+            }
             return;
         } finally {
             log.info("Closing instance");

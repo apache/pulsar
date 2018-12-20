@@ -489,16 +489,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic7").subscriptionName(null)
                     .subscribe();
             Assert.fail("Should fail");
-        } catch (PulsarClientException e) {
-            assertEquals(e.getClass(), InvalidConfigurationException.class);
+        } catch (PulsarClientException | IllegalArgumentException e) {
+            assertEquals(e.getClass(), IllegalArgumentException.class);
         }
 
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic7").subscriptionName("")
                     .subscribe();
             Assert.fail("Should fail");
-        } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
+        } catch (PulsarClientException | IllegalArgumentException e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
         }
 
         try {

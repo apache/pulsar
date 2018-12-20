@@ -399,6 +399,12 @@ public class PulsarMetadata implements ConnectorMetadata {
         } else if (fieldSchema.getType() == Schema.Type.MAP) {
 
         } else if (fieldSchema.getType() == Schema.Type.ENUM) {
+            PulsarColumnMetadata columnMetadata = new PulsarColumnMetadata(fieldName,
+                    convertType(fieldSchema.getType(), fieldSchema.getLogicalType()),
+                    null, null, false, false,
+                    fieldNames.toArray(new String[fieldNames.size()]),
+                    positionIndices.toArray(new Integer[positionIndices.size()]));
+            columnMetadataList.add(columnMetadata);
 
         } else if (fieldSchema.getType() == Schema.Type.FIXED) {
 
@@ -433,6 +439,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                 return VarbinaryType.VARBINARY;
             case STRING:
                 return VarcharType.VARCHAR;
+            case ENUM:
+                return VarcharType.VARCHAR;
             default:
                 log.error("Cannot convert type: %s", avroType);
                 return null;
@@ -449,5 +457,6 @@ public class PulsarMetadata implements ConnectorMetadata {
                 || Schema.Type.DOUBLE == type
                 || Schema.Type.BYTES == type
                 || Schema.Type.STRING == type;
+
     }
 }
