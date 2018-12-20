@@ -139,6 +139,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for HTTP requests processing"
+                + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+        )
+    private int numHttpServerThreads = 2 * Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"
     )
@@ -1111,15 +1118,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getBookkeeperHealthCheckIntervalSec() {
         return (int) bookkeeperClientHealthCheckIntervalSeconds;
     }
-    
+
     public Optional<Integer> getBrokerServicePort() {
         return Optional.ofNullable(brokerServicePort);
     }
-    
+
     public Optional<Integer> getBrokerServicePortTls() {
         return Optional.ofNullable(brokerServicePortTls);
     }
-    
+
     public Optional<Integer> getWebServicePort() {
         return Optional.ofNullable(webServicePort);
     }

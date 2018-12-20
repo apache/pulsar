@@ -91,6 +91,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     // Number of IO threads in Pulsar Client used in WebSocket proxy
     private int numIoThreads = Runtime.getRuntime().availableProcessors();
+
+    // Number of threads to use in HTTP server
+    private int numHttpServerThreads = Runtime.getRuntime().availableProcessors();
+
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int connectionsPerBroker = Runtime.getRuntime().availableProcessors();
     // Time in milliseconds that idle WebSocket session times out
@@ -100,9 +104,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
-    @Deprecated 
+    @Deprecated
     private boolean tlsEnabled = false;
-    
+
     private boolean brokerClientTlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -115,7 +119,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    
+
     private Properties properties = new Properties();
 
     public String getClusterName() {
@@ -294,6 +298,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setNumIoThreads(int numIoThreads) {
         this.numIoThreads = numIoThreads;
+    }
+
+    public int getNumHttpServerThreads() {
+        return numHttpServerThreads;
+    }
+
+    public void setNumHttpServerThreads(int numHttpServerThreads) {
+        this.numHttpServerThreads = numHttpServerThreads;
     }
 
     public int getConnectionsPerBroker() {
