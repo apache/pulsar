@@ -196,6 +196,9 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
+
+    <!-- Used to configure rename.netty.native. Libs -->
+    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
   </properties>
 
   <dependencyManagement>
@@ -667,7 +670,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>2.3.3</version>
+        <version>2.6.2</version>
       </dependency>
 
       <dependency>
@@ -1459,6 +1462,18 @@ flexible messaging model and an intuitive client API.</description>
                 </plugin>
              </plugins>
          </build>
+    </profile>
+
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>Windows</family>
+        </os>
+      </activation>
+      <properties>
+        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
+      </properties>
     </profile>
   </profiles>
 

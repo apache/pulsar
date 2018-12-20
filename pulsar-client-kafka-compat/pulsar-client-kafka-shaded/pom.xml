@@ -257,7 +257,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>${project.parent.basedir}/../src/rename-netty-native-libs.sh</executable>
+              <executable>${project.parent.basedir}/../src/${rename.netty.native.libs}</executable>
               <arguments>
                 <argument>${project.artifactId}</argument>
               </arguments>
