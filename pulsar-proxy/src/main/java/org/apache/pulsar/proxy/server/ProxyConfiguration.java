@@ -306,7 +306,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
     )
-    private int httpNumThreads = Runtime.getRuntime().availableProcessors();
+    private int httpNumThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @PropertiesContext(
         properties = {
