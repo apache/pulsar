@@ -115,7 +115,7 @@ public class WorkerServer {
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
         server.setHandler(handlerCollection);
 
-        if (this.workerConfig.isTlsEnabled()) {
+        if (this.workerConfig.getWorkerPortTls() != null) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),

@@ -28,7 +28,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 
 /**
- * Instruments ZooKeeperServer to enable stats reporting on data set and z-node sizess
+ * Instruments ZooKeeperServer to enable stats reporting on data set and z-node sizes
  */
 @Aspect
 public class ZooKeeperServerAspect {

@@ -121,8 +121,21 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     private ReadOnlyCursor createReadOnlyCursor(PositionImpl startPosition) {
-        lastConfirmedEntry = ledgers.size() == 0 ? PositionImpl.earliest
-                : new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
+        if (ledgers.isEmpty()) {
+            lastConfirmedEntry = PositionImpl.earliest;
+        } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
+            // Last ledger has some of the entries
+            lastConfirmedEntry = new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
+        } else {
+            // Last ledger is empty. If there is a previous ledger, position on the last entry of that ledger
+            if (ledgers.size() > 1) {
+                long lastLedgerId = ledgers.lastKey();
+                LedgerInfo li = ledgers.headMap(lastLedgerId, false).lastEntry().getValue();
+                lastConfirmedEntry = new PositionImpl(li.getLedgerId(), li.getEntries() - 1);
+            } else {
+                lastConfirmedEntry = PositionImpl.earliest;
+            }
+        }
 
         ReadOnlyCursorImpl cursor = new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
         return cursor;

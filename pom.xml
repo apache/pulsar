@@ -81,9 +81,9 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
+    <module>pulsar-client-api</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
-    <module>pulsar-client-schema</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
@@ -141,7 +141,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.2</bookkeeper.version>
+    <bookkeeper.version>4.7.3</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -196,6 +196,9 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
+
+    <!-- Used to configure rename.netty.native. Libs -->
+    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
   </properties>
 
   <dependencyManagement>
@@ -667,7 +670,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>2.3.3</version>
+        <version>2.6.2</version>
       </dependency>
 
       <dependency>
@@ -1459,6 +1462,18 @@ flexible messaging model and an intuitive client API.</description>
                 </plugin>
              </plugins>
          </build>
+    </profile>
+
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>Windows</family>
+        </os>
+      </activation>
+      <properties>
+        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
+      </properties>
     </profile>
   </profiles>
 

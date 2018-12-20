@@ -478,6 +478,7 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: producer.send(content, sequence_id='test'))
         self._check_value_error(lambda: producer.send(content, replication_clusters=5))
         self._check_value_error(lambda: producer.send(content, disable_replication='test'))
+        self._check_value_error(lambda: producer.send(content, event_timestamp='test'))
         client.close()
 
     def test_client_argument_errors(self):

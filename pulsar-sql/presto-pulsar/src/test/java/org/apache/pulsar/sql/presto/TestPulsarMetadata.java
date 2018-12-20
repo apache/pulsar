@@ -180,14 +180,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                 TOPIC_1.getLocalName()
         );
 
-        try {
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
-            Assert.fail("Table without schema should have generated an exception");
-        } catch (PrestoException e) {
-            Assert.assertEquals(e.getErrorCode(), NOT_SUPPORTED.toErrorCode());
-            Assert.assertEquals(e.getMessage(), "Topic persistent://tenant-1/ns-1/topic-1 does not have a schema");
-        }
+
+        ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
+                pulsarTableHandle);
+        Assert.assertEquals(tableMetadata.getColumns().size(), 0);
     }
 
     @Test

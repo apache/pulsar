@@ -216,7 +216,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (this.collectorRegistry == null) {
                 this.collectorRegistry = new CollectorRegistry();
             }
-            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
+            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.getScheduledExecutorService());
 
             ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance(contextImpl);
@@ -272,7 +272,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getFunctionDetails().getName(),
                     instanceConfig.getInstanceId()), t);
             deathException = t;
-            stats.incrSysExceptions(t);
+            if (stats != null) {
+                stats.incrSysExceptions(t);
+            }
             return;
         } finally {
             log.info("Closing instance");
@@ -419,6 +421,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
+            stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
         }
     }
@@ -428,6 +431,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             record = this.source.read();
         } catch (Exception e) {
+            stats.incrSourceExceptions(e);
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         }

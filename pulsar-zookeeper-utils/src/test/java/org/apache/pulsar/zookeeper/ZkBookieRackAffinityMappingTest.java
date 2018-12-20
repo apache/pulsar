@@ -83,7 +83,7 @@ public class ZkBookieRackAffinityMappingTest {
         });
         mapping1.setConf(bkClientConf1);
         List<String> racks1 = mapping1
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks1.get(0), "/rack0");
         assertEquals(racks1.get(1), "/rack1");
         assertEquals(racks1.get(2), NetworkTopology.DEFAULT_RACK);
@@ -96,7 +96,7 @@ public class ZkBookieRackAffinityMappingTest {
         bkClientConf2.setZkTimeout(1000);
         mapping2.setConf(bkClientConf2);
         List<String> racks2 = mapping2
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks2.get(0), "/rack0");
         assertEquals(racks2.get(1), "/rack1");
         assertEquals(racks2.get(2), NetworkTopology.DEFAULT_RACK);
@@ -156,7 +156,7 @@ public class ZkBookieRackAffinityMappingTest {
         });
         mapping.setConf(bkClientConf);
         List<String> racks = mapping
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertEquals(racks.get(2), NetworkTopology.DEFAULT_RACK);

@@ -31,6 +31,7 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -184,6 +185,19 @@ public abstract class BaseResource {
             }
         } else {
             return new PulsarAdminException(e);
+        }
+    }
+
+    public WebApplicationException getApiException(Response response) {
+        if (response.getStatusInfo().equals(Response.Status.OK)) {
+            return null;
+        }
+        if (response.getStatus() >= 500) {
+            throw new ServerErrorException(response);
+        } else if (response.getStatus() >= 400) {
+            throw new ClientErrorException(response);
+        } else {
+            throw new WebApplicationException(response);
         }
     }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.Sets;
@@ -49,6 +50,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     private static final long serialVersionUID = 1L;
@@ -86,12 +88,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER,
         doc = "The port for serving worker http requests"
     )
-    private int workerPort;
+    private Integer workerPort;
     @FieldContext(
         category = CATEGORY_WORKER,
         doc = "The port for serving worker https requests"
     )
-    private int workerPortTls;
+    private Integer workerPortTls;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -203,6 +205,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enable TLS"
     )
+    @Deprecated
     private boolean tlsEnabled = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
@@ -233,6 +236,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Whether to enable TLS when clients connect to broker"
     )
+    // TLS for Functions -> Broker
     private boolean useTls = false;
     @FieldContext(
         category = CATEGORY_SECURITY,
@@ -262,6 +266,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     
     private Properties properties = new Properties();
 
+    public boolean getTlsEnabled() {
+    	return tlsEnabled || workerPortTls != null;
+    }
+    
+    
     @Data
     @Setter
     @Getter

@@ -19,25 +19,12 @@
 
 package org.apache.pulsar.functions.utils;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import net.jodah.typetools.TypeResolver;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
-import java.io.File;
-import java.lang.reflect.Type;
-import java.net.MalformedURLException;
-import java.util.*;
-
-import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
 public class ValidatorUtils {
     private static final String DEFAULT_SERDE = "org.apache.pulsar.functions.api.utils.DefaultSerDe";
