@@ -5,7 +5,7 @@ new: true
 tags: ["2.3"]
 ---
 
-Pulsar 2.3 is a major new release for Pulsar. In this release, we have greatly improved the user experience for Pulsar Functions, Sources, and Sinks by redesigning and adding some of REST and admin APIs 
+Pulsar 2.3 is a major new release for Pulsar. In this release, we have greatly improved the user experience for Pulsar Functions, Sources, and Sinks by redesigning and some of the REST and admin APIs and also adding new ones.
 ## New Features 
 
 
