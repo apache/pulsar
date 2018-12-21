@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
-    public final static String HTTP_HEADER_NAME = "Authorization";
+    final static String HTTP_HEADER_NAME = "Authorization";
     final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When simmetric key is configured
@@ -42,6 +42,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // When public/private key pair is configured
     final static String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
+
+    final static String TOKEN = "token";
 
     private Key validationKey;
 
@@ -57,33 +59,47 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String getAuthMethodName() {
-        return "token";
+        return TOKEN;
     }
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        String token = null;
+        // Get Token
+        String token = getToken(authData);
 
+        // Parse Token by validating
+        return parseToken(token);
+    }
+
+    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
-            token = authData.getCommandData();
+            return authData.getCommandData();
         } else if (authData.hasDataFromHttp()) {
             // Authentication HTTP request. The format here should be compliant to RFC-6750
-            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg:
-            //
-            // Authorization: Bearer xxxxxxxxxxxxx
+            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
             String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 throw new AuthenticationException("Invalid HTTP Authorization header");
             }
 
             // Remove prefix
-            token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            return validateToken(token);
         } else {
             throw new AuthenticationException("No token credentials passed");
         }
+    }
 
-        // Validate the token
+    private String validateToken(final String token) throws AuthenticationException {
+        if(StringUtils.isNotBlank(token)) {
+            return token;
+        } else {
+            throw new AuthenticationException("Blank token found");
+        }
+    }
+
+    private String parseToken(final String token) throws AuthenticationException {
         try {
             @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parser()
@@ -99,28 +115,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     /**
      * Try to get the validation key for tokens from several possible config options.
      */
-    private static Key getValidationKey(ServiceConfiguration conf) throws IOException {
-        final boolean isPublicKey;
-        final String validationKeyConfig;
-
+    private Key getValidationKey(ServiceConfiguration conf) throws IOException {
         if (conf.getProperty(CONF_TOKEN_SECRET_KEY) != null
-                && !StringUtils.isBlank((String) conf.getProperty(CONF_TOKEN_SECRET_KEY))) {
-            isPublicKey = false;
-            validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY);
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_SECRET_KEY))) {
+            final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY);
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
+            return AuthTokenUtils.decodeSecretKey(validationKey);
         } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY) != null
-                && !StringUtils.isBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
-            isPublicKey = true;
-            validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
-        } else {
-            throw new IOException("No secret key was provided for token authentication");
-        }
-
-        byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
-
-        if (isPublicKey) {
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
+            final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
             return AuthTokenUtils.decodePublicKey(validationKey);
         } else {
-            return AuthTokenUtils.decodeSecretKey(validationKey);
+            throw new IOException("No secret key was provided for token authentication");
         }
     }
 }
