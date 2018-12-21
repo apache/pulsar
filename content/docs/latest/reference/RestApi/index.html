@@ -1301,6 +1301,10 @@
         
         
         
+        <li><a href="/admin/v2/non-persistent/:tenant/:namespace/:topic/lastMessageId"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>lastMessageId</code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/non-persistent/:tenant/:namespace/:topic/offload"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>offload</code></a></li>
         
         
@@ -1398,6 +1402,10 @@
         
         
         <li><a href="/admin/v2/persistent/:tenant/:namespace/:topic/internalStats"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>internalStats</code></a></li>
+        
+        
+        
+        <li><a href="/admin/v2/persistent/:tenant/:namespace/:topic/lastMessageId"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>lastMessageId</code></a></li>
         
         
         
@@ -8900,6 +8908,102 @@
   
   
   
+  <div class="card" id="/admin/v2/non-persistent/:tenant/:namespace/:topic/lastMessageId">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>lastMessageId</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Return the last commit message id of topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on persistent topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/v2/non-persistent/:tenant/:namespace/:topic/offload">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>offload</code></h5>
@@ -11684,6 +11788,102 @@
               <tr>
                 <td>404</td>
                 <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/persistent/:tenant/:namespace/:topic/lastMessageId">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>lastMessageId</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Return the last commit message id of topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on persistent topic</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
