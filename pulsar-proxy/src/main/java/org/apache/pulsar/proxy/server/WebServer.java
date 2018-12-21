@@ -39,6 +39,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
@@ -56,7 +57,6 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -70,7 +70,7 @@ public class WebServer {
     private static final String MATCH_ALL = "/*";
 
     private final Server server;
-    private final ExecutorThreadPool webServiceExecutor;
+    private final WebExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
     private final List<String> servletPaths = Lists.newArrayList();
     private final List<Handler> handlers = Lists.newArrayList();
@@ -79,8 +79,7 @@ public class WebServer {
     private URI serviceURI = null;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = new ExecutorThreadPool();
-        this.webServiceExecutor.setName("pulsar-external-web");
+        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
         this.authenticationService = authenticationService;
         this.config = config;
