@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -49,54 +50,51 @@ public class SinkApiV2Resource extends FunctionApiResource {
         this.sink = new SinkImpl(this);
     }
 
-
     @POST
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response registerSink(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace,
-                                 final @PathParam("sinkName") String sinkName,
-                                 final @FormDataParam("data") InputStream uploadedInputStream,
-                                 final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                 final @FormDataParam("url") String functionPkgUrl,
-                                 final @FormDataParam("sinkConfig") String sinkConfigJson) {
+    public void registerSink(final @PathParam("tenant") String tenant,
+                             final @PathParam("namespace") String namespace,
+                             final @PathParam("sinkName") String sinkName,
+                             final @FormDataParam("data") InputStream uploadedInputStream,
+                             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             final @FormDataParam("url") String functionPkgUrl,
+                             final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
-        return sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+        sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
                 functionPkgUrl, null, sinkConfigJson, clientAppId());
-
     }
 
     @PUT
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response updateSink(final @PathParam("tenant") String tenant,
-                               final @PathParam("namespace") String namespace,
-                               final @PathParam("sinkName") String sinkName,
-                               final @FormDataParam("data") InputStream uploadedInputStream,
-                               final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                               final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("sinkConfig") String sinkConfigJson) {
+    public void updateSink(final @PathParam("tenant") String tenant,
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sinkName") String sinkName,
+                           final @FormDataParam("data") InputStream uploadedInputStream,
+                           final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                           final @FormDataParam("url") String functionPkgUrl,
+                           final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
-        return sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+        sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
                 functionPkgUrl, null, sinkConfigJson, clientAppId());
-
     }
-
 
     @DELETE
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public Response deregisterSink(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return sink.deregisterFunction(tenant, namespace, sinkName, clientAppId());
+    public void deregisterSink(final @PathParam("tenant") String tenant,
+                               final @PathParam("namespace") String namespace,
+                               final @PathParam("sinkName") String sinkName) {
+        sink.deregisterFunction(tenant, namespace, sinkName, clientAppId());
     }
 
     @GET
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public Response getSinkInfo(final @PathParam("tenant") String tenant,
-                                final @PathParam("namespace") String namespace,
-                                final @PathParam("sinkName") String sinkName)
+    public SinkConfig getSinkInfo(final @PathParam("tenant") String tenant,
+                                  final @PathParam("namespace") String namespace,
+                                  final @PathParam("sinkName") String sinkName)
             throws IOException {
-        return sink.getFunctionInfo(tenant, namespace, sinkName);
+        return sink.getSinkInfo(tenant, namespace, sinkName);
     }
 
     @GET
@@ -116,8 +114,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             final @PathParam("sinkName") String sinkName,
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return sink.getSinkInstanceStatus(
-            tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        return sink.getSinkInstanceStatus(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
     }
 
     @GET
@@ -133,42 +130,42 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sinkName}/status")
     public SinkStatus getSinkStatus(final @PathParam("tenant") String tenant,
-                                  final @PathParam("namespace") String namespace,
-                                  final @PathParam("sinkName") String sinkName) throws IOException {
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("sinkName") String sinkName) throws IOException {
         return sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri());
     }
 
     @GET
     @Path("/{tenant}/{namespace}")
-    public Response listSink(final @PathParam("tenant") String tenant,
-                             final @PathParam("namespace") String namespace) {
+    public List<String> listSink(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace) {
         return sink.listFunctions(tenant, namespace);
-
     }
 
     @POST
     @ApiOperation(value = "Restart sink instance", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+    @ApiResponse(code = 404, message = "The function does not exist"),
+    @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response restartSink(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName,
-            final @PathParam("instanceId") String instanceId) {
-        return sink.restartFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri());
+    public void restartSink(final @PathParam("tenant") String tenant,
+                            final @PathParam("namespace") String namespace,
+                            final @PathParam("sinkName") String sinkName,
+                            final @PathParam("instanceId") String instanceId) {
+        sink.restartFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri());
     }
 
     @POST
     @ApiOperation(value = "Restart all sink instances", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+    @ApiResponse(code = 404, message = "The function does not exist"), @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sinkName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response restartSink(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return sink.restartFunctionInstances(tenant, namespace, sinkName);
+    public void restartSink(final @PathParam("tenant") String tenant,
+                            final @PathParam("namespace") String namespace,
+                            final @PathParam("sinkName") String sinkName) {
+        sink.restartFunctionInstances(tenant, namespace, sinkName);
     }
 
     @POST
@@ -178,34 +175,36 @@ public class SinkApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response stopSink(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName,
-            final @PathParam("instanceId") String instanceId) {
-        return sink.stopFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri());
+    public void stopSink(final @PathParam("tenant") String tenant,
+                         final @PathParam("namespace") String namespace,
+                         final @PathParam("sinkName") String sinkName,
+                         final @PathParam("instanceId") String instanceId) {
+        sink.stopFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri());
     }
 
     @POST
     @ApiOperation(value = "Stop all sink instances", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+    @ApiResponse(code = 404, message = "The function does not exist"),
+    @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sinkName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response stopSink(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return sink.stopFunctionInstances(tenant, namespace, sinkName);
+    public void stopSink(final @PathParam("tenant") String tenant,
+                         final @PathParam("namespace") String namespace,
+                         final @PathParam("sinkName") String sinkName) {
+        sink.stopFunctionInstances(tenant, namespace, sinkName);
     }
 
     @GET
     @Path("/builtinsinks")
     public List<ConnectorDefinition> getSinkList() {
         List<ConnectorDefinition> connectorDefinitions = sink.getListOfConnectors();
-        List<ConnectorDefinition> retval = new ArrayList<>();
+        List<ConnectorDefinition> retVal = new ArrayList<>();
         for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
             if (!StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
-                retval.add(connectorDefinition);
+                retVal.add(connectorDefinition);
             }
         }
-        return retval;
+        return retVal;
     }
 }
