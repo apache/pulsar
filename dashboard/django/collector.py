@@ -272,26 +272,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                 topic.localThroughputIn = topic.msgThroughputIn - replicationThroughputIn
                 topic.localThroughputOut = topic.msgThroughputIn - replicationThroughputOut
 
-
-    # if connection.vendor == 'postgresql':
-    #     # Bulk insert into db
-    #     Bundle.objects.bulk_create(db_bundles, batch_size=10000)
-
-    #     # Trick to refresh primary keys after previous bulk import
-    #     for topic in db_topics: topic.bundle = topic.bundle
-    #     Topic.objects.bulk_create(db_topics, batch_size=10000)
-
-    #     for subscription in db_subscriptions: subscription.topic = subscription.topic
-    #     Subscription.objects.bulk_create(db_subscriptions, batch_size=10000)
-
-    #     for consumer in db_consumers: consumer.subscription = consumer.subscription
-    #     Consumer.objects.bulk_create(db_consumers, batch_size=10000)
-
-    #     for replication in db_replication: replication.topic = replication.topic
-    #     Replication.objects.bulk_create(db_replication, batch_size=10000)
-
-    # else:
-    # For other DB providers we have to insert one by one
+    # For all DB providers we have to insert one by one
     # to be able to retrieve the PK of the newly inserted records
     for bundle in db_bundles:
         bundle.save()
