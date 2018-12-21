@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl.v1;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -33,6 +33,10 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @SuppressWarnings("deprecation")
 public class PulsarClientV1Impl implements PulsarClient {
@@ -43,72 +47,127 @@ public class PulsarClientV1Impl implements PulsarClient {
         this.client = new PulsarClientImpl(conf.setServiceUrl(serviceUrl).getConfigurationData().clone());
     }
 
+    @Override
     public void close() throws PulsarClientException {
         client.close();
     }
 
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return client.closeAsync();
     }
 
-    public Producer createProducer(String arg0,
-            ProducerConfiguration arg1) throws PulsarClientException {
-        return new ProducerV1Impl((ProducerImpl<byte[]>) client.createProducer(arg0, arg1));
+    @Override
+    public Producer createProducer(final String topic, final ProducerConfiguration conf) throws PulsarClientException {
+        if (conf == null) {
+            throw new PulsarClientException.InvalidConfigurationException("Invalid null configuration object");
+        }
+
+        try {
+            return createProducerAsync(topic, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
     }
 
-    public Producer createProducer(String arg0)
+    @Override
+    public Producer createProducer(String topic)
             throws PulsarClientException {
-        return new ProducerV1Impl((ProducerImpl<byte[]>) client.createProducer(arg0));
+        return createProducer(topic, new ProducerConfiguration());
     }
 
-    public CompletableFuture<Producer> createProducerAsync(String arg0,
-            ProducerConfiguration arg1) {
-        return client.createProducerAsync(arg0, arg1).thenApply(p -> new ProducerV1Impl((ProducerImpl<byte[]>) p));
+    @Override
+    public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf) {
+        ProducerConfigurationData confData = conf.getProducerConfigurationData().clone();
+        confData.setTopicName(topic);
+        return client.createProducerAsync(confData).thenApply(p -> new ProducerV1Impl((ProducerImpl<byte[]>) p));
     }
 
-    public CompletableFuture<Producer> createProducerAsync(String arg0) {
-        return client.createProducerAsync(arg0).thenApply(p -> new ProducerV1Impl((ProducerImpl<byte[]>) p));
+    @Override
+    public CompletableFuture<Producer> createProducerAsync(String topic) {
+        return createProducerAsync(topic, new ProducerConfiguration());
     }
 
-    public Reader createReader(String arg0, MessageId arg1,
-            ReaderConfiguration arg2) throws PulsarClientException {
-        return new ReaderV1Impl(client.createReader(arg0, arg1, arg2));
+    @Override
+    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf)
+            throws PulsarClientException {
+        try {
+            return createReaderAsync(topic, startMessageId, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
     }
 
-    public CompletableFuture<Reader> createReaderAsync(String arg0,
-            MessageId arg1, ReaderConfiguration arg2) {
-        return client.createReaderAsync(arg0, arg1, arg2).thenApply(r -> new ReaderV1Impl(r));
+    @Override
+    public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
+            ReaderConfiguration conf) {
+        ReaderConfigurationData<byte[]> confData = conf.getReaderConfigurationData().clone();
+        confData.setTopicName(topic);
+        confData.setStartMessageId(startMessageId);
+        return client.createReaderAsync(confData).thenApply(r -> new ReaderV1Impl(r));
     }
 
-    public CompletableFuture<List<String>> getPartitionsForTopic(String arg0) {
-        return client.getPartitionsForTopic(arg0);
-    }
-
+    @Override
     public void shutdown() throws PulsarClientException {
         client.shutdown();
     }
 
-    public Consumer subscribe(String arg0, String arg1,
-            ConsumerConfiguration arg2) throws PulsarClientException {
-        return new ConsumerV1Impl(client.subscribe(arg0, arg1, arg2));
+    @Override
+    public Consumer subscribe(String topic, String subscriptionName) throws PulsarClientException {
+        return subscribe(topic, subscriptionName, new ConsumerConfiguration());
     }
 
-    public Consumer subscribe(String arg0, String arg1) throws PulsarClientException {
-        return new ConsumerV1Impl(client.subscribe(arg0, arg1));
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(final String topic, final String subscription,
+            final ConsumerConfiguration conf) {
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Invalid null configuration"));
+        }
+
+        ConsumerConfigurationData<byte[]> confData = conf.getConfigurationData().clone();
+        confData.getTopicNames().add(topic);
+        confData.setSubscriptionName(subscription);
+        return client.subscribeAsync(confData).thenApply(c -> new ConsumerV1Impl(c));
     }
 
-    public CompletableFuture<Consumer> subscribeAsync(String arg0,
-            String arg1, ConsumerConfiguration arg2) {
-        return client.subscribeAsync(arg0, arg1, arg2).thenApply(c -> new ConsumerV1Impl(c));
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(String topic,
+            String subscriptionName) {
+        return subscribeAsync(topic, subscriptionName, new ConsumerConfiguration());
     }
 
-    public CompletableFuture<Consumer> subscribeAsync(String arg0,
-            String arg1) {
-        return client.subscribeAsync(arg0, arg1).thenApply(c -> new ConsumerV1Impl(c));
+    @Override
+    public Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf)
+            throws PulsarClientException {
+        try {
+            return subscribeAsync(topic, subscription, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
     }
-
-    public void updateServiceUrl(String arg0) throws PulsarClientException {
-        client.updateServiceUrl(arg0);
-    }
-
 }

@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -29,10 +27,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-
-import static org.testng.Assert.assertEquals;
 
 public class DefaultSchemasTest {
     private PulsarClient client;
@@ -65,30 +59,6 @@ public class DefaultSchemasTest {
         ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
                 .topic(TEST_TOPIC);
         Assert.assertNotNull(stringReaderBuilder);
-    }
-
-    @Test
-    public void testStringSchema() throws Exception {
-        String testString = "hello world";
-        byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
-        StringSchema stringSchema = new StringSchema();
-        Assert.assertTrue(stringSchema.decode(testBytes).equals(testString));
-        assertEquals(stringSchema.encode(testString), testBytes);
-
-        Message<String> msg1 = MessageBuilder.create(stringSchema)
-                .setContent(testBytes)
-                .build();
-        assertEquals(stringSchema.decode(msg1.getData()), testString);
-
-        Message<String> msg2 = MessageBuilder.create(stringSchema)
-                .setValue(testString)
-                .build();
-        assertEquals(stringSchema.encode(testString), msg2.getData());
-
-        byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
-        StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
-        Assert.assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
-        assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 
     @AfterClass
