@@ -384,7 +384,7 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testValidationKeyWhenBlankKeyIsPassed() throws IOException {
+    public void testValidationKeyWhenBlankSecretKeyIsPassed() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "   ");
 
