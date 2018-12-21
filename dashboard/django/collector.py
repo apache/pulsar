@@ -193,14 +193,13 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
 
                     for consStats in subStats['consumers']:
                         numConsumers += 1
-                        consumer = Consumer.objects.filter(subscription_id = subscription.id)
+                        consumer = Consumer.objects.filter(subscription_id=subscription.id, consumerName=consStats.get('consumerName'))
                         if consumer:
                             temp_consumer = consumer.first()
                             temp_consumer.timestamp        = timestamp
                             temp_consumer.address          = consStats['address']
                             temp_consumer.availablePermits = consStats.get('availablePermits', 0)
                             temp_consumer.connectedSince   = parse_date(consStats.get('connectedSince'))
-                            temp_consumer.consumerName     = consStats.get('consumerName')
                             temp_consumer.msgRateOut       = consStats.get('msgRateOut', 0)
                             temp_consumer.msgRateRedeliver = consStats.get('msgRateRedeliver', 0)
                             temp_consumer.msgThroughputOut = consStats.get('msgThroughputOut', 0)
