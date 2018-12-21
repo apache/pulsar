@@ -58,7 +58,7 @@ class ContextImpl(pulsar.Context):
       else {}
 
     self.metrics_labels = metrics_labels
-    self.user_metrics_labels = dict()
+    self.user_metrics_map = dict()
     self.user_metrics_summary = Summary("pulsar_function_user_metric",
                                     'Pulsar Function user defined metric',
                                         ContextImpl.user_metrics_label_names)
@@ -120,9 +120,12 @@ class ContextImpl(pulsar.Context):
     return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
-    if metric_name not in self.user_metrics_labels:
-      self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
-    self.user_metrics_summary.labels(*self.user_metrics_labels[metric_name]).observe(metric_value)
+    if metric_name not in self.user_metrics_map:
+      user_metrics_labels = self.metrics_labels + [metric_name]
+      self.user_metrics_map[metric_name] = self.user_metrics_summary.labels(*user_metrics_labels)
+
+    self.user_metrics_map[metric_name].observe(metric_value)
+
 
   def get_output_topic(self):
     return self.instance_config.function_details.output
@@ -167,14 +170,14 @@ class ContextImpl(pulsar.Context):
 
   def reset_metrics(self):
     # TODO: Make it thread safe
-    for labels in self.user_metrics_labels.values():
-      self.user_metrics_summary.labels(*labels)._sum.set(0.0)
-      self.user_metrics_summary.labels(*labels)._count.set(0.0)
+    for user_metric in self.user_metrics_map.values():
+      user_metric._sum.set(0.0)
+      user_metric._count.set(0.0)
 
   def get_metrics(self):
     metrics_map = {}
-    for metric_name, metric_labels in self.user_metrics_labels.items():
-      metrics_map["%s%s_sum" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._sum.get()
-      metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._count.get()
+    for metric_name, user_metric in self.user_metrics_map.items():
+      metrics_map["%s%s_sum" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._sum.get()
+      metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._count.get()
 
     return metrics_map
