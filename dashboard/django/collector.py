@@ -77,10 +77,14 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
 
     clusters = dict( (cluster.name, cluster) for cluster in Cluster.objects.all() )
 
-    db_bundles = []
-    db_topics = []
-    db_subscriptions = []
-    db_consumers = []
+    db_create_bundles = []
+    db_update_bundles = []
+    db_create_topics = []
+    db_update_topics = []
+    db_create_subscriptions = []
+    db_update_subscriptions = []
+    db_create_consumers = []
+    db_update_consumers = []
     db_replication = []
 
     for namespace_name, bundles_stats in topics_stats.items():
@@ -102,7 +106,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
             if bundle:
                 temp_bundle = bundle.first()
                 temp_bundle.timestame = timestamp
-                db_bundles.append(temp_bundle)
+                db_update_bundles.append(temp_bundle)
                 bundle = temp_bundle
             else:
                 bundle = Bundle(
@@ -111,14 +115,15 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                                 range     = bundle_range,
                                 cluster   = cluster,
                                 timestamp = timestamp)
-                db_bundles.append(bundle)
+                db_create_bundles.append(bundle)
                 
             for topic_name, stats in topics_stats['persistent'].items():
                 topic = Topic.objects.filter(
                     cluster_id=cluster.id,
                     bundle_id=bundle.id,
                     namespace_id=namespace.id,
-                    broker_id=broker.id)
+                    broker_id=broker.id,
+                    name=topic_name)
                 if topic:
                     temp_topic = topic.first()
                     temp_topic.timestamp              = timestamp
@@ -130,7 +135,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                     temp_topic.pendingAddEntriesCount = stats['pendingAddEntriesCount']
                     temp_topic.producerCount          = stats['producerCount']
                     temp_topic.storageSize            = stats['storageSize']
-                    db_topics.append(temp_topic)
+                    db_update_topics.append(temp_topic)
                     topic = temp_topic
                 else:
                     topic = Topic(
@@ -150,7 +155,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                         producerCount          = stats['producerCount'],
                         storageSize            = stats['storageSize']
                     )
-                    db_topics.append(topic)
+                    db_create_topics.append(topic)
                 totalBacklog = 0
                 numSubscriptions = 0
                 numConsumers = 0
@@ -171,7 +176,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                         temp_subscription.msgThroughputOut = subStats['msgThroughputOut']
                         temp_subscription.subscriptionType = subStats['type'][0]
                         temp_subscription.unackedMessages  = subStats.get('unackedMessages', 0)
-                        db_subscriptions.append(temp_subscription)
+                        db_update_subscriptions.append(temp_subscription)
                         subscription = temp_subscription
                     else:
                         subscription = Subscription(
@@ -187,13 +192,15 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                             subscriptionType = subStats['type'][0],
                             unackedMessages  = subStats.get('unackedMessages', 0),
                         )
-                        db_subscriptions.append(subscription)
+                        db_create_subscriptions.append(subscription)
 
                     totalBacklog += subStats['msgBacklog']
 
                     for consStats in subStats['consumers']:
                         numConsumers += 1
-                        consumer = Consumer.objects.filter(subscription_id=subscription.id, consumerName=consStats.get('consumerName'))
+                        consumer = Consumer.objects.filter(
+                            subscription_id=subscription.id,
+                            consumerName=consStats.get('consumerName'))
                         if consumer:
                             temp_consumer = consumer.first()
                             temp_consumer.timestamp        = timestamp
@@ -205,7 +212,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                             temp_consumer.msgThroughputOut = consStats.get('msgThroughputOut', 0)
                             temp_consumer.unackedMessages  = consStats.get('unackedMessages', 0)
                             temp_consumer.blockedConsumerOnUnackedMsgs  = consStats.get('blockedConsumerOnUnackedMsgs', False)
-                            db_consumers.append(temp_consumer)
+                            db_update_consumers.append(temp_consumer)
                             consumer = temp_consumer
                         else:
                             consumer = Consumer(
@@ -214,14 +221,13 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                                 address          = consStats['address'],
                                 availablePermits = consStats.get('availablePermits', 0),
                                 connectedSince   = parse_date(consStats.get('connectedSince')),
-                                consumerName     = consStats.get('consumerName'),
                                 msgRateOut       = consStats.get('msgRateOut', 0),
                                 msgRateRedeliver = consStats.get('msgRateRedeliver', 0),
                                 msgThroughputOut = consStats.get('msgThroughputOut', 0),
                                 unackedMessages  = consStats.get('unackedMessages', 0),
                                 blockedConsumerOnUnackedMsgs  = consStats.get('blockedConsumerOnUnackedMsgs', False)
                             )
-                            db_consumers.append(consumer)
+                            db_create_consumers.append(consumer)
 
                 topic.backlog = totalBacklog
                 topic.subscriptionCount = numSubscriptions
@@ -271,7 +277,47 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                 topic.localThroughputIn = topic.msgThroughputIn - replicationThroughputIn
                 topic.localThroughputOut = topic.msgThroughputIn - replicationThroughputOut
 
-    # For all DB providers we have to insert one by one
+    if connection.vendor == 'postgresql':
+        # Bulk insert into db
+        Bundle.objects.bulk_create(db_create_bundles, batch_size=10000)
+
+        # Trick to refresh primary keys after previous bulk import
+        for topic in db_create_topics: topic.bundle = topic.bundle
+        Topic.objects.bulk_create(db_create_topics, batch_size=10000)
+
+        for subscription in db_create_subscriptions: subscription.topic = subscription.topic
+        Subscription.objects.bulk_create(db_create_subscriptions, batch_size=10000)
+
+        for consumer in db_create_consumers: consumer.subscription = consumer.subscription
+        Consumer.objects.bulk_create(db_create_consumers, batch_size=10000)
+
+        for replication in db_replication: replication.topic = replication.topic
+        Replication.objects.bulk_create(db_replication, batch_size=10000)
+
+        update_or_create_object(
+            db_update_bundles,
+            db_update_topics,
+            db_update_consumers,
+            db_update_subscriptions)
+
+    else:
+        update_or_create_object(
+            db_create_bundles,
+            db_create_topics,
+            db_create_consumers,
+            db_create_subscriptions)
+        update_or_create_object(
+            db_update_bundles,
+            db_update_topics,
+            db_update_consumers,
+            db_update_subscriptions)
+
+        for replication in db_replication:
+            replication.topic = replication.topic
+            replication.save()
+
+def update_or_create_object(db_bundles, db_topics, db_consumers, db_subscriptions):
+    # For DB providers we have to insert or update one by one
     # to be able to retrieve the PK of the newly inserted records
     for bundle in db_bundles:
         bundle.save()
@@ -287,10 +333,6 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     for consumer in db_consumers:
         consumer.subscription = consumer.subscription
         consumer.save()
-
-    for replication in db_replication:
-        replication.topic = replication.topic
-        replication.save()
 
 
 def fetch_stats():
