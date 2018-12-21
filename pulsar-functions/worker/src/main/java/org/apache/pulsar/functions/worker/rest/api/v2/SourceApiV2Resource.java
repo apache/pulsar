@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
@@ -48,11 +49,10 @@ public class SourceApiV2Resource extends FunctionApiResource {
         this.source = new SourceImpl(this);
     }
 
-
     @POST
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response registerSource(final @PathParam("tenant") String tenant,
+    public void registerSource(final @PathParam("tenant") String tenant,
                                    final @PathParam("namespace") String namespace,
                                    final @PathParam("sourceName") String sourceName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
@@ -60,7 +60,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
-        return source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, null, sourceConfigJson, clientAppId());
 
     }
@@ -68,34 +68,34 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @PUT
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response updateSource(final @PathParam("tenant") String tenant,
-                                 final @PathParam("namespace") String namespace,
-                                 final @PathParam("sourceName") String sourceName,
-                                 final @FormDataParam("data") InputStream uploadedInputStream,
-                                 final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                 final @FormDataParam("url") String functionPkgUrl,
-                                 final @FormDataParam("sourceConfig") String sourceConfigJson) {
+    public void updateSource(final @PathParam("tenant") String tenant,
+                             final @PathParam("namespace") String namespace,
+                             final @PathParam("sourceName") String sourceName,
+                             final @FormDataParam("data") InputStream uploadedInputStream,
+                             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             final @FormDataParam("url") String functionPkgUrl,
+                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
-        return source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+        source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, null, sourceConfigJson, clientAppId());
-
     }
 
 
     @DELETE
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public Response deregisterSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+    public void deregisterSource(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("sourceName") String sourceName) {
+        source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
     }
 
     @GET
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public Response getSourceInfo(final @PathParam("tenant") String tenant,
-                                  final @PathParam("namespace") String namespace,
-                                  final @PathParam("sourceName") String sourceName)
+    public SourceConfig getSourceInfo(final @PathParam("tenant") String tenant,
+                                      final @PathParam("namespace") String namespace,
+                                      final @PathParam("sourceName") String sourceName)
             throws IOException {
-        return source.getFunctionInfo(tenant, namespace, sourceName);
+        return source.getSourceInfo(tenant, namespace, sourceName);
     }
 
     @GET
@@ -139,10 +139,9 @@ public class SourceApiV2Resource extends FunctionApiResource {
 
     @GET
     @Path("/{tenant}/{namespace}")
-    public Response listSources(final @PathParam("tenant") String tenant,
-                                final @PathParam("namespace") String namespace) {
+    public List<String> listSources(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace) {
         return source.listFunctions(tenant, namespace);
-
     }
 
     @POST
@@ -152,22 +151,24 @@ public class SourceApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response restartSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
-            final @PathParam("instanceId") String instanceId) {
-        return source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
+    public void restartSource(final @PathParam("tenant") String tenant,
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("sourceName") String sourceName,
+                              final @PathParam("instanceId") String instanceId) {
+        source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
     }
 
     @POST
     @ApiOperation(value = "Restart all source instances", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+    @ApiResponse(code = 404, message = "The function does not exist"),
+    @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response restartSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return source.restartFunctionInstances(tenant, namespace, sourceName);
+    public void restartSource(final @PathParam("tenant") String tenant,
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("sourceName") String sourceName) {
+        source.restartFunctionInstances(tenant, namespace, sourceName);
     }
 
     @POST
@@ -177,10 +178,11 @@ public class SourceApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response stopSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
-            final @PathParam("instanceId") String instanceId) {
-        return source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
+    public void stopSource(final @PathParam("tenant") String tenant,
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sourceName") String sourceName,
+                           final @PathParam("instanceId") String instanceId) {
+        source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
     }
 
     @POST
@@ -190,9 +192,10 @@ public class SourceApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response stopSource(final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return source.stopFunctionInstances(tenant, namespace, sourceName);
+    public void stopSource(final @PathParam("tenant") String tenant,
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sourceName") String sourceName) {
+        source.stopFunctionInstances(tenant, namespace, sourceName);
     }
 
     @GET
