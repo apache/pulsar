@@ -37,7 +37,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     final static String HTTP_HEADER_NAME = "Authorization";
     final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
-    // When simmetric key is configured
+    // When symmetric key is configured
     final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
 
     // When public/private key pair is configured
@@ -92,7 +92,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String validateToken(final String token) throws AuthenticationException {
-        if(StringUtils.isNotBlank(token)) {
+        if (StringUtils.isNotBlank(token)) {
             return token;
         } else {
             throw new AuthenticationException("Blank token found");
