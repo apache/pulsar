@@ -41,11 +41,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/source")
-public class SourceApiResource extends FunctionApiResource {
+public class SourceApiV3Resource extends FunctionApiResource {
 
     protected final SourceImpl source;
 
-    public SourceApiResource() {
+    public SourceApiV3Resource() {
         this.source = new SourceImpl(this);
     }
 

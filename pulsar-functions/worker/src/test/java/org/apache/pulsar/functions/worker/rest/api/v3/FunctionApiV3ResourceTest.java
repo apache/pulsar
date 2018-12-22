@@ -94,7 +94,7 @@ import static org.testng.Assert.assertEquals;
 @PrepareForTest(Utils.class)
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
-public class FunctionApiResourceTest {
+public class FunctionApiV3ResourceTest {
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
@@ -1394,7 +1394,7 @@ public class FunctionApiResourceTest {
     @Test
     public void testDownloadFunctionHttpUrl() throws Exception {
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = FunctionApiResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImpl function = new FunctionsImpl(null);
         StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
@@ -1409,7 +1409,7 @@ public class FunctionApiResourceTest {
     @Test
     public void testDownloadFunctionFile() throws Exception {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String testDir = FunctionApiResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImpl function = new FunctionsImpl(null);
         StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());

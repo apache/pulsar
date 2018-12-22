@@ -42,11 +42,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/sink")
-public class SinkApiResource extends FunctionApiResource {
+public class SinkApiV3Resource extends FunctionApiResource {
 
     protected final SinkImpl sink;
 
-    public SinkApiResource() {
+    public SinkApiV3Resource() {
         this.sink = new SinkImpl(this);
     }
 

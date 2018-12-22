@@ -27,6 +27,7 @@ import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -48,11 +49,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/functions")
-public class FunctionApiResource extends org.apache.pulsar.functions.worker.rest.FunctionApiResource {
+public class FunctionApiV3Resource extends FunctionApiResource {
 
     protected final FunctionsImpl functions;
 
-    public FunctionApiResource() {
+    public FunctionApiV3Resource() {
         this.functions = new FunctionsImpl(this);
     }
 
