@@ -47,6 +47,7 @@ public final class Resources {
     public static Set<Class<?>> getApiV3Resources() {
         return new HashSet<>(
                 Arrays.asList(
+                        MultiPartFeature.class,
                         SourceApiV3Resource.class,
                         SinkApiV3Resource.class,
                         FunctionApiV3Resource.class
