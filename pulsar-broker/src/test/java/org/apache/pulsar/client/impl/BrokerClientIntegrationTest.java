@@ -38,6 +38,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -69,6 +70,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +90,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        producerBaseSetup();
+        super.producerBaseSetup();
     }
 
     @AfterMethod
@@ -730,6 +732,29 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertTrue(producers.isEmpty());
         pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * It verifies that if broker fails to complete producer/consumer operation then client times out rather waiting
+     * forever.
+     * 
+     * @throws PulsarClientException
+     */
+    @Test(expectedExceptions = PulsarClientException.TimeoutException.class, timeOut = 10000)
+    public void testOperationTimeout() throws PulsarClientException {
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
+                .getTopics();
+        // non-complete topic future so, create topic should timeout
+        topics.put(topicName, new CompletableFuture<>());
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(2, TimeUnit.SECONDS).statsInterval(0, TimeUnit.SECONDS).build();
+        try {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        } finally {
+            topics.clear();
+            pulsarClient.close();
+        }
     }
 
 }
