@@ -293,18 +293,6 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test(expectedExceptions = IOException.class)
-    public void testInitializeWhenSecretKeyFilePathIsInvalid() throws IOException {
-        Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
-                "file://" + "invalid_secret_key_file");
-
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setProperties(properties);
-
-        new AuthenticationProviderToken().initialize(conf);
-    }
-
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
@@ -417,5 +405,29 @@ public class AuthenticationProviderTokenTest {
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         provider.initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenSecretKeyFilePathIsInvalid() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                "file://" + "invalid_secret_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenPublicKeyFilePathIsInvalid() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
+                "file://" + "invalid_public_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
     }
 }
