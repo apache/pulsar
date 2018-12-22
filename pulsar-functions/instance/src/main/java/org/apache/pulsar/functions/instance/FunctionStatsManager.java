@@ -320,9 +320,7 @@ public class FunctionStatsManager implements AutoCloseable {
 
     public void addUserException(Exception ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info =
-                    InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                    .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
+        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestUserExceptions.add(info);
 
         // report exception throw prometheus
@@ -336,9 +334,7 @@ public class FunctionStatsManager implements AutoCloseable {
 
     public void addSystemException(Throwable ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
+        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
 
         // report exception throw prometheus
@@ -352,9 +348,7 @@ public class FunctionStatsManager implements AutoCloseable {
 
     public void addSourceException(Throwable ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
+        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSourceExceptions.add(info);
 
         // report exception throw prometheus
@@ -368,9 +362,7 @@ public class FunctionStatsManager implements AutoCloseable {
 
     public void addSinkException(Throwable ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
+        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
 
         // report exception throw prometheus
@@ -380,6 +372,16 @@ public class FunctionStatsManager implements AutoCloseable {
             exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
             sinkExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
+    }
+
+    private InstanceCommunication.FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
+        InstanceCommunication.FunctionStatus.ExceptionInformation.Builder exceptionInfoBuilder =
+                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder().setMsSinceEpoch(ts);
+        String msg = th.getMessage();
+        if (msg != null) {
+            exceptionInfoBuilder.setExceptionString(msg);
+        }
+        return exceptionInfoBuilder.build();
     }
 
     public void incrTotalReceived() {
