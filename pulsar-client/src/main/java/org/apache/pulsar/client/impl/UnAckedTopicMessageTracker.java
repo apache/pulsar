@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkState;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+
+import java.util.Iterator;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
@@ -26,23 +29,30 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
         super(client, consumerBase, ackTimeoutMillis);
     }
 
-    public int removeTopicMessages(String topicName) {
-        readLock.lock();
-        try {
-            int currentSetRemovedMsgCount = currentSet.removeIf(m -> {
-                checkState(m instanceof TopicMessageIdImpl,
-                    "message should be of type TopicMessageIdImpl");
-                return ((TopicMessageIdImpl)m).getTopicPartitionName().contains(topicName);
-            });
-            int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> {
-                checkState(m instanceof TopicMessageIdImpl,
-                    "message should be of type TopicMessageIdImpl");
-                return ((TopicMessageIdImpl)m).getTopicPartitionName().contains(topicName);
-            });
+    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationMillis) {
+        super(client, consumerBase, ackTimeoutMillis, tickDurationMillis);
+    }
 
-            return currentSetRemovedMsgCount + oldSetRemovedMsgCount;
+    public int removeTopicMessages(String topicName) {
+        writeLock.lock();
+        try {
+            int removed = 0;
+            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iterator.next();
+                if (messageId instanceof TopicMessageIdImpl &&
+                        ((TopicMessageIdImpl)messageId).getTopicPartitionName().contains(topicName)) {
+                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
+                    if (exist != null) {
+                        exist.remove(messageId);
+                    }
+                    iterator.remove();
+                    removed ++;
+                }
+            }
+            return removed;
         } finally {
-            readLock.unlock();
+            writeLock.unlock();
         }
     }
 

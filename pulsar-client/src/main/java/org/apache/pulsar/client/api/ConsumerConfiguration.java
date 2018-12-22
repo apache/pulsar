@@ -20,13 +20,13 @@ package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
@@ -58,6 +58,10 @@ public class ConsumerConfiguration implements Serializable {
      */
     public long getAckTimeoutMillis() {
         return conf.getAckTimeoutMillis();
+    }
+
+    public long getTickDurationMillis() {
+        return conf.getTickDurationMillis();
     }
 
     /**
