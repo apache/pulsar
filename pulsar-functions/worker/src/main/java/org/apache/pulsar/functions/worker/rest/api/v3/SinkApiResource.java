@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v2;
+package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -42,11 +42,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/sink")
-public class SinkApiV2Resource extends FunctionApiResource {
+public class SinkApiResource extends FunctionApiResource {
 
     protected final SinkImpl sink;
 
-    public SinkApiV2Resource() {
+    public SinkApiResource() {
         this.sink = new SinkImpl(this);
     }
 

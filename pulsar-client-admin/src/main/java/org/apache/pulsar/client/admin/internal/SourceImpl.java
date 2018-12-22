@@ -46,7 +46,7 @@ public class SourceImpl extends BaseResource implements Source {
 
     public SourceImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.source = web.path("/admin/v2/source");
+        this.source = web.path("/admin/v3/source");
     }
 
     @Override

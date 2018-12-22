@@ -95,9 +95,11 @@ public class WorkerServer {
 
         List<Handler> handlers = new ArrayList<>(3);
         handlers.add(
-                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
-                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
         handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();

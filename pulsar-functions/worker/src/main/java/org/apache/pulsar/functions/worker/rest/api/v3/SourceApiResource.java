@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v2;
+package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -41,11 +41,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/source")
-public class SourceApiV2Resource extends FunctionApiResource {
+public class SourceApiResource extends FunctionApiResource {
 
     protected final SourceImpl source;
 
-    public SourceApiV2Resource() {
+    public SourceApiResource() {
         this.source = new SourceImpl(this);
     }
 

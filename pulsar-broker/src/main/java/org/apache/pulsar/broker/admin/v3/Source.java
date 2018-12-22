@@ -16,19 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.SinkBase;
+import org.apache.pulsar.broker.admin.impl.SourceBase;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-@Path("/sink")
-@Api(value = "/sink", description = "Sink admin apis", tags = "sink", hidden = true)
+@Path("/source")
+@Api(value = "/source", description = "Source admin apis", tags = "source", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Sink extends SinkBase {
+public class Source extends SourceBase {
 }

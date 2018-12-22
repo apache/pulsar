@@ -60,10 +60,10 @@ message FunctionStatus {
 }
 
 // Deprecated
-//message FunctionStatusList {
-//    string error = 2;
-//    repeated FunctionStatus functionStatusList = 1;
-//}
+message FunctionStatusList {
+    string error = 2;
+    repeated FunctionStatus functionStatusList = 1;
+}
 
 message MetricsData {
 //    message DataDigest {
