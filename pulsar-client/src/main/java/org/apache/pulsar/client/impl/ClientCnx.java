@@ -670,10 +670,9 @@ public class ClientCnx extends PulsarHandler {
         });
         eventLoopGroup.schedule(() -> {
             CompletableFuture<ProducerResponse> requestFuture = pendingRequests.remove(requestId);
-            if (requestFuture != null && !requestFuture.isDone()) {
+            if (requestFuture != null && !requestFuture.isDone() && requestFuture.completeExceptionally(
+                    new TimeoutException(requestId + " lookup request timedout after ms " + operationTimeoutMs))) {
                 log.warn("{} request {} timed out after {} ms", ctx.channel(), requestId, operationTimeoutMs);
-                future.completeExceptionally(
-                        new TimeoutException(requestId + " lookup request timedout after ms " + operationTimeoutMs));
             } else {
                 // request is already completed successfully.
             }
