@@ -25,7 +25,6 @@ import com.google.common.base.Charsets;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -44,7 +43,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
-import javax.naming.AuthenticationException;
 
 import lombok.Cleanup;
 
