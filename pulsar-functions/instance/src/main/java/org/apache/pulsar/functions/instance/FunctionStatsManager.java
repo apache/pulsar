@@ -326,7 +326,7 @@ public class FunctionStatsManager implements AutoCloseable {
         // report exception throw prometheus
         if (userExceptionRateLimiter.tryAcquire()) {
             String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
             exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
             userExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
@@ -340,7 +340,7 @@ public class FunctionStatsManager implements AutoCloseable {
         // report exception throw prometheus
         if (sysExceptionRateLimiter.tryAcquire()) {
             String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
             exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
             sysExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
@@ -354,7 +354,7 @@ public class FunctionStatsManager implements AutoCloseable {
         // report exception throw prometheus
         if (sourceExceptionRateLimiter.tryAcquire()) {
             String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
             exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
             sourceExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
@@ -368,7 +368,7 @@ public class FunctionStatsManager implements AutoCloseable {
         // report exception throw prometheus
         if (sinkExceptionRateLimiter.tryAcquire()) {
             String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
             exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
             sinkExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
