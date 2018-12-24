@@ -88,6 +88,9 @@ public class PulsarSink<T> implements Sink<T> {
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
+                    // set send timeout to be infinity to prevent potential deadlock with consumer
+                    // that might happen when consumer is blocked due to unacked messages
+                    .sendTimeout(0, TimeUnit.SECONDS)
                     .topic(topic);
             if (producerName != null) {
                 builder.producerName(producerName);

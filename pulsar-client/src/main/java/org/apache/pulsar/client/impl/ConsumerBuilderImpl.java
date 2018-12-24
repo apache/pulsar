@@ -49,7 +49,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
-
 import lombok.NonNull;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
