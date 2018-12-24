@@ -22,8 +22,8 @@ package org.apache.flink.batch.connectors.pulsar.example;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.avro.generated.NasaMission;
 import org.apache.flink.batch.connectors.pulsar.PulsarAvroOutputFormat;
-import org.apache.flink.batch.connectors.pulsar.avro.generated.NasaMission;
 
 import java.util.Arrays;
 import java.util.List;
