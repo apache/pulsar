@@ -33,6 +33,8 @@ import org.apache.flink.streaming.connectors.pulsar.PulsarAvroTableSink;
 import org.apache.flink.streaming.connectors.pulsar.PulsarSourceBuilder;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 
 /**
@@ -43,7 +45,6 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
  */
 public class PulsarConsumerSourceWordCountToAvroTableSink {
     private static final String SERVICE_URL = "pulsar://localhost:6650";
-    private static final String TOPIC_NAME = "test_topic";
     private static final String ROUTING_KEY = "word";
 
     public static void main(String[] args) throws Exception {
@@ -104,9 +105,14 @@ public class PulsarConsumerSourceWordCountToAvroTableSink {
         tableEnvironment.registerDataStream("wc",wc);
 
         Table table = tableEnvironment.sqlQuery("select * from wc");
-        PulsarAvroTableSink sink = new PulsarAvroTableSink(SERVICE_URL, TOPIC_NAME, new ProducerConfiguration(), ROUTING_KEY,WordWithCount.class);
-
-        table.writeToSink(sink);
+        if (null != outputTopic) {
+            PulsarAvroTableSink sink = new PulsarAvroTableSink(SERVICE_URL, outputTopic, new ProducerConfiguration(), ROUTING_KEY,WordWithCount.class);
+            table.writeToSink(sink);
+        } else {
+            TableSink sink = new CsvTableSink("./examples/file",  "|");
+            // print the results with a csv file
+            table.writeToSink(sink);
+        }
 
         env.execute("Pulsar Stream WordCount");
     }

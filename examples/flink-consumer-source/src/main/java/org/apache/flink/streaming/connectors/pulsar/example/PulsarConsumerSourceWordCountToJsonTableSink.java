@@ -35,6 +35,8 @@ import org.apache.flink.streaming.connectors.pulsar.PulsarJsonTableSink;
 import org.apache.flink.streaming.connectors.pulsar.PulsarSourceBuilder;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 
 /**
@@ -45,7 +47,6 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
  */
 public class PulsarConsumerSourceWordCountToJsonTableSink {
     private static final String SERVICE_URL = "pulsar://localhost:6650";
-    private static final String TOPIC_NAME = "test_topic";
     private static final String ROUTING_KEY = "word";
 
     public static void main(String[] args) throws Exception {
@@ -105,9 +106,14 @@ public class PulsarConsumerSourceWordCountToJsonTableSink {
         tableEnvironment.registerDataStream("wc",wc);
 
         Table table = tableEnvironment.sqlQuery("select * from wc");
-        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, new ProducerConfiguration(), ROUTING_KEY);
-
-        table.writeToSink(sink);
+        if (null != outputTopic) {
+            PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, outputTopic, new ProducerConfiguration(), ROUTING_KEY);
+            table.writeToSink(sink);
+        } else {
+            TableSink sink = new CsvTableSink("./examples/file",  "|");
+            // print the results with a csv file
+            table.writeToSink(sink);
+        }
 
         env.execute("Pulsar Stream WordCount");
     }
