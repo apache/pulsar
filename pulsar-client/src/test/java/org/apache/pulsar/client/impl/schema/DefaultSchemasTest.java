@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.testng.Assert.assertEquals;
+
+import java.nio.charset.StandardCharsets;
+
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -59,6 +63,20 @@ public class DefaultSchemasTest {
         ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
                 .topic(TEST_TOPIC);
         Assert.assertNotNull(stringReaderBuilder);
+    }
+
+    @Test
+    public void testStringSchema() throws Exception {
+        String testString = "hello world";
+        byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
+        StringSchema stringSchema = new StringSchema();
+        Assert.assertTrue(stringSchema.decode(testBytes).equals(testString));
+        assertEquals(stringSchema.encode(testString), testBytes);
+
+         byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
+        StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
+        Assert.assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
+        assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 
     @AfterClass
