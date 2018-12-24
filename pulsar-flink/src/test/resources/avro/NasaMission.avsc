@@ -1,4 +1,4 @@
-{"namespace": "org.apache.flink.batch.connectors.pulsar.avro.generated",
+{"namespace": "org.apache.flink.avro.generated",
  "type": "record",
  "name": "NasaMission",
  "fields": [

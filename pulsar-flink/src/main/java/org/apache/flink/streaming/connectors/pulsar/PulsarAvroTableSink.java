@@ -18,10 +18,11 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.AvroRowSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -124,7 +125,8 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
         sink.keyExtractor = new AvroKeyExtractor(
                 routingKeyFieldName,
                 fieldNames,
-                fieldTypes);
+                fieldTypes,
+                recordClazz);
 
         return sink;
     }
@@ -139,14 +141,21 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
         public AvroKeyExtractor(
                 String keyFieldName,
                 String[] fieldNames,
-                TypeInformation<?>[] fieldTypes) {
+                TypeInformation<?>[] fieldTypes,
+                Class<? extends SpecificRecord> recordClazz) {
 
             checkArgument(fieldNames.length == fieldTypes.length,
                     "Number of provided field names and types does not match.");
+
+            Schema schema = SpecificData.get().getSchema(recordClazz);
+            Schema.Field keyField = schema.getField(keyFieldName);
+            Schema.Type keyType = keyField.schema().getType();
+
             int keyIndex = Arrays.asList(fieldNames).indexOf(keyFieldName);
             checkArgument(keyIndex >= 0,
                     "Key field '" + keyFieldName + "' not found");
-            checkArgument(Types.STRING.equals(fieldTypes[keyIndex]),
+
+            checkArgument(Schema.Type.STRING.equals(keyType),
                     "Key field must be of type 'STRING'");
             this.keyIndex = keyIndex;
         }

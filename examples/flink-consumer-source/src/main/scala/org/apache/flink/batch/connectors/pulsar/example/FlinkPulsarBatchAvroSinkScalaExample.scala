@@ -19,8 +19,8 @@
 package org.apache.flink.batch.connectors.pulsar.example
 
 import org.apache.flink.api.scala._
+import org.apache.flink.avro.generated.NasaMission
 import org.apache.flink.batch.connectors.pulsar.PulsarAvroOutputFormat
-import org.apache.flink.batch.connectors.pulsar.avro.generated.NasaMission
 
 /**
   * Implements a batch Scala program on Pulsar topic by writing Flink DataSet as Avro.
