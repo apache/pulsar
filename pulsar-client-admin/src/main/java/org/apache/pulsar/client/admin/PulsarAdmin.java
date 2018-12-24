@@ -118,8 +118,10 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
-                .register(JacksonConfigurator.class).register(JacksonFeature.class);
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+            .withConfig(httpConfig)
+            .register(JacksonConfigurator.class)
+            .register(JacksonFeature.class);
 
         boolean useTls = false;
 

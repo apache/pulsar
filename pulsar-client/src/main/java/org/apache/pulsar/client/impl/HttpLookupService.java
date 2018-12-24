@@ -104,7 +104,7 @@ class HttpLookupService implements LookupService {
     }
 
     public String getServiceUrl() {
-    	return httpClient.url.toString();
+    	return httpClient.getServiceUrl();
     }
 
     @Override
