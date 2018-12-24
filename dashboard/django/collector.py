@@ -221,6 +221,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                                 address          = consStats['address'],
                                 availablePermits = consStats.get('availablePermits', 0),
                                 connectedSince   = parse_date(consStats.get('connectedSince')),
+                                consumerName     = consStats.get('consumerName'),
                                 msgRateOut       = consStats.get('msgRateOut', 0),
                                 msgRateRedeliver = consStats.get('msgRateRedeliver', 0),
                                 msgThroughputOut = consStats.get('msgThroughputOut', 0),
