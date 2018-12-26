@@ -19,6 +19,7 @@
 package org.apache.flink.batch.connectors.pulsar.example
 
 import org.apache.flink.api.java.tuple.Tuple4
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.batch.connectors.pulsar.PulsarCsvOutputFormat
 
@@ -33,9 +34,6 @@ object FlinkPulsarBatchCsvSinkScalaExample {
   private case class NasaMission(id: Int, missionName: String, startYear: Int, endYear: Int)
     extends Tuple4(id, missionName, startYear, endYear)
 
-  private val SERVICE_URL = "pulsar://127.0.0.1:6650"
-  private val TOPIC_NAME = "my-flink-topic"
-
   private val nasaMissions = List(
     NasaMission(1, "Mercury program", 1959, 1963),
     NasaMission(2, "Apollo program", 1961, 1972),
@@ -45,12 +43,29 @@ object FlinkPulsarBatchCsvSinkScalaExample {
 
   def main(args: Array[String]): Unit = {
 
+    // parse input arguments
+    val parameterTool = ParameterTool.fromArgs(args)
+
+    if (parameterTool.getNumberOfParameters < 2) {
+      println("Missing parameters!")
+      println("Usage: pulsar --service-url <pulsar-service-url> --topic <topic>")
+      return
+    }
+
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.setGlobalJobParameters(parameterTool)
+
+    val serviceUrl = parameterTool.getRequired("service-url")
+    val topic = parameterTool.getRequired("topic")
+
+    println("Parameters:")
+    println("\tServiceUrl:\t" + serviceUrl)
+    println("\tTopic:\t" + topic)
 
     // create PulsarCsvOutputFormat instance
     val pulsarCsvOutputFormat =
-      new PulsarCsvOutputFormat[NasaMission](SERVICE_URL, TOPIC_NAME)
+      new PulsarCsvOutputFormat[NasaMission](serviceUrl, topic)
 
     // create DataSet
     val textDS = env.fromCollection(nasaMissions)
