@@ -51,7 +51,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -72,13 +71,14 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
-    private final ExecutorThreadPool webServiceExecutor;
+    private final WebExecutorThreadPool webServiceExecutor;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
         this.pulsar = pulsar;
-        this.webServiceExecutor = new ExecutorThreadPool();
-        this.webServiceExecutor.setName("pulsar-web");
+        this.webServiceExecutor = new WebExecutorThreadPool(
+                pulsar.getConfiguration().getNumHttpServerThreads(),
+                "pulsar-web");
         this.server = new Server(webServiceExecutor);
         List<ServerConnector> connectors = new ArrayList<>();
 
@@ -197,7 +197,7 @@ public class WebService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             server.stop();
-            webServiceExecutor.stop();
+            webServiceExecutor.join();
             log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);

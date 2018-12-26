@@ -262,11 +262,15 @@ class PythonInstance(object):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
+        # set send timeout to be infinity to prevent potential deadlock with consumer
+        # that might happen when consumer is blocked due to unacked messages
+        send_timeout_millis=0,
         max_pending_messages=100000)
 
   def message_listener(self, serde, consumer, message):

@@ -19,7 +19,7 @@
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
 import org.apache.avro.generic.GenericRecord;
-import org.apache.flink.batch.connectors.pulsar.avro.generated.NasaMission;
+import org.apache.flink.avro.generated.NasaMission;
 import org.apache.flink.formats.avro.AvroDeserializationSchema;
 import org.junit.Test;
 
