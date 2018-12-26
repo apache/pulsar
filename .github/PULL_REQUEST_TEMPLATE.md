@@ -1,7 +1,9 @@
 <--
 ### Contribution Checklist
   
-  - Name the pull request in the form "[component] Title of the pull request". Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
+  - Name the pull request in the form "[Issue XYZ][component] Title of the pull request", where *XYZ* should be replaced by the actual issue number.
+    Skip *Issue XYZ* if there is no associated github issue for this pull request.
+    Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
@@ -13,11 +15,19 @@
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
 
-
 **(The sections below can be removed for hotfixes of typos)**
 -->
 
+*(If this PR fixes a github issue, please add `Fixes #<xyz>`.)*
+
+Fixes #<xyz>
+
+*(or if this PR is one task of a github issue, please add `Master Issue: #<xyz>` to link to the master issue.)*
+
+Master Issue: #<xyz>
+
 ### Motivation
+
 
 *Explain here the context, and why you're making that change. What is the problem you're trying to solve.*
 
