@@ -950,5 +950,37 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         return ret;
     }
 
+    @Override
+    public MessageId getLastMessageId(String topic) throws PulsarAdminException {
+        try {
+            return (MessageIdImpl) getLastMessageIdAsync(topic).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    public CompletableFuture<MessageId> getLastMessageIdAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "lastMessageId");
+        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<MessageIdImpl>() {
+
+                    @Override
+                    public void completed(MessageIdImpl response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

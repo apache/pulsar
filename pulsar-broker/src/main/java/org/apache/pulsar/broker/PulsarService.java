@@ -355,6 +355,9 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
+            // Start the leader election service
+            startLeaderElectionService();
+
             // needs load management service
             this.startNamespaceService();
 
@@ -418,39 +421,6 @@ public class PulsarService implements AutoCloseable {
             // Register heartbeat and bootstrap namespaces.
             this.nsservice.registerBootstrapNamespaces();
 
-            // Start the leader election service
-            this.leaderElectionService = new LeaderElectionService(this, new LeaderListener() {
-                @Override
-                public synchronized void brokerIsTheLeaderNow() {
-                    if (getConfiguration().isLoadBalancerEnabled()) {
-                        long loadSheddingInterval = TimeUnit.MINUTES
-                                .toMillis(getConfiguration().getLoadBalancerSheddingIntervalMinutes());
-                        long resourceQuotaUpdateInterval = TimeUnit.MINUTES
-                                .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
-
-                        loadSheddingTask = loadManagerExecutor.scheduleAtFixedRate(new LoadSheddingTask(loadManager),
-                                loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
-                        loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
-                                new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
-                                resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
-                    }
-                }
-
-                @Override
-                public synchronized void brokerIsAFollowerNow() {
-                    if (loadSheddingTask != null) {
-                        loadSheddingTask.cancel(false);
-                        loadSheddingTask = null;
-                    }
-                    if (loadResourceQuotaTask != null) {
-                        loadResourceQuotaTask.cancel(false);
-                        loadResourceQuotaTask = null;
-                    }
-                }
-            });
-
-            leaderElectionService.start();
-
             schemaRegistryService = SchemaRegistryService.create(this);
 
             webService.start();
@@ -478,6 +448,40 @@ public class PulsarService implements AutoCloseable {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private void startLeaderElectionService() {
+        this.leaderElectionService = new LeaderElectionService(this, new LeaderListener() {
+            @Override
+            public synchronized void brokerIsTheLeaderNow() {
+                if (getConfiguration().isLoadBalancerEnabled()) {
+                    long loadSheddingInterval = TimeUnit.MINUTES
+                            .toMillis(getConfiguration().getLoadBalancerSheddingIntervalMinutes());
+                    long resourceQuotaUpdateInterval = TimeUnit.MINUTES
+                            .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+
+                    loadSheddingTask = loadManagerExecutor.scheduleAtFixedRate(new LoadSheddingTask(loadManager),
+                            loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
+                    loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
+                            new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
+                            resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+                }
+            }
+
+            @Override
+            public synchronized void brokerIsAFollowerNow() {
+                if (loadSheddingTask != null) {
+                    loadSheddingTask.cancel(false);
+                    loadSheddingTask = null;
+                }
+                if (loadResourceQuotaTask != null) {
+                    loadResourceQuotaTask.cancel(false);
+                    loadResourceQuotaTask = null;
+                }
+            }
+        });
+
+        leaderElectionService.start();
     }
 
     private void acquireSLANamespace() {

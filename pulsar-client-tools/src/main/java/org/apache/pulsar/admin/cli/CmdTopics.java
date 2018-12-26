@@ -93,6 +93,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
+        jcommander.addCommand("last-message-id", new GetLastMessageId());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -706,6 +707,18 @@ public class CmdTopics extends CmdBase {
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "get the last commit message id of topic")
+    private class GetLastMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(topics.getLastMessageId(persistentTopic));
         }
     }
 }
