@@ -47,6 +47,8 @@ import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -300,6 +302,11 @@ class KubernetesRuntime implements Runtime {
     }
 
     @Override
+    public String getPrometheusMetrics() throws IOException {
+        return RuntimeUtils.getPrometheusMetrics(METRICS_PORT);
+    }
+
+    @Override
     public boolean isAlive() {
         return running;
     }
@@ -517,10 +524,9 @@ class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        labels.put("namespace", String.format("%s/%s",functionDetails.getTenant(), functionDetails.getNamespace()));
+        labels.put("namespace", functionDetails.getNamespace());
         labels.put("tenant", functionDetails.getTenant());
-        labels.put("function", String.format("%s/%s/%s", functionDetails.getTenant(),
-                functionDetails.getNamespace(), functionDetails.getName()));
+        labels.put("function", functionDetails.getName());
         if (customLabels != null && !customLabels.isEmpty()) {
             labels.putAll(customLabels);
         }
@@ -585,6 +591,7 @@ class KubernetesRuntime implements Runtime {
         requests.put("memory", Quantity.fromString(Long.toString(resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824)));
         requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
+        resourceRequirements.setLimits(requests);
         container.setResources(resourceRequirements);
 
         // set container ports

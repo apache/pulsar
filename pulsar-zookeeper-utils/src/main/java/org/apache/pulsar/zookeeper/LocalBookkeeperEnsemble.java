@@ -60,7 +60,6 @@ import org.apache.bookkeeper.stream.proto.NamespaceProperties;
 import org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
-import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -429,7 +428,7 @@ public class LocalBookkeeperEnsemble {
     }
 
     public static boolean waitForServerUp(String hp, long timeout) {
-        long start = MathUtils.now();
+        long start = System.currentTimeMillis();
         String split[] = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
@@ -459,7 +458,7 @@ public class LocalBookkeeperEnsemble {
                 LOG.info("server " + hp + " not up " + e);
             }
 
-            if (MathUtils.now() > start + timeout) {
+            if (System.currentTimeMillis() > start + timeout) {
                 break;
             }
             try {

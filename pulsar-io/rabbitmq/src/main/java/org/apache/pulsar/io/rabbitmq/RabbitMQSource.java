@@ -35,12 +35,19 @@ import lombok.Data;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A simple connector to consume messages from a RabbitMQ queue
  */
+@Connector(
+    name = "rabbitmq",
+    type = IOType.SOURCE,
+    help = "A simple connector to move messages from a RabbitMQ queue to a Pulsar topic",
+    configClass = RabbitMQConfig.class)
 public class RabbitMQSource extends PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);

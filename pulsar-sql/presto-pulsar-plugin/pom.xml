@@ -53,6 +53,7 @@
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <attach>true</attach>
+                    <tarLongFileMode>posix</tarLongFileMode>
                     <descriptors>
                         <descriptor>src/assembly/assembly.xml</descriptor>
                     </descriptors>

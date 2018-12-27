@@ -498,4 +498,18 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalOffloadStatus(authoritative);
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/lastMessageId")
+    @ApiOperation(value = "Return the last commit message id of topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public MessageId getLastMessageId(@PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalGetLastMessageId(authoritative);
+    }
 }

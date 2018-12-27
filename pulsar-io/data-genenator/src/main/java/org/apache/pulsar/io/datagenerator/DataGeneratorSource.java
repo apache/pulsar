@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.datagenerator;
 
 import io.codearte.jfairy.Fairy;
-import io.codearte.jfairy.producer.person.Person;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
@@ -38,7 +37,6 @@ public class DataGeneratorSource implements Source<Person> {
     @Override
     public Record<Person> read() throws Exception {
         Thread.sleep(50);
-        Fairy fairy = Fairy.create();
         return new Record<Person>() {
             @Override
             public Optional<String> getKey() {
@@ -47,7 +45,7 @@ public class DataGeneratorSource implements Source<Person> {
 
             @Override
             public Person getValue() {
-                return fairy.person();
+                return new Person(Fairy.create().person());
             }
         };
     }

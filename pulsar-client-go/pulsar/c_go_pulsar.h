@@ -35,6 +35,12 @@ static inline void _pulsar_client_configuration_set_logger(pulsar_client_configu
     pulsar_client_configuration_set_logger(conf, pulsarClientLoggerConstProxy, ctx);
 }
 
+char* pulsarClientTokenSupplierProxy(void* ctx);
+
+static inline pulsar_authentication_t* _pulsar_authentication_token_create_with_supplier(void *ctx) {
+    return pulsar_authentication_token_create_with_supplier(pulsarClientTokenSupplierProxy, ctx);
+}
+
 void pulsarCreateProducerCallbackProxy(pulsar_result result, pulsar_producer_t *producer, void *ctx);
 
 static inline void _pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,

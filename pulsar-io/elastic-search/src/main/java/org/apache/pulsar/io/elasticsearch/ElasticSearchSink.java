@@ -33,6 +33,8 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -51,6 +53,12 @@ import org.elasticsearch.common.xcontent.XContentType;
  * Users need to implement extractKeyValue function to use this sink.
  * This class assumes that the input will be JSON documents
  */
+@Connector(
+    name = "elastic_search",
+    type = IOType.SINK,
+    help = "A sink connector that sends pulsar messages to elastic search",
+    configClass = ElasticSearchConfig.class
+)
 public class ElasticSearchSink implements Sink<byte[]> {
 
     protected static final String DOCUMENT = "doc";

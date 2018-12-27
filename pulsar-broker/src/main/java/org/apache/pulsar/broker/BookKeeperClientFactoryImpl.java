@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
@@ -64,8 +65,12 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     TimeUnit.SECONDS);
         }
 
-        if (conf.isBookkeeperClientRackawarePolicyEnabled()) {
-            bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
+        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+            if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+                bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
+            } else {
+                bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
+            }
             bkConf.setProperty(RackawareEnsemblePlacementPolicy.REPP_DNS_RESOLVER_CLASS,
                     ZkBookieRackAffinityMapping.class.getName());
 
@@ -77,6 +82,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
             bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.rackawarePolicyZkCache.get());
         }
+        bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
 
         if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
             bkConf.setEnsemblePlacementPolicy(ZkIsolatedBookieEnsemblePlacementPolicy.class);

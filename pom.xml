@@ -81,9 +81,9 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
+    <module>pulsar-client-api</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
-    <module>pulsar-client-schema</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
@@ -141,7 +141,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.2</bookkeeper.version>
+    <bookkeeper.version>4.7.3</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -182,6 +182,7 @@ flexible messaging model and an intuitive client API.</description>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>0.8.2</debezium.version>
+    <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.12.3</opencensus.version>
 
     <!-- test dependencies -->
@@ -195,6 +196,9 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
+
+    <!-- Used to configure rename.netty.native. Libs -->
+    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
   </properties>
 
   <dependencyManagement>
@@ -666,7 +670,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>2.3.3</version>
+        <version>2.6.2</version>
       </dependency>
 
       <dependency>
@@ -749,6 +753,22 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jsonwebtoken.version}</version>
       </dependency>
 
       <dependency>
@@ -1142,23 +1162,6 @@ flexible messaging model and an intuitive client API.</description>
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-classpath</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>build-classpath</goal>
-            </goals>
-            <configuration>
-              <outputFile>target/classpath.txt</outputFile>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
@@ -1332,30 +1335,6 @@ flexible messaging model and an intuitive client API.</description>
           <version>3.0.0</version>
       </plugin>
         <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-dependency-plugin</artifactId>
-                    <versionRange>[1.0,)</versionRange>
-                    <goals>
-                      <goal>build-classpath</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-        <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
           <version>2.2.4</version>
@@ -1483,6 +1462,18 @@ flexible messaging model and an intuitive client API.</description>
                 </plugin>
              </plugins>
          </build>
+    </profile>
+
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>Windows</family>
+        </os>
+      </activation>
+      <properties>
+        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
+      </properties>
     </profile>
   </profiles>
 

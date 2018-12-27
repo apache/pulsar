@@ -93,7 +93,8 @@ public class OwnershipCacheTest {
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
-        doReturn(port).when(config).getBrokerServicePort();
+        doReturn(Optional.ofNullable(new Integer(port))).when(config).getBrokerServicePort();
+        doReturn(Optional.ofNullable(null)).when(config).getWebServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();

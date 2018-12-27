@@ -102,6 +102,8 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         PulsarService pulsarService1 = pulsar;
         conf.setBrokerServicePort(PortManager.nextFreePort());
         conf.setWebServicePort(PortManager.nextFreePort());
+        conf.setBrokerServicePortTls(PortManager.nextFreePort());
+        conf.setWebServicePortTls(PortManager.nextFreePort());
         startBroker();
         PulsarService pulsarService2 = pulsar;
         System.out.println("Pulsar1=" + pulsarService1.getBrokerServiceUrl() + ", Pulsar2=" + pulsarService2.getBrokerServiceUrl());

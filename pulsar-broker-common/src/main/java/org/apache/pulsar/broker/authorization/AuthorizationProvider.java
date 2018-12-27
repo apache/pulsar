@@ -102,6 +102,29 @@ public interface AuthorizationProvider extends Closeable {
             String authDataJson);
 
     /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json format
+     * @return
+     */
+    CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
+            String authDataJson);
+    
+    /**
+     * Revoke subscription admin-api access for a role
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson);
+    
+    /**
      * Grant authorization-action permission on a topic to the given client
      *
      * @param topicName
