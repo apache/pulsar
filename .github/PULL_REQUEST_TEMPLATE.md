@@ -7,8 +7,6 @@
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
-  - Make sure that the change passes the CI checks.
-
   - Each pull request should address only one issue, not mix up code from multiple issues.
   
   - Each commit in the pull request has a meaningful commit message
@@ -36,6 +34,8 @@ Master Issue: #<xyz>
 *Describe the modifications you've done.*
 
 ### Verifying this change
+
+- [ ] Make sure that the change passes the CI checks.
 
 *(Please pick either of the following options)*
 
@@ -70,3 +70,5 @@ This change added tests and can be verified as follows:
 
   - Does this pull request introduce a new feature? (yes / no)
   - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
+  - If a feature is not applicable for documentation, explain why?
+  - If a feature is not documented yet in this PR, please create a followup issue for adding the documentation
