@@ -42,7 +42,7 @@ public class PulsarSourceBuilder<T> {
 
     final DeserializationSchema<T> deserializationSchema;
     String serviceUrl = SERVICE_URL;
-    Set<String> topicNames = new TreeSet<>();
+    final Set<String> topicNames = new TreeSet<>();
     Pattern topicsPattern;
     String subscriptionName = "flink-sub";
     long acknowledgementBatchSize = ACKNOWLEDGEMENT_BATCH_SIZE;

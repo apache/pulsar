@@ -57,8 +57,8 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private final int messageReceiveTimeoutMs = 100;
     private final String serviceUrl;
-    private Set<String> topicNames;
-    private Pattern topicsPattern;
+    private final Set<String> topicNames;
+    private final Pattern topicsPattern;
     private final String subscriptionName;
     private final DeserializationSchema<T> deserializer;
 
