@@ -644,3 +644,21 @@ String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 ```
+
+#### Last Message Id
+
+It gives the last commited message ID for a persistent topic, and it will be available in 2.3.0.
+
+```shell
+pulsar-admin topics last-message-id topic-name
+```
+
+#### REST API
+{% endpoint Get /admin/v2/persistent/:tenant/:namespace/:topic/lastMessageId %}
+
+#### Java
+
+```Java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getLastMessageId(topic);
+```
