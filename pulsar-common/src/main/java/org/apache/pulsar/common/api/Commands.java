@@ -262,6 +262,40 @@ public class Commands {
         }
     }
 
+    public static void modifyMessageMetadata(ByteBuf buffer, MessageMetadata newMsgMetadata) {
+        try {
+            int checksumReaderIndex = buffer.readerIndex();
+            skipChecksumIfPresent(buffer);
+            int metadataSize = (int) buffer.readUnsignedInt();
+            int newMetadataSize = newMsgMetadata.getSerializedSize();
+
+            if (metadataSize != newMetadataSize) {
+                throw new RuntimeException("Write new metadata with different size from previous is not yet supported");
+            }
+
+            buffer.markWriterIndex();
+            buffer.writerIndex(buffer.readerIndex());
+            ByteBufCodedOutputStream outputStream = ByteBufCodedOutputStream.get(buffer);
+            newMsgMetadata.writeTo(outputStream);
+            buffer.resetWriterIndex();
+
+            buffer.readerIndex(checksumReaderIndex);
+            if (hasChecksum(buffer)) {
+                int currentChecksum = readChecksum(buffer);
+                int computedChecksum = computeChecksum(buffer);
+                // set new computed checksum
+                if (currentChecksum != computedChecksum) {
+                    buffer.setInt(checksumReaderIndex+2, computedChecksum);
+                }
+            }
+
+            outputStream.recycle();
+            newMsgMetadata.recycle();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse

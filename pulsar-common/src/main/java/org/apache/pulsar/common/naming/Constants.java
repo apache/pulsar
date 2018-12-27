@@ -20,6 +20,7 @@ package org.apache.pulsar.common.naming;
 
 public class Constants {
 
+    public static final long PUBLISH_TIME_UNSET_MS = 1000000000000L;
     public static final String GLOBAL_CLUSTER = "global";
 
     private Constants() {}
