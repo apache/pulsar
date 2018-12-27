@@ -1648,6 +1648,22 @@ msg-payload
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subscriptionName</span><span class="o">);</span>
 </code></pre></div></div>
 
+<h4 id="last-message-id">Last Message Id</h4>
+
+<p>It gives the last commited message ID for a persistent topic, and it will be available in 2.3.0.</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-admin topics last-message-id topic-name
+</code></pre></div></div>
+
+<h4 id="rest-api-16">REST API</h4>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/lastMessageId</code></pre></div>
+
+<h4 id="java-16">Java</h4>
+
+<pre><code class="language-Java">String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getLastMessageId(topic);
+</code></pre>
+
       </section>
     </article>
 
