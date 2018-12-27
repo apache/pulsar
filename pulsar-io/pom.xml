@@ -48,6 +48,7 @@
     <module>debezium</module>
     <module>hdfs2</module>
     <module>canal</module>
+    <module>file</module>
     <module>netty</module>
   </modules>
 
