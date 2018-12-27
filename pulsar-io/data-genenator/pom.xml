@@ -43,6 +43,11 @@
             <artifactId>jfairy</artifactId>
             <version>0.5.9</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>${avro.version}</version>
+        </dependency>
 
     </dependencies>
 

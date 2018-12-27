@@ -29,7 +29,6 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
@@ -42,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -88,7 +86,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
-        jcommander.addCommand("getstatus", getSourceStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSourceStatus, "getstatus");
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
         jcommander.addCommand("restart", restartSource);
@@ -381,7 +380,7 @@ public class CmdSources extends CmdBase {
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
             if (isBlank(sourceConfig.getArchive())) {
-                throw new ParameterException("Source archive not specfied");
+                throw new ParameterException("Source archive not specified");
             }
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
             if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
@@ -389,6 +388,9 @@ public class CmdSources extends CmdBase {
                 if (!new File(sourceConfig.getArchive()).exists()) {
                     throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
+            }
+            if (isBlank(sourceConfig.getName())) {
+                throw new IllegalArgumentException("Source name not specified");
             }
         }
 
@@ -498,12 +500,11 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(
-                    isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
-                            : admin.source().getSourceStatus(tenant, namespace, sourceName,
-                            Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName));
+            } else {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+            };
         }
     }
 

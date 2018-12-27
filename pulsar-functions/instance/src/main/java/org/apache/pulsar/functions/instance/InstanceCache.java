@@ -18,17 +18,24 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Getter;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 public class InstanceCache {
 
     private static InstanceCache instance;
 
-    public final ScheduledExecutorService executor;
+    @Getter
+    private final ScheduledExecutorService scheduledExecutorService;
 
     private InstanceCache() {
-        executor = Executors.newSingleThreadScheduledExecutor();;
+        ThreadFactory namedThreadFactory =
+                new DefaultThreadFactory("function-timer-thread");
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(namedThreadFactory);
     }
 
     public static InstanceCache getInstanceCache() {
@@ -43,7 +50,7 @@ public class InstanceCache {
     public static void shutdown() {
         synchronized (InstanceCache.class) {
             if (instance != null) {
-                instance.executor.shutdown();
+                instance.scheduledExecutorService.shutdown();
             }
             instance = null;
         }

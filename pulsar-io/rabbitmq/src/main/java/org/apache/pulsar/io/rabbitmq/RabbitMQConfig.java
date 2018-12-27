@@ -28,7 +28,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
+/**
+ * RabbitMQ source connector config.
+ */
 @Data
 @Setter
 @Getter
@@ -39,8 +43,20 @@ public class RabbitMQConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The connection name used for connecting to RabbitMQ")
     private String connectionName;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The AMQ uri used for connecting to RabbitMQ")
     private String amqUri;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The RabbitMQ queue name")
     private String queueName;
 
     public static RabbitMQConfig load(String yamlFile) throws IOException {

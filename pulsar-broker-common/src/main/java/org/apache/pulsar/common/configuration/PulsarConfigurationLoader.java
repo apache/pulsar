@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
@@ -180,8 +181,10 @@ public class PulsarConfigurationLoader {
                 try {
                     Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
                     confField.setAccessible(true);
-                    convertedConfField.setAccessible(true);
-                    convertedConfField.set(convertedConf, confField.get(conf));
+                    if (!Modifier.isStatic(convertedConfField.getModifiers())) {
+                        convertedConfField.setAccessible(true);
+                        convertedConfField.set(convertedConf, confField.get(conf));
+                    }
                 } catch (NoSuchFieldException e) {
                     if (!ignoreNonExistMember) {
                         throw new IllegalArgumentException("Exception caused while converting configuration: " + e.getMessage());

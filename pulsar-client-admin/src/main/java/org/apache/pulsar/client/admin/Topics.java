@@ -36,7 +36,6 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.omg.CosNaming.NamingContextPackage.NotFound;
 
 import com.google.gson.JsonObject;
 
@@ -1018,4 +1017,13 @@ public interface Topics {
      * @return the status of the offload operation
      */
     OffloadProcessStatus offloadStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the last commit message Id of a topic
+     *
+     * @param topic the topic name
+     * @return
+     * @throws PulsarAdminException
+     */
+    MessageId getLastMessageId(String topic) throws PulsarAdminException;
 }

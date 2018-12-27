@@ -21,6 +21,7 @@
 #include <pulsar/Authentication.h>
 #include "auth/AuthTls.h"
 #include "auth/AuthAthenz.h"
+#include "auth/AuthToken.h"
 #include <lib/LogUtils.h>
 
 #include <string>
@@ -119,6 +120,9 @@ void AuthFactory::release_handles() {
 AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& paramMap) {
     if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
         return AuthTls::create(paramMap);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(paramMap);
     } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
                boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
         return AuthAthenz::create(paramMap);
@@ -130,6 +134,9 @@ AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& 
 AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, const std::string& authParamsString) {
     if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
         return AuthTls::create(authParamsString);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(authParamsString);
     } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
                boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
         return AuthAthenz::create(authParamsString);

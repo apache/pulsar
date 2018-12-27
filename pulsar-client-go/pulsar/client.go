@@ -28,6 +28,16 @@ func NewClient(options ClientOptions) (Client, error) {
 // Opaque interface that represents the authentication credentials
 type Authentication interface {}
 
+// Create new Authentication provider with specified auth token
+func NewAuthenticationToken(token string) Authentication {
+	return newAuthenticationToken(token)
+}
+
+// Create new Authentication provider with specified auth token supplier
+func NewAuthenticationTokenSupplier(tokenSupplier func() string) Authentication {
+	return newAuthenticationTokenSupplier(tokenSupplier)
+}
+
 // Create new Authentication provider with specified TLS certificate and private key
 func NewAuthenticationTLS(certificatePath string, privateKeyPath string) Authentication {
 	return newAuthenticationTLS(certificatePath, privateKeyPath)

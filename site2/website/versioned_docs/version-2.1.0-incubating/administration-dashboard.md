@@ -30,7 +30,7 @@ $ docker run -p 80:80 \
   apachepulsar/pulsar-dashboard
 ```
 
-You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in standalone mode, the URL will be `http://localhost:8080` by default.
+You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in standalone mode, the URL will be `http://<broker-ip>:8080` by default. `<broker-ip>` is the ip address or hostname of the machine running Pulsar standalone. The ip address or hostname should be accessible from the docker instance running dashboard.
 
 Once the Docker container is running, the web dashboard will be accessible via `localhost` or whichever host is being used by Docker.
 

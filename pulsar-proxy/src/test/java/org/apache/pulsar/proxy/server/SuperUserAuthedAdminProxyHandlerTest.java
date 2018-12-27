@@ -64,7 +64,6 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setTlsEnabled(true);
         conf.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
         conf.setTlsCertificateFilePath(getTlsFile("broker.cert"));
         conf.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));
@@ -82,7 +81,6 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setTlsEnabledInProxy(true);
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -121,7 +119,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
 
     PulsarAdmin getAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .serviceHttpUrl("https://localhost:" + proxyConfig.getWebServicePortTls())
+            .serviceHttpUrl("https://localhost:" + proxyConfig.getWebServicePortTls().get())
             .tlsTrustCertsFilePath(getTlsFile("ca.cert"))
             .allowTlsInsecureConnection(false)
             .authentication(AuthenticationTls.class.getName(),

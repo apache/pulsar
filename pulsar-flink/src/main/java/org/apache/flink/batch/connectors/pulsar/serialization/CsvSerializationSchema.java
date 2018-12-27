@@ -21,8 +21,6 @@ package org.apache.flink.batch.connectors.pulsar.serialization;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -32,14 +30,12 @@ import java.io.StringWriter;
  */
 public class CsvSerializationSchema<T extends Tuple> implements SerializationSchema<T> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CsvSerializationSchema.class);
     private static final long serialVersionUID = -3379119592495232636L;
-
     private static final int STRING_WRITER_INITIAL_BUFFER_SIZE = 256;
 
     @Override
     public byte[] serialize(T t) {
-        StringWriter stringWriter = null;
+        StringWriter stringWriter;
         try {
             Object[] fieldsValues = new Object[t.getArity()];
             for(int index = 0; index < t.getArity(); index++) {
@@ -49,7 +45,7 @@ public class CsvSerializationSchema<T extends Tuple> implements SerializationSch
             stringWriter = new StringWriter(STRING_WRITER_INITIAL_BUFFER_SIZE);
             CSVFormat.DEFAULT.withRecordSeparator("").printRecord(stringWriter, fieldsValues);
         } catch (IOException e) {
-            LOG.error("Error while serializing the record to Csv", e);
+            throw new RuntimeException("Error while serializing the record to Csv", e);
         }
 
         return stringWriter.toString().getBytes();

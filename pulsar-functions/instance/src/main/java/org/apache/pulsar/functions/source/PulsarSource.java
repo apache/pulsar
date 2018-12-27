@@ -142,12 +142,14 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void close() throws Exception {
-        inputConsumers.forEach(consumer -> {
-            try {
-                consumer.close();
-            } catch (PulsarClientException e) {
-            }
-        });
+        if (inputConsumers != null ) {
+            inputConsumers.forEach(consumer -> {
+                try {
+                    consumer.close();
+                } catch (PulsarClientException e) {
+                }
+            });
+        }
     }
 
     @SuppressWarnings("unchecked")
