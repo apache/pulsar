@@ -283,7 +283,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     // ignore the exception, node might be present already
                 }
             }
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
+            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort().get();
             brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
@@ -355,7 +355,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public Set<String> getAvailableBrokers() throws Exception {
         return this.availableActiveBrokers.get();
     }
-    
+
     public ZooKeeperDataCache<LoadReport> getLoadReportCache() {
         return this.loadReportCacheZk;
     }
@@ -1062,13 +1062,15 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public static boolean isAboveLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
         return (usage.bandwidthOut.percentUsage() > thresholdPercentage
                 || usage.bandwidthIn.percentUsage() > thresholdPercentage
-                || usage.cpu.percentUsage() > thresholdPercentage || usage.memory.percentUsage() > thresholdPercentage);
+                || usage.cpu.percentUsage() > thresholdPercentage
+                || usage.directMemory.percentUsage() > thresholdPercentage);
     }
 
     public static boolean isBelowLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
         return (usage.bandwidthOut.percentUsage() < thresholdPercentage
                 && usage.bandwidthIn.percentUsage() < thresholdPercentage
-                && usage.cpu.percentUsage() < thresholdPercentage && usage.memory.percentUsage() < thresholdPercentage);
+                && usage.cpu.percentUsage() < thresholdPercentage
+                && usage.directMemory.percentUsage() < thresholdPercentage);
     }
 
     private static long getRealtimeJvmHeapUsageMBytes() {
@@ -1113,7 +1115,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                        pulsar.getConfiguration().getWebServicePort()));
+                        pulsar.getConfiguration().getWebServicePort().get()));
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
 
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();

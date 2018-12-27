@@ -33,6 +33,7 @@ public class NamespaceStats {
     public double storageSize;
     public double msgBacklog;
     public double msgReplBacklog;
+    public double maxMsgReplDelayInSeconds;
     public int consumerCount;
     public int producerCount;
     public int replicatorCount;
@@ -50,6 +51,7 @@ public class NamespaceStats {
         this.storageSize = 0;
         this.msgBacklog = 0;
         this.msgReplBacklog = 0;
+        this.maxMsgReplDelayInSeconds = 0;
         this.consumerCount = 0;
         this.producerCount = 0;
         this.replicatorCount = 0;
@@ -72,6 +74,7 @@ public class NamespaceStats {
         dMetrics.put("brk_no_of_consumers", consumerCount);
         dMetrics.put("brk_msg_backlog", msgBacklog);
         dMetrics.put("brk_replication_backlog", msgReplBacklog);
+        dMetrics.put("brk_max_replication_delay_second", maxMsgReplDelayInSeconds);
 
         return dMetrics;
 

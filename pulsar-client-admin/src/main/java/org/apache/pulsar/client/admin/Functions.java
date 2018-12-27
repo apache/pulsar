@@ -24,11 +24,11 @@ import java.util.Set;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 
 /**
  * Admin interface for function management.
@@ -180,7 +180,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+    FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Gets the current status of a function instance.
@@ -196,7 +196,7 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus getFunctionStatus(String tenant, String namespace, String function, int id)
+    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
     /**
@@ -398,6 +398,5 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
-
+    FunctionState getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
 }

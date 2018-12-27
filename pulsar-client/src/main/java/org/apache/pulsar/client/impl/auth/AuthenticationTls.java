@@ -41,6 +41,14 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     private String certFilePath;
     private String keyFilePath;
 
+    public AuthenticationTls() {
+    }
+
+    public AuthenticationTls(String certFilePath, String keyFilePath) {
+        this.certFilePath = certFilePath;
+        this.keyFilePath = keyFilePath;
+    }
+
     @Override
     public void close() throws IOException {
         // noop

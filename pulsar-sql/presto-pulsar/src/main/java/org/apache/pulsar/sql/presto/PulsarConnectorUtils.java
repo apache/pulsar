@@ -34,13 +34,8 @@ public class PulsarConnectorUtils {
         return parser.parse(schemaJson);
     }
 
-    public static boolean isPartitionedTopic(TopicName topicName, PulsarAdmin pulsarAdmin) {
-        try {
-            return pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString()).partitions > 0;
-        } catch (PulsarAdminException e) {
-            throw new RuntimeException("Failed to determine if topic " + topicName + " is partitioned: "
-                    + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
-        }
+    public static boolean isPartitionedTopic(TopicName topicName, PulsarAdmin pulsarAdmin) throws PulsarAdminException {
+        return pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString()).partitions > 0;
     }
 
     /**

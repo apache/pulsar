@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.functions.instance.FunctionStatsManager;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 /**
  * A class to generate stats for pulsar functions running on this broker
@@ -57,32 +55,10 @@ public class FunctionsStatsGenerator {
                     Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
                     if (functionRuntime != null) {
                         try {
-                            InstanceCommunication.MetricsData metrics = functionRuntime.getMetrics().get();
 
-                            String tenant = functionRuntimeInfo.getFunctionInstance()
-                                    .getFunctionMetaData().getFunctionDetails().getTenant();
-                            String namespace = functionRuntimeInfo.getFunctionInstance()
-                                    .getFunctionMetaData().getFunctionDetails().getNamespace();
-                            String name = functionRuntimeInfo.getFunctionInstance()
-                                    .getFunctionMetaData().getFunctionDetails().getName();
-                            int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-                            String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
+                            out.write(functionRuntime.getPrometheusMetrics());
 
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESS_LATENCY_MS, instanceId, metrics.getAvgProcessLatency());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.LAST_INVOCATION, instanceId, metrics.getLastInvocation());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESSED_SUCCESSFULLY_TOTAL, instanceId, metrics.getProcessedSuccessfullyTotal());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESSED_TOTAL, instanceId, metrics.getProcessedTotal());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.RECEIVED_TOTAL, instanceId, metrics.getReceivedTotal());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.SYSTEM_EXCEPTIONS_TOTAL, instanceId, metrics.getSystemExceptionsTotal());
-                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.USER_EXCEPTIONS_TOTAL, instanceId, metrics.getUserExceptionsTotal());
-
-                            for (Map.Entry<String, Double> userMetricsMapEntry : metrics.getUserMetricsMap().entrySet()) {
-                                String userMetricName = userMetricsMapEntry.getKey();
-                                Double val = userMetricsMapEntry.getValue();
-                                metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + userMetricName, instanceId, val);
-                            }
-
-                        } catch (InterruptedException | ExecutionException e) {
+                        } catch (IOException e) {
                             log.warn("Failed to collect metrics for function instance {}",
                                     fullyQualifiedInstanceName, e);
                         }
@@ -90,17 +66,5 @@ public class FunctionsStatsGenerator {
                 }
             }
         }
-    }
-
-    private static void metricType(SimpleTextOutputStream stream, String name) {
-        stream.write("# TYPE ").write(name).write(" gauge\n");
-    }
-
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace,
-                               String functionName, String metricName, int instanceId, double value) {
-        metricType(stream, metricName);
-        stream.write(metricName).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
-                .write("\",name=\"").write(functionName).write("\",instanceId=\"").write(instanceId).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }

@@ -18,29 +18,36 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.base.Preconditions;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.io.Closeable;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
-    protected ConcurrentOpenHashSet<MessageId> currentSet;
-    protected ConcurrentOpenHashSet<MessageId> oldOpenSet;
-    private final ReentrantReadWriteLock readWriteLock;
+
+    protected final ConcurrentHashMap<MessageId, ConcurrentOpenHashSet<MessageId>> messageIdPartitionMap;
+    protected final LinkedList<ConcurrentOpenHashSet<MessageId>> timePartitions;
+
     protected final Lock readLock;
-    private final Lock writeLock;
-    private Timeout timeout;
+    protected final Lock writeLock;
 
     public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
+    private final long ackTimeoutMillis;
+    private final long tickDurationInMs;
 
     private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
         @Override
@@ -67,116 +74,138 @@ public class UnAckedMessageTracker implements Closeable {
         }
     }
 
+    private Timeout timeout;
+
     public UnAckedMessageTracker() {
-        readWriteLock = null;
         readLock = null;
         writeLock = null;
+        timePartitions = null;
+        messageIdPartitionMap = null;
+        this.ackTimeoutMillis = 0;
+        this.tickDurationInMs = 0;
     }
 
     public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
-        currentSet = new ConcurrentOpenHashSet<MessageId>();
-        oldOpenSet = new ConcurrentOpenHashSet<MessageId>();
-        readWriteLock = new ReentrantReadWriteLock();
-        readLock = readWriteLock.readLock();
-        writeLock = readWriteLock.writeLock();
-        start(client, consumerBase, ackTimeoutMillis);
+        this(client, consumerBase, ackTimeoutMillis, ackTimeoutMillis);
     }
 
-    public void start(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
-        this.stop();
+    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationInMs) {
+        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+        this.ackTimeoutMillis = ackTimeoutMillis;
+        this.tickDurationInMs = tickDurationInMs;
+        ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+        this.readLock = readWriteLock.readLock();
+        this.writeLock = readWriteLock.writeLock();
+        this.messageIdPartitionMap = new ConcurrentHashMap<>();
+        this.timePartitions = new LinkedList<>();
+
+        int blankPartitions = (int)Math.ceil((double)this.ackTimeoutMillis / this.tickDurationInMs);
+        for (int i = 0; i < blankPartitions + 1; i++) {
+            timePartitions.add(new ConcurrentOpenHashSet<>());
+        }
+
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
             public void run(Timeout t) throws Exception {
-                toggle();
-                if (isAckTimeout()) {
-                    log.warn("[{}] {} messages have timed-out", consumerBase, oldOpenSet.size());
-                    Set<MessageId> messageIds = new HashSet<>();
-                    oldOpenSet.forEach(messageIds::add);
-                    oldOpenSet.clear();
+                Set<MessageId> messageIds = new HashSet<>();
+                writeLock.lock();
+                try {
+                    timePartitions.addLast(new ConcurrentOpenHashSet<>());
+                    ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
+                    if (!headPartition.isEmpty()) {
+                        log.warn("[{}] {} messages have timed-out", consumerBase, timePartitions.size());
+                        headPartition.forEach(messageId -> {
+                            messageIds.add(messageId);
+                            messageIdPartitionMap.remove(messageId);
+                        });
+                    }
+                } finally {
+                    writeLock.unlock();
+                }
+                if (messageIds.size() > 0) {
                     consumerBase.redeliverUnacknowledgedMessages(messageIds);
                 }
-                timeout = client.timer().newTimeout(this, ackTimeoutMillis, TimeUnit.MILLISECONDS);
+                timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
-        }, ackTimeoutMillis, TimeUnit.MILLISECONDS);
+        }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
     }
 
-    void toggle() {
+    public void clear() {
         writeLock.lock();
         try {
-            ConcurrentOpenHashSet<MessageId> temp = currentSet;
-            currentSet = oldOpenSet;
-            oldOpenSet = temp;
+            messageIdPartitionMap.clear();
+            timePartitions.clear();
+            int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
+            for (int i = 0; i < blankPartitions + 1; i++) {
+                timePartitions.add(new ConcurrentOpenHashSet<>());
+            }
         } finally {
             writeLock.unlock();
         }
     }
 
-    public void clear() {
-        readLock.lock();
+    public boolean add(MessageId messageId) {
+        writeLock.lock();
         try {
-            currentSet.clear();
-            oldOpenSet.clear();
+            ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
+            messageIdPartitionMap.put(messageId, partition);
+            return partition.add(messageId);
         } finally {
-            readLock.unlock();
+            writeLock.unlock();
         }
-    }
-
-    public boolean add(MessageId m) {
-        readLock.lock();
-        try {
-            oldOpenSet.remove(m);
-            return currentSet.add(m);
-        } finally {
-            readLock.unlock();
-        }
-
     }
 
     boolean isEmpty() {
         readLock.lock();
         try {
-            return currentSet.isEmpty() && oldOpenSet.isEmpty();
+            return messageIdPartitionMap.isEmpty();
         } finally {
             readLock.unlock();
         }
     }
 
-    public boolean remove(MessageId m) {
-        readLock.lock();
+    public boolean remove(MessageId messageId) {
+        writeLock.lock();
         try {
-            return currentSet.remove(m) || oldOpenSet.remove(m);
+            boolean removed = false;
+            ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.remove(messageId);
+            if (exist != null) {
+                removed = exist.remove(messageId);
+            }
+            return removed;
         } finally {
-            readLock.unlock();
+            writeLock.unlock();
         }
     }
 
     long size() {
         readLock.lock();
         try {
-            return currentSet.size() + oldOpenSet.size();
-        } finally {
-            readLock.unlock();
-        }
-    }
-
-    private boolean isAckTimeout() {
-        readLock.lock();
-        try {
-            return !oldOpenSet.isEmpty();
+            return messageIdPartitionMap.size();
         } finally {
             readLock.unlock();
         }
     }
 
     public int removeMessagesTill(MessageId msgId) {
-        readLock.lock();
+        writeLock.lock();
         try {
-            int currentSetRemovedMsgCount = currentSet.removeIf(m -> (m.compareTo(msgId) <= 0));
-            int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> (m.compareTo(msgId) <= 0));
-
-            return currentSetRemovedMsgCount + oldSetRemovedMsgCount;
+            int removed = 0;
+            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iterator.next();
+                if (messageId.compareTo(msgId) <= 0) {
+                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
+                    if (exist != null) {
+                        exist.remove(messageId);
+                    }
+                    iterator.remove();
+                    removed ++;
+                }
+            }
+            return removed;
         } finally {
-            readLock.unlock();
+            writeLock.unlock();
         }
     }
 
