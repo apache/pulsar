@@ -76,7 +76,7 @@ public class WorkerServer {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
-        this.webServerExecutor = new WebExecutorThreadPool("function-web");
+        this.webServerExecutor = new WebExecutorThreadPool(8, "function-web");
         init();
     }
 
@@ -93,11 +93,13 @@ public class WorkerServer {
         connector.setPort(this.workerConfig.getWorkerPort());
         connectors.add(connector);
 
-        List<Handler> handlers = new ArrayList<>(3);
+        List<Handler> handlers = new ArrayList<>(4);
         handlers.add(
-                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
-                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
         handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
