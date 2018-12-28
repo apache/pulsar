@@ -30,7 +30,7 @@ public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     public PulsarOutputFormat(String serviceUrl, String topicName, final SerializationSchema<T> serializationSchema) {
         super(serviceUrl, topicName);
-        Preconditions.checkNotNull(serializationSchema,"serializationSchema cannot be null.");
+        Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
         this.serializationSchema = serializationSchema;
     }
 
