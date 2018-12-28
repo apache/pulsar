@@ -1017,4 +1017,13 @@ public interface Topics {
      * @return the status of the offload operation
      */
     OffloadProcessStatus offloadStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the last commit message Id of a topic
+     *
+     * @param topic the topic name
+     * @return
+     * @throws PulsarAdminException
+     */
+    MessageId getLastMessageId(String topic) throws PulsarAdminException;
 }
