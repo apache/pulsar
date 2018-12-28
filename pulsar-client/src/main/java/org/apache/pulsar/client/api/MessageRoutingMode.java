@@ -26,7 +26,8 @@ package org.apache.pulsar.client.api;
  */
 public enum MessageRoutingMode {
     /**
-     * The producer will chose one single partition and publish all the messages into that partition.
+     * If no key is provided, The partitioned producer will choose one single partition and publish all the messages into that partition.
+     * If a key is provided on the message, the partitioned producer will hash the key and assign message to a particular partition.
      */
     SinglePartition,
 

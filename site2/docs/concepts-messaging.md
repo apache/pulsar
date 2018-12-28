@@ -199,15 +199,22 @@ Partitioned topics need to be explicitly created via the [admin API](admin-api-o
 
 When publishing to partitioned topics, you must specify a *routing mode*. The routing mode determines which partition---that is, which internal topic---each message should be published to.
 
-There are three routing modes available by default:
+There are three {@inject: javadoc:MessageRoutingMode:/client/org/apache/pulsar/client/api/MessageRoutingMode} available by default:
 
-Mode | Description | Ordering guarantee
-:----|:------------|:------------------
-Key hash | If a key property has been specified on the message, the partitioned producer will hash the key and assign it to a particular partition. | Per-key-bucket ordering
-Single default partition | If no key is provided, each producer's message will be routed to a dedicated partition, initially random selected | Per-producer ordering
-Round robin distribution | If no key is provided, all messages will be routed to different partitions in round-robin fashion to achieve maximum throughput. | None
+Mode     | Description 
+:--------|:------------
+RoundRobinPartition | Publish messages across all partitions in round-robin fashion to achieve maximum throughput. This is the default mode. 
+SinglePartition     | If no key is provided, the producer will chose one single partition and publish all the messages into that partition. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.
+CustomPartition     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java.md) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
 
-In addition to these default modes, you can also create a custom routing mode if you're using the [Java client](client-libraries-java.md) by implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+### Ordering guarantee
+
+The ordering of messages is related to MessageRoutingMode above. Usually, user would want an ordering of Per-key-bucket guarantee.
+
+Ordering guarantee | Mode  
+:-----------------|:------------
+Per-key-bucket | Use SinglePartition mode, and Key is provided by each message.
+Per-producer | Use SinglePartition mode, and no Key is provided for each message.
 
 
 
