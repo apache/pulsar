@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
-import io.prometheus.client.exporter.common.TextFormat;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,18 +39,9 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Getter
 @Setter
-public class FunctionStatsManager implements AutoCloseable {
-
-    static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster", "fqfn"};
-    static final String[] exceptionMetricsLabelNames;
-    static {
-        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 2);
-        exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
-        exceptionMetricsLabelNames[metricsLabelNames.length + 1] = "ts";
-    }
+public class FunctionStatsManager extends ComponentStatsManager{
 
     public static final String PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_";
-    public final static String USER_METRIC_PREFIX = "user_metric_";
 
     /** Declare metric names **/
     public static final String PROCESSED_SUCCESSFULLY_TOTAL = "processed_successfully_total";
@@ -81,16 +68,12 @@ public class FunctionStatsManager implements AutoCloseable {
     final Counter statTotalSysExceptions;
 
     final Counter statTotalUserExceptions;
-
-    final Counter statTotalSourceExceptions;
-
-    final Counter statTotalSinkExceptions;
-
+    
     final Summary statProcessLatency;
 
     final Gauge statlastInvocation;
 
-    final Counter statTotalRecordsRecieved;
+    final Counter statTotalRecordsReceived;
     
     // windowed metrics
 
@@ -99,14 +82,10 @@ public class FunctionStatsManager implements AutoCloseable {
     final Counter statTotalSysExceptions1min;
 
     final Counter statTotalUserExceptions1min;
-
-    final Counter statTotalSourceExceptions1min;
-
-    final Counter statTotalSinkExceptions1min;
-
+    
     final Summary statProcessLatency1min;
 
-    final Counter statTotalRecordsRecieved1min;
+    final Counter statTotalRecordsReceived1min;
 
     // exceptions
 
@@ -122,47 +101,28 @@ public class FunctionStatsManager implements AutoCloseable {
     private final Counter.Child _statTotalProcessedSuccessfully;
     private final Counter.Child _statTotalSysExceptions;
     private final Counter.Child _statTotalUserExceptions;
-    private final Counter.Child _statTotalSourceExceptions;
-    private final Counter.Child _statTotalSinkExceptions;
     private final Summary.Child _statProcessLatency;
     private final Gauge.Child _statlastInvocation;
-    private final Counter.Child _statTotalRecordsRecieved;
+    private final Counter.Child _statTotalRecordsReceived;
     private Counter.Child _statTotalProcessedSuccessfully1min;
     private Counter.Child _statTotalSysExceptions1min;
     private Counter.Child _statTotalUserExceptions1min;
-    private Counter.Child _statTotalSourceExceptions1min;
-    private Counter.Child _statTotalSinkExceptions1min;
     private Summary.Child _statProcessLatency1min;
-    private Counter.Child _statTotalRecordsRecieved1min;
-
-    private String[] metricsLabels;
-
-    private ScheduledFuture<?> scheduledFuture;
-
-    private final CollectorRegistry collectorRegistry;
+    private Counter.Child _statTotalRecordsReceived1min;
 
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions = EvictingQueue.create(10);
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSinkExceptions = EvictingQueue.create(10);
 
     private final RateLimiter userExceptionRateLimiter;
 
     private final RateLimiter sysExceptionRateLimiter;
 
-    private final RateLimiter sourceExceptionRateLimiter;
-
-    private final RateLimiter sinkExceptionRateLimiter;
-
-    public FunctionStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService scheduledExecutorService) {
-
-        this.collectorRegistry = collectorRegistry;
-
-        this.metricsLabels = metricsLabels;
+    public FunctionStatsManager(CollectorRegistry collectorRegistry,
+                                String[] metricsLabels,
+                                ScheduledExecutorService scheduledExecutorService) {
+        super(collectorRegistry, metricsLabels, scheduledExecutorService);
 
         statTotalProcessedSuccessfully = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_SUCCESSFULLY_TOTAL)
@@ -185,20 +145,6 @@ public class FunctionStatsManager implements AutoCloseable {
                 .register(collectorRegistry);
         _statTotalUserExceptions = statTotalUserExceptions.labels(metricsLabels);
 
-        statTotalSourceExceptions = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL)
-                .help("Total number of source exceptions.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSourceExceptions = statTotalSourceExceptions.labels(metricsLabels);
-
-        statTotalSinkExceptions = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL)
-                .help("Total number of sink exceptions.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSinkExceptions = statTotalSinkExceptions.labels(metricsLabels);
-
         statProcessLatency = Summary.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS)
                 .help("Process latency in milliseconds.")
@@ -217,12 +163,12 @@ public class FunctionStatsManager implements AutoCloseable {
                 .register(collectorRegistry);
         _statlastInvocation = statlastInvocation.labels(metricsLabels);
 
-        statTotalRecordsRecieved = Counter.build()
+        statTotalRecordsReceived = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + RECEIVED_TOTAL)
                 .help("Total number of messages received from source.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
-        _statTotalRecordsRecieved = statTotalRecordsRecieved.labels(metricsLabels);
+        _statTotalRecordsReceived = statTotalRecordsReceived.labels(metricsLabels);
 
         statTotalProcessedSuccessfully1min = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_SUCCESSFULLY_TOTAL_1min)
@@ -245,20 +191,6 @@ public class FunctionStatsManager implements AutoCloseable {
                 .register(collectorRegistry);
         _statTotalUserExceptions1min = statTotalUserExceptions1min.labels(metricsLabels);
 
-        statTotalSourceExceptions1min = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL_1min)
-                .help("Total number of source exceptions in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSourceExceptions1min = statTotalSourceExceptions1min.labels(metricsLabels);
-
-        statTotalSinkExceptions1min = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL_1min)
-                .help("Total number of sink exceptions in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSinkExceptions1min = statTotalSinkExceptions1min.labels(metricsLabels);
-
         statProcessLatency1min = Summary.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS_1min)
                 .help("Process latency in milliseconds in the last 1 minute.")
@@ -270,12 +202,12 @@ public class FunctionStatsManager implements AutoCloseable {
                 .register(collectorRegistry);
         _statProcessLatency1min = statProcessLatency1min.labels(metricsLabels);
 
-        statTotalRecordsRecieved1min = Counter.build()
+        statTotalRecordsReceived1min = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + RECEIVED_TOTAL_1min)
                 .help("Total number of messages received from source in the last 1 minute.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
-        _statTotalRecordsRecieved1min = statTotalRecordsRecieved1min.labels(metricsLabels);
+        _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
         userExceptions = Gauge.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + "user_exception")
@@ -300,22 +232,8 @@ public class FunctionStatsManager implements AutoCloseable {
                 .help("Exception from sink.")
                 .register(collectorRegistry);
 
-        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    reset();
-                } catch (Exception e) {
-                    log.error("Failed to reset metrics for 1min window", e);
-                }
-            }
-        }, 1, 1, TimeUnit.MINUTES);
-
         userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
         sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
-        sourceExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
-        sinkExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
-
     }
 
     public void addUserException(Exception ex) {
@@ -346,87 +264,54 @@ public class FunctionStatsManager implements AutoCloseable {
         }
     }
 
-    public void addSourceException(Throwable ex) {
-        long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
-        latestSourceExceptions.add(info);
-
-        // report exception throw prometheus
-        if (sourceExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
-            sourceExceptions.labels(exceptionMetricsLabels).set(1.0);
-        }
-    }
-
-    public void addSinkException(Throwable ex) {
-        long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
-        latestSinkExceptions.add(info);
-
-        // report exception throw prometheus
-        if (sinkExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
-            sinkExceptions.labels(exceptionMetricsLabels).set(1.0);
-        }
-    }
-
-    private InstanceCommunication.FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
-        InstanceCommunication.FunctionStatus.ExceptionInformation.Builder exceptionInfoBuilder =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder().setMsSinceEpoch(ts);
-        String msg = th.getMessage();
-        if (msg != null) {
-            exceptionInfoBuilder.setExceptionString(msg);
-        }
-        return exceptionInfoBuilder.build();
-    }
-
+    @Override
     public void incrTotalReceived() {
-        _statTotalRecordsRecieved.inc();
-        _statTotalRecordsRecieved1min.inc();
+        _statTotalRecordsReceived.inc();
+        _statTotalRecordsReceived1min.inc();
     }
 
+    @Override
     public void incrTotalProcessedSuccessfully() {
         _statTotalProcessedSuccessfully.inc();
         _statTotalProcessedSuccessfully1min.inc();
     }
 
+    @Override
     public void incrSysExceptions(Throwable sysException) {
         _statTotalSysExceptions.inc();
         _statTotalSysExceptions1min.inc();
         addSystemException(sysException);
     }
 
+    @Override
     public void incrUserExceptions(Exception userException) {
         _statTotalUserExceptions.inc();
         _statTotalUserExceptions1min.inc();
         addUserException(userException);
     }
 
-    public void incrSourceExceptions(Exception userException) {
-        _statTotalSourceExceptions.inc();
-        _statTotalSourceExceptions1min.inc();
-        addSourceException(userException);
+    @Override
+    public void incrSourceExceptions(Exception ex) {
+        incrSysExceptions(ex);
     }
 
-    public void incrSinkExceptions(Exception userException) {
-        _statTotalSinkExceptions.inc();
-        _statTotalSinkExceptions1min.inc();
-        addSinkException(userException);
+    @Override
+    public void incrSinkExceptions(Exception ex) {
+        incrSysExceptions(ex);
     }
 
+    @Override
     public void setLastInvocation(long ts) {
         _statlastInvocation.set(ts);
     }
 
     private Long processTimeStart;
+    @Override
     public void processTimeStart() {
         processTimeStart = System.nanoTime();
     }
 
+    @Override
     public void processTimeEnd() {
         if (processTimeStart != null) {
             double endTimeMs = ((double) System.nanoTime() - processTimeStart) / 1.0E6D;
@@ -435,30 +320,27 @@ public class FunctionStatsManager implements AutoCloseable {
         }
     }
 
+    @Override
     public double getTotalProcessedSuccessfully() {
         return _statTotalProcessedSuccessfully.get();
     }
 
+    @Override
     public double getTotalRecordsReceived() {
-        return _statTotalRecordsRecieved.get();
+        return _statTotalRecordsReceived.get();
     }
 
+    @Override
     public double getTotalSysExceptions() {
         return _statTotalSysExceptions.get();
     }
 
+    @Override
     public double getTotalUserExceptions() {
         return _statTotalUserExceptions.get();
     }
-
-    public double getTotalSourceExceptions() {
-        return _statTotalSourceExceptions.get();
-    }
-
-    public double getTotalSinkExceptions() {
-        return _statTotalSinkExceptions.get();
-    }
-
+    
+    @Override
     public double getLastInvocation() {
         return _statlastInvocation.get();
     }
@@ -484,33 +366,40 @@ public class FunctionStatsManager implements AutoCloseable {
         return _statProcessLatency.get().quantiles.get(0.999);
     }
 
+    @Override
     public double getTotalProcessedSuccessfully1min() {
         return _statTotalProcessedSuccessfully1min.get();
     }
 
+    @Override
     public double getTotalRecordsReceived1min() {
-        return _statTotalRecordsRecieved1min.get();
+        return _statTotalRecordsReceived1min.get();
     }
 
+    @Override
     public double getTotalSysExceptions1min() {
         return _statTotalSysExceptions1min.get();
     }
 
+    @Override
     public double getTotalUserExceptions1min() {
         return _statTotalUserExceptions1min.get();
     }
-
-    public double getTotalSourceExceptions1min() {
-        return _statTotalSourceExceptions1min.get();
-    }
-
-    public double getTotalSinkExceptions1min() {
-        return _statTotalSinkExceptions1min.get();
-    }
-
+    
+    @Override
     public double getAvgProcessLatency1min() {
         return _statProcessLatency1min.get().count <= 0.0
                 ? 0 : _statProcessLatency1min.get().sum / _statProcessLatency1min.get().count;
+    }
+
+    @Override
+    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+        return EMPTY_QUEUE;
+    }
+
+    @Override
+    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+        return EMPTY_QUEUE;
     }
 
     public double getProcessLatency50P1min() {
@@ -529,6 +418,7 @@ public class FunctionStatsManager implements AutoCloseable {
         return _statProcessLatency1min.get().quantiles.get(0.999);
     }
 
+    @Override
     public void reset() {
         statTotalProcessedSuccessfully1min.clear();
         _statTotalProcessedSuccessfully1min = statTotalProcessedSuccessfully1min.labels(metricsLabels);
@@ -539,37 +429,13 @@ public class FunctionStatsManager implements AutoCloseable {
         statTotalUserExceptions1min.clear();
         _statTotalUserExceptions1min = statTotalUserExceptions1min.labels(metricsLabels);
 
-        statTotalSourceExceptions1min.clear();
-        _statTotalSourceExceptions1min = statTotalSourceExceptions1min.labels(metricsLabels);
-
-        statTotalSinkExceptions1min.clear();
-        _statTotalSinkExceptions1min = statTotalSinkExceptions1min.labels(metricsLabels);
-
         statProcessLatency1min.clear();
         _statProcessLatency1min = statProcessLatency1min.labels(metricsLabels);
 
-        statTotalRecordsRecieved1min.clear();
-        _statTotalRecordsRecieved1min = statTotalRecordsRecieved1min.labels(metricsLabels);
+        statTotalRecordsReceived1min.clear();
+        _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
         latestUserExceptions.clear();
         latestSystemExceptions.clear();
-        latestSourceExceptions.clear();
-        latestSinkExceptions.clear();
-    }
-
-    public String getStatsAsString() throws IOException {
-        StringWriter outputWriter = new StringWriter();
-
-        TextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
-
-        return outputWriter.toString();
-    }
-
-    @Override
-    public void close() {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
-            scheduledFuture = null;
-        }
     }
 }

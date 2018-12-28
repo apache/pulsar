@@ -55,6 +55,8 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -116,7 +118,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // function stats
     @Getter
-    private FunctionStatsManager stats;
+    private ComponentStatsManager stats;
 
     private Record<?> currentRecord;
 
@@ -202,7 +204,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider, collectorRegistry, metricsLabels);
+        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
+                collectorRegistry, metricsLabels, InstanceUtils.calculateSubjectType(this.instanceConfig.getFunctionDetails()));
     }
 
     /**
@@ -216,7 +219,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (this.collectorRegistry == null) {
                 this.collectorRegistry = new CollectorRegistry();
             }
-            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.getScheduledExecutorService());
+            this.stats = ComponentStatsManager.getStatsManager(this.collectorRegistry, this.metricsLabels,
+                    this.instanceCache.getScheduledExecutorService(),
+                    InstanceUtils.calculateSubjectType(this.instanceConfig.getFunctionDetails()));
 
             ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance(contextImpl);
@@ -284,6 +289,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void loadJars() throws Exception {
         try {
+            log.info("jarFile: {}", jarFile);
             // Let's first try to treat it as a nar archive
             fnCache.registerFunctionInstanceWithArchive(
                 instanceConfig.getFunctionId(),
@@ -545,6 +551,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
         stats.getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestSystemExceptions(ex);
+        });
+        stats.getLatestSourceExceptions().forEach(ex -> {
+            functionStatusBuilder.addLatestSourceExceptions(ex);
+        });
+        stats.getLatestSinkExceptions().forEach(ex -> {
+            functionStatusBuilder.addLatestSinkExceptions(ex);
         });
         functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
         functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
