@@ -18,6 +18,7 @@
  */
 package org.apache.flink.batch.connectors.pulsar.example
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.avro.generated.NasaMission
 import org.apache.flink.batch.connectors.pulsar.PulsarAvroOutputFormat
@@ -27,10 +28,7 @@ import org.apache.flink.batch.connectors.pulsar.PulsarAvroOutputFormat
   */
 object FlinkPulsarBatchAvroSinkScalaExample {
 
-  private val SERVICE_URL = "pulsar://127.0.0.1:6650"
-  private val TOPIC_NAME = "my-flink-topic"
-
-  val nasaMissions = List(
+  private val nasaMissions = List(
     NasaMission.newBuilder.setId(1).setName("Mercury program").setStartYear(1959).setEndYear(1963).build,
     NasaMission.newBuilder.setId(2).setName("Apollo program").setStartYear(1961).setEndYear(1972).build,
     NasaMission.newBuilder.setId(3).setName("Gemini program").setStartYear(1963).setEndYear(1966).build,
@@ -39,12 +37,29 @@ object FlinkPulsarBatchAvroSinkScalaExample {
 
   def main(args: Array[String]): Unit = {
 
+    // parse input arguments
+    val parameterTool = ParameterTool.fromArgs(args)
+
+    if (parameterTool.getNumberOfParameters < 2) {
+      println("Missing parameters!")
+      println("Usage: pulsar --service-url <pulsar-service-url> --topic <topic>")
+      return
+    }
+
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.setGlobalJobParameters(parameterTool)
+
+    val serviceUrl = parameterTool.getRequired("service-url")
+    val topic = parameterTool.getRequired("topic")
+
+    println("Parameters:")
+    println("\tServiceUrl:\t" + serviceUrl)
+    println("\tTopic:\t" + topic)
 
     // create PulsarCsvOutputFormat instance
     val pulsarAvroOutputFormat =
-      new PulsarAvroOutputFormat[NasaMission](SERVICE_URL, TOPIC_NAME)
+      new PulsarAvroOutputFormat[NasaMission](serviceUrl, topic)
 
     // create DataSet
     val textDS = env.fromCollection(nasaMissions)

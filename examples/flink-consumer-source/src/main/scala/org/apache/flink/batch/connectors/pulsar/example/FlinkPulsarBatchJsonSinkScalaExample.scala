@@ -18,9 +18,9 @@
  */
 package org.apache.flink.batch.connectors.pulsar.example
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.batch.connectors.pulsar.PulsarJsonOutputFormat
-
 import scala.beans.BeanProperty
 
 /**
@@ -43,16 +43,30 @@ object FlinkPulsarBatchJsonSinkScalaExample {
     NasaMission(4, "Skylab", 1973, 1974),
     NasaMission(5, "Apollo–Soyuz Test Project", 1975, 1975))
 
-  private val SERVICE_URL = "pulsar://127.0.0.1:6650"
-  private val TOPIC_NAME = "my-flink-topic"
-
   def main(args: Array[String]): Unit = {
+
+    // parse input arguments
+    val parameterTool = ParameterTool.fromArgs(args)
+
+    if (parameterTool.getNumberOfParameters < 2) {
+      println("Missing parameters!")
+      println("Usage: pulsar --service-url <pulsar-service-url> --topic <topic>")
+      return
+    }
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.setGlobalJobParameters(parameterTool)
+
+    val serviceUrl = parameterTool.getRequired("service-url")
+    val topic = parameterTool.getRequired("topic")
+
+    println("Parameters:")
+    println("\tServiceUrl:\t" + serviceUrl)
+    println("\tTopic:\t" + topic)
 
     // create PulsarJsonOutputFormat instance
-    val pulsarJsonOutputFormat = new PulsarJsonOutputFormat[NasaMission](SERVICE_URL, TOPIC_NAME)
+    val pulsarJsonOutputFormat = new PulsarJsonOutputFormat[NasaMission](serviceUrl, topic)
 
     // create DataSet
     val nasaMissionDS = env.fromCollection(nasaMissions)
