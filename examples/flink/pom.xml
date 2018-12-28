@@ -28,8 +28,8 @@
   </parent>
 
   <groupId>org.apache.pulsar.examples</groupId>
-  <artifactId>flink-consumer-source</artifactId>
-  <name>Pulsar Examples :: Flink Consumer Source</name>
+  <artifactId>flink</artifactId>
+  <name>Pulsar Examples :: Flink</name>
 
   <properties>
     <log4j2.version>2.10.0</log4j2.version>
@@ -88,7 +88,7 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <id>pulsar-streaming-wordcount</id>
+            <id>pulsar-flink-examples</id>
             <phase>package</phase>
             <goals>
               <goal>shade</goal>
