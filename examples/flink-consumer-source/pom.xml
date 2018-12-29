@@ -56,7 +56,13 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-scala_${scala.binary.version}</artifactId>
+      <artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-table_${scala.binary.version}</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
@@ -77,6 +83,7 @@
       <artifactId>pulsar-flink</artifactId>
       <version>${project.version}</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -107,7 +114,7 @@
                   <mainClass>org.apache.flink.streaming.connectors.pulsar.example.PulsarConsumerSourceWordCount</mainClass>
                 </transformer>
               </transformers>
-              <finalName>pulsar-flink-streaming-wordcount</finalName>
+              <finalName>pulsar-flink-examples</finalName>
               <filters>
                 <filter>
                   <artifact>*</artifact>
@@ -115,10 +122,33 @@
                     <include>org/apache/flink/streaming/examples/kafka/**</include>
                     <include>org/apache/flink/streaming/**</include>
                     <include>org/apache/pulsar/**</include>
+                    <include>org/apache/flink/batch/**</include>
+                    <include>net/jpountz/**</include>
+                    <include>com/scurrilous/circe/**</include>
+                    <include>org/apache/commons/csv/**</include>
+                    <include>org/apache/flink/avro/generated/**</include>
+                    <include>org/apache/avro/**</include>
+                    <include>org/codehaus/jackson/**</include>
+                    <include>avro/shaded/com/google/common/**</include>
+                    <include>org/apache/flink/formats/avro/**</include>
                   </includes>
                 </filter>
               </filters>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Scala Plugin to compile Scala Files -->
+      <plugin>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>3.4.4</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>add-source</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

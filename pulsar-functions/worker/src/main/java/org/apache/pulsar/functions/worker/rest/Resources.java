@@ -20,8 +20,9 @@ package org.apache.pulsar.functions.worker.rest;
 
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
-import org.apache.pulsar.functions.worker.rest.api.v2.SinkApiV2Resource;
-import org.apache.pulsar.functions.worker.rest.api.v2.SourceApiV2Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.FunctionApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SourceApiV3Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
@@ -34,14 +35,22 @@ public final class Resources {
     private Resources() {
     }
 
-    public static Set<Class<?>> getApiResources() {
+    public static Set<Class<?>> getApiV2Resources() {
         return new HashSet<>(
                 Arrays.asList(
                         FunctionApiV2Resource.class,
-                        SourceApiV2Resource.class,
-                        SinkApiV2Resource.class,
                         WorkerApiV2Resource.class,
                         MultiPartFeature.class
+                ));
+    }
+
+    public static Set<Class<?>> getApiV3Resources() {
+        return new HashSet<>(
+                Arrays.asList(
+                        MultiPartFeature.class,
+                        SourceApiV3Resource.class,
+                        SinkApiV3Resource.class,
+                        FunctionApiV3Resource.class
                 ));
     }
 

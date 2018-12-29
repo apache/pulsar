@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
 import org.apache.pulsar.broker.admin.impl.SourceBase;

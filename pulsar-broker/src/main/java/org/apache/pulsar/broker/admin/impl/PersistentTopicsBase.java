@@ -297,7 +297,12 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(),
                     topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to grant permissions on topic {}: concurrent modification", clientAppId(),
+                    topicUri);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        }
+        catch (Exception e) {
             log.error("[{}] Failed to grant permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
@@ -330,7 +335,12 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to revoke permissions on topic {}: Namespace does not exist", clientAppId(),
                     topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to revoke permissions on topic {}: concurrent modification", clientAppId(),
+                topicUri);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        }
+        catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
@@ -376,6 +386,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
             throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
+        } catch (KeeperException.BadVersionException e) {
+                log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
+                        topicName);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -480,6 +494,10 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NoNodeException nne) {
             throw new RestException(Status.NOT_FOUND, "Partitioned topic does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to delete partitioned topic {}: concurrent modification", clientAppId(),
+                    topicName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);

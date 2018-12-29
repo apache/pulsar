@@ -46,7 +46,7 @@ public class SinkImpl extends BaseResource implements Sink {
 
     public SinkImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.sink = web.path("/admin/v2/sink");
+        this.sink = web.path("/admin/v3/sink");
     }
 
     @Override
