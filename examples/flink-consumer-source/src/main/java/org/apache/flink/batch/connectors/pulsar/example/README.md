@@ -53,71 +53,56 @@ dependencies {
 }
 ```
 
-# PulsarOutputFormat
-### Usage
+# Example
 
-Please find a sample usage as follows:
+### PulsarOutputFormat
 
-```java
-        private static final String EINSTEIN_QUOTE = "Imagination is more important than knowledge. " +
-                "Knowledge is limited. Imagination encircles the world.";
+In this example, Flink DataSet is processed as word-count and being written to Pulsar. Please find a complete example for PulsarOutputFormat as follows:
+[java](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchSinkExample.java)
+[scala](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/scala/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchSinkScalaExample.scala)
 
-        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
-        private static final String TOPIC_NAME = "my-flink-topic";
+The steps to run the example:
 
-        public static void main(String[] args) throws Exception {
+1. Start Pulsar Standalone.
 
-            // set up the execution environment
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    You can follow the [instructions](https://pulsar.apache.org/docs/en/standalone/) to start a Pulsar standalone locally.
 
-            // create PulsarOutputFormat instance
-            final OutputFormat<String> pulsarOutputFormat =
-                    new PulsarOutputFormat(SERVICE_URL, TOPIC_NAME, wordWithCount -> wordWithCount.toString().getBytes());
+    ```shell
+    $ bin/pulsar standalone
+    ```
 
-            // create DataSet
-            DataSet<String> textDS = env.fromElements(EINSTEIN_QUOTE);
+2. Start Flink locally.
 
-            textDS.flatMap(new FlatMapFunction<String, String>() {
-                @Override
-                public void flatMap(String value, Collector<String> out) throws Exception {
-                    String[] words = value.toLowerCase().split(" ");
-                    for(String word: words) {
-                        out.collect(word.replace(".", ""));
-                    }
-                }
-            })
-            // filter words which length is bigger than 4
-            .filter(word -> word.length() > 4)
+    You can follow the [instructions](https://ci.apache.org/projects/flink/flink-docs-release-1.6/quickstart/setup_quickstart.html) to download and start Flink.
 
-            // write batch data to Pulsar
-            .output(pulsarOutputFormat);
+    ```shell
+    $ ./bin/start-cluster.sh
+    ```
 
-            // execute program
-            env.execute("Flink - Pulsar Batch WordCount");
-        }
+3. Build the examples.
+
+    ```shell
+    $ cd ${PULSAR_HOME}
+    $ mvn clean install -DskipTests
+    ```
+
+4. Run the word count example to print results to stdout.
+
+    ```shell
+    # java
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchSinkExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+
+    # scala
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchSinkScalaExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+    ```
+
+5. Once the flink word count example is running, you can use `bin/pulsar-client` to tail the results produced into topic `test_flink_topic`.
+
+```shell
+$ bin/pulsar-client consume -n 0 -s test test_flink_topic
 ```
 
-### Sample Output
-
-Please find sample output for above application as follows:
-```
-imagination
-important
-knowledge
-knowledge
-limited
-imagination
-encircles
-world
-```
-
-### Complete Example
-
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchSinkExample.java).
-In this example, Flink DataSet is processed as word-count and being written to Pulsar.
-
-### Complete Example Output
-Please find sample output for above linked application as follows:
+6. Please find sample output for above linked application as follows:
 ```
 WordWithCount { word = important, count = 1 }
 WordWithCount { word = encircles, count = 1 }
@@ -127,230 +112,105 @@ WordWithCount { word = limited, count = 1 }
 WordWithCount { word = world, count = 1 }
 ```
 
-# PulsarCsvOutputFormat
-### Usage
 
-Please find a sample usage as follows:
+### PulsarCsvOutputFormat
 
-```java
-        private static final List<Tuple4<Integer, String, Integer, Integer>> nasaMissions = Arrays.asList(
-                new Tuple4(1, "Mercury program", 1959, 1963),
-                new Tuple4(2, "Apollo program", 1961, 1972),
-                new Tuple4(3, "Gemini program", 1963, 1966),
-                new Tuple4(4, "Skylab", 1973, 1974),
-                new Tuple4(5, "Apollo–Soyuz Test Project", 1975, 1975));
+In this example, Flink DataSet is processed and written to Pulsar in Csv format. Please find a complete example for PulsarCsvOutputFormat as follows:
+[java](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchCsvSinkExample.java)
+[scala](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/scala/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchCsvSinkScalaExample.scala)
 
-        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
-        private static final String TOPIC_NAME = "my-flink-topic";
+The steps to run the example:
 
-        public static void main(String[] args) throws Exception {
+Step 1, 2 and 3 are same as above.
 
-            // set up the execution environment
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+4. Run the word count example to print results to stdout.
 
-            // create PulsarCsvOutputFormat instance
-            final OutputFormat<Tuple4<Integer, String, Integer, Integer>> pulsarCsvOutputFormat =
-                    new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
+    ```shell
+    # java
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchCsvSinkExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
 
-            // create DataSet
-            DataSet<Tuple4<Integer, String, Integer, Integer>> nasaMissionDS = env.fromCollection(nasaMissions);
-            // map nasa mission names to upper-case
-            nasaMissionDS.map(
-                new MapFunction<Tuple4<Integer, String, Integer, Integer>, Tuple4<Integer, String, Integer, Integer>>() {
-                               @Override
-                               public Tuple4<Integer, String, Integer, Integer> map(
-                                       Tuple4<Integer, String, Integer, Integer> nasaMission) throws Exception {
-                                   return new Tuple4(
-                                           nasaMission.f0,
-                                           nasaMission.f1.toUpperCase(),
-                                           nasaMission.f2,
-                                           nasaMission.f3);
-                               }
-                           }
-            )
-            // filter missions which started after 1970
-            .filter(nasaMission -> nasaMission.f2 > 1970)
-            // write batch data to Pulsar
-            .output(pulsarCsvOutputFormat);
+    # scala
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchCsvSinkScalaExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+    ```
 
-            // set parallelism to write Pulsar in parallel (optional)
-            env.setParallelism(2);
+5. Once the flink word count example is running, you can use `bin/pulsar-client` to tail the results produced into topic `test_flink_topic`.
 
-            // execute program
-            env.execute("Flink - Pulsar Batch Csv");
-
-        }
+```shell
+$ bin/pulsar-client consume -n 0 -s test test_flink_topic
 ```
 
-### Sample Output
-
-Please find sample output for above application as follows:
+6. Please find sample output for above linked application as follows:
 ```
 4,SKYLAB,1973,1974
 5,APOLLO–SOYUZ TEST PROJECT,1975,1975
 ```
 
-### Complete Example
 
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchCsvSinkExample.java).
-In this example, Flink DataSet is processed and written to Pulsar in Csv format.
+### PulsarJsonOutputFormat
 
+In this example, Flink DataSet is processed and written to Pulsar in Json format. Please find a complete example for PulsarJsonOutputFormat as follows:
+[java](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchJsonSinkExample.java)
+[scala](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/scala/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchJsonSinkScalaExample.scala)
 
-# PulsarJsonOutputFormat
-### Usage
+**Note:** Property definitions of the model should be public or have getter functions to be visible.
 
-Please find a sample usage as follows:
+The steps to run the example:
 
-```java
-        private static final List<NasaMission> nasaMissions = Arrays.asList(
-                new NasaMission(1, "Mercury program", 1959, 1963),
-                new NasaMission(2, "Apollo program", 1961, 1972),
-                new NasaMission(3, "Gemini program", 1963, 1966),
-                new NasaMission(4, "Skylab", 1973, 1974),
-                new NasaMission(5, "Apollo–Soyuz Test Project", 1975, 1975));
+Step 1, 2 and 3 are same as above.
 
-        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
-        private static final String TOPIC_NAME = "my-flink-topic";
+4. Run the word count example to print results to stdout.
 
-        public static void main(String[] args) throws Exception {
+    ```shell
+    # java
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchJsonSinkExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
 
-            // set up the execution environment
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    # scala
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchJsonSinkScalaExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+    ```
 
-            // create PulsarJsonOutputFormat instance
-            final OutputFormat<NasaMission> pulsarJsonOutputFormat = new PulsarJsonOutputFormat<>(SERVICE_URL, TOPIC_NAME);
+5. Once the flink word count example is running, you can use `bin/pulsar-client` to tail the results produced into topic `test_flink_topic`.
 
-            // create DataSet
-            DataSet<NasaMission> nasaMissionDS = env.fromCollection(nasaMissions);
-            // map nasa mission names to upper-case
-            nasaMissionDS.map(nasaMission -> new NasaMission(
-                    nasaMission.id,
-                    nasaMission.missionName.toUpperCase(),
-                    nasaMission.startYear,
-                    nasaMission.endYear))
-            // filter missions which started after 1970
-            .filter(nasaMission -> nasaMission.startYear > 1970)
-            // write batch data to Pulsar
-            .output(pulsarJsonOutputFormat);
-
-            // set parallelism to write Pulsar in parallel (optional)
-            env.setParallelism(2);
-
-            // execute program
-            env.execute("Flink - Pulsar Batch Json");
-        }
-
-        /**
-         * NasaMission data model
-         *
-         * Note: Property definitions of the model should be public or have getter functions to be visible
-         */
-        private static class NasaMission {
-
-            private int id;
-            private String missionName;
-            private int startYear;
-            private int endYear;
-
-            public NasaMission(int id, String missionName, int startYear, int endYear) {
-                this.id = id;
-                this.missionName = missionName;
-                this.startYear = startYear;
-                this.endYear = endYear;
-            }
-
-            public int getId() {
-                return id;
-            }
-
-            public String getMissionName() {
-                return missionName;
-            }
-
-            public int getStartYear() {
-                return startYear;
-            }
-
-            public int getEndYear() {
-                return endYear;
-            }
-        }
-
+```shell
+$ bin/pulsar-client consume -n 0 -s test test_flink_topic
 ```
 
-**Note:** Property definitions of the model should be public or have getter functions to be visible
-
-### Sample Output
-
-Please find sample output for above application as follows:
+6. Please find sample output for above linked application as follows:
 ```
 {"id":4,"missionName":"SKYLAB","startYear":1973,"endYear":1974}
 {"id":5,"missionName":"APOLLO–SOYUZ TEST PROJECT","startYear":1975,"endYear":1975}
 ```
 
-### Complete Example
 
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchJsonSinkExample.java).
-In this example, Flink DataSet is processed and written to Pulsar in Json format.
+### PulsarAvroOutputFormat
 
+In this example, Flink DataSet is processed and written to Pulsar in Json format. Please find a complete example for PulsarAvroOutputFormat as follows:
+[java](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchAvroSinkExample.java)
+[scala](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/scala/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchAvroSinkScalaExample.scala)
 
-# PulsarAvroOutputFormat
-### Usage
+**Note:** NasaMission class are automatically generated by Avro.
 
-Please find a sample usage as follows:
+The steps to run the example:
 
-```java
-        private static final List<NasaMission> nasaMissions = Arrays.asList(
-                    NasaMission.newBuilder().setId(1).setName("Mercury program").setStartYear(1959).setEndYear(1963).build(),
-                    NasaMission.newBuilder().setId(2).setName("Apollo program").setStartYear(1961).setEndYear(1972).build(),
-                    NasaMission.newBuilder().setId(3).setName("Gemini program").setStartYear(1963).setEndYear(1966).build(),
-                    NasaMission.newBuilder().setId(4).setName("Skylab").setStartYear(1973).setEndYear(1974).build(),
-                    NasaMission.newBuilder().setId(5).setName("Apollo–Soyuz Test Project").setStartYear(1975).setEndYear(1975).build());
-        
-            private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
-            private static final String TOPIC_NAME = "my-flink-topic";
-        
-            public static void main(String[] args) throws Exception {
-        
-                // set up the execution environment
-                final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        
-                // create PulsarAvroOutputFormat instance
-                final OutputFormat<NasaMission> pulsarAvroOutputFormat = new PulsarAvroOutputFormat<>(SERVICE_URL, TOPIC_NAME);
-        
-                // create DataSet
-                DataSet<NasaMission> nasaMissionDS = env.fromCollection(nasaMissions);
-                // map nasa mission names to upper-case
-                nasaMissionDS.map(nasaMission -> new NasaMission(
-                        nasaMission.getId(),
-                        nasaMission.getName(),
-                        nasaMission.getStartYear(),
-                        nasaMission.getEndYear()))
-                        // filter missions which started after 1970
-                        .filter(nasaMission -> nasaMission.getStartYear() > 1970)
-                        // write batch data to Pulsar
-                        .output(pulsarAvroOutputFormat);
-        
-                // set parallelism to write Pulsar in parallel (optional)
-                env.setParallelism(2);
-        
-                // execute program
-                env.execute("Flink - Pulsar Batch Avro");
-            }
+Step 1, 2 and 3 are same as above.
 
+4. Run the word count example to print results to stdout.
+
+    ```shell
+    # java
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchAvroSinkExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+
+    # scala
+    $ ./bin/flink run -c org.apache.flink.batch.connectors.pulsar.example.FlinkPulsarBatchAvroSinkScalaExample ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --topic test_flink_topic
+    ```
+
+5. Once the flink word count example is running, you can use `bin/pulsar-client` to tail the results produced into topic `test_flink_topic`.
+
+```shell
+$ bin/pulsar-client consume -n 0 -s test test_flink_topic
 ```
 
-**Note:** NasaMission class are automatically generated by Avro
-
-### Sample Output
-
-Please find sample output for above application as follows:
+6. Please find sample output for above linked application as follows:
 ```
  "4,SKYLAB,1973,1974"
  "5,APOLLO–SOYUZ TEST PROJECT,1975,1975"
 ```
-
-### Complete Example
-
-You can find a complete example [here](https://github.com/apache/pulsar/tree/master/examples/flink-consumer-source/src/main/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchAvroSinkExample.java).
-In this example, Flink DataSet is processed and written to Pulsar in Avro format.

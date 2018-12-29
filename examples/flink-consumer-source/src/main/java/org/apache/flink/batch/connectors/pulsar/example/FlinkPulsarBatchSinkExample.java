@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.batch.connectors.pulsar.PulsarOutputFormat;
 import org.apache.flink.util.Collector;
 
@@ -35,17 +36,31 @@ public class FlinkPulsarBatchSinkExample {
     private static final String EINSTEIN_QUOTE = "Imagination is more important than knowledge. " +
             "Knowledge is limited. Imagination encircles the world.";
 
-    private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
-    private static final String TOPIC_NAME = "my-flink-topic";
-
     public static void main(String[] args) throws Exception {
+
+        // parse input arguments
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+        if (parameterTool.getNumberOfParameters() < 2) {
+            System.out.println("Missing parameters!");
+            System.out.println("Usage: pulsar --service-url <pulsar-service-url> --topic <topic>");
+            return;
+        }
 
         // set up the execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setGlobalJobParameters(parameterTool);
+
+        String serviceUrl = parameterTool.getRequired("service-url");
+        String topic = parameterTool.getRequired("topic");
+
+        System.out.println("Parameters:");
+        System.out.println("\tServiceUrl:\t" + serviceUrl);
+        System.out.println("\tTopic:\t" + topic);
 
         // create PulsarOutputFormat instance
         final OutputFormat pulsarOutputFormat =
-                new PulsarOutputFormat(SERVICE_URL, TOPIC_NAME, wordWithCount -> wordWithCount.toString().getBytes());
+                new PulsarOutputFormat(serviceUrl, topic, wordWithCount -> wordWithCount.toString().getBytes());
 
         // create DataSet
         DataSet<String> textDS = env.fromElements(EINSTEIN_QUOTE);

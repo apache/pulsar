@@ -1211,12 +1211,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             // Add incoming msg rates
             PublisherStats pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
-            if (pubStats != null) {
-                rStat.msgRateIn = pubStats.msgRateIn;
-                rStat.msgThroughputIn = pubStats.msgThroughputIn;
-                rStat.inboundConnection = pubStats.getAddress();
-                rStat.inboundConnectedSince = pubStats.getConnectedSince();
-            }
+            rStat.msgRateIn = pubStats != null ? pubStats.msgRateIn : 0;
+            rStat.msgThroughputIn = pubStats != null ? pubStats.msgThroughputIn : 0;
+            rStat.inboundConnection = pubStats != null ? pubStats.getAddress() : null;
+            rStat.inboundConnectedSince = pubStats != null ? pubStats.getConnectedSince() : null;
 
             topicStatsHelper.aggMsgRateOut += rStat.msgRateOut;
             topicStatsHelper.aggMsgThroughputOut += rStat.msgThroughputOut;
