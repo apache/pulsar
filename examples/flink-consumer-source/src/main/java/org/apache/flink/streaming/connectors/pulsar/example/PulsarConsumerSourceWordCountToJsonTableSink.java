@@ -44,16 +44,17 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
  *
  * <p>Example usage:
  *   --service-url pulsar://localhost:6650 --input-topic test_topic --subscription test_sub
+ * or
+ *   --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub --output-topic test_sub
  */
 public class PulsarConsumerSourceWordCountToJsonTableSink {
-    private static final String SERVICE_URL = "pulsar://localhost:6650";
     private static final String ROUTING_KEY = "word";
 
     public static void main(String[] args) throws Exception {
         // parse input arguments
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-        if (parameterTool.getNumberOfParameters() < 2) {
+        if (parameterTool.getNumberOfParameters() < 3) {
             System.out.println("Missing parameters!");
             System.out.println("Usage: pulsar --service-url <pulsar-service-url> --input-topic <topic> --subscription <sub> --output-topic <topic>");
             return;
@@ -104,10 +105,14 @@ public class PulsarConsumerSourceWordCountToJsonTableSink {
                         new WordWithCount(c1.word, c1.count + c2.count));
 
         tableEnvironment.registerDataStream("wc",wc);
-
         Table table = tableEnvironment.sqlQuery("select * from wc");
+        table.printSchema();
+//        root
+//                |-- count: Long
+//                |-- word: GenericType<org.apache.avro.util.Utf8>
+
         if (null != outputTopic) {
-            PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, outputTopic, new ProducerConfiguration(), ROUTING_KEY);
+            PulsarJsonTableSink sink = new PulsarJsonTableSink(serviceUrl, outputTopic, new ProducerConfiguration(), ROUTING_KEY);
             table.writeToSink(sink);
         } else {
             TableSink sink = new CsvTableSink("./examples/file",  "|");

@@ -13,8 +13,8 @@
  "type": "record",
  "name": "WordWithCount",
  "fields": [
-     {"name": "word", "type": "string"},
-     {"name": "count", "type": "long"}
+     {"name": "count", "type": "long"},
+     {"name": "word", "type": "string"}
  ]
 }
 ]
