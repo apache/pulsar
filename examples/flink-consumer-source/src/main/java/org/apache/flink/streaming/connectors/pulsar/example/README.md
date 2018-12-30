@@ -67,19 +67,16 @@ The steps to run the example:
 5. Produce messages to topic `test_src`.
 
     ```shell
-    $ bin/pulsar-client produce -m "hello world test again" -n 200 test_src
+    $ bin/pulsar-client produce -m "hello world test again" -n 100 test_src
     ```
 
 6. You can check the flink taskexecutor `.out` file. The `.out` file will print the counts at the end of each time window as long as words are floating in, e.g.:
 
     ```shell
-    PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=200)
-    PulsarConsumerSourceWordCount.WordWithCount(word=again, count=200)
-    PulsarConsumerSourceWordCount.WordWithCount(word=test, count=200)
-    PulsarConsumerSourceWordCount.WordWithCount(word=world, count=200)
     PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=100)
     PulsarConsumerSourceWordCount.WordWithCount(word=again, count=100)
     PulsarConsumerSourceWordCount.WordWithCount(word=test, count=100)
+    PulsarConsumerSourceWordCount.WordWithCount(word=world, count=100)  
     ```
 
 Alternatively, when you run the flink word count example at step 4, you can choose dump the result to another pulsar topic.
@@ -100,32 +97,11 @@ You will see similar results as what you see at step 6 when running the word cou
 ### PulsarConsumerSourceWordCountToAvroTableSink
 
 This Flink streaming job is consuming from a Pulsar topic and counting the wordcount in a streaming fashion. The job can write the word count results
-to csv file or another Pulsar topic for json format.
+to csv file or another Pulsar topic for avro format.
 
 The steps to run the example:
 
-1. Start Pulsar Standalone.
-
-    You can follow the [instructions](https://pulsar.apache.org/docs/en/standalone/) to start a Pulsar standalone locally.
-
-    ```shell
-    $ bin/pulsar standalone
-    ```
-
-2. Start Flink locally.
-
-    You can follow the [instructions](https://ci.apache.org/projects/flink/flink-docs-release-1.6/quickstart/setup_quickstart.html) to download and start Flink.
-
-    ```shell
-    $ ./bin/start-cluster.sh
-    ```
-
-3. Build the examples.
-
-    ```shell
-    $ cd ${PULSAR_HOME}
-    $ mvn clean install -DskipTests
-    ```
+Step 1, 2 and 3 are same as above.
 
 4. Run the word count example to print results to stdout.
 
@@ -136,16 +112,12 @@ The steps to run the example:
 5. Produce messages to topic `test_src`.
 
     ```shell
-    $ bin/pulsar-client produce -m "hello world again" -n 200 test_src
+    $ bin/pulsar-client produce -m "hello world again" -n 100 test_src
     ```
 
 6. You can check the ${FLINK_HOME}/examples/file. The files contain the counts at the end of each time window as long as words are floating in, e.g.:
 
     ```file
-    200|hello
-    200|again
-    200|test
-    200|world
     100|hello
     100|again
     100|test
@@ -177,17 +149,6 @@ test
 ----- got message -----
 �
 world
------ got message -----
-�
-hello
------ got message -----
-�
-again
------ got message -----
-test
------ got message -----
-�
-world
 ```
 
 ### PulsarConsumerSourceWordCountToJsonTableSink
@@ -197,28 +158,7 @@ to csv file or another Pulsar topic for json format.
 
 The steps to run the example:
 
-1. Start Pulsar Standalone.
-
-    You can follow the [instructions](https://pulsar.apache.org/docs/en/standalone/) to start a Pulsar standalone locally.
-
-    ```shell
-    $ bin/pulsar standalone
-    ```
-
-2. Start Flink locally.
-
-    You can follow the [instructions](https://ci.apache.org/projects/flink/flink-docs-release-1.6/quickstart/setup_quickstart.html) to download and start Flink.
-
-    ```shell
-    $ ./bin/start-cluster.sh
-    ```
-
-3. Build the examples.
-
-    ```shell
-    $ cd ${PULSAR_HOME}
-    $ mvn clean install -DskipTests
-    ```
+Step 1, 2 and 3 are same as above.
 
 4. Run the word count example to print results to stdout.
 
@@ -231,16 +171,12 @@ If java.lang.ClassNotFoundException: org.apache.flink.table.sinks.TableSink and 
 5. Produce messages to topic `test_src`.
 
     ```shell
-    $ bin/pulsar-client produce -m "hello world again" -n 200 test_src
+    $ bin/pulsar-client produce -m "hello world again" -n 100 test_src
     ```
 
 6. You can check the ${FLINK_HOME}/examples/file. The file contains the counts at the end of each time window as long as words are floating in, e.g.:
 
     ```file
-    200|hello
-    200|again
-    200|test
-    200|world
     100|hello
     100|again
     100|test
@@ -261,14 +197,6 @@ $ bin/pulsar-client consume -n 0 -s test test_dest
 
 You will see sample output for above linked application as follows:.
 ```
------ got message -----
-{"count":200,"word":"hello"}
------ got message -----
-{"count":200,"word":"again"}
------ got message -----
-{"count":200,"word":"test"}
------ got message -----
-{"count":200,"word":"world"}
 ----- got message -----
 {"count":100,"word":"hello"}
 ----- got message -----
