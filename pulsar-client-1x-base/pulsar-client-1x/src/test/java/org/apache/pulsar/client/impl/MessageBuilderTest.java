@@ -36,20 +36,20 @@ public class MessageBuilderTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeNegative() {
-        MessageBuilder<?> builder = MessageBuilder.create();
+        MessageBuilder builder = MessageBuilder.create();
         builder.setEventTime(-1L);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeZero() {
-        MessageBuilder<?> builder = MessageBuilder.create();
+        MessageBuilder builder = MessageBuilder.create();
         builder.setEventTime(0L);
     }
 
     @Test
     public void testSetEventTimePositive() {
         long eventTime = System.currentTimeMillis();
-        MessageBuilder<?> builder = MessageBuilder.create();
+        MessageBuilder builder = MessageBuilder.create();
         builder.setContent(new byte[0]);
         builder.setEventTime(eventTime);
         Message<?> msg = builder.build();
@@ -58,7 +58,7 @@ public class MessageBuilderTest {
 
     @Test
     public void testBuildMessageWithoutEventTime() {
-        MessageBuilder<?> builder = MessageBuilder.create();
+        MessageBuilder builder = MessageBuilder.create();
         builder.setContent(new byte[0]);
         Message<?> msg = builder.build();
         assertEquals(0L, msg.getEventTime());
@@ -66,7 +66,7 @@ public class MessageBuilderTest {
 
     @Test
     public void testSetMessageProperties() {
-        MessageBuilder<?> builder = MessageBuilder.create();
+        MessageBuilder builder = MessageBuilder.create();
         builder.setContent(new byte[0]);
         Map<String, String> map = Maps.newHashMap();
         map.put("key1", "value1");
