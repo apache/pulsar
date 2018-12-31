@@ -20,7 +20,6 @@ package org.apache.pulsar.io.canal;
 
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
-import com.alibaba.otter.canal.client.impl.SimpleCanalConnector;
 import com.alibaba.otter.canal.protocol.FlatMessage;
 import com.alibaba.otter.canal.protocol.Message;
 import lombok.Getter;
@@ -125,8 +124,6 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
                     message.setRaw(false);
-                    SimpleCanalConnector con = (SimpleCanalConnector) connector;
-                    con.isLazyParseEntry();
                     List<FlatMessage> flatMessages = MessageUtils.messageConverter(message);
                     long batchId = getMessageId(message);
                     int size = message.getEntries().size();
