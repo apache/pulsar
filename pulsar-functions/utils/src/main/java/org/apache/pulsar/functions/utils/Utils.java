@@ -364,4 +364,21 @@ public class Utils {
                                                      String functionName, int instanceId) {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
+
+    public enum ComponentType {
+        FUNCTION("Function"),
+        SOURCE("Source"),
+        SINK("Sink");
+
+        private final String componentName;
+
+        ComponentType(String componentName) {
+            this.componentName = componentName;
+        }
+
+        @Override
+        public String toString() {
+            return componentName;
+        }
+    }
 }

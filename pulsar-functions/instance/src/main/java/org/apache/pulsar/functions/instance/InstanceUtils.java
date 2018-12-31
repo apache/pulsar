@@ -19,15 +19,22 @@
 package org.apache.pulsar.functions.instance;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
 
 import lombok.experimental.UtilityClass;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.functions.utils.Utils;
 
 @UtilityClass
 public class InstanceUtils {
@@ -76,5 +83,24 @@ public class InstanceUtils {
         } else {
             return Reflections.createInstance(className, baseClass, clsLoader);
         }
+    }
+
+    public Utils.ComponentType calculateSubjectType(Function.FunctionDetails functionDetails) {
+        Function.SourceSpec sourceSpec = functionDetails.getSource();
+        Function.SinkSpec sinkSpec = functionDetails.getSink();
+        if (sourceSpec.getInputSpecsCount() == 0) {
+            return SOURCE;
+        }
+        // Now its between sink and function
+
+        if (!isEmpty(sinkSpec.getBuiltin())) {
+            // if its built in, its a sink
+            return SINK;
+        }
+
+        if (isEmpty(sinkSpec.getClassName()) || sinkSpec.getClassName().equals(PulsarSink.class.getName())) {
+            return FUNCTION;
+        }
+        return SINK;
     }
 }
