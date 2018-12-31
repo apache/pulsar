@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>在裸金属主机上部署集群 · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;blockquote&gt;
 &lt;h3&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; id=&quot;提示&quot;&gt;&lt;/a&gt;&lt;a href=&quot;#提示&quot; aria-hidden=&quot;true&quot; class=&quot;hash-link&quot;&gt;&lt;svg class=&quot;hash-link-icon&quot; aria-hidden=&quot;true&quot; height=&quot;16&quot; version=&quot;1.1&quot; viewBox=&quot;0 0 16 16&quot; width=&quot;16&quot;&gt;&lt;path fill-rule=&quot;evenodd&quot; d=&quot;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&quot;&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/a&gt;提示&lt;/h3&gt;
 &lt;/blockquote&gt;
-"/><meta name="docsearch:version" content="2.2.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="在裸金属主机上部署集群 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/index.html"/><meta property="og:description" content="&lt;blockquote&gt;
+"/><meta name="docsearch:version" content="2.2.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="在裸金属主机上部署集群 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/index.html"/><meta property="og:description" content="&lt;blockquote&gt;
 &lt;h3&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; id=&quot;提示&quot;&gt;&lt;/a&gt;&lt;a href=&quot;#提示&quot; aria-hidden=&quot;true&quot; class=&quot;hash-link&quot;&gt;&lt;svg class=&quot;hash-link-icon&quot; aria-hidden=&quot;true&quot; height=&quot;16&quot; version=&quot;1.1&quot; viewBox=&quot;0 0 16 16&quot; width=&quot;16&quot;&gt;&lt;path fill-rule=&quot;evenodd&quot; d=&quot;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&quot;&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/a&gt;提示&lt;/h3&gt;
 &lt;/blockquote&gt;
 "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
@@ -12,7 +12,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.2.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-bare-metal">English</a></li><li><a href="/docs/ja/deploy-bare-metal">日本語</a></li><li><a href="/docs/fr/deploy-bare-metal">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.2.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-bare-metal">English</a></li><li><a href="/docs/ja/deploy-bare-metal">日本語</a></li><li><a href="/docs/fr/deploy-bare-metal">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -24,34 +24,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>部署</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting started</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone">在本地运行Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries">客户端库</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-deployment-configurations">部署和配置</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-kubernetes">Kubernetes</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal">裸金属</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-transport">使用TLS进行传输加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">管理 API</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-permissions">Persmissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-schemas">Schemas</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-kafka">Kafka 客户端 wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-schema">自定义schema存储</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
-            document.addEventListener('DOMContentLoaded', function() {
-              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
-              createToggler('#tocToggler', 'body', 'tocActive');
-
-              const headings = document.querySelector('.toc-headings');
-              headings && headings.addEventListener('click', function(event) {
-                if (event.target.tagName === 'A') {
-                  document.body.classList.remove('tocActive');
-                }
-              }, false);
-
-              function createToggler(togglerSelector, targetSelector, className) {
-                var toggler = document.querySelector(togglerSelector);
-                var target = document.querySelector(targetSelector);
-
-                if (!toggler) {
-                  return;
-                }
-
-                toggler.onclick = function(event) {
-                  event.preventDefault();
-
-                  target.classList.toggle(className);
-                };
-              }
-            });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">在裸金属主机上部署集群</h1></header><article><div><span><blockquote>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">在裸金属主机上部署集群</h1></header><article><div><span><blockquote>
 <h3><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h3>
 <ol>
 <li><p>除了最极端的情况，对于绝大多数的用例来说，单机群安装的Pulsar就能够满足要求了。 如果你在一个创业公司，或者是在单个团队里，有兴趣试验一下Pulsar的话，我们推荐使用单集群。 如果你确实需要运行一个多集群的Pulsar实例，那么，请参考<a href="/docs/zh-CN/deploy-bare-metal-multi-cluster">这里</a>的指南。</p></li>
@@ -70,7 +43,7 @@
 <blockquote>
 <p>如果你已经拥有zookeeper集群，你可以重用它，而不需要准备额外的机器去运行zookeeper。</p>
 </blockquote>
-<p>To run Pulsar on bare metal, you will need:</p>
+<p>如果需要在裸机上运行Pulsar，你需要准备以下资源：</p>
 <ul>
 <li>至少6台linux机器或者虚拟机
 <ul>
@@ -79,6 +52,9 @@
 </ul></li>
 <li>A single <a href="https://en.wikipedia.org/wiki/Domain_Name_System">DNS</a> name covering all of the Pulsar broker hosts</li>
 </ul>
+<blockquote>
+<p>However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later), you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.</p>
+</blockquote>
 <p>Each machine in your cluster will need to have <a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java 8</a> or higher installed.</p>
 <p>Here's a diagram showing the basic setup:</p>
 <p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
@@ -101,17 +77,17 @@
 <ul>
 <li>By clicking on the link directly below, which will automatically trigger a download:
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-2.2.0-bin.tar.gz" download>Pulsar 2.2.0 binary release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.1/apache-pulsar-2.2.1-bin.tar.gz" download>Pulsar 2.2.1 binary release</a></li>
 </ul></li>
 <li>From the Pulsar <a href="/download">downloads page</a></li>
 <li>From the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a> on <a href="https://github.com">GitHub</a></li>
 <li>Using <a href="https://www.gnu.org/software/wget">wget</a>:</li>
 </ul>
-<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-2.2.0-bin.tar.gz
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.2.1/apache-pulsar-2.2.1-bin.tar.gz
 </code></pre>
 <p>Once you've downloaded the tarball, untar it and <code>cd</code> into the resulting directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.2.0-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.2.0
+<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.2.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.2.1
 </code></pre>
 <p>The untarred directory contains the following subdirectories:</p>
 <table>
@@ -134,29 +110,29 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.2.0
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-io-connectors-2.2.0-bin.tar.gz" download>Pulsar IO Connectors 2.2.0 release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.1/apache-pulsar-io-connectors-2.2.1-bin.tar.gz" download>Pulsar IO Connectors 2.2.1 release</a></li>
 </ul></li>
 <li><p>从Pulsar <a href="/download">下载页</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>使用<a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-io-connectors-2.2.0-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.2.1/apache-pulsar-io-connectors-2.2.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as <code>connectors</code> in the pulsar directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-io-connectors-2.2.0-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-io-connectors-2.2.1-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-io-connectors-2.2.0` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-io-connectors-2.2.1` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the connectors
 
-$ mv apache-pulsar-io-connectors-2.2.0/connectors connectors
+$ mv apache-pulsar-io-connectors-2.2.1/connectors connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.2.0.nar
-pulsar-io-cassandra-2.2.0.nar
-pulsar-io-kafka-2.2.0.nar
-pulsar-io-kinesis-2.2.0.nar
-pulsar-io-rabbitmq-2.2.0.nar
-pulsar-io-twitter-2.2.0.nar
+pulsar-io-aerospike-2.2.1.nar
+pulsar-io-cassandra-2.2.1.nar
+pulsar-io-kafka-2.2.1.nar
+pulsar-io-kinesis-2.2.1.nar
+pulsar-io-rabbitmq-2.2.1.nar
+pulsar-io-twitter-2.2.1.nar
 ...
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="deploying-a-zookeeper-cluster"></a><a href="#deploying-a-zookeeper-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying a ZooKeeper cluster</h2>
@@ -169,6 +145,9 @@ pulsar-io-twitter-2.2.0.nar
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
 </code></pre>
+<blockquote>
+<p>If you have only one machine to deploy Pulsar, you just need to add one server entry in the configuration file.</p>
+</blockquote>
 <p>On each host, you need to specify the ID of the node in each node's <code>myid</code> file, which is in each server's <code>data/zookeeper</code> folder by default (this can be changed via the <a href="/docs/zh-CN/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> parameter).</p>
 <blockquote>
 <p>See the <a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">Multi-server setup guide</a> in the ZooKeeper documentation for detailed info on <code>myid</code> and more.</p>
@@ -180,6 +159,12 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <p>On <code>zk2.us-west.example.com</code> the command would be <code>echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 <p>Once each server has been added to the <code>zookeeper.conf</code> configuration and has the appropriate <code>myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start zookeeper
+</code></pre>
+<blockquote>
+<p>If you are planning to deploy zookeeper with bookie on the same node, you need to start zookeeper by using different stats port.</p>
+</blockquote>
+<p>Start zookeeper with <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool like:</p>
+<pre><code class="hljs css language-bash">$ PULSAR_EXTRA_OPTS=<span class="hljs-string">"-Dstats_server_port=8001"</span> bin/pulsar-daemon start zookeeper
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="initializing-cluster-metadata"></a><a href="#initializing-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Initializing cluster metadata</h2>
 <p>Once you've deployed ZooKeeper for your cluster, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. It only needs to be written <strong>once</strong>.</p>
@@ -249,30 +234,51 @@ $ bin/pulsar-daemon start bookie
 <p>You also need to specify the cluster name (matching the name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster's metadata</a>:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clusterName</span>=<span class="hljs-string">pulsar-cluster-1</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="enabling-pulsar-functions-optional"></a><a href="#enabling-pulsar-functions-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enabling Pulsar Functions (optional)</h3>
-<p>If you want to enable <a href="functions-overview.md">Pulsar Functions</a>, you can follow the instructions as below:</p>
-<ol>
-<li><p>Edit <code>conf/broker.conf</code> to enable function worker, by setting <code>functionsWorkerEnabled</code> to <code>true</code>.</p>
-<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
-</code></pre></li>
-</ol>
-<ol start="2">
-<li><p>Edit <code>conf/functions_worker.yml</code> and set <code>pulsarFunctionsCluster</code> to the cluster name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster's metadata</a>.</p>
-<pre><code class="hljs css language-conf">pulsarFunctionsCluster: pulsar-cluster<span class="hljs-number">-1</span>
-</code></pre></li>
-</ol>
-<h3><a class="anchor" aria-hidden="true" id="starting-brokers"></a><a href="#starting-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting Brokers</h3>
-<p>You can then provide any other configuration changes that you'd like in the <a href="reference-configuration.md#broker"><code>conf/broker.conf</code></a> file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.</p>
-<p>You can start a broker in the foreground using the <a href="reference-cli-tools.md#pulsar-broker"><code>pulsar broker</code></a> command:</p>
-<pre><code class="hljs css language-bash">$ bin/pulsar broker
-</code></pre>
-<p>You can start a broker in the background using the <a href="reference-cli-tools.md#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<blockquote>
+<p>If you deploy Pulsar in a one-node cluster, you should update the replication settings in <code>conf/broker.conf</code> to <code>1</code></p>
+<pre><code class="hljs css language-properties"></code></pre>
+</blockquote>
+<h1><a class="anchor" aria-hidden="true" id="number-of-bookies-to-use-when-creating-a-ledger"></a><a href="#number-of-bookies-to-use-when-creating-a-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of bookies to use when creating a ledger</h1>
+<p>managedLedgerDefaultEnsembleSize=1</p>
+<h1><a class="anchor" aria-hidden="true" id="number-of-copies-to-store-for-each-message"></a><a href="#number-of-copies-to-store-for-each-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of copies to store for each message</h1>
+<p>managedLedgerDefaultWriteQuorum=1</p>
+<h1><a class="anchor" aria-hidden="true" id="number-of-guaranteed-copies-acks-to-wait-before-write-is-complete"></a><a href="#number-of-guaranteed-copies-acks-to-wait-before-write-is-complete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of guaranteed copies (acks to wait before write is complete)</h1>
+<p>managedLedgerDefaultAckQuorum=1</p>
+<pre><code class="hljs">
+<span class="hljs-section">### Enabling Pulsar Functions (optional)</span>
+
+If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/zh-CN/functions-overview</span>), you can follow the instructions as below:
+
+<span class="hljs-bullet">1. </span>Edit <span class="hljs-code">`conf/broker.conf`</span> to enable function worker, by setting <span class="hljs-code">`functionsWorkerEnabled`</span> to <span class="hljs-code">`true`</span>.
+  
+<span class="hljs-code">      ```conf</span>
+<span class="hljs-code">      functionsWorkerEnabled=true</span>
+<span class="hljs-code">      ```</span>
+<span class="hljs-code">      </span>
+
+<span class="hljs-bullet">2. </span>Edit <span class="hljs-code">`conf/functions_worker.yml`</span> and set <span class="hljs-code">`pulsarFunctionsCluster`</span> to the cluster name that you provided when [<span class="hljs-string">initializing the cluster's metadata</span>](<span class="hljs-link">#initializing-cluster-metadata</span>).
+  
+<span class="hljs-code">      ```conf</span>
+<span class="hljs-code">      pulsarFunctionsCluster: pulsar-cluster-1</span>
+<span class="hljs-code">      ```</span>
+<span class="hljs-code">      </span>
+
+<span class="hljs-section">### Starting Brokers</span>
+
+You can then provide any other configuration changes that you'd like in the [<span class="hljs-string">`conf/broker.conf`</span>](<span class="hljs-link">/docs/zh-CN/reference-configuration#broker</span>) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
+
+You can start a broker in the foreground using the [<span class="hljs-string">`pulsar broker`</span>](<span class="hljs-link">/docs/zh-CN/reference-cli-tools#pulsar-broker</span>) command:
+
+<span class="hljs-code">```bash
+$ bin/pulsar broker
+</span></code></pre>
+<p>You can start a broker in the background using the <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
 </code></pre>
 <p>Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!</p>
 <h2><a class="anchor" aria-hidden="true" id="connecting-to-the-running-cluster"></a><a href="#connecting-to-the-running-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connecting to the running cluster</h2>
-<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="reference-cli-tools.md#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code>pulsar-client</code> tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.</p>
-<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="reference-configuration.md#client"><code>conf/client.conf</code></a> in your binary package. You'll need to change the values for <code>webServiceUrl</code> and <code>brokerServiceUrl</code>, substituting <code>localhost</code> (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:</p>
+<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code>pulsar-client</code> tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.</p>
+<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="/docs/zh-CN/reference-configuration#client"><code>conf/client.conf</code></a> in your binary package. You'll need to change the values for <code>webServiceUrl</code> and <code>brokerServiceUrl</code>, substituting <code>localhost</code> (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://us-west.example.com:8080/</span>
 <span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://us-west.example.com:6650/</span>
 </code></pre>
@@ -300,13 +306,13 @@ $ bin/pulsar-daemon start bookie
   --namespace default \
   --name exclamation
 </code></pre>
-<p>Check if the function is running as expected by <a href="functions-deploying.md#triggering-pulsar-functions">triggering</a> the function.</p>
+<p>Check if the function is running as expected by <a href="/docs/zh-CN/functions-deploying#triggering-pulsar-functions">triggering</a> the function.</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>You will see output as below:</p>
 <pre><code class="hljs css language-shell">hello world!
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/deploy-bare-metal-multi-cluster"><span>Bare metal multi-cluster</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#installing-the-pulsar-binary-package">Installing the Pulsar binary package</a></li><li><a href="#installing-builtin-connectors-optional">Installing Builtin Connectors (optional)</a></li><li><a href="#deploying-a-zookeeper-cluster">Deploying a ZooKeeper cluster</a></li><li><a href="#initializing-cluster-metadata">Initializing cluster metadata</a></li><li><a href="#deploying-a-bookkeeper-cluster">Deploying a BookKeeper cluster</a></li><li><a href="#deploying-pulsar-brokers">Deploying Pulsar brokers</a><ul class="toc-headings"><li><a href="#configuring-brokers">Configuring Brokers</a></li><li><a href="#enabling-pulsar-functions-optional">Enabling Pulsar Functions (optional)</a></li><li><a href="#starting-brokers">Starting Brokers</a></li></ul></li><li><a href="#connecting-to-the-running-cluster">Connecting to the running cluster</a></li><li><a href="#running-functions">Running Functions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#installing-the-pulsar-binary-package">Installing the Pulsar binary package</a></li><li><a href="#installing-builtin-connectors-optional">Installing Builtin Connectors (optional)</a></li><li><a href="#deploying-a-zookeeper-cluster">Deploying a ZooKeeper cluster</a></li><li><a href="#initializing-cluster-metadata">Initializing cluster metadata</a></li><li><a href="#deploying-a-bookkeeper-cluster">Deploying a BookKeeper cluster</a></li><li><a href="#deploying-pulsar-brokers">Deploying Pulsar brokers</a><ul class="toc-headings"><li><a href="#configuring-brokers">Configuring Brokers</a></li></ul></li><li><a href="#connecting-to-the-running-cluster">Connecting to the running cluster</a></li><li><a href="#running-functions">Running Functions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -368,6 +374,6 @@ $ bin/pulsar-daemon start bookie
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.2.0"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.2.1"]}
               });
             </script></body></html>
