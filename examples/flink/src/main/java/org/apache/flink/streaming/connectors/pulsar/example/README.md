@@ -61,7 +61,7 @@ The steps to run the example:
 4. Run the word count example to print results to stdout.
 
     ```shell
-    $ ./bin/flink run  ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub
+    $ ./bin/flink run  ${PULSAR_HOME}/examples/flink/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub
     ```
 
 5. Produce messages to topic `test_src`.
@@ -85,7 +85,7 @@ The steps to run the example:
 Alternatively, when you run the flink word count example at step 4, you can choose dump the result to another pulsar topic.
 
 ```shell
-$ ./bin/flink run  ${PULSAR_HOME}/examples/flink-consumer-source/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub --output-topic test_dest
+$ ./bin/flink run  ${PULSAR_HOME}/examples/flink/target/pulsar-flink-examples.jar --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub --output-topic test_dest
 ```
 
 Once the flink word count example is running, you can use `bin/pulsar-client` to tail the results produced into topic `test_dest`.
