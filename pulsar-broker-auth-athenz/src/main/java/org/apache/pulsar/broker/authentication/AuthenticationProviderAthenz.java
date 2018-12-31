@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.yahoo.athenz.auth.token.RoleToken;
 import com.yahoo.athenz.zpe.AuthZpeClient;
@@ -41,8 +42,10 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";
 
     private static final String SYS_PROP_DOMAIN_NAME_LIST = "pulsar.athenz.domain.names";
+    private static final String SYS_PROP_ALLOWED_OFFSET = "pulsar.athenz.role.token_allowed_offset";
 
     private List<String> domainNameList = null;
+    private int allowedOffset = 30;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -57,6 +60,20 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
         domainNameList = Lists.newArrayList(domainNames.split(","));
         log.info("Supported domain names for athenz: {}", domainNameList);
+
+        if (!StringUtils.isEmpty(System.getProperty(SYS_PROP_ALLOWED_OFFSET))) {
+            try {
+                allowedOffset = Integer.parseInt(System.getProperty(SYS_PROP_ALLOWED_OFFSET));
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid allowed offset for athenz role token verification specified", e);
+            }
+
+            if (allowedOffset < 0) {
+                throw new IOException("Allowed offset for athenz role token verification must not be negative");
+            }
+        }
+
+        log.info("Allowed offset for athenz role token verification: {} sec", allowedOffset);
     }
 
     @Override
@@ -103,7 +120,6 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
         // Synchronize for non-thread safe static calls inside athenz library
         synchronized (this) {
             PublicKey ztsPublicKey = AuthZpeClient.getZtsPublicKey(token.getKeyId());
-            int allowedOffset = 0;
 
             if (ztsPublicKey == null) {
                 throw new AuthenticationException("Unable to retrieve ZTS Public Key");
@@ -121,6 +137,11 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
+    }
+
+    @VisibleForTesting
+    int getAllowedOffset() {
+        return this.allowedOffset;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderAthenz.class);

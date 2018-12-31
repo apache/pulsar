@@ -37,33 +37,55 @@ public @interface FieldContext {
      * 
      * @return true if attribute is required else returns false
      */
-    public boolean required() default false;
+    boolean required() default false;
 
     /**
      * binds numeric value's lower bound
      * 
      * @return minimum value of the field
      */
-    public long minValue() default Long.MIN_VALUE;
+    long minValue() default Long.MIN_VALUE;
 
     /**
      * binds numeric value's upper bound
      * 
      * @return maximum value of the field
      */
-    public long maxValue() default Long.MAX_VALUE;
+    long maxValue() default Long.MAX_VALUE;
 
     /**
      * binds character length of text
      * 
      * @return character length of field
      */
-    public int maxCharLength() default Integer.MAX_VALUE;
+    int maxCharLength() default Integer.MAX_VALUE;
     
     /**
      * allow field to be updated dynamically
      * 
      * @return
      */
-    public boolean dynamic() default false;
+    boolean dynamic() default false;
+
+    /**
+     * Category to group settings.
+     *
+     * @return category name
+     */
+    String category() default "";
+
+    /**
+     * Documentation of the settings.
+     *
+     * @return the documentation of the settings.
+     */
+    String doc() default "";
+
+    /**
+     * Whether the setting is deprecated or not.
+     *
+     * @return true if the setting is deprecated, otherwise false.
+     */
+    boolean deprecated() default false;
+
 }

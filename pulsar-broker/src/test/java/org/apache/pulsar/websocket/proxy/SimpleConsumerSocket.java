@@ -81,6 +81,13 @@ public class SimpleConsumerSocket {
         this.getRemote().sendString(ack.toString());
     }
 
+    public void sendPermits(int nbPermits) throws IOException {
+        JsonObject permitMessage = new JsonObject();
+        permitMessage.add("type", new JsonPrimitive("permit"));
+        permitMessage.add("permitMessages", new JsonPrimitive(nbPermits));
+        this.getRemote().sendString(permitMessage.toString());
+    }
+
     public RemoteEndpoint getRemote() {
         return this.session.getRemote();
     }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import io.prometheus.client.jetty.JettyStatisticsCollector;
@@ -40,7 +39,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
@@ -58,7 +57,6 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -72,7 +70,7 @@ public class WebServer {
     private static final String MATCH_ALL = "/*";
 
     private final Server server;
-    private final ExecutorThreadPool webServiceExecutor;
+    private final WebExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
     private final List<String> servletPaths = Lists.newArrayList();
     private final List<Handler> handlers = Lists.newArrayList();
@@ -81,10 +79,8 @@ public class WebServer {
     private URI serviceURI = null;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = new ExecutorThreadPool();
-        this.webServiceExecutor.setName("pulsar-external-web");
+        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
-        this.externalServicePort = config.getWebServicePort();
         this.authenticationService = authenticationService;
         this.config = config;
 
@@ -93,20 +89,22 @@ public class WebServer {
         HttpConfiguration http_config = new HttpConfiguration();
         http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
 
-        ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
-        connector.setPort(externalServicePort);
-        connectors.add(connector);
-
-        if (config.isTlsEnabledInProxy()) {
+        if (config.getWebServicePort().isPresent()) {
+            this.externalServicePort = config.getWebServicePort().get();
+            ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector.setPort(externalServicePort);
+            connectors.add(connector);
+        }
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.getTlsRequireTrustedClientCertOnConnect());
+                        config.isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);

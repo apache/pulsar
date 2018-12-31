@@ -39,10 +39,14 @@ message FunctionStatus {
     repeated ExceptionInformation latestUserExceptions = 7;
     int64 numSystemExceptions = 8;
     repeated ExceptionInformation latestSystemExceptions = 9;
+    int64 numSourceExceptions = 18;
+    repeated ExceptionInformation latestSourceExceptions = 19;
+    int64 numSinkExceptions = 20;
+    repeated ExceptionInformation latestSinkExceptions = 21;
     // map from topic name to number of deserialization exceptions
-    map<string, int64> deserializationExceptions = 10;
+//    map<string, int64> deserializationExceptions = 10;
     // number of serialization exceptions on the output
-    int64 serializationExceptions = 11;
+//    int64 serializationExceptions = 11;
     // average latency
     double averageLatency = 12;
 
@@ -55,6 +59,7 @@ message FunctionStatus {
     string workerId = 16;
 }
 
+// Deprecated
 message FunctionStatusList {
     string error = 2;
     repeated FunctionStatus functionStatusList = 1;

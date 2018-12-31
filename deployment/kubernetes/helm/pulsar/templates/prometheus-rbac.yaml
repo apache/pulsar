@@ -18,6 +18,7 @@
 #
 
 {{- if .Values.extra.monitoring }}
+{{- if .Values.prometheus_rbac }}
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
@@ -54,4 +55,5 @@ subjects:
 - kind: ServiceAccount
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
   namespace: {{ .Values.namespace }}
+{{- end }}
 {{- end }}

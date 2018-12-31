@@ -44,6 +44,15 @@ mkdir -p $DATA_DIR
 mkdir -p $DATA_DIR/certs
 cp $SRC_DIR/pulsar-broker/src/test/resources/authentication/tls/*.pem $DATA_DIR/certs
 
+# Generate secret key and token
+mkdir -p $DATA_DIR/tokens
+$PULSAR_DIR/bin/pulsar tokens create-secret-key --output $DATA_DIR/tokens/secret.key
+
+$PULSAR_DIR/bin/pulsar tokens create \
+            --subject token-principal \
+            --secret-key file:///$DATA_DIR/tokens/secret.key \
+            > $DATA_DIR/tokens/token.txt
+
 export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
 $PULSAR_DIR/bin/pulsar-daemon start standalone \
         --no-functions-worker --no-stream-storage \
@@ -94,5 +103,9 @@ $PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"
 
 # Create "private/auth" with required authentication
 $PULSAR_DIR/bin/pulsar-admin namespaces create private/auth --clusters standalone
+
+$PULSAR_DIR/bin/pulsar-admin namespaces grant-permission private/auth \
+                        --actions produce,consume \
+                        --role "token-principal"
 
 echo "-- Ready to start tests"

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.shaded.curator.org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.IOUtils;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Pulsar source (consumer) which receives messages from a topic and acknowledges messages.
@@ -55,7 +57,8 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private final int messageReceiveTimeoutMs = 100;
     private final String serviceUrl;
-    private final String topic;
+    private final Set<String> topicNames;
+    private final Pattern topicsPattern;
     private final String subscriptionName;
     private final DeserializationSchema<T> deserializer;
 
@@ -72,7 +75,8 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     PulsarConsumerSource(PulsarSourceBuilder<T> builder) {
         super(MessageId.class);
         this.serviceUrl = builder.serviceUrl;
-        this.topic = builder.topic;
+        this.topicNames = builder.topicNames;
+        this.topicsPattern = builder.topicsPattern;
         this.deserializer = builder.deserializationSchema;
         this.subscriptionName = builder.subscriptionName;
         this.acknowledgementBatchSize = builder.acknowledgementBatchSize;
@@ -191,10 +195,17 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     }
 
     Consumer<byte[]> createConsumer(PulsarClient client) throws PulsarClientException {
-        return client.newConsumer()
-            .topic(topic)
-            .subscriptionName(subscriptionName)
-            .subscriptionType(SubscriptionType.Failover)
-            .subscribe();
+        if (topicsPattern != null) {
+            return client.newConsumer().topicsPattern(topicsPattern)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Failover)
+                    .subscribe();
+        } else {
+            return client.newConsumer()
+                    .topics(Lists.newArrayList(topicNames))
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Failover)
+                    .subscribe();
+        }
     }
 }

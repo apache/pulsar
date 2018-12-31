@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.sink;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -99,7 +100,8 @@ public class PulsarSinkTest {
         doReturn(producerBuilder).when(producerBuilder).topic(anyString());
         doReturn(producerBuilder).when(producerBuilder).producerName(anyString());
         doReturn(producerBuilder).when(producerBuilder).property(anyString(), anyString());
-
+        doReturn(producerBuilder).when(producerBuilder).sendTimeout(anyInt(), any());
+        
         CompletableFuture completableFuture = new CompletableFuture<>();
         completableFuture.complete(mock(MessageId.class));
         TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);

@@ -127,6 +127,37 @@ func newAuthenticationTLS(certificatePath string, privateKeyPath string) Authent
 	return auth
 }
 
+func newAuthenticationToken(token string) Authentication {
+	cToken := C.CString(token)
+	defer C.free(unsafe.Pointer(cToken))
+
+	auth := &authentication{
+		ptr: C.pulsar_authentication_token_create(cToken),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
+//export pulsarClientTokenSupplierProxy
+func pulsarClientTokenSupplierProxy(ctx unsafe.Pointer) *C.char {
+	tokenSupplier := restorePointerNoDelete(ctx).(func() string)
+	token := tokenSupplier()
+	// The C string will be freed from within the C wrapper itself
+	return C.CString(token);
+}
+
+func newAuthenticationTokenSupplier(tokenSupplier func() string) Authentication {
+	supplierPtr := savePointer(tokenSupplier)
+
+	auth := &authentication{
+		ptr: C._pulsar_authentication_token_create_with_supplier(supplierPtr),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
 func newAuthenticationAthenz(authParams string) Authentication {
 	cAuthParams := C.CString(authParams)
 	defer C.free(unsafe.Pointer(cAuthParams))
