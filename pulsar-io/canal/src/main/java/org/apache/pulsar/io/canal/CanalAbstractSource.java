@@ -1,45 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 package org.apache.pulsar.io.canal;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.client.impl.SimpleCanalConnector;
-import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.FlatMessage;
+import com.alibaba.otter.canal.protocol.Message;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.MDC;
-import com.alibaba.otter.canal.protocol.CanalEntry.Column;
-import com.alibaba.otter.canal.protocol.CanalEntry.Entry;
-import com.alibaba.otter.canal.protocol.CanalEntry.EntryType;
-import com.alibaba.otter.canal.protocol.CanalEntry.EventType;
-import com.alibaba.otter.canal.protocol.CanalEntry.RowChange;
-import com.alibaba.otter.canal.protocol.CanalEntry.RowData;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -47,16 +19,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+
 /**
- * A Simple class for mysql binlog sync to pulsar.
+ * A Simple abstract class for mysql binlog sync to pulsar.
  */
-@Connector(
-    name = "canal",
-    type = IOType.SOURCE,
-    help = "The CanalSource is used for syncing mysql binlog to Pulsar.",
-    configClass = CanalSourceConfig.class)
 @Slf4j
-public class CanalSource extends PushSource<byte[]> {
+public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
     protected Thread thread = null;
 
@@ -138,13 +106,14 @@ public class CanalSource extends PushSource<byte[]> {
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
-                    printEntry(message.getEntries());
+//                    printEntry(message.getEntries());
                     // delete the setRaw in new version of canal-client
                     message.setRaw(false);
                     SimpleCanalConnector con = (SimpleCanalConnector) connector;
                     con.isLazyParseEntry();
                     List<FlatMessage> flatMessages = MessageUtils.messageConverter(message);
-                    long batchId = message.getId();
+//                    long batchId = message.getId();
+                    long batchId = getMessageId(message);
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
                         try {
@@ -153,10 +122,9 @@ public class CanalSource extends PushSource<byte[]> {
                         }
                     } else {
                         if (flatMessages != null) {
-                            CanalRecord canalRecord = new CanalRecord(connector);
-                            String m = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
+                            CanalRecord<V> canalRecord = new CanalRecord<>(connector);
                             canalRecord.setId(batchId);
-                            canalRecord.setRecord(m.getBytes());
+                            canalRecord.setRecord(extractValue(flatMessages));
                             consume(canalRecord);
                         }
                     }
@@ -170,11 +138,15 @@ public class CanalSource extends PushSource<byte[]> {
         }
     }
 
+    public abstract Long getMessageId(Message message);
+
+    public abstract V extractValue(List<FlatMessage> flatMessages);
+
     @Getter
     @Setter
-    static private class CanalRecord implements Record<byte[]> {
+    static private class CanalRecord<V> implements Record<V> {
 
-        private byte[] record;
+        private V record;
         private Long id;
         private CanalConnector connector;
 
@@ -183,17 +155,19 @@ public class CanalSource extends PushSource<byte[]> {
         }
 
         @Override
-        public Optional<String>  getKey() {
-            return  Optional.of(Long.toString(id));
+        public Optional<String> getKey() {
+            return Optional.of(Long.toString(id));
         }
 
         @Override
-        public byte[] getValue() {
+        public V getValue() {
             return record;
         }
 
         @Override
-        public Optional<Long> getRecordSequence() {return Optional.of(id);}
+        public Optional<Long> getRecordSequence() {
+            return Optional.of(id);
+        }
 
         @Override
         public void ack() {
@@ -202,48 +176,4 @@ public class CanalSource extends PushSource<byte[]> {
         }
 
     }
-
-    private static void printEntry(List<Entry> entrys) {
-        for (Entry entry : entrys) {
-            if (entry.getEntryType() == EntryType.TRANSACTIONBEGIN || entry.getEntryType() == EntryType.TRANSACTIONEND) {
-                continue;
-            }
-
-            RowChange rowChage = null;
-            try {
-                rowChage = RowChange.parseFrom(entry.getStoreValue());
-            } catch (Exception e) {
-                throw new RuntimeException("ERROR ## parser of eromanga-event has an error , data:" + entry.toString(),
-                        e);
-            }
-
-            EventType eventType = rowChage.getEventType();
-            System.out.println(String.format("================&gt; binlog[%s:%s] , name[%s,%s] , eventType : %s",
-                    entry.getHeader().getLogfileName(), entry.getHeader().getLogfileOffset(),
-                    entry.getHeader().getSchemaName(), entry.getHeader().getTableName(),
-                    eventType));
-
-            for (RowData rowData : rowChage.getRowDatasList()) {
-                if (eventType == EventType.DELETE) {
-                    printColumn(rowData.getBeforeColumnsList());
-                } else if (eventType == EventType.INSERT) {
-                    printColumn(rowData.getAfterColumnsList());
-                } else {
-                    System.out.println("-------&gt; before");
-                    printColumn(rowData.getBeforeColumnsList());
-                    System.out.println("-------&gt; after");
-                    printColumn(rowData.getAfterColumnsList());
-                }
-            }
-        }
-    }
-
-    private static void printColumn(List<Column> columns) {
-        for (Column column : columns) {
-            System.out.println(column.getName() + " : " + column.getValue() + "    update=" + column.getUpdated() +
-                    "   is null" + column.getIsKey() + "   " + column.getIsKey());
-        }
-    }
-
-
 }
