@@ -20,8 +20,6 @@ package org.apache.pulsar.common.util;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class FutureUtil {
 
@@ -31,32 +29,8 @@ public class FutureUtil {
      * @param futures
      * @return
      */
-    public static <T> CompletableFuture<T> waitForAll(List<CompletableFuture<T>> futures) {
-        if (futures.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        final CompletableFuture<T> compositeFuture = new CompletableFuture<>();
-        final AtomicInteger count = new AtomicInteger(futures.size());
-        final AtomicReference<Throwable> exception = new AtomicReference<>();
-
-        for (CompletableFuture<T> future : futures) {
-            future.whenComplete((r, ex) -> {
-                if (ex != null) {
-                    exception.compareAndSet(null, ex);
-                }
-                if (count.decrementAndGet() == 0) {
-                    // All the pending futures did complete
-                    if (exception.get() != null) {
-                        compositeFuture.completeExceptionally(exception.get());
-                    } else {
-                        compositeFuture.complete(null);
-                    }
-                }
-            });
-        }
-
-        return compositeFuture;
+    public static <T> CompletableFuture<Void> waitForAll(List<CompletableFuture<T>> futures) {
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     public static <T> CompletableFuture<T> failedFuture(Throwable t) {
