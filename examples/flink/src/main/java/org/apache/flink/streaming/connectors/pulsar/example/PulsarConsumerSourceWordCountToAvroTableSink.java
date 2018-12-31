@@ -104,7 +104,6 @@ public class PulsarConsumerSourceWordCountToAvroTableSink {
                 );
 
         tableEnvironment.registerDataStream("wc",wc);
-        // note: table schema is consistent with avro
         Table table = tableEnvironment.sqlQuery("select word, `count` from wc");
         table.printSchema();
 
