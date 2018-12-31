@@ -54,7 +54,7 @@ public class CanalStringSource extends CanalAbstractSource<CanalMessage> {
     public CanalMessage extractValue(List<FlatMessage> flatMessages) {
         String messages = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
         CanalMessage canalMessage = new CanalMessage();
-        Date date=new Date();
+        Date date = new Date();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         canalMessage.setTimestamp(dateFormat.format(date));
         canalMessage.setId(this.messageId);
