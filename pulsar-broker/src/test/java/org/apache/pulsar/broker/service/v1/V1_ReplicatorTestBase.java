@@ -38,11 +38,11 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -305,14 +305,18 @@ public class V1_ReplicatorTestBase {
 
         }
 
-        void produce(int messages, MessageBuilder<byte[]> messageBuilder) throws Exception {
+        void produce(int messages, TypedMessageBuilder<byte[]> messageBuilder) throws Exception {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
                 final String m = new String("test-builder-" + i);
-                messageBuilder.setContent(m.getBytes());
-                producer.send(messageBuilder.build());
+                messageBuilder.value(m.getBytes());
+                messageBuilder.send();
                 log.info("Sent message {}", m);
             }
+        }
+
+        TypedMessageBuilder<byte[]> newMessage() {
+            return producer.newMessage();
         }
 
         void close() throws Exception {
