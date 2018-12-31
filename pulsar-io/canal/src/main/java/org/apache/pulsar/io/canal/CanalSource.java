@@ -22,6 +22,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
+import com.alibaba.otter.canal.client.impl.SimpleCanalConnector;
 import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.FlatMessage;
 import lombok.Getter;
@@ -33,6 +34,12 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.MDC;
+import com.alibaba.otter.canal.protocol.CanalEntry.Column;
+import com.alibaba.otter.canal.protocol.CanalEntry.Entry;
+import com.alibaba.otter.canal.protocol.CanalEntry.EntryType;
+import com.alibaba.otter.canal.protocol.CanalEntry.EventType;
+import com.alibaba.otter.canal.protocol.CanalEntry.RowChange;
+import com.alibaba.otter.canal.protocol.CanalEntry.RowData;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -131,9 +138,12 @@ public class CanalSource extends PushSource<byte[]> {
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
+                    printEntry(message.getEntries());
                     // delete the setRaw in new version of canal-client
                     message.setRaw(false);
-                    List<FlatMessage> flatMessages = FlatMessage.messageConverter(message);
+                    SimpleCanalConnector con = (SimpleCanalConnector) connector;
+                    con.isLazyParseEntry();
+                    List<FlatMessage> flatMessages = MessageUtils.messageConverter(message);
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
@@ -192,5 +202,48 @@ public class CanalSource extends PushSource<byte[]> {
         }
 
     }
+
+    private static void printEntry(List<Entry> entrys) {
+        for (Entry entry : entrys) {
+            if (entry.getEntryType() == EntryType.TRANSACTIONBEGIN || entry.getEntryType() == EntryType.TRANSACTIONEND) {
+                continue;
+            }
+
+            RowChange rowChage = null;
+            try {
+                rowChage = RowChange.parseFrom(entry.getStoreValue());
+            } catch (Exception e) {
+                throw new RuntimeException("ERROR ## parser of eromanga-event has an error , data:" + entry.toString(),
+                        e);
+            }
+
+            EventType eventType = rowChage.getEventType();
+            System.out.println(String.format("================&gt; binlog[%s:%s] , name[%s,%s] , eventType : %s",
+                    entry.getHeader().getLogfileName(), entry.getHeader().getLogfileOffset(),
+                    entry.getHeader().getSchemaName(), entry.getHeader().getTableName(),
+                    eventType));
+
+            for (RowData rowData : rowChage.getRowDatasList()) {
+                if (eventType == EventType.DELETE) {
+                    printColumn(rowData.getBeforeColumnsList());
+                } else if (eventType == EventType.INSERT) {
+                    printColumn(rowData.getAfterColumnsList());
+                } else {
+                    System.out.println("-------&gt; before");
+                    printColumn(rowData.getBeforeColumnsList());
+                    System.out.println("-------&gt; after");
+                    printColumn(rowData.getAfterColumnsList());
+                }
+            }
+        }
+    }
+
+    private static void printColumn(List<Column> columns) {
+        for (Column column : columns) {
+            System.out.println(column.getName() + " : " + column.getValue() + "    update=" + column.getUpdated() +
+                    "   is null" + column.getIsKey() + "   " + column.getIsKey());
+        }
+    }
+
 
 }
