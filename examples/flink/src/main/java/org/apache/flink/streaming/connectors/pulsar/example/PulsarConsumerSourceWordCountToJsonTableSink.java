@@ -44,16 +44,17 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
  *
  * <p>Example usage:
  *   --service-url pulsar://localhost:6650 --input-topic test_topic --subscription test_sub
+ * or
+ *   --service-url pulsar://localhost:6650 --input-topic test_src --subscription test_sub --output-topic test_sub
  */
 public class PulsarConsumerSourceWordCountToJsonTableSink {
-    private static final String SERVICE_URL = "pulsar://localhost:6650";
     private static final String ROUTING_KEY = "word";
 
     public static void main(String[] args) throws Exception {
         // parse input arguments
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-        if (parameterTool.getNumberOfParameters() < 2) {
+        if (parameterTool.getNumberOfParameters() < 3) {
             System.out.println("Missing parameters!");
             System.out.println("Usage: pulsar --service-url <pulsar-service-url> --input-topic <topic> --subscription <sub> --output-topic <topic>");
             return;
@@ -98,22 +99,22 @@ public class PulsarConsumerSourceWordCountToJsonTableSink {
                     }
                 })
                 .returns(WordWithCount.class)
-                .keyBy("word")
+                .keyBy(ROUTING_KEY)
                 .timeWindow(Time.seconds(5))
                 .reduce((ReduceFunction<WordWithCount>) (c1, c2) ->
                         new WordWithCount(c1.word, c1.count + c2.count));
 
         tableEnvironment.registerDataStream("wc",wc);
-
-        Table table = tableEnvironment.sqlQuery("select * from wc");
+        Table table = tableEnvironment.sqlQuery("select word, `count` from wc");
+        table.printSchema();
+        TableSink sink = null;
         if (null != outputTopic) {
-            PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, outputTopic, new ProducerConfiguration(), ROUTING_KEY);
-            table.writeToSink(sink);
+            sink = new PulsarJsonTableSink(serviceUrl, outputTopic, new ProducerConfiguration(), ROUTING_KEY);
         } else {
-            TableSink sink = new CsvTableSink("./examples/file",  "|");
             // print the results with a csv file
-            table.writeToSink(sink);
+            sink = new CsvTableSink("./examples/file",  "|");
         }
+        table.writeToSink(sink);
 
         env.execute("Pulsar Stream WordCount");
     }
