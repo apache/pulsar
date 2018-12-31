@@ -72,9 +72,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
 import static org.apache.pulsar.functions.utils.Utils.*;
-import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.SINK;
-import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -121,23 +121,6 @@ import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public abstract class ComponentImpl {
-
-    public enum ComponentType {
-        FUNCTION("Function"),
-        SOURCE("Source"),
-        SINK("Sink");
-
-        private final String componentName;
-
-        ComponentType(String componentName) {
-            this.componentName = componentName;
-        }
-
-        @Override
-        public String toString() {
-            return componentName;
-        }
-    }
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     protected final Supplier<WorkerService> workerServiceSupplier;
