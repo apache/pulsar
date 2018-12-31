@@ -99,7 +99,8 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
     @Override
     public TypeInformation<Row> getOutputType() {
-        return new RowTypeInfo(fieldTypes, fieldNames);
+        RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes, fieldNames);
+        return rowTypeInfo;
     }
 
     @Override
@@ -162,7 +163,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
         @Override
         public String getKey(Row event) {
-            return (String) event.getField(keyIndex);
+            return event.getField(keyIndex).toString();
         }
     }
 

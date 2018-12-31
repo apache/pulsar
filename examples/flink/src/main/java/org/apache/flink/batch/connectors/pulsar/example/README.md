@@ -211,6 +211,10 @@ $ bin/pulsar-client consume -n 0 -s test test_flink_topic
 
 6. Please find sample output for above linked application as follows:
 ```
- "4,SKYLAB,1973,1974"
- "5,APOLLO–SOYUZ TEST PROJECT,1975,1975"
+ ----- got message -----
+ 
+ Skylab��
+ ----- got message -----
+ 
+ 6Apollo–Soyuz Test Project��
 ```
