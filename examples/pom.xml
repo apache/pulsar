@@ -33,7 +33,7 @@
   <name>Pulsar Examples :: Parent</name>
 
   <modules>
-    <module>flink-consumer-source</module>
+    <module>flink</module>
   </modules>
 
 </project>
