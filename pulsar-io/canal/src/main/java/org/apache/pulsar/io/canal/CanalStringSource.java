@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import com.alibaba.fastjson.JSON;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -35,8 +36,9 @@ public class CanalStringSource extends CanalAbstractSource<CanalMessage> {
     public CanalMessage extractValue(List<FlatMessage> flatMessages) {
         String messages = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
         CanalMessage canalMessage = new CanalMessage();
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        canalMessage.setTimestamp(df.toString());
+        Date date=new Date();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        canalMessage.setTimestamp(dateFormat.format(date));
         canalMessage.setId(this.messageId);
         canalMessage.setMessage(messages);
         return canalMessage;
