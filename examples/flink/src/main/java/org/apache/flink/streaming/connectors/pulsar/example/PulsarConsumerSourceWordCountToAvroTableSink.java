@@ -97,7 +97,7 @@ public class PulsarConsumerSourceWordCountToAvroTableSink {
                     }
                 })
                 .returns(WordWithCount.class)
-                .keyBy("word")
+                .keyBy(ROUTING_KEY)
                 .timeWindow(Time.seconds(5))
                 .reduce((ReduceFunction<WordWithCount>) (c1, c2) ->
                         WordWithCount.newBuilder().setWord(c1.getWord()).setCount(c1.getCount() + c2.getCount()).build()
@@ -106,15 +106,14 @@ public class PulsarConsumerSourceWordCountToAvroTableSink {
         tableEnvironment.registerDataStream("wc",wc);
         Table table = tableEnvironment.sqlQuery("select word, `count` from wc");
         table.printSchema();
-
+        TableSink sink = null;
         if (null != outputTopic) {
-            PulsarAvroTableSink sink = new PulsarAvroTableSink(serviceUrl, outputTopic, new ProducerConfiguration(), ROUTING_KEY, WordWithCount.class);
-            table.writeToSink(sink);
+            sink = new PulsarAvroTableSink(serviceUrl, outputTopic, new ProducerConfiguration(), ROUTING_KEY, WordWithCount.class);
         } else {
-            TableSink sink = new CsvTableSink("./examples/file",  "|");
             // print the results with a csv file
-            table.writeToSink(sink);
+            sink = new CsvTableSink("./examples/file",  "|");
         }
+        table.writeToSink(sink);
 
         env.execute("Pulsar Stream WordCount");
     }
