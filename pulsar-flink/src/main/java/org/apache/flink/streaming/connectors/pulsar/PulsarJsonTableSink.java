@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.types.Row;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 
 /**
  * Base class for {@link PulsarTableSink} that serializes data in JSON format.
@@ -40,9 +39,8 @@ public class PulsarJsonTableSink extends PulsarTableSink {
     public PulsarJsonTableSink(
             String serviceUrl,
             String topic,
-            ProducerConfiguration producerConf,
             String routingKeyFieldName) {
-        super(serviceUrl, topic, producerConf, routingKeyFieldName);
+        super(serviceUrl, topic, routingKeyFieldName);
     }
 
     @Override
@@ -55,7 +53,6 @@ public class PulsarJsonTableSink extends PulsarTableSink {
         return new PulsarJsonTableSink(
                 serviceUrl,
                 topic,
-                producerConf,
                 routingKeyFieldName);
     }
 }
