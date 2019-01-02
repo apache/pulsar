@@ -66,7 +66,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
-     private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
+    private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
 
     private static final long serialVersionUID = 1L;
 
@@ -516,7 +516,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         	poll(0);
         	return lastReceivedOffset.get(partition);
         }
-        return offset != null ? offset : -1L;
+        return offset;
     }
 
     private void resetOffsets(final TopicPartition partition) {
