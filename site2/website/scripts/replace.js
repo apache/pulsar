@@ -37,6 +37,10 @@ function connectorReleaseUrl(version) {
     }
 }
 
+function offloaderReleaseUrl(version) {
+    return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
+}
+
 function prestoPulsarReleaseUrl(version) {
     if (version.includes('incubating')) {
         return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/pulsar-presto-connector-${version}.tar.gz`
@@ -86,6 +90,7 @@ const from = [
   /{{pulsar:version}}/g,
   /pulsar:binary_release_url/g,
   /pulsar:connector_release_url/g,
+  /pulsar:offloader_release_url/g,
   /pulsar:presto_pulsar_connector_release_url/g,
   /pulsar:download_page_url/g,
   /{{pulsar:rpm:client}}/g,
@@ -107,6 +112,7 @@ const options = {
     `${latestVersion}`,
     binaryReleaseUrl(`${latestVersion}`),
     connectorReleaseUrl(`${latestVersion}`),
+    offloaderReleaseUrl(`${latestVersion}`),
     prestoPulsarReleaseUrl(`${latestVersion}`),
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}`, ""),
