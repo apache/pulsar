@@ -164,12 +164,13 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     private OffsetResetStrategy getStrategy(final String strategy) {
-    	if (strategy.equals("earliest")) {
-    		return OffsetResetStrategy.EARLIEST;
-    	} else if (strategy.equals("latest")) {
-    		return OffsetResetStrategy.LATEST;
-    	} else {
-    		return OffsetResetStrategy.NONE;
+    	switch(strategy) {
+    		case "earliest":
+    			return OffsetResetStrategy.EARLIEST;
+    		case "latest":
+    			return OffsetResetStrategy.LATEST;
+    		default:
+    			throw new IllegalArgumentException("Strategy given by the user is not valid");
     	}
     }
     
@@ -523,7 +524,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     		seekToBeginning(Collections.singleton(partition));
     	} else {
     		seekToEnd(Collections.singleton(partition));
-    	}
+    	} 
     }
     
     @Override
