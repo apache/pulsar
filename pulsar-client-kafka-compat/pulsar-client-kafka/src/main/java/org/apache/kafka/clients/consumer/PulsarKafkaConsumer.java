@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -511,19 +512,18 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
         if (offset == null && strategy != OffsetResetStrategy.NONE) {
-        	resetOffsets(partition);
-        	// get most recent offset
-        	poll(0);
-        	return lastReceivedOffset.get(partition);
+        	return resetOffsets(partition).getValue();
         }
         return offset;
     }
 
-    private void resetOffsets(final TopicPartition partition) {
+    private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
     	if (strategy == OffsetResetStrategy.EARLIEST) {
     		seekToBeginning(Collections.singleton(partition));
+    		return SubscriptionInitialPosition.Earliest;
     	} else {
     		seekToEnd(Collections.singleton(partition));
+    		return SubscriptionInitialPosition.Latest;
     	} 
     }
     
