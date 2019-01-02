@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.io.canal;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
-import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.FlatMessage;
+import com.alibaba.otter.canal.protocol.Message;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.MDC;
 
 import java.net.InetSocketAddress;
@@ -40,16 +36,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+
 /**
- * A Simple class for mysql binlog sync to pulsar.
+ * A Simple abstract class for mysql binlog sync to pulsar.
  */
-@Connector(
-    name = "canal",
-    type = IOType.SOURCE,
-    help = "The CanalSource is used for syncing mysql binlog to Pulsar.",
-    configClass = CanalSourceConfig.class)
 @Slf4j
-public class CanalSource extends PushSource<byte[]> {
+public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
     protected Thread thread = null;
 
@@ -131,10 +123,9 @@ public class CanalSource extends PushSource<byte[]> {
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
-                    // delete the setRaw in new version of canal-client
                     message.setRaw(false);
-                    List<FlatMessage> flatMessages = FlatMessage.messageConverter(message);
-                    long batchId = message.getId();
+                    List<FlatMessage> flatMessages = MessageUtils.messageConverter(message);
+                    long batchId = getMessageId(message);
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
                         try {
@@ -143,10 +134,9 @@ public class CanalSource extends PushSource<byte[]> {
                         }
                     } else {
                         if (flatMessages != null) {
-                            CanalRecord canalRecord = new CanalRecord(connector);
-                            String m = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
+                            CanalRecord<V> canalRecord = new CanalRecord<>(connector);
                             canalRecord.setId(batchId);
-                            canalRecord.setRecord(m.getBytes());
+                            canalRecord.setRecord(extractValue(flatMessages));
                             consume(canalRecord);
                         }
                     }
@@ -160,11 +150,15 @@ public class CanalSource extends PushSource<byte[]> {
         }
     }
 
+    public abstract Long getMessageId(Message message);
+
+    public abstract V extractValue(List<FlatMessage> flatMessages);
+
     @Getter
     @Setter
-    static private class CanalRecord implements Record<byte[]> {
+    static private class CanalRecord<V> implements Record<V> {
 
-        private byte[] record;
+        private V record;
         private Long id;
         private CanalConnector connector;
 
@@ -173,17 +167,19 @@ public class CanalSource extends PushSource<byte[]> {
         }
 
         @Override
-        public Optional<String>  getKey() {
-            return  Optional.of(Long.toString(id));
+        public Optional<String> getKey() {
+            return Optional.of(Long.toString(id));
         }
 
         @Override
-        public byte[] getValue() {
+        public V getValue() {
             return record;
         }
 
         @Override
-        public Optional<Long> getRecordSequence() {return Optional.of(id);}
+        public Optional<Long> getRecordSequence() {
+            return Optional.of(id);
+        }
 
         @Override
         public void ack() {
@@ -192,5 +188,4 @@ public class CanalSource extends PushSource<byte[]> {
         }
 
     }
-
 }
