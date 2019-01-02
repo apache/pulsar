@@ -164,13 +164,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     private SubscriptionInitialPosition getStrategy(final String strategy) {
-    	switch(strategy) {
-    		case "earliest":
-    			return SubscriptionInitialPosition.Earliest;
-    		case "latest":
-    			return SubscriptionInitialPosition.Latest;
-    		default:
-    			throw new IllegalArgumentException("Strategy given by the user is not valid");
+        switch(strategy) {
+    	    case "earliest":
+    	        return SubscriptionInitialPosition.Earliest;
+    	    default:
+    		    return SubscriptionInitialPosition.Latest;
     	}
     }
     
@@ -511,7 +509,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
         if (offset == null) {
-        	return resetOffsets(partition).getValue();
+            return resetOffsets(partition).getValue();
         }
         return offset;
     }
