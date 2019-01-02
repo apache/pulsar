@@ -146,12 +146,12 @@ extends Enum&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageRout
 </tr>
 <tr class="rowColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html#RoundRobinPartition">RoundRobinPartition</a></span></code>
-<div class="block">Publish messages across all partitions in round-robin.</div>
+<div class="block">If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput.</div>
 </td>
 </tr>
 <tr class="altColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html#SinglePartition">SinglePartition</a></span></code>
-<div class="block">The producer will chose one single partition and publish all the messages into that partition.</div>
+<div class="block">If no key is provided, The partitioned producer will randomly pick one single partition and publish all the messages into that partition.</div>
 </td>
 </tr>
 </table>
@@ -218,7 +218,8 @@ the order they are declared.</div>
 <li class="blockList">
 <h4>SinglePartition</h4>
 <pre>public static final&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a> SinglePartition</pre>
-<div class="block">The producer will chose one single partition and publish all the messages into that partition.</div>
+<div class="block">If no key is provided, The partitioned producer will randomly pick one single partition and publish all the messages into that partition.
+ If a key is provided on the message, the partitioned producer will hash the key and assign message to a particular partition.</div>
 </li>
 </ul>
 <a name="RoundRobinPartition">
@@ -228,7 +229,10 @@ the order they are declared.</div>
 <li class="blockList">
 <h4>RoundRobinPartition</h4>
 <pre>public static final&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a> RoundRobinPartition</pre>
-<div class="block">Publish messages across all partitions in round-robin.</div>
+<div class="block">If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput.
+ Please note that round-robin is not done per individual message but rather it's set to the same boundary of batching delay, to ensure batching is effective.
+
+ While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.</div>
 </li>
 </ul>
 <a name="CustomPartition">
