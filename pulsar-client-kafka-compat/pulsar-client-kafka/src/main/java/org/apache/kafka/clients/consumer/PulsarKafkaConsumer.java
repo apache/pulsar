@@ -67,7 +67,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
-    private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
 
     private static final long serialVersionUID = 1L;
 
@@ -83,7 +82,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
-    private final OffsetResetStrategy strategy;
+    private final SubscriptionInitialPosition strategy;
 
     private volatile boolean closed = false;
 
@@ -164,12 +163,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
     }
 
-    private OffsetResetStrategy getStrategy(final String strategy) {
+    private SubscriptionInitialPosition getStrategy(final String strategy) {
     	switch(strategy) {
     		case "earliest":
-    			return OffsetResetStrategy.EARLIEST;
+    			return SubscriptionInitialPosition.Earliest;
     		case "latest":
-    			return OffsetResetStrategy.LATEST;
+    			return SubscriptionInitialPosition.Latest;
     		default:
     			throw new IllegalArgumentException("Strategy given by the user is not valid");
     	}
@@ -511,20 +510,19 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
-        if (offset == null && strategy != OffsetResetStrategy.NONE) {
+        if (offset == null) {
         	return resetOffsets(partition).getValue();
         }
         return offset;
     }
 
     private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
-    	if (strategy == OffsetResetStrategy.EARLIEST) {
+    	if (strategy == SubscriptionInitialPosition.Earliest) {
     		seekToBeginning(Collections.singleton(partition));
-    		return SubscriptionInitialPosition.Earliest;
     	} else {
     		seekToEnd(Collections.singleton(partition));
-    		return SubscriptionInitialPosition.Latest;
     	} 
+    	return strategy;
     }
     
     @Override
