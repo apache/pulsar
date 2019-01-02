@@ -66,7 +66,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
-	private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
+     private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
 
     private static final long serialVersionUID = 1L;
 
