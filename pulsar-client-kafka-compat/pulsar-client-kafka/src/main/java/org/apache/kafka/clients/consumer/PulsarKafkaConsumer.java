@@ -325,6 +325,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 long offset = MessageIdUtils.getOffset(msgId);
 
                 TopicPartition tp = new TopicPartition(topic, partition);
+                if (lastReceivedOffset.get(tp) == null) {
+                	resetOffsets(tp);
+                }
 
                 K key = getKey(topic, msg);
                 V value = valueDeserializer.deserialize(topic, msg.getData());
@@ -507,11 +510,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
         if (offset == null && strategy != OffsetResetStrategy.NONE) {
-        	if (strategy == OffsetResetStrategy.EARLIEST) {
-        		seekToBeginning(Collections.singleton(partition));
-        	} else {
-        		seekToEnd(Collections.singleton(partition));
-        	}
+        	resetOffsets(partition);
         	// get most recent offset
         	poll(0);
         	return lastReceivedOffset.get(partition);
@@ -519,6 +518,14 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         return offset != null ? offset : -1L;
     }
 
+    private void resetOffsets(final TopicPartition partition) {
+    	if (strategy == OffsetResetStrategy.EARLIEST) {
+    		seekToBeginning(Collections.singleton(partition));
+    	} else {
+    		seekToEnd(Collections.singleton(partition));
+    	}
+    }
+    
     @Override
     public OffsetAndMetadata committed(TopicPartition partition) {
         return lastCommittedOffset.get(partition);
