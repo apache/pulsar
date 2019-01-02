@@ -21,6 +21,7 @@ package org.apache.kafka.clients.consumer;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
+	private static enum OffsetResetStrategy {EARLIEST, LATEST, NONE}
 
     private static final long serialVersionUID = 1L;
 
@@ -80,6 +82,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
+    private final OffsetResetStrategy strategy;
 
     private volatile boolean closed = false;
 
@@ -143,6 +146,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
         isAutoCommit = config.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        strategy = getStrategy(config.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
 
         String serviceUrl = config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
@@ -159,6 +163,16 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
     }
 
+    private OffsetResetStrategy getStrategy(final String strategy) {
+    	if (strategy.equals("earliest")) {
+    		return OffsetResetStrategy.EARLIEST;
+    	} else if (strategy.equals("latest")) {
+    		return OffsetResetStrategy.LATEST;
+    	} else {
+    		return OffsetResetStrategy.NONE;
+    	}
+    }
+    
     @Override
     public void received(org.apache.pulsar.client.api.Consumer<byte[]> consumer, Message<byte[]> msg) {
         // Block listener thread if the application is slowing down
@@ -492,7 +506,17 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
-        return offset != null ? offset : -1l;
+        if (offset == null && strategy != OffsetResetStrategy.NONE) {
+        	if (strategy == OffsetResetStrategy.EARLIEST) {
+        		seekToBeginning(Collections.singleton(partition));
+        	} else {
+        		seekToEnd(Collections.singleton(partition));
+        	}
+        	// get most recent offset
+        	poll(0);
+        	return lastReceivedOffset.get(partition);
+        }
+        return offset != null ? offset : -1L;
     }
 
     @Override
