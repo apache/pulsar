@@ -23,8 +23,6 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,12 +30,6 @@ import java.util.List;
 /**
  * A Simple hbase sink, which interprets input Record in generic record.
  */
-@Connector(
-    name = "hbase",
-    type = IOType.SINK,
-    help = "A simple hbase sink that writes pulser messages to table",
-    configClass = HbaseSink.class
-)
 @Slf4j
 public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
     @Override
@@ -51,7 +43,7 @@ public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
         String rowKeyName = tableDefinition.getRowKeyName();
         Object rowKeyValue = record.getField(rowKeyName);
 
-        // set familyName value from hbase sink config
+        // set familyName value from HbaseSinkConfig
         String familyName = tableDefinition.getFamilyName();
         byte[] familyValueBytes = getBytes(familyName);
 

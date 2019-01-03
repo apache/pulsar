@@ -75,7 +75,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
             throw new IllegalArgumentException("Required property not set.");
         }
 
-        createTable(hbaseSinkConfig);
+        getTable(hbaseSinkConfig);
         tableDefinition = getTableDefinition(hbaseSinkConfig);
 
         timeoutMs = hbaseSinkConfig.getTimeoutMs();
@@ -133,7 +133,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
                 // bind each record value
                 for (Record<T> record : swapList) {
                     List<Put> puts = bindValue(record);
-                    if (CollectionUtils.isNotEmpty(puts)){
+                    if (CollectionUtils.isNotEmpty(puts)) {
                         table.put(puts);
                     }
                     record.ack();
@@ -158,7 +158,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
     }
 
-    private void createTable(HbaseSinkConfig hbaseSinkConfig) throws IOException {
+    private void getTable(HbaseSinkConfig hbaseSinkConfig) throws IOException {
         configuration = HBaseConfiguration.create();
         String hbaseConfigResources = hbaseSinkConfig.getHbaseConfigResources();
         if (StringUtils.isNotBlank(hbaseConfigResources)) {

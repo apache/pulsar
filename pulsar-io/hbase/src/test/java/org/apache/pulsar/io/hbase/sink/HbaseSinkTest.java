@@ -76,7 +76,7 @@ public class HbaseSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test
+    @Test(enabled = false)
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("hbaseConfigResources", "../pulsar/pulsar-io/hbase/src/test/resources/hbase/hbase-site.xml");
@@ -84,9 +84,6 @@ public class HbaseSinkTest {
         map.put("zookeeperClientPort", "2181");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "default:pulsar_hbase");
-        map.put("rowKeyName", "rowKey");
-        map.put("familyName", "info");
-
         map.put("rowKeyName", rowKeyName);
         map.put("familyName", familyName);
 
@@ -103,7 +100,7 @@ public class HbaseSinkTest {
         Foo obj = new Foo();
         obj.setRowKey("rowKey_value");
         obj.setName("name_value");
-        obj.setAddress("address_us");
+        obj.setAddress("address_value");
         obj.setAge(30);
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
 
