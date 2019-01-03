@@ -15,6 +15,10 @@ original_id: deploy-bare-metal
 > 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
 > package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
 > have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+>
+> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
+> package and make sure it is installed under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
+> this feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 Deploying a Pulsar cluster involves doing the following (in order):
 
@@ -137,6 +141,45 @@ pulsar-io-rabbitmq-{{pulsar:version}}.nar
 pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
+
+## Installing Tiered Storage Offloaders (optional)
+
+> Since release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
+> If you would like to enable tiered storage feature, you can follow the instructions as below; otherwise you can
+> skip this section for now.
+
+To get started using tiered storage offloaders, you'll need to download the offloaders tarball release on every broker node in
+one of the following ways:
+
+* by clicking the link below and downloading the release from an Apache mirror:
+
+  * <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:offloader_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders`
+in the pulsar directory:
+
+```bash
+$ tar xvfz apache-pulsar-offloaders-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-offloaders-{{pulsar:version}}` in the pulsar directory
+// then copy the offloaders
+
+$ mv apache-pulsar-offloaders-{{pulsar:version}}/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-{{pulsar:version}}.nar
+```
+
+For more details of how to configure tiered storage feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md)
+
 
 ## Deploying a ZooKeeper cluster
 
