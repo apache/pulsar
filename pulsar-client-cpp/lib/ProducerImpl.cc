@@ -467,7 +467,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
         }
         return;
     }
-    LOG_DEBUG(getName() << "Closing producer");
+    LOG_INFO(getName() << "Closing producer for topic " << topic_);
     state_ = Closing;
 
     ClientConnectionPtr cnx = getCnx().lock();

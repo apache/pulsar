@@ -86,7 +86,7 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
 
 void Client::subscribeAsync(const std::string& topic, const std::string& consumerName,
                             const ConsumerConfiguration& conf, SubscribeCallback callback) {
-    LOG_DEBUG("Topic is :" << topic);
+    LOG_INFO("Subscribing on Topic :" << topic);
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 
