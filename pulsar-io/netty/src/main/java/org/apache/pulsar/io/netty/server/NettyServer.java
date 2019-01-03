@@ -96,17 +96,15 @@ public class NettyServer {
     }
 
     private void runTcp() throws InterruptedException {
-        if (type.equalsIgnoreCase(TCP)) {
-            ServerBootstrap serverBootstrap = new ServerBootstrap();
-            serverBootstrap.group(bossGroup, workerGroup);
-            serverBootstrap.channel(NioServerSocketChannel.class);
-            serverBootstrap.childHandler(new NettyChannelInitializer(new NettyServerHandler(this.nettySource)))
-                    .option(ChannelOption.SO_BACKLOG, 1024)
-                    .childOption(ChannelOption.SO_KEEPALIVE, true);
+        ServerBootstrap serverBootstrap = new ServerBootstrap();
+        serverBootstrap.group(bossGroup, workerGroup);
+        serverBootstrap.channel(NioServerSocketChannel.class);
+        serverBootstrap.childHandler(new NettyChannelInitializer(new NettyServerHandler(this.nettySource)))
+                .option(ChannelOption.SO_BACKLOG, 1024)
+                .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-            ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
-            channelFuture.channel().closeFuture().sync();
-        }
+        ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
+        channelFuture.channel().closeFuture().sync();
     }
 
     /**
