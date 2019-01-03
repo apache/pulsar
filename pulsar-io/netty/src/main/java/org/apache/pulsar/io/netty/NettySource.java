@@ -64,6 +64,7 @@ public class NettySource extends PushSource<byte[]> {
         @Override
         public void run() {
             nettyServer = new NettyServer.Builder()
+                    .setType(nettySourceConfig.getType())
                     .setHost(nettySourceConfig.getHost())
                     .setPort(nettySourceConfig.getPort())
                     .setNumberOfThreads(nettySourceConfig.getNumberOfThreads())
