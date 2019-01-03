@@ -46,7 +46,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public final static String USER_METRIC_PREFIX = "user_metric_";
 
-    public static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster", "fqfn"};
+    public static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 
     protected static final String[] exceptionMetricsLabelNames;
 
