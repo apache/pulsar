@@ -168,7 +168,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     	    case "earliest":
     	        return SubscriptionInitialPosition.Earliest;
     	    default:
-    		    return SubscriptionInitialPosition.Latest;
+                return SubscriptionInitialPosition.Latest;
     	}
     }
     
