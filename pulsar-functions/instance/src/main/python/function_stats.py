@@ -27,7 +27,7 @@ from ratelimit import limits, RateLimitException
 
 # We keep track of the following metrics
 class Stats(object):
-  metrics_label_names = ['tenant', 'namespace', 'function', 'instance_id', 'cluster', 'fqfn']
+  metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id', 'cluster', 'fqfn']
 
   exception_metrics_label_names = metrics_label_names + ['error', 'ts']
 
