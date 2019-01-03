@@ -78,7 +78,6 @@ public class NettyServerTest {
                 .build();
     }
 
-
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenNumberOfThreadsIsNotSet() {
         new NettyServer.Builder()
@@ -88,7 +87,6 @@ public class NettyServerTest {
                 .setNettyTcpSource(new NettySource())
                 .build();
     }
-
 
     @Test(expected = NullPointerException.class)
     public void testNettyTcpServerConstructorWhenNettyTcpSourceIsNotSet() {
