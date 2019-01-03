@@ -515,12 +515,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
-    	if (strategy == SubscriptionInitialPosition.Earliest) {
-    		seekToBeginning(Collections.singleton(partition));
-    	} else {
-    		seekToEnd(Collections.singleton(partition));
-    	} 
-    	return strategy;
+        if (strategy == SubscriptionInitialPosition.Earliest) {
+            seekToBeginning(Collections.singleton(partition));
+        } else {
+            seekToEnd(Collections.singleton(partition));
+        } 
+        return strategy;
     }
     
     @Override
