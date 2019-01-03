@@ -103,6 +103,12 @@ static Result getResult(ServerError serverError) {
 
         case TopicTerminatedError:
             return ResultTopicTerminated;
+
+        case ProducerBusy:
+            return ResultProducerBusy;
+
+        case InvalidTopicName:
+            return ResultInvalidTopicName;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
