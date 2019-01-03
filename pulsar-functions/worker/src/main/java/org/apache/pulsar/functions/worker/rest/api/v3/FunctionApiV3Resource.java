@@ -66,11 +66,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                  final @FormDataParam("data") InputStream uploadedInputStream,
                                  final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                  final @FormDataParam("url") String functionPkgUrl,
-                                 final @FormDataParam("functionDetails") String functionDetailsJson,
                                  final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
+                functionPkgUrl, null, functionConfigJson, clientAppId());
 
     }
 
@@ -83,11 +82,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("functionDetails") String functionDetailsJson,
                                final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
+                functionPkgUrl, null, functionConfigJson, clientAppId());
 
     }
 
