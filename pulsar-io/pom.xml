@@ -50,7 +50,6 @@
     <module>canal</module>
     <module>file</module>
     <module>netty</module>
-    <module>hbase</module>
   </modules>
 
 </project>
