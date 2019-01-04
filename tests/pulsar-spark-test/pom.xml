@@ -39,32 +39,19 @@
             <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-spark</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.pulsar</groupId>
-                    <artifactId>pulsar-client</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-broker</artifactId>
-            <version>${project.version}</version>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>integration</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-broker</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger-original</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>mysql</artifactId>
+          <scope>test</scope>
         </dependency>
 
         <dependency>
