@@ -909,28 +909,28 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      *
      * @param message
      */
-    void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
-        if (!pendingReceives.isEmpty()) {
-            // fetch receivedCallback from queue
-            CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
-            if (exception == null) {
-                checkNotNull(message, "received message can't be null");
-                if (receivedFuture != null) {
-                    if (conf.getReceiverQueueSize() == 0) {
-                        // return message to receivedCallback
-                        receivedFuture.complete(message);
-                    } else {
-                        // increase permits for available message-queue
-                        Message<T> interceptMsg = beforeConsume(message);
-                        messageProcessed(interceptMsg);
-                        // return message to receivedCallback
-                        listenerExecutor.execute(() -> receivedFuture.complete(interceptMsg));
-                    }
-                }
-            } else {
-                listenerExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
-            }
+    private void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
+        if (pendingReceives.isEmpty()) {
+            return;
         }
+
+        checkNotNull(message, "received message can't be null");
+        // fetch receivedCallback from queue
+        CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
+        if (exception != null) {
+            receivedFuture.completeExceptionally(exception);
+            return;
+        }
+
+        if (conf.getReceiverQueueSize() == 0) {
+            receivedFuture.complete(beforeConsume(message));
+            return;
+        }
+
+        // increase permits for available message-queue
+        messageProcessed(message);
+        // return message to receivedCallback
+        receivedFuture.complete(beforeConsume(message));
     }
 
     private void triggerZeroQueueSizeListener(final Message<T> message) {
