@@ -145,7 +145,15 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         if (inputConsumers != null ) {
             inputConsumers.forEach(consumer -> {
                 try {
-                    consumer.close();
+                    if (pulsarSourceConfig.getCleanupSubscription()) {
+                        try {
+                            consumer.unsubscribe();
+                        } catch (PulsarClientException.AlreadyClosedException ex) {
+                            //no-op another instance may have already unsubscribed
+                        }
+                    } else {
+                        consumer.close();
+                    }
                 } catch (PulsarClientException e) {
                 }
             });

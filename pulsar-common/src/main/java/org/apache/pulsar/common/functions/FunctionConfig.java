@@ -93,4 +93,6 @@ public class FunctionConfig {
     private Long timeoutMs;
     private String jar;
     private String py;
+    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
+    private Boolean cleanupSubscription;
 }

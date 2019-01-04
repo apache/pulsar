@@ -151,6 +151,12 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
         }
 
+        if (sinkConfig.getCleanupSubscription() != null) {
+            sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
+        } else {
+            sourceSpecBuilder.setCleanupSubscription(true);
+        }
+
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // set up sink spec

@@ -289,7 +289,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void loadJars() throws Exception {
         try {
-            log.info("jarFile: {}", jarFile);
+            log.info("Load JAR: {}", jarFile);
             // Let's first try to treat it as a nar archive
             fnCache.registerFunctionInstanceWithArchive(
                 instanceConfig.getFunctionId(),
@@ -629,6 +629,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
 
+            pulsarSourceConfig.setCleanupSubscription(this.instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
             switch (sourceSpec.getSubscriptionType()) {
                 case FAILOVER:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
