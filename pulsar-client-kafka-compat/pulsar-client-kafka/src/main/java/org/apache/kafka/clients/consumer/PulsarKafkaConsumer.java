@@ -508,10 +508,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public long position(TopicPartition partition) {
         Long offset = lastReceivedOffset.get(partition);
-        if (offset == null) {
+        if (offset == null && !unpolledPartitions.contains(partition)) {
             return resetOffsets(partition).getValue();
         }
-        return offset;
+        return unpolledPartitions.contains(partition) ? 0 : offset;
     }
 
     private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
