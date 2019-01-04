@@ -147,6 +147,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
         isAutoCommit = config.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         strategy = getStrategy(config.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
+        log.info("Offset reset strategy has been assigned value {}", strategy);
 
         String serviceUrl = config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
@@ -325,6 +326,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
                 TopicPartition tp = new TopicPartition(topic, partition);
                 if (lastReceivedOffset.get(tp) == null) {
+                	log.info("When polling offsets, invalid offsets were detected. Resetting topic partition {}", tp);
                 	resetOffsets(tp);
                 }
 
@@ -515,6 +517,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
+    	log.info("Resetting partition {} and seeking to {} position", partition, strategy);
         if (strategy == SubscriptionInitialPosition.Earliest) {
             seekToBeginning(Collections.singleton(partition));
         } else {
