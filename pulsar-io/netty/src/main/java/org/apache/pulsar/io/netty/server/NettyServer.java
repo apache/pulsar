@@ -38,10 +38,8 @@ import org.slf4j.LoggerFactory;
 public class NettyServer {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyServer.class);
-    private static final String TCP = "tcp";
-    private static final String UDP = "udp";
 
-    private String type;
+    private Type type;
     private String host;
     private int port;
     private NettySource nettySource;
@@ -59,17 +57,17 @@ public class NettyServer {
 
     public void run() {
         try {
-            bossGroup = new NioEventLoopGroup(this.numberOfThreads);
-            workerGroup = new NioEventLoopGroup(this.numberOfThreads);
-
-            if (type.equalsIgnoreCase(TCP)) {
-                runTcp();
+            switch (type) {
+                case TCP:
+                    runTcp();
+                    break;
+                case UDP:
+                    runUdp();
+                    break;
+                default:
+                    runTcp();
+                    break;
             }
-
-            if (type.equalsIgnoreCase(UDP)) {
-                runUdp();
-            }
-
         } catch(Exception ex) {
             logger.error("Error occurred when Netty Tcp or Udp Server is running", ex);
         } finally {
@@ -85,6 +83,7 @@ public class NettyServer {
     }
 
     private void runUdp() throws InterruptedException {
+        workerGroup = new NioEventLoopGroup(this.numberOfThreads);
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioDatagramChannel.class);
@@ -96,6 +95,8 @@ public class NettyServer {
     }
 
     private void runTcp() throws InterruptedException {
+        bossGroup = new NioEventLoopGroup(this.numberOfThreads);
+        workerGroup = new NioEventLoopGroup(this.numberOfThreads);
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup);
         serverBootstrap.channel(NioServerSocketChannel.class);
@@ -108,17 +109,17 @@ public class NettyServer {
     }
 
     /**
-     * Pulsar Tcp Server Builder.
+     * Pulsar Netty Server Builder.
      */
     public static class Builder {
 
-        private String type;
+        private Type type;
         private String host;
         private int port;
         private NettySource nettySource;
         private int numberOfThreads;
 
-        public Builder setType(String type) {
+        public Builder setType(Type type) {
             this.type = type;
             return this;
         }
@@ -133,7 +134,7 @@ public class NettyServer {
             return this;
         }
 
-        public Builder setNettyTcpSource(NettySource nettySource) {
+        public Builder setNettySource(NettySource nettySource) {
             this.nettySource = nettySource;
             return this;
         }
@@ -144,7 +145,7 @@ public class NettyServer {
         }
 
         public NettyServer build() {
-            Preconditions.checkArgument(StringUtils.isNotBlank(type), "type cannot be blank/null");
+            Preconditions.checkNotNull(this.type, "type cannot be blank/null");
             Preconditions.checkArgument(StringUtils.isNotBlank(host), "host cannot be blank/null");
             Preconditions.checkArgument(this.port >= 1024, "port must be set equal or bigger than 1024");
             Preconditions.checkNotNull(this.nettySource, "nettySource must be set");
@@ -153,6 +154,16 @@ public class NettyServer {
 
             return new NettyServer(this);
         }
+    }
+
+    /**
+     * tcp or udp network protocol
+     */
+    public enum Type {
+
+        TCP,
+
+        UDP
     }
 
 }

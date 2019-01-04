@@ -26,12 +26,12 @@ import org.apache.pulsar.io.netty.server.NettyServer;
 import java.util.Map;
 
 /**
- * A simple Netty Tcp or Udp Source connector to listen Tcp messages and write to user-defined Pulsar topic
+ * A simple Netty Tcp or Udp Source connector to listen Tcp/Udp messages and write to user-defined Pulsar topic
  */
 @Connector(
     name = "netty",
     type = IOType.SOURCE,
-    help = "A simple Netty Tcp or Udp Source connector to listen Tcp or Udp messages and write to user-defined Pulsar topic",
+    help = "A simple Netty Tcp or Udp Source connector to listen Tcp/Udp messages and write to user-defined Pulsar topic",
     configClass = NettySourceConfig.class)
 public class NettySource extends PushSource<byte[]> {
 
@@ -41,6 +41,11 @@ public class NettySource extends PushSource<byte[]> {
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         NettySourceConfig nettySourceConfig = NettySourceConfig.load(config);
+        if (nettySourceConfig.getType() == null
+                || nettySourceConfig.getHost() == null
+                || nettySourceConfig.getPort() <= 0) {
+            throw new IllegalArgumentException("Required property not set.");
+        }
 
         thread = new Thread(new PulsarServerRunnable(nettySourceConfig, this));
         thread.start();
@@ -64,11 +69,11 @@ public class NettySource extends PushSource<byte[]> {
         @Override
         public void run() {
             nettyServer = new NettyServer.Builder()
-                    .setType(nettySourceConfig.getType())
+                    .setType(NettyServer.Type.valueOf(nettySourceConfig.getType().toUpperCase()))
                     .setHost(nettySourceConfig.getHost())
                     .setPort(nettySourceConfig.getPort())
                     .setNumberOfThreads(nettySourceConfig.getNumberOfThreads())
-                    .setNettyTcpSource(nettySource)
+                    .setNettySource(nettySource)
                     .build();
 
             nettyServer.run();
