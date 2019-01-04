@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -82,6 +83,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
+    private final Set<TopicPartition> unpolledPartitions = new HashSet<>();
     private final SubscriptionInitialPosition strategy;
 
     private volatile boolean closed = false;
@@ -257,7 +259,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     topicPartitions.add(tp);
                 }
             }
-
+            unpolledPartitions.addAll(topicPartitions);
+            
             // Wait for all consumers to be ready
             futures.forEach(CompletableFuture::join);
 
@@ -325,7 +328,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 long offset = MessageIdUtils.getOffset(msgId);
 
                 TopicPartition tp = new TopicPartition(topic, partition);
-                if (lastReceivedOffset.get(tp) == null) {
+                if (lastReceivedOffset.get(tp) == null && !unpolledPartitions.contains(tp)) {
                 	log.info("When polling offsets, invalid offsets were detected. Resetting topic partition {}", tp);
                 	resetOffsets(tp);
                 }
@@ -349,6 +352,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
                 // Update last offset seen by application
                 lastReceivedOffset.put(tp, offset);
+                unpolledPartitions.remove(tp);
 
                 if (++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
                     break;
@@ -484,14 +488,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         if (partitions.isEmpty()) {
             partitions = consumers.keySet();
-            lastCommittedOffset.clear();
-            lastReceivedOffset.clear();
-        } else {
-            for (final TopicPartition partition : partitions) {
-                lastCommittedOffset.remove(partition);
-                lastReceivedOffset.remove(partition);
-            }
         }
+        lastCommittedOffset.clear();
+        lastReceivedOffset.clear();
 
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
