@@ -260,6 +260,7 @@ public class PulsarFunctionE2ETest {
         functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
+        functionConfig.setCleanupSubscription(true);
         return functionConfig;
     }
 
@@ -283,6 +284,7 @@ public class PulsarFunctionE2ETest {
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setInputs(Collections.singleton(sourceTopic));
         sinkConfig.setSourceSubscriptionName(subName);
+        sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
     /**
@@ -349,6 +351,20 @@ public class PulsarFunctionE2ETest {
         // due to publish failure
         assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
                 totalMsgs);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
     }
 
@@ -535,6 +551,21 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
+
+
+        // delete functions
+        admin.sink().deleteSink(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
     }
 
     @Test(timeOut = 20000)
@@ -945,6 +976,20 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
     }
 
     @Test(timeOut = 20000)
@@ -1012,6 +1057,20 @@ public class PulsarFunctionE2ETest {
         assertEquals((int)count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
     }
 
     @Test(dataProvider = "validRoleName")
@@ -1063,6 +1122,7 @@ public class PulsarFunctionE2ETest {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopicName, sinkTopic, subscriptionName);
+        functionConfig.setCleanupSubscription(false);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
