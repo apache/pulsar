@@ -481,9 +481,6 @@ public class MessageIdTest extends BrokerTestBase {
         /**
          * verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message is corrupt
          */
-
-        CompletableFuture<MessageId> future1 = producer.sendAsync("message-1".getBytes());
-
         byte[] a2 = "message-2".getBytes();
 
         TypedMessageBuilderImpl<byte[]> msg2 = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
@@ -493,7 +490,7 @@ public class MessageIdTest extends BrokerTestBase {
                 .build();
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         // (a) create OpSendMsg with message-data : "message-1"
-        OpSendMsg op = OpSendMsg.create(((MessageImpl<byte[]>) msg), cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(((MessageImpl<byte[]>) msg2.getMessage()), cmd, 1, null);
         // a.verify: as message is not corrupt: no need to update checksum
         assertTrue(producer.verifyLocalBufferIsNotCorrupted(op));
 

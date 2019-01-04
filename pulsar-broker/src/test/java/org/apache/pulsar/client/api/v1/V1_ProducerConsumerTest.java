@@ -2411,40 +2411,37 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         final int totalMsg = 10;
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .enableBatching(false);
-
-        Message<byte[]> msg = null;
+        Message<String> msg = null;
         Set<String> messageSet = Sets.newHashSet();
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/use/my-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Exclusive)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscribe();
 
-        // 1. Invalid key name
         try {
-            producerBuilder.clone().addEncryptionKey("client-non-existant-rsa.pem")
-                    .cryptoKeyReader(new EncKeyReader())
-                    .create();
-
+            // 1. Invalid key name
+            pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .enableBatching(false)
+                .addEncryptionKey("client-non-existant-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
             Assert.fail("Producer creation should not suceed if failing to read key");
         } catch (Exception e) {
             // ok
         }
 
         // 2. Producer with valid key name
-        Producer<byte[]> producer = producerBuilder
-                    .cryptoKeyReader(new EncKeyReader())
-                    .addEncryptionKey("client-rsa.pem")
-                    .create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://my-property/use/my-ns/myenc-topic1")
+                .enableBatching(false)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
         for (int i = 0; i < totalMsg; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.send("my-message-" + i);
         }
 
         // 3. KeyReder is not set by consumer
@@ -2454,20 +2451,19 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer()
+        consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/use/my-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name")
-                .cryptoKeyReader(new EncKeyReader())
+                .subscriptionType(SubscriptionType.Exclusive)
                 .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscribe();
 
         int msgNum = 0;
         try {
             // Receive should proceed and deliver encrypted message
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            String expectedMessage = "my-message-" + msgNum++;
+            String receivedMessage = msg.getValue();
+            String expectedMessage = "my-message-" + (msgNum++);
             Assert.assertNotEquals(receivedMessage, expectedMessage, "Received encrypted message " + receivedMessage
                     + " should not match the expected message " + expectedMessage);
             consumer.acknowledgeCumulative(msg);
@@ -2475,17 +2471,19 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             Assert.fail("Failed to receive message even aftet ConsumerCryptoFailureAction.CONSUME is set.");
         }
 
-        consumer = pulsarClient.newConsumer()
+        // 5. Set keyreader and failure action
+        consumer.close();
+        consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/use/my-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Exclusive)
                 .cryptoKeyReader(new EncKeyReader())
                 .cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
+            String receivedMessage = msg.getValue();
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
@@ -2496,16 +2494,15 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // 6. Set consumer config to discard if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer()
+        consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/use/my-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscribe();
 
         // Receive should proceed and discard encrypted messages
-        msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         log.info("-- Exiting {} test --", methodName);

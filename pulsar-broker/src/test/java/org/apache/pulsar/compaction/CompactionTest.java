@@ -615,17 +615,17 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             producerNormal.newMessage()
                     .key("key0")
                     .value("my-message-0".getBytes())
-                    .sendAsync();
+                    .send();
 
             // key1 is added but then deleted
             producerNormal.newMessage()
                     .key("key1")
                     .value("my-message-1".getBytes())
-                    .sendAsync();
+                    .send();
 
             producerNormal.newMessage()
                     .key("key1")
-                    .sendAsync();
+                    .send();
 
             // key2 is added but deleted in same batch
             producerBatch.newMessage()
@@ -637,7 +637,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     .value("my-message-3".getBytes())
                     .sendAsync();
             producerBatch.newMessage()
-                                    .key("key2").sendAsync();
+                    .key("key2").send();
 
             // key3 is added in previous batch, deleted in this batch
             producerBatch.newMessage()
@@ -781,7 +781,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             producerNormal.newMessage()
                     .key("key0")
                     .value("my-message-0".getBytes())
-                    .sendAsync();
+                    .send();
         }
 
         // force ledger roll
