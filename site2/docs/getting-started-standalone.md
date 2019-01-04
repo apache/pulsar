@@ -86,7 +86,7 @@ $ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
 // you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
 // then copy the connectors
 
-$ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+$ cp -r apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
 
 $ ls connectors
 pulsar-io-aerospike-{{pulsar:version}}.nar
