@@ -86,7 +86,6 @@ public class PulsarJsonTableSinkTest {
                 Mockito.anyString(),
                 Mockito.anyString(),
                 Mockito.any(SerializationSchema.class),
-                Mockito.any(PowerMockito.class),
                 Mockito.any(PulsarKeyExtractor.class)
         ).thenReturn(producer);
         Whitebox.setInternalState(sink, "fieldNames", fieldNames);
