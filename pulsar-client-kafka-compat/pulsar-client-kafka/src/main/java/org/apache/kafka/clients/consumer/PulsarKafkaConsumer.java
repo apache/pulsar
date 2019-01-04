@@ -469,6 +469,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     public void seekToBeginning(Collection<TopicPartition> partitions) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
+        if (partitions.isEmpty()) {
+            partitions = consumers.keySet();
+        }
+        lastCommittedOffset.clear();
+        lastReceivedOffset.clear();
+        
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
             if (c == null) {
