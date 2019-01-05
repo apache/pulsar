@@ -72,7 +72,8 @@ public class KafkaSourceConfig implements Serializable {
     @FieldDoc(
         defaultValue = "3000",
         help =
-            "The interval between heartbeats to the consumer when using Kafka's group management facilities.")
+            "The interval between heartbeats to the consumer when using Kafka's group management facilities. "
+                + "The value must be lower than session timeout.")
     private long heartbeatIntervalMs = 3000L;
     @FieldDoc(
         defaultValue = "true",
