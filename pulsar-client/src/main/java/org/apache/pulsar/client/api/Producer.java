@@ -112,53 +112,6 @@ public interface Producer<T> extends Closeable {
     TypedMessageBuilder<T> newMessage();
 
     /**
-     * Send a message
-     *
-     * @param message
-     *            a message
-     * @return the message id assigned to the published message
-     * @throws PulsarClientException.TimeoutException
-     *             if the message was not correctly received by the system within the timeout period
-     *
-     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a
-     *             new message builder.
-     */
-    @Deprecated
-    MessageId send(Message<T> message) throws PulsarClientException;
-
-    /**
-     * Send a message asynchronously
-     * <p>
-     * When the returned {@link CompletableFuture} is marked as completed successfully, the provided message will
-     * contain the {@link MessageId} assigned by the broker to the published message.
-     * <p>
-     * Example:
-     *
-     * <pre>
-     * <code>Message msg = MessageBuilder.create().setContent(myContent).build();
-     * producer.sendAsync(msg).thenRun(v -> {
-     *    System.out.println("Published message: " + msg.getMessageId());
-     * }).exceptionally(e -> {
-     *    // Failed to publish
-     * });</code>
-     * </pre>
-     * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception
-     * {@link PulsarClientException.ProducerQueueIsFullError}
-     * <p>
-     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
-     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
-     *
-     * @param message
-     *            a message
-     * @return a future that can be used to track when the message will have been safely persisted
-     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a
-     *             new message builder.
-     */
-    @Deprecated
-    CompletableFuture<MessageId> sendAsync(Message<T> message);
-
-    /**
      * Get the last sequence id that was published by this producer.
      * <p>
      * This represent either the automatically assigned or custom sequence id (set on the {@link MessageBuilder}) that

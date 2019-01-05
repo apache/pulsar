@@ -21,6 +21,8 @@ package org.apache.pulsar.storm;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.SubscriptionType;
+
 /**
  * Class used to specify pulsar spout configuration
  *
@@ -42,6 +44,8 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
     private int maxFailedRetries = DEFAULT_MAX_FAILED_RETRIES;
     private boolean sharedConsumerEnabled = false;
 
+    private SubscriptionType subscriptionType = SubscriptionType.Shared;
+
     /**
      * @return the subscription name for the consumer in the spout
      */
@@ -56,6 +60,14 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
      */
     public void setSubscriptionName(String subscriptionName) {
         this.subscriptionName = subscriptionName;
+    }
+
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
+    }
+
+    public void setSubscriptionType(SubscriptionType subscriptionType) {
+        this.subscriptionType = subscriptionType;
     }
 
     /**

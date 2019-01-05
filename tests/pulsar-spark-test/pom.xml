@@ -39,32 +39,19 @@
             <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-spark</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.pulsar</groupId>
-                    <artifactId>pulsar-client</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-broker</artifactId>
-            <version>${project.version}</version>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>integration</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-broker</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger-original</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>mysql</artifactId>
+          <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -78,4 +65,57 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+      <plugins>
+        <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- only run tests when -DintegrationTests is specified //-->
+          <skipTests>true</skipTests>
+          <systemPropertyVariables>
+            <currentVersion>${project.version}</currentVersion>
+            <maven.buildDirectory>${project.build.directory}</maven.buildDirectory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      </plugins>
+    </build>
+
+    <profiles>
+    <profile>
+      <id>integrationTests</id>
+      <activation>
+        <property>
+          <name>integrationTests</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <properties>
+                <property>
+                  <name>testRetryCount</name>
+                  <value>0</value>
+                </property>
+                <property>
+                  <name>listener</name>
+                  <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
+                </property>
+              </properties>
+              <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
+              -Dio.netty.leakDetectionLevel=advanced
+              </argLine>
+              <skipTests>false</skipTests>
+              <forkCount>1</forkCount>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

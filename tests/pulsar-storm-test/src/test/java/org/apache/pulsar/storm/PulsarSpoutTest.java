@@ -20,33 +20,27 @@ package org.apache.pulsar.storm;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.storm.MessageToValuesMapper;
-import org.apache.pulsar.storm.PulsarSpout;
-import org.apache.pulsar.storm.PulsarSpoutConfiguration;
-import org.testng.Assert;
-import static org.testng.Assert.fail;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.TopicStats;
-
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Values;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
@@ -55,7 +49,6 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     public final String subscriptionName = "my-subscriber-name";
 
     protected PulsarSpoutConfiguration pulsarSpoutConf;
-    protected ConsumerConfiguration consumerConf;
     protected PulsarSpout spout;
     protected MockSpoutOutputCollector mockCollector;
     protected Producer producer;
@@ -81,16 +74,15 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         pulsarSpoutConf.setMaxFailedRetries(2);
         pulsarSpoutConf.setSharedConsumerEnabled(true);
         pulsarSpoutConf.setMetricsTimeIntervalInSecs(60);
-        consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(SubscriptionType.Shared);
-        spout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
+        pulsarSpoutConf.setSubscriptionType(SubscriptionType.Shared);
+        spout = new PulsarSpout(pulsarSpoutConf, PulsarClient.builder());
         mockCollector = new MockSpoutOutputCollector();
         SpoutOutputCollector collector = new SpoutOutputCollector(mockCollector);
         TopologyContext context = mock(TopologyContext.class);
         when(context.getThisComponentId()).thenReturn("test-spout-" + methodName);
         when(context.getThisTaskId()).thenReturn(0);
         spout.open(Maps.newHashMap(), context, collector);
-        producer = pulsarClient.createProducer(topic);
+        producer = pulsarClient.newProducer().topic(topic).create();
     }
 
     @AfterMethod
@@ -278,7 +270,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     public void testSharedConsumer() throws Exception {
         TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
+        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, PulsarClient.builder());
         MockSpoutOutputCollector otherMockCollector = new MockSpoutOutputCollector();
         SpoutOutputCollector collector = new SpoutOutputCollector(otherMockCollector);
         TopologyContext context = mock(TopologyContext.class);
@@ -300,7 +292,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
         pulsarSpoutConf.setSharedConsumerEnabled(false);
-        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
+        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, PulsarClient.builder());
         MockSpoutOutputCollector otherMockCollector = new MockSpoutOutputCollector();
         SpoutOutputCollector collector = new SpoutOutputCollector(otherMockCollector);
         TopologyContext context = mock(TopologyContext.class);
@@ -320,7 +312,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     @Test
     public void testSerializability() throws Exception {
         // test serializability with no auth
-        PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration());
+        PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, PulsarClient.builder());
         TestUtil.testSerializability(spoutWithNoAuth);
     }
 
@@ -335,9 +327,8 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         pulsarSpoutConf.setMaxFailedRetries(2);
         pulsarSpoutConf.setSharedConsumerEnabled(false);
         pulsarSpoutConf.setMetricsTimeIntervalInSecs(60);
-        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(SubscriptionType.Shared);
-        PulsarSpout spout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
+        pulsarSpoutConf.setSubscriptionType(SubscriptionType.Shared);
+        PulsarSpout spout = new PulsarSpout(pulsarSpoutConf, PulsarClient.builder());
         MockSpoutOutputCollector mockCollector = new MockSpoutOutputCollector();
         SpoutOutputCollector collector = new SpoutOutputCollector(mockCollector);
         TopologyContext context = mock(TopologyContext.class);
