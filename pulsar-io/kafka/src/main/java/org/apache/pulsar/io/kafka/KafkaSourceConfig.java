@@ -70,6 +70,11 @@ public class KafkaSourceConfig implements Serializable {
             "The timeout used to detect failures when using Kafka's group management facilities.")
     private long sessionTimeoutMs = 30000L;
     @FieldDoc(
+        defaultValue = "3000",
+        help =
+            "The interval between heartbeats to the consumer when using Kafka's group management facilities.")
+    private long heartbeatIntervalMs = 3000L;
+    @FieldDoc(
         defaultValue = "true",
         help =
             "If true the consumer's offset will be periodically committed in the background.")

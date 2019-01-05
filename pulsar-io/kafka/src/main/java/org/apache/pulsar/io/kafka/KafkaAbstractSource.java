@@ -49,7 +49,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private Consumer<String, byte[]> consumer;
     private Properties props;
     private KafkaSourceConfig kafkaSourceConfig;
-    Thread runnerThread;
+    private Thread runnerThread;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -69,6 +69,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Invalid Kafka Consumer sessionTimeoutMs : "
                 + kafkaSourceConfig.getSessionTimeoutMs());
         }
+        if (kafkaSourceConfig.getHeartbeatIntervalMs() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer heartbeatIntervalMs : "
+                + kafkaSourceConfig.getHeartbeatIntervalMs());
+        }
 
         props = new Properties();
 
@@ -77,6 +81,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getHeartbeatIntervalMs()));
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());

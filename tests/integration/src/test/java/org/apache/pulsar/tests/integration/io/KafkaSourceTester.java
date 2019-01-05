@@ -61,6 +61,7 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
         sourceConfig.put("fetchMinBytes", 1L);
         sourceConfig.put("autoCommitIntervalMs", 10L);
         sourceConfig.put("sessionTimeoutMs", 10000L);
+        sourceConfig.put("heartbeatIntervalMs", 5000L);
         sourceConfig.put("topic", kafkaTopicName);
         sourceConfig.put("valueDeserializationClass", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     }
