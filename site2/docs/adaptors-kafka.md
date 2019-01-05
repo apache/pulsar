@@ -129,6 +129,7 @@ Properties:
 | Config property                         | Supported | Notes                                                                         |
 |:----------------------------------------|:----------|:------------------------------------------------------------------------------|
 | `acks`                                  | Ignored   | Durability and quorum writes are configured at the namespace level            |
+| `auto.offset.reset`			  | Yes       | Will have a default value of 'latest' if user does not give specific setting. |
 | `batch.size`                            | Ignored   |                                                                               |
 | `block.on.buffer.full`                  | Yes       | If true it will block producer, otherwise give error                          |
 | `bootstrap.servers`                     | Yes       | Needs to point to a single Pulsar service URL                                 |
