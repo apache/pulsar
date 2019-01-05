@@ -37,7 +37,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-1x</artifactId>
       <version>${project.version}</version>
     </dependency>
 
