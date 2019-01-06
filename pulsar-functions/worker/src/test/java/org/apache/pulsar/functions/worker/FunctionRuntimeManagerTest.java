@@ -85,8 +85,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -179,8 +179,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -225,8 +225,8 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-2").get("test-tenant/test-namespace/func-2:0"), assignment2);
 
         verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionRuntimeManager, times(1)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager).insertTerminateAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -244,7 +244,7 @@ public class FunctionRuntimeManagerTest {
         Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
         Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
                 new FunctionAction()
-                        .setAction(FunctionAction.Action.STOP)
+                        .setAction(FunctionAction.Action.TERMINATE)
                         .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
                                 Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                         .build()))));
@@ -277,8 +277,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -323,6 +323,9 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment3);
 
         verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        // make sure terminate is not called since this is a update operation
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+
         verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
@@ -470,8 +473,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
 
         functionRuntimeManager.initialize();

@@ -32,6 +32,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
@@ -102,8 +103,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     boolean isInitializePhase = false;
 
+    private final FunctionMetaDataManager functionMetaDataManager;
+
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
-            MembershipManager membershipManager, ConnectorsManager connectorsManager) throws Exception {
+                                  MembershipManager membershipManager, ConnectorsManager connectorsManager,
+                                  FunctionMetaDataManager functionMetaDataManager) throws Exception {
         this.workerConfig = workerConfig;
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
@@ -168,9 +172,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, actionQueue, connectorsManager);
+                dlogNamespace, actionQueue, connectorsManager, workerService.getBrokerAdmin());
 
         this.membershipManager = membershipManager;
+        this.functionMetaDataManager = functionMetaDataManager;
     }
 
     /**
@@ -636,7 +641,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public synchronized void deleteAssignment(String fullyQualifiedInstanceId) {
         FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
-            this.insertStopAction(functionRuntimeInfo);
+            Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+
+            // check if this is part of a function delete operation or update operation
+            if (this.functionMetaDataManager.containsFunction(functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName())) {
+                // function still exists thus probably an update or stop operation
+                this.insertStopAction(functionRuntimeInfo);
+            } else {
+                // function doesn't exist anymore thus we should terminate
+                this.insertTerminateAction(functionRuntimeInfo);
+            }
             this.deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
         }
         
@@ -720,6 +734,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
         if (!this.isInitializePhase) {
             FunctionAction functionAction = new FunctionAction();
             functionAction.setAction(FunctionAction.Action.START);
+            functionAction.setFunctionRuntimeInfo(functionRuntimeInfo);
+            try {
+                actionQueue.put(functionAction);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException("Interrupted while putting action");
+            }
+        }
+    }
+
+    void insertTerminateAction(FunctionRuntimeInfo functionRuntimeInfo) {
+        if (!this.isInitializePhase) {
+            FunctionAction functionAction = new FunctionAction();
+            functionAction.setAction(FunctionAction.Action.TERMINATE);
             functionAction.setFunctionRuntimeInfo(functionRuntimeInfo);
             try {
                 actionQueue.put(functionAction);

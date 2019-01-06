@@ -629,7 +629,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
 
-            pulsarSourceConfig.setCleanupSubscription(this.instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
             switch (sourceSpec.getSubscriptionType()) {
                 case FAILOVER:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);

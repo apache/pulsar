@@ -89,7 +89,6 @@ class PythonInstance(object):
     self.contextimpl = None
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
-    self.cleanup_subscription = function_details.source.cleanupSubscription
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
     self.metrics_labels = [function_details.tenant,
@@ -377,10 +376,7 @@ class PythonInstance(object):
     if self.consumers:
       for consumer in self.consumers.values():
         try:
-          if self.cleanup_subscription:
-            consumer.unsubscribe()
-          else:
-            consumer.close()
+          consumer.close()
         except:
           pass
 
