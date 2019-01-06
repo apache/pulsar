@@ -69,7 +69,6 @@ public class JSONSchema<T> implements Schema<T>{
 
     @Override
     public byte[] encode(T message) throws SchemaSerializationException {
-
         try {
             return objectMapper.writeValueAsBytes(message);
         } catch (JsonProcessingException e) {
@@ -82,7 +81,7 @@ public class JSONSchema<T> implements Schema<T>{
         try {
             return objectMapper.readValue(bytes, this.pojo);
         } catch (IOException e) {
-            throw new RuntimeException(new SchemaSerializationException(e));
+            throw new SchemaSerializationException(e);
         }
     }
 
@@ -102,12 +101,12 @@ public class JSONSchema<T> implements Schema<T>{
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
-            JsonSchema jsonBackwardsCompatibileSchema = schemaGen.generateSchema(pojo);
+            JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = new SchemaInfo();
             backwardsCompatibleSchemaInfo.setName("");
             backwardsCompatibleSchemaInfo.setProperties(properties);
             backwardsCompatibleSchemaInfo.setType(SchemaType.JSON);
-            backwardsCompatibleSchemaInfo.setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibileSchema));
+            backwardsCompatibleSchemaInfo.setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema));
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }

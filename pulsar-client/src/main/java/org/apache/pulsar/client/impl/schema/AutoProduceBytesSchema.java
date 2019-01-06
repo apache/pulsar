@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
@@ -41,7 +40,8 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     private void ensureSchemaInitialized() {
-        checkState(null != schema, "Schema is not initialized before used");
+        checkState(null != schema,
+                "Schema is not initialized before used");
     }
 
     @Override
