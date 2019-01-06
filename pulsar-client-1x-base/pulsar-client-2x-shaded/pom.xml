@@ -60,6 +60,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client</include>
+                  <include>org.apache.pulsar:pulsar-client-api</include>
                 </includes>
               </artifactSet>
               <filters>
