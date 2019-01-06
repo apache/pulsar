@@ -55,7 +55,7 @@ class ReflectionUtils {
         }
     }
 
-    <T> Method getStaticMethod(String className, String method, Class<?>... argTypes) {
+    static <T> Method getStaticMethod(String className, String method, Class<?>... argTypes) {
         try {
             Class<T> clazz = newClassInstance(className);
             return clazz.getMethod(method, argTypes);
