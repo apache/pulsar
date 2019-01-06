@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.kafka;
 
+import java.util.Collections;
 import java.util.Objects;
 import lombok.Getter;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -32,12 +33,10 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic
@@ -50,6 +49,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private Properties props;
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
+    private volatile boolean running = false;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -81,8 +81,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
 
+        running = true;
         this.start();
-
     }
 
     protected Properties beforeCreateConsumer(Properties props) {
@@ -92,6 +92,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     @Override
     public void close() throws InterruptedException {
         LOG.info("Stopping kafka source");
+        running = false;
         if (runnerThread != null) {
             runnerThread.interrupt();
             runnerThread.join();
@@ -106,32 +107,42 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     public void start() {
         runnerThread = new Thread(() -> {
-            LOG.info("Starting kafka source");
-            consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
-            consumer.subscribe(Arrays.asList(kafkaSourceConfig.getTopic()));
-            LOG.info("Kafka source started.");
-            ConsumerRecords<String, byte[]> consumerRecords;
-            while(true){
-                consumerRecords = consumer.poll(1000);
-                CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
-                int index = 0;
-                for (ConsumerRecord<String, byte[]> consumerRecord : consumerRecords) {
-                    LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
-                    KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
-                    consume(record);
-                    futures[index] = record.getCompletableFuture();
-                    index++;
-                }
-                if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                    try {
-                        CompletableFuture.allOf(futures).get();
-                        consumer.commitSync();
-                    } catch (ExecutionException | InterruptedException ex) {
-                        break;
+            try {
+                consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
+            } catch (Exception ex) {
+                LOG.error("Unable to instantiate Kafka consumer", ex);
+                return;
+            }
+            while (running) {
+                LOG.info("Starting kafka source");
+                try {
+                    consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
+                    LOG.info("Kafka source started.");
+                    ConsumerRecords<String, byte[]> consumerRecords;
+                    while (running) {
+                        consumerRecords = consumer.poll(1000);
+                        CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
+                        int index = 0;
+                        for (ConsumerRecord<String, byte[]> consumerRecord : consumerRecords) {
+                            LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
+                            KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
+                            consume(record);
+                            futures[index] = record.getCompletableFuture();
+                            index++;
+                        }
+                        if (!kafkaSourceConfig.isAutoCommitEnabled()) {
+                            try {
+                                CompletableFuture.allOf(futures).get();
+                                consumer.commitSync();
+                            } catch (InterruptedException ex) {
+                                break;
+                            }
+                        }
                     }
+                } catch (Exception ex) {
+                    LOG.error("Error while consuming data from Kafka", ex);
                 }
             }
-
         });
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
