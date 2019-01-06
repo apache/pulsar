@@ -40,8 +40,7 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     private void ensureSchemaInitialized() {
-        checkState(null != schema,
-                "Schema is not initialized before used");
+        checkState(null != schema,"Schema is not initialized before used");
     }
 
     @Override
