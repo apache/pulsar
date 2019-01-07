@@ -122,6 +122,13 @@ class PythonInstance(object):
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)
+
+    properties = util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
+
     for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
       if not serde:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
@@ -133,7 +140,8 @@ class PythonInstance(object):
         str(topic), subscription_name,
         consumer_type=mode,
         message_listener=partial(self.message_listener, self.input_serdes[topic]),
-        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+        properties=properties
       )
 
     for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
@@ -148,14 +156,16 @@ class PythonInstance(object):
           re.compile(str(topic)), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          properties=properties
         )
       else:
         self.consumers[topic] = self.pulsar_client.subscribe(
           str(topic), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          properties=properties
         )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
@@ -271,7 +281,13 @@ class PythonInstance(object):
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
-        max_pending_messages=100000)
+        max_pending_messages=100000,
+        properties=util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
+      )
 
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source

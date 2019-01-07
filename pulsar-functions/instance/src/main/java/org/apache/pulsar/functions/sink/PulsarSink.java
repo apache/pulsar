@@ -32,11 +32,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
@@ -54,12 +56,12 @@ public class PulsarSink<T> implements Sink<T> {
 
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
+    private final Map<String, String> properties;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
 
     private final TopicSchema topicSchema;
-    private final String fqfn;
 
     private interface PulsarSinkProcessor<T> {
 
@@ -78,7 +80,7 @@ public class PulsarSink<T> implements Sink<T> {
             this.schema = schema;
         }
 
-        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema, String fqfn)
+        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
@@ -96,9 +98,7 @@ public class PulsarSink<T> implements Sink<T> {
                 builder.producerName(producerName);
             }
 
-            return builder
-                    .property("application", "pulsarfunction")
-                    .property("fqfn", fqfn).create();
+            return builder.properties(properties).create();
         }
 
         protected Producer<T> getProducer(String destinationTopic) {
@@ -112,8 +112,7 @@ public class PulsarSink<T> implements Sink<T> {
                             client,
                             topicName,
                             producerName,
-                            schema,
-                            fqfn);
+                            schema);
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -143,7 +142,7 @@ public class PulsarSink<T> implements Sink<T> {
             // initialize default topic
             try {
                 publishProducers.put(pulsarSinkConfig.getTopic(),
-                        createProducer(client, pulsarSinkConfig.getTopic(), null, schema, fqfn));
+                        createProducer(client, pulsarSinkConfig.getTopic(), null, schema));
             } catch (PulsarClientException e) {
                 log.error("Failed to create Producer while doing user publish", e);
                 throw new RuntimeException(e);            }
@@ -209,11 +208,11 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, String fqfn) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
-        this.fqfn = fqfn;
+        this.properties = properties;
     }
 
     @Override
