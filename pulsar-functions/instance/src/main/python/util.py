@@ -68,6 +68,12 @@ def import_class_from_path(from_path, full_class_name):
 def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
 
+def getFullyQualifiedInstanceId(tenant, namespace, name, instance_id):
+    return "%s/%s/%s:%s" % (tenant, namespace, name, instance_id)
+
+def get_properties(fullyQualifiedInstanceId):
+    return {"application": "pulsar-function", "id": str(fullyQualifiedInstanceId)}
+
 class FixedTimer():
 
     def __init__(self, t, hFunction):

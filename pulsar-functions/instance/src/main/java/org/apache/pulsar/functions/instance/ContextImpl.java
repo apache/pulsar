@@ -95,6 +95,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
+    private final Utils.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
@@ -148,6 +149,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 .quantile(0.99, 0.01)
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
+        this.componentType = componentType;
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -307,7 +309,15 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         if (producer == null) {
             try {
                 Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
-                        .schema(schema).topic(topicName).create();
+                        .schema(schema)
+                        .topic(topicName)
+                        .properties(InstanceUtils.getProperties(componentType,
+                                Utils.getFullyQualifiedInstanceId(
+                                        this.config.getFunctionDetails().getTenant(),
+                                        this.config.getFunctionDetails().getNamespace(),
+                                        this.config.getFunctionDetails().getName(),
+                                        this.config.getInstanceId())))
+                        .create();
 
                 Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
 

@@ -36,7 +36,9 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -48,14 +50,16 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
-    private final String fqfn;
+    private final String fullyQualifiedInstanceId;
+    private final Utils.ComponentType componentType;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig,
-                        String fqfn) {
+                        String fullyQualifiedInstanceId, Utils.ComponentType componentType) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
-        this.fqfn = fqfn;
+        this.fullyQualifiedInstanceId = fullyQualifiedInstanceId;
+        this.componentType = componentType;
     }
 
     @Override
@@ -63,10 +67,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
-
-        Map<String, String> properties = new HashMap<>();
-        properties.put("application", "pulsarfunction");
-        properties.put("fqfn", fqfn);
 
         inputConsumers = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
@@ -84,7 +84,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             } else {
                 cb.topic(topic);
             }
-            cb.properties(properties);
+            cb.properties(InstanceUtils.getProperties(componentType, fullyQualifiedInstanceId));
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);

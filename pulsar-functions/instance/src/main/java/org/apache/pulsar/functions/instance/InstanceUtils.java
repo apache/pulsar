@@ -36,6 +36,9 @@ import org.apache.pulsar.functions.utils.Reflections;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.utils.Utils;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @UtilityClass
 public class InstanceUtils {
     public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
@@ -102,5 +105,22 @@ public class InstanceUtils {
             return FUNCTION;
         }
         return SINK;
+    }
+
+    public static Map<String, String> getProperties(Utils.ComponentType componentType, String fullyQualifiedInstanceId) {
+        Map<String, String> properties = new HashMap<>();
+        switch (componentType) {
+            case FUNCTION:
+                properties.put("application", "pulsar-function");
+                break;
+            case SOURCE:
+                properties.put("application", "pulsar-source");
+                break;
+            case SINK:
+                properties.put("application", "pulsar-sink");
+                break;
+        }
+        properties.put("id", fullyQualifiedInstanceId);
+        return properties;
     }
 }
