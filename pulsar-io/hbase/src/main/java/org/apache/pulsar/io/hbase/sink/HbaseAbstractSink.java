@@ -182,6 +182,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
         configuration.set("hbase.zookeeper.quorum", hbaseSinkConfig.getZookeeperQuorum());
         configuration.set("hbase.zookeeper.property.clientPort", hbaseSinkConfig.getZookeeperClientPort());
+        configuration.set("zookeeper.znode.parent", hbaseSinkConfig.getZookeeperZnodeParent());
         configuration.set("hbase.master", hbaseSinkConfig.getHbaseMaster());
 
         connection = ConnectionFactory.createConnection(configuration);
