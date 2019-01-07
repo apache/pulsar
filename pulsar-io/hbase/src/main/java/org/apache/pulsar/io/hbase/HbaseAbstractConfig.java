@@ -25,6 +25,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.io.Serializable;
 
@@ -41,34 +42,47 @@ public class HbaseAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = 6783394446906640112L;
 
-    /**
-     * hbase system configuration 'hbase-site.xml'.
-     */
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "hbase system configuration 'hbase-site.xml' file")
     private String hbaseConfigResources;
 
-    /**
-     * hbase.zookeeper.quorum
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "hbase system configuration about hbase.zookeeper.quorum value")
     private String zookeeperQuorum;
 
-    /**
-     * hbase.zookeeper.property.clientPort
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "2181",
+        help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
     private String zookeeperClientPort;
 
-    /**
-     * hbase.master
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "/hbase",
+        help = "hbase system configuration about zookeeper.znode.parent value")
+    private String zookeeperZnodeParent;
+
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "hbase system configuration about hbase.master value")
     private String hbaseMaster;
 
-    /**
-     * hbase table, value is namespace:tableName, namespace default value is default
-     */
+
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "hbase table, value is namespace:tableName, namespace default value is default")
     private String tableName;
 
     public void validate() {
         if (StringUtils.isEmpty(zookeeperQuorum)  ||
                 StringUtils.isEmpty(zookeeperClientPort)  ||
+                StringUtils.isEmpty(zookeeperZnodeParent)  ||
                 StringUtils.isEmpty(hbaseMaster)  ||
                 StringUtils.isEmpty(tableName)) {
             throw new IllegalArgumentException("Required property not set.");

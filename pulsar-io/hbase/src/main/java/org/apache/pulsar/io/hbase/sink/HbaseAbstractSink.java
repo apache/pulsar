@@ -19,6 +19,11 @@
 package org.apache.pulsar.io.hbase.sink;
 
 import com.google.common.collect.Lists;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -33,7 +38,6 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.hbase.HbaseUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -49,6 +53,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public abstract class HbaseAbstractSink<T> implements Sink<T> {
+
+    @Data(staticConstructor = "of")
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    public static class TableDefinition {
+        private final String rowKeyName;
+        private final String familyName;
+        private final List<String> qualifierNames;
+    }
+
     private HbaseSinkConfig hbaseSinkConfig;
     private Configuration configuration;
     private Connection connection;
@@ -56,7 +72,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     private TableName tableName;
     private Table table;
 
-    protected HbaseUtils.TableDefinition tableDefinition;
+    protected TableDefinition tableDefinition;
 
     // for flush
     private List<Record<T>> incomingList;
@@ -136,7 +152,6 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
                     if (CollectionUtils.isNotEmpty(puts)) {
                         table.put(puts);
                     }
-                    record.ack();
                 }
 
                 admin.flush(tableName);
@@ -179,15 +194,15 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     }
 
     /**
-     * Get the {@link HbaseUtils.TableDefinition} for the given table.
+     * Get the {@link TableDefinition} for the given table.
      */
-    private HbaseUtils.TableDefinition getTableDefinition(HbaseSinkConfig hbaseSinkConfig) throws Exception {
+    private TableDefinition getTableDefinition(HbaseSinkConfig hbaseSinkConfig) throws Exception {
         if (hbaseSinkConfig.getRowKeyName() == null
                 || hbaseSinkConfig.getFamilyName() == null
                 || hbaseSinkConfig.getQualifierNames() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
-        return HbaseUtils.TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
+        return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
     }
 
 }

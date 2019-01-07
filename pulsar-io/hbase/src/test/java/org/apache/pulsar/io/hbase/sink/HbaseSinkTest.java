@@ -76,12 +76,13 @@ public class HbaseSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test(enabled = false)
+    @Test
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("hbaseConfigResources", "../pulsar/pulsar-io/hbase/src/test/resources/hbase/hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "default:pulsar_hbase");
         map.put("rowKeyName", rowKeyName);

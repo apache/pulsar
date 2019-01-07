@@ -28,6 +28,7 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.io.hbase.HbaseAbstractConfig;
 
 import java.io.File;
@@ -46,30 +47,38 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
 
     private static final long serialVersionUID = 1245636479605735555L;
 
-    /**
-     * The hbase table rowkey name
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The hbase table rowkey name")
     private String rowKeyName;
 
-    /**
-     * The hbase table column family name
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The hbase table column family name")
     private String familyName;
 
-    /**
-     * The hbase table column qualifier name
-     */
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The hbase table column qualifier names")
     private List<String> qualifierNames;
 
 
     /**
      * The hbase operation timeout in milliseconds
      */
+    @FieldDoc(
+        required = false,
+        defaultValue = "3000",
+        help = "The hbase table operation timeout in milliseconds")
     private int timeoutMs = 3000;
 
-    /**
-     * The batch size of updates made to the table
-     */
+    @FieldDoc(
+        required = false,
+        defaultValue = "200",
+        help = "The batch size of updates made to the hbase table")
     private int batchSize = 200;
 
     public static HbaseSinkConfig load(String yamlFile) throws IOException {

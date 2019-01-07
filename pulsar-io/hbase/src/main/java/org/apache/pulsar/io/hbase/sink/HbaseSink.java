@@ -23,6 +23,8 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,12 @@ import java.util.List;
 /**
  * A Simple hbase sink, which interprets input Record in generic record.
  */
+@Connector(
+    name = "hbase",
+    type = IOType.SINK,
+    help = "The HbaseSink is used for moving messages from Pulsar to Hbase.",
+    configClass = HbaseSinkConfig.class
+)
 @Slf4j
 public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
     @Override
@@ -60,7 +68,7 @@ public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
         return result;
     }
 
-    private byte[] getBytes(Object value){
+    private byte[] getBytes(Object value) throws Exception{
         if (value instanceof Integer) {
             return Bytes.toBytes((Integer) value);
         } else if (value instanceof Long) {
@@ -76,8 +84,7 @@ public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
         } else if (value instanceof Short) {
             return Bytes.toBytes((Short) value);
         } else {
-            //Not support value type, need to add it
-            return null;
+            throw new Exception("Not support value type, need to add it. " + value.getClass());
         }
     }
 }

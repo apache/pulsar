@@ -45,10 +45,17 @@ public class HbaseSinkConfigTest {
         assertEquals("hbase-site.xml", config.getHbaseConfigResources());
         assertEquals("localhost", config.getZookeeperQuorum());
         assertEquals("2181", config.getZookeeperClientPort());
+        assertEquals("/hbase", config.getZookeeperZnodeParent());
         assertEquals("localhost:60000", config.getHbaseMaster());
         assertEquals("pulsar_hbase", config.getTableName());
         assertEquals("rowKey", config.getRowKeyName());
         assertEquals("info", config.getFamilyName());
+
+        List<String> qualifierNames = new ArrayList<>();
+        qualifierNames.add("name");
+        qualifierNames.add("address");
+        qualifierNames.add("age");
+        assertEquals(qualifierNames, config.getQualifierNames());
     }
 
     @Test
@@ -57,6 +64,7 @@ public class HbaseSinkConfigTest {
         map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "pulsar_hbase");
         map.put("rowKeyName", "rowKey");
@@ -67,6 +75,7 @@ public class HbaseSinkConfigTest {
         assertEquals("hbase-site.xml", config.getHbaseConfigResources());
         assertEquals("localhost", config.getZookeeperQuorum());
         assertEquals("2181", config.getZookeeperClientPort());
+        assertEquals("/hbase", config.getZookeeperZnodeParent());
         assertEquals("pulsar_hbase", config.getTableName());
         assertEquals("rowKey", config.getRowKeyName());
         assertEquals("info", config.getFamilyName());
@@ -76,9 +85,9 @@ public class HbaseSinkConfigTest {
     @Test
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "pulsar_hbase");
         map.put("rowKeyName", "rowKey");
@@ -95,9 +104,9 @@ public class HbaseSinkConfigTest {
             expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("rowKeyName", "rowKey");
         map.put("familyName", "info");
@@ -112,9 +121,9 @@ public class HbaseSinkConfigTest {
     @Test(expectedExceptions = MismatchedInputException.class)
     public final void invalidListValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "pulsar_hbase");
         map.put("rowKeyName", "rowKey");
@@ -129,9 +138,9 @@ public class HbaseSinkConfigTest {
             expectedExceptionsMessageRegExp = "timeout cannot be negative")
     public final void invalidTimeoutMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "pulsar_hbase");
         map.put("rowKeyName", "rowKey");
@@ -149,9 +158,9 @@ public class HbaseSinkConfigTest {
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer")
     public final void invalidBatchSizeTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("hbaseConfigResources", "hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
+        map.put("zookeeperZnodeParent", "/hbase");
         map.put("hbaseMaster", "localhost:60000");
         map.put("tableName", "pulsar_hbase");
         map.put("rowKeyName", "rowKey");

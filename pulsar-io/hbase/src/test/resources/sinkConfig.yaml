@@ -21,8 +21,10 @@
 "hbaseConfigResources": "hbase-site.xml",
 "zookeeperQuorum": "localhost",
 "zookeeperClientPort": "2181",
+"zookeeperZnodeParent": "/hbase",
 "hbaseMaster": "localhost:60000",
 "tableName": "pulsar_hbase",
 "rowKeyName": "rowKey",
-"familyName": "info"
+"familyName": "info",
+"qualifierNames": [ 'name', 'address', 'age']
 }

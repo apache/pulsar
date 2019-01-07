@@ -36,6 +36,10 @@
         <value>2181</value>
     </property>
     <property>
+        <name>zookeeper.znode.parent</name>
+        <value>/hbase</value>
+    </property>
+    <property>
         <name>hbase.master</name>
         <value>localhost:60000</value>
     </property>
