@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -91,19 +92,28 @@ public class Utils {
         Class<?>[] typeArgs;
         // if window function
         if (isWindowConfigPresent) {
-            java.util.function.Function function = (java.util.function.Function) userClass;
-            if (function == null) {
-                throw new IllegalArgumentException(
-                        String.format("The Java util function class %s could not be instantiated", userClass));
+            if (userClass instanceof WindowFunction) {
+                WindowFunction function = (WindowFunction) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(
+                            String.format("The WindowFunction class %s could not be instantiated", userClass));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, function.getClass());
+            } else {
+                java.util.function.Function function = (java.util.function.Function) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(
+                            String.format("The Java util function class %s could not be instantiated", userClass));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                if (!typeArgs[0].equals(Collection.class)) {
+                    throw new IllegalArgumentException("Window function must take a collection as input");
+                }
+                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
+                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+                typeArgs[0] = (Class<?>) actualInputType;
             }
-            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-            if (!typeArgs[0].equals(Collection.class)) {
-                throw new IllegalArgumentException("Window function must take a collection as input");
-            }
-            Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
-            Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
-            Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
-            typeArgs[0] = (Class<?>) actualInputType;
         } else {
             if (userClass instanceof Function) {
                 Function pulsarFunction = (Function) userClass;

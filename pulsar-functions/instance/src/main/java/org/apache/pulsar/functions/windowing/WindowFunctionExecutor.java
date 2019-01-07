@@ -30,9 +30,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.*;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
@@ -55,18 +53,19 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
     private TimestampExtractor<I> timestampExtractor;
     protected transient WaterMarkEventGenerator<I> waterMarkEventGenerator;
 
-    protected java.util.function.Function<Collection<I>, O> windowFunction;
+    protected java.util.function.Function<Collection<I>, O> bareWindowFunction;
+    protected WindowFunction<I, O> windowFunction;
 
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
-        this.windowFunction = intializeUserFunction(this.windowConfig);
+        initializeUserFunction(this.windowConfig);
         log.info("Window Config: {}", this.windowConfig);
         this.windowManager = this.getWindowManager(this.windowConfig, context);
         this.initialized = true;
         this.start();
     }
 
-    private java.util.function.Function<Collection<I>, O> intializeUserFunction(WindowConfig windowConfig) {
+    private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
         Object userClassObject = Reflections.createInstance(
@@ -76,7 +75,15 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
                     java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
-                return (java.util.function.Function) userClassObject;
+                bareWindowFunction = (java.util.function.Function) userClassObject;
+            } else {
+                throw new IllegalArgumentException("Window function must take a collection as input");
+            }
+        } else if (userClassObject instanceof WindowFunction) {
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
+                    WindowFunction.class, userClassObject.getClass());
+            if (typeArgs[0].equals(Collection.class)) {
+                windowFunction = (WindowFunction) userClassObject;
             } else {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
@@ -296,6 +303,10 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
     }
 
     public O process(Window<I> inputWindow, WindowContext context) throws Exception {
-        return this.windowFunction.apply(inputWindow.get());
+        if (this.bareWindowFunction != null) {
+            return this.bareWindowFunction.apply(inputWindow.get());
+        } else {
+            return this.windowFunction.process(inputWindow.get(), context);
+        }
     }
 }

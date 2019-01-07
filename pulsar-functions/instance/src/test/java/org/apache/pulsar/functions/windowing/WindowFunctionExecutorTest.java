@@ -24,9 +24,8 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
 import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.functions.utils.WindowConfigUtils;
+import org.apache.pulsar.functions.api.WindowContext;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

@@ -16,20 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
-
-import lombok.extern.slf4j.Slf4j;
+package org.apache.pulsar.functions.api;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 /**
- * Example Function that acts on a window of tuples at a time rather than per tuple basis.
+ * This is the core interface of the function api. The process is called
+ * for every message of the input topic of the function. The incoming input bytes
+ * are converted to the input type I for simple Java types(String, Integer, Boolean,
+ * Map, and List types) and for org.Json type. If this serialization approach does not
+ * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
-@Slf4j
-public class WindowFunction implements Function <Collection<Integer>, Integer> {
-    @Override
-    public Integer apply(Collection<Integer> integers) {
-        return integers.stream().reduce(0, (x, y) -> x + y);
-    }
+@FunctionalInterface
+public interface WindowFunction<I, O> {
+    /**
+     * Process the input.
+     * @return the output
+     */
+    O process(Collection<I> input, WindowContext context) throws Exception;
 }
