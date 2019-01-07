@@ -191,6 +191,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         if (!admin.tableExists(this.tableName)) {
             throw new IllegalArgumentException("Table does not exist.");
         }
+
         table = connection.getTable(this.tableName);
     }
 
