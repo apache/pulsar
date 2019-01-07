@@ -76,7 +76,7 @@ public class HbaseSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test
+    @Test(enabled = false)
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("hbaseConfigResources", "../pulsar/pulsar-io/hbase/src/test/resources/hbase/hbase-site.xml");
