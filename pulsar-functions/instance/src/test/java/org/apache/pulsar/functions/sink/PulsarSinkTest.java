@@ -160,7 +160,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>());
 
         try {
             Schema schema = pulsarSink.initializeSchema();
@@ -178,7 +178,7 @@ public class PulsarSinkTest {
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
         pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>());
         try {
             pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -200,7 +200,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>());
 
         try {
             pulsarSink.initializeSchema();
@@ -219,7 +219,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>());
 
         try {
             pulsarSink.initializeSchema();
@@ -235,7 +235,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>());
 
         try {
             pulsarSink.initializeSchema();
@@ -259,7 +259,7 @@ public class PulsarSinkTest {
         /** test At-least-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>());
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -316,7 +316,7 @@ public class PulsarSinkTest {
         /** test At-most-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
-        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>());
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -373,7 +373,7 @@ public class PulsarSinkTest {
         /** test Effectively-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
-        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test", Utils.ComponentType.FUNCTION);
+        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>());
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 

@@ -47,19 +47,16 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     private final PulsarClient pulsarClient;
     private final PulsarSourceConfig pulsarSourceConfig;
+    private final Map<String, String> properties;
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
-    private final String fullyQualifiedInstanceId;
-    private final Utils.ComponentType componentType;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig,
-                        String fullyQualifiedInstanceId, Utils.ComponentType componentType) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
-        this.fullyQualifiedInstanceId = fullyQualifiedInstanceId;
-        this.componentType = componentType;
+        this.properties = properties;
     }
 
     @Override
@@ -84,7 +81,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             } else {
                 cb.topic(topic);
             }
-            cb.properties(InstanceUtils.getProperties(componentType, fullyQualifiedInstanceId));
+            cb.properties(properties);
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);

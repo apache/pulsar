@@ -71,8 +71,8 @@ def getFullyQualifiedFunctionName(tenant, namespace, name):
 def getFullyQualifiedInstanceId(tenant, namespace, name, instance_id):
     return "%s/%s/%s:%s" % (tenant, namespace, name, instance_id)
 
-def get_properties(fullyQualifiedInstanceId):
-    return {"application": "pulsar-function", "id": str(fullyQualifiedInstanceId)}
+def get_properties(fullyQualifiedName, instanceId):
+    return {"application": "pulsar-function", "id": str(fullyQualifiedName), "instance_id": str(instanceId)}
 
 class FixedTimer():
 

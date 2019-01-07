@@ -56,13 +56,12 @@ public class PulsarSink<T> implements Sink<T> {
 
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
+    private final Map<String, String> properties;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
 
     private final TopicSchema topicSchema;
-    private final String fullyQualifiedInstanceId;
-    private final Utils.ComponentType componentType;
 
     private interface PulsarSinkProcessor<T> {
 
@@ -99,7 +98,7 @@ public class PulsarSink<T> implements Sink<T> {
                 builder.producerName(producerName);
             }
 
-            return builder.properties(InstanceUtils.getProperties(componentType, fullyQualifiedInstanceId)).create();
+            return builder.properties(properties).create();
         }
 
         protected Producer<T> getProducer(String destinationTopic) {
@@ -209,13 +208,11 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, String fullyQualifiedInstanceId, Utils.ComponentType
-            componentType) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
-        this.fullyQualifiedInstanceId = fullyQualifiedInstanceId;
-        this.componentType = componentType;
+        this.properties = properties;
     }
 
     @Override

@@ -107,7 +107,8 @@ public class InstanceUtils {
         return SINK;
     }
 
-    public static Map<String, String> getProperties(Utils.ComponentType componentType, String fullyQualifiedInstanceId) {
+    public static Map<String, String> getProperties(Utils.ComponentType componentType,
+                                                    String fullyQualifiedName, int instanceId) {
         Map<String, String> properties = new HashMap<>();
         switch (componentType) {
             case FUNCTION:
@@ -120,7 +121,8 @@ public class InstanceUtils {
                 properties.put("application", "pulsar-sink");
                 break;
         }
-        properties.put("id", fullyQualifiedInstanceId);
+        properties.put("id", fullyQualifiedName);
+        properties.put("instance_id", String.valueOf(instanceId));
         return properties;
     }
 }

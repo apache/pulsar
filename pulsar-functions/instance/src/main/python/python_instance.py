@@ -123,11 +123,11 @@ class PythonInstance(object):
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)
 
-    properties = util.get_properties(util.getFullyQualifiedInstanceId(
-      self.instance_config.function_details.tenant,
-      self.instance_config.function_details.namespace,
-      self.instance_config.function_details.name,
-      self.instance_config.instance_id))
+    properties = util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
 
     for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
       if not serde:
@@ -282,11 +282,11 @@ class PythonInstance(object):
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
         max_pending_messages=100000,
-        properties=util.get_properties(util.getFullyQualifiedInstanceId(
+        properties=util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,
                         self.instance_config.function_details.namespace,
-                        self.instance_config.function_details.name,
-                        self.instance_config.instance_id))
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
       )
 
   def message_listener(self, serde, consumer, message):

@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
@@ -312,11 +313,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                         .schema(schema)
                         .topic(topicName)
                         .properties(InstanceUtils.getProperties(componentType,
-                                Utils.getFullyQualifiedInstanceId(
+                                FunctionDetailsUtils.getFullyQualifiedName(
                                         this.config.getFunctionDetails().getTenant(),
                                         this.config.getFunctionDetails().getNamespace(),
-                                        this.config.getFunctionDetails().getName(),
-                                        this.config.getInstanceId())))
+                                        this.config.getFunctionDetails().getName()),
+                                this.config.getInstanceId()))
                         .create();
 
                 Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
