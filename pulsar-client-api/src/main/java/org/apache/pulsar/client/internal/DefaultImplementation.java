@@ -65,7 +65,7 @@ public class DefaultImplementation {
             "org.apache.pulsar.client.impl.auth.AuthenticationToken", Supplier.class);
 
     private static final Constructor<Authentication> AUTHENTICATION_TLS_String_String = getConstructor(
-            "org.apache.pulsar.client.impl.auth.AuthenticationTLS", String.class, String.class);
+            "org.apache.pulsar.client.impl.auth.AuthenticationTls", String.class, String.class);
 
     public static ClientBuilder newClientBuilder() {
         return catchExceptions(() -> CLIENT_BUILDER_IMPL.newInstance());
