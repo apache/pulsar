@@ -144,7 +144,7 @@ make install
 
 #### Compile Pulsar client library:
 ```shell
-export $PULSAR_PATH=<Path where you cloned pulsar repo>
+export PULSAR_PATH=<Path where you cloned pulsar repo>
 cd ${PULSAR_PATH}/pulsar-client-cpp/
 cmake .
 make

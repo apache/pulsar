@@ -270,12 +270,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 client.cleanupConsumer(ConsumerImpl.this);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
-                unsubscribeFuture.complete(null);
                 setState(State.Closed);
+                unsubscribeFuture.complete(null);
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed to unsubscribe: {}", topic, subscription, e.getCause().getMessage());
-                unsubscribeFuture.completeExceptionally(e.getCause());
                 setState(State.Ready);
+                unsubscribeFuture.completeExceptionally(e.getCause());
                 return null;
             });
         } else {
