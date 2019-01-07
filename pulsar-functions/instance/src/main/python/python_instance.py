@@ -128,7 +128,6 @@ class PythonInstance(object):
       self.instance_config.function_details.namespace,
       self.instance_config.function_details.name,
       self.instance_config.instance_id))
-    Log.info("properties: %s - %s", properties, type(properties))
 
     for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
       if not serde:
