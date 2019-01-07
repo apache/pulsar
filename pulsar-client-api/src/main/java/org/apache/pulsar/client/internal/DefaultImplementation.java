@@ -150,7 +150,7 @@ public class DefaultImplementation {
 
     public static Schema<byte[]> newAutoProduceSchema() {
         return catchExceptions(
-                () -> (Schema<byte[]>) newClassInstance("org.apache.pulsar.client.impl.schema.AutoProduceSchema")
+                () -> (Schema<byte[]>) newClassInstance("org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema")
                         .newInstance());
     }
 
