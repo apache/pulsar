@@ -101,6 +101,7 @@ public class PulsarSinkTest {
         doReturn(producerBuilder).when(producerBuilder).topic(anyString());
         doReturn(producerBuilder).when(producerBuilder).producerName(anyString());
         doReturn(producerBuilder).when(producerBuilder).property(anyString(), anyString());
+        doReturn(producerBuilder).when(producerBuilder).properties(any());
         doReturn(producerBuilder).when(producerBuilder).sendTimeout(anyInt(), any());
         
         CompletableFuture completableFuture = new CompletableFuture<>();
