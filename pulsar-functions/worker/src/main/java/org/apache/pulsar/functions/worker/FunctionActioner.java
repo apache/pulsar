@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
@@ -58,6 +59,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder;
@@ -296,14 +298,18 @@ public class FunctionActioner implements AutoCloseable {
 
                     Function.ConsumerSpec consumerSpec = stringConsumerSpecEntry.getValue();
                     String topic = stringConsumerSpecEntry.getKey();
-                    String subscriptionName = FunctionDetailsUtils.getFullyQualifiedName(
-                            functionRuntimeInfo.getFunctionInstance()
-                                    .getFunctionMetaData().getFunctionDetails());
+                    String subscriptionName = functionRuntimeInfo
+                            .getFunctionInstance().getFunctionMetaData()
+                            .getFunctionDetails().getSource().getSubscriptionName();
+                    // if user specified subscription name is empty use default subscription name
+                    if (isBlank(subscriptionName)) {
+                        subscriptionName =  InstanceUtils.getDefaultSubscriptionName(
+                                functionRuntimeInfo.getFunctionInstance()
+                                        .getFunctionMetaData().getFunctionDetails());
+                    }
+
                     try {
                         if (consumerSpec.getIsRegexPattern()) {
-                            log.info("TopicName.get(topic).getNamespace(): {}", TopicName.get(topic).getNamespace());
-                            log.info("subscriptionName: {}", subscriptionName);
-                            log.info("conf: {}", new Gson().toJson(pulsarAdmin.getClientConfigData()));
                             pulsarAdmin.namespaces().unsubscribeNamespace(TopicName.get(topic).getNamespace(), subscriptionName);
                         } else {
                             pulsarAdmin.topics().deleteSubscription(topic, subscriptionName);
