@@ -120,7 +120,7 @@ class ThreadRuntime implements Runtime {
             // interrupt the instance thread
             fnThread.interrupt();
             try {
-                fnThread.join(1000);
+                fnThread.join();
             } catch (InterruptedException e) {
                 // ignore this
             }

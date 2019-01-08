@@ -227,11 +227,6 @@ public class PulsarFunctionE2ETest {
 
     private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
-//        admin = spy(
-//                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
-//                        .allowTlsInsecureConnection(true).authentication(authTls).build());
-
-
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -1089,7 +1084,7 @@ public class PulsarFunctionE2ETest {
                 return false;
             }
         }, 5, 150);
-        
+
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
     }

@@ -644,6 +644,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
             // check if this is part of a function delete operation or update operation
+            // TODO could be a race condition here if functionMetaDataTailer somehow does not receive the functionMeta prior to the functionAssignmentsTailer gets the assignment for the function.
             if (this.functionMetaDataManager.containsFunction(functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName())) {
                 // function still exists thus probably an update or stop operation
                 this.insertStopAction(functionRuntimeInfo);
