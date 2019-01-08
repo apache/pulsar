@@ -22,7 +22,6 @@
 from unittest import TestCase, main
 import time
 import os
-import re
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken
