@@ -22,6 +22,7 @@
 from unittest import TestCase, main
 import time
 import os
+import re
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken
@@ -832,7 +833,40 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello')
         client.close()
 
-    #####
+    def test_get_topic_name(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('persistent://public/default/topic_name_test',
+                                    'topic_name_test_sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://public/default/topic_name_test')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertEqual(msg.topic_name(), 'persistent://public/default/topic_name_test')
+        client.close()
+
+    def test_get_partitioned_topic_name(self):
+        client = Client(self.serviceUrl)
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/partitioned_topic_name_test/partitions'
+        doHttpPut(url1, '3')
+
+        partitions = ['persistent://public/default/partitioned_topic_name_test-partition-0',
+                      'persistent://public/default/partitioned_topic_name_test-partition-1',
+                      'persistent://public/default/partitioned_topic_name_test-partition-2']
+        self.assertEqual(client.get_topic_partitions('persistent://public/default/partitioned_topic_name_test'),
+                         partitions)
+
+        consumer = client.subscribe('persistent://public/default/partitioned_topic_name_test',
+                                    'partitioned_topic_name_test_sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://public/default/partitioned_topic_name_test')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg.topic_name() in partitions)
+        client.close()
+
+#####
 
     def _check_value_error(self, fun):
         try:

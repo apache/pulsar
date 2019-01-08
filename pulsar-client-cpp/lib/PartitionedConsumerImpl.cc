@@ -314,6 +314,8 @@ bool PartitionedConsumerImpl::isOpen() {
 
 void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
     LOG_DEBUG("Received Message from one of the partition - " << msg.impl_->messageId.partition());
+    const std::string& topicPartitionName = consumer.getTopic();
+    msg.impl_->setTopicName(topicPartitionName);
     messages_.push(msg);
     if (messageListener_) {
         listenerExecutor_->postWork(

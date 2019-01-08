@@ -279,6 +279,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
 
     Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
+    m.impl_->topicName_ = &topic_;
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "

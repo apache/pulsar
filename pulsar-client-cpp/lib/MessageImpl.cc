@@ -84,6 +84,8 @@ void MessageImpl::setTopicName(const std::string& topicName) {
     messageId.setTopicName(topicName);
 }
 
-const std::string& MessageImpl::getTopicName() { return *topicName_; }
+const std::string& MessageImpl::getTopicName() {
+    return *topicName_;
+}
 
 }  // namespace pulsar
