@@ -24,8 +24,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -80,7 +78,7 @@ public class PulsarJsonTableSinkTest {
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
-        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, new ProducerConfiguration(), ROUTING_KEY);
+        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, ROUTING_KEY);
         FlinkPulsarProducer producer = Mockito.mock(FlinkPulsarProducer.class);
         PowerMockito.whenNew(
                 FlinkPulsarProducer.class
@@ -88,7 +86,6 @@ public class PulsarJsonTableSinkTest {
                 Mockito.anyString(),
                 Mockito.anyString(),
                 Mockito.any(SerializationSchema.class),
-                Mockito.any(PowerMockito.class),
                 Mockito.any(PulsarKeyExtractor.class)
         ).thenReturn(producer);
         Whitebox.setInternalState(sink, "fieldNames", fieldNames);

@@ -30,7 +30,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Netty Tcp Source Connector Config.
+ * Netty Tcp or Udp Source Connector Config.
  */
 @Data
 @Setter
@@ -38,9 +38,15 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class NettyTcpSourceConfig implements Serializable {
+public class NettySourceConfig implements Serializable {
 
     private static final long serialVersionUID = -7116130435021510496L;
+
+    @FieldDoc(
+            required = true,
+            defaultValue = "tcp",
+            help = "The tcp or udp network protocols")
+    private String type = "tcp";
 
     @FieldDoc(
             required = true,
@@ -61,14 +67,14 @@ public class NettyTcpSourceConfig implements Serializable {
                     "handle the traffic of the accepted connections")
     private int numberOfThreads = 1;
 
-    public static NettyTcpSourceConfig load(Map<String, Object> map) throws IOException {
+    public static NettySourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), NettyTcpSourceConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), NettySourceConfig.class);
     }
 
-    public static NettyTcpSourceConfig load(String yamlFile) throws IOException {
+    public static NettySourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), NettyTcpSourceConfig.class);
+        return mapper.readValue(new File(yamlFile), NettySourceConfig.class);
     }
 
 }

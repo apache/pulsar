@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.v1.ConsumerV1Impl;
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
@@ -47,6 +47,8 @@ public class ConsumerConfiguration implements Serializable {
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
     private boolean initializeSubscriptionOnLatest = true;
+
+    private MessageListener<byte[]> messageListener;
 
     public ConsumerConfiguration() {
         // Disable acknowledgment grouping when using v1 API
@@ -103,7 +105,7 @@ public class ConsumerConfiguration implements Serializable {
      * @return the configured {@link MessageListener} for the consumer
      */
     public MessageListener<byte[]> getMessageListener() {
-        return conf.getMessageListener();
+        return messageListener;
     }
 
     /**
@@ -117,7 +119,19 @@ public class ConsumerConfiguration implements Serializable {
      */
     public ConsumerConfiguration setMessageListener(MessageListener<byte[]> messageListener) {
         checkNotNull(messageListener);
-        conf.setMessageListener(messageListener);
+        this.messageListener = messageListener;
+        conf.setMessageListener(new org.apache.pulsar.shade.client.api.v2.MessageListener<byte[]>() {
+
+            @Override
+            public void received(org.apache.pulsar.shade.client.api.v2.Consumer<byte[]> consumer, Message<byte[]> msg) {
+                messageListener.received(new ConsumerV1Impl(consumer), msg);
+            }
+
+            @Override
+            public void reachedEndOfTopic(org.apache.pulsar.shade.client.api.v2.Consumer<byte[]> consumer) {
+                messageListener.reachedEndOfTopic(new ConsumerV1Impl(consumer));
+            }
+        });
         return this;
     }
 

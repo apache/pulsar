@@ -30,24 +30,27 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Tests for Netty Tcp Source Config
+ * Tests for Netty Tcp or Udp Source Config
  */
-public class NettyTcpSourceConfigTest {
+public class NettySourceConfigTest {
 
     private static final String LOCALHOST = "127.0.0.1";
+    private static final String TCP = "tcp";
 
     @Test
     public void testNettyTcpConfigLoadWithMap() throws IOException {
         Map<String, Object> map = new HashMap<>();
+        map.put("type", TCP);
         map.put("host", LOCALHOST);
         map.put("port", 10999);
         map.put("numberOfThreads", 1);
 
-        NettyTcpSourceConfig nettyTcpSourceConfig = NettyTcpSourceConfig.load(map);
-        assertNotNull(nettyTcpSourceConfig);
-        assertEquals(LOCALHOST, nettyTcpSourceConfig.getHost());
-        assertEquals(10999, nettyTcpSourceConfig.getPort());
-        assertEquals(1, nettyTcpSourceConfig.getNumberOfThreads());
+        NettySourceConfig nettySourceConfig = NettySourceConfig.load(map);
+        assertNotNull(nettySourceConfig);
+        assertEquals(TCP, nettySourceConfig.getType());
+        assertEquals(LOCALHOST, nettySourceConfig.getHost());
+        assertEquals(10999, nettySourceConfig.getPort());
+        assertEquals(1, nettySourceConfig.getNumberOfThreads());
     }
 
     @Test(expected = UnrecognizedPropertyException.class)
@@ -55,23 +58,24 @@ public class NettyTcpSourceConfigTest {
         Map<String, Object> map = new HashMap<>();
         map.put("invalidProperty", 1);
 
-        NettyTcpSourceConfig.load(map);
+        NettySourceConfig.load(map);
     }
 
     @Test
     public void testNettyTcpConfigLoadWithYamlFile() throws IOException {
-        File yamlFile = getFile("nettyTcpSourceConfig.yaml");
-        NettyTcpSourceConfig nettyTcpSourceConfig = NettyTcpSourceConfig.load(yamlFile.getAbsolutePath());
-        assertNotNull(nettyTcpSourceConfig);
-        assertEquals(LOCALHOST, nettyTcpSourceConfig.getHost());
-        assertEquals(10911, nettyTcpSourceConfig.getPort());
-        assertEquals(5, nettyTcpSourceConfig.getNumberOfThreads());
+        File yamlFile = getFile("nettySourceConfig.yaml");
+        NettySourceConfig nettySourceConfig = NettySourceConfig.load(yamlFile.getAbsolutePath());
+        assertNotNull(nettySourceConfig);
+        assertEquals(TCP, nettySourceConfig.getType());
+        assertEquals(LOCALHOST, nettySourceConfig.getHost());
+        assertEquals(10911, nettySourceConfig.getPort());
+        assertEquals(5, nettySourceConfig.getNumberOfThreads());
     }
 
     @Test(expected = UnrecognizedPropertyException.class)
     public void testNettyTcpConfigLoadWithYamlFileWhenInvalidPropertyIsSet() throws IOException {
-        File yamlFile = getFile("nettyTcpSourceConfigWithInvalidProperty.yaml");
-        NettyTcpSourceConfig.load(yamlFile.getAbsolutePath());
+        File yamlFile = getFile("nettySourceConfigWithInvalidProperty.yaml");
+        NettySourceConfig.load(yamlFile.getAbsolutePath());
     }
 
     private File getFile(String name) {

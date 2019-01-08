@@ -18,6 +18,12 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
+import java.util.Arrays;
+
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -27,13 +33,6 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-
-import java.util.Arrays;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An append-only table sink to emit a streaming table as a Pulsar stream.
@@ -42,7 +41,6 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
 
     protected final String serviceUrl;
     protected final String topic;
-    protected final ProducerConfiguration producerConf;
     protected SerializationSchema<Row> serializationSchema;
     protected PulsarKeyExtractor<Row> keyExtractor;
     protected String[] fieldNames;
@@ -52,11 +50,9 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
     public PulsarTableSink(
             String serviceUrl,
             String topic,
-            ProducerConfiguration producerConf,
             String routingKeyFieldName) {
         this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
         this.topic = checkNotNull(topic, "Topic is null");
-        this.producerConf = checkNotNull(producerConf, "Producer configuration not set");
         this.routingKeyFieldName = routingKeyFieldName;
     }
 
@@ -83,7 +79,6 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
                 serviceUrl,
                 topic,
                 serializationSchema,
-                producerConf,
                 keyExtractor);
     }
 

@@ -453,6 +453,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE:
             return "GET_TOPICS_OF_NAMESPACE_RESPONSE";
             break;
+        case BaseCommand::GET_SCHEMA:
+            return "GET_SCHEMA";
+            break;
+        case BaseCommand::GET_SCHEMA_RESPONSE:
+            return "GET_SCHEMA_RESPONSE";
+            break;
     };
 }
 

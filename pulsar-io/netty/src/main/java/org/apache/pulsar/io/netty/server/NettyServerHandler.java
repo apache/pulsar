@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.tcp.server;
+package org.apache.pulsar.io.netty.server;
 
 import io.netty.channel.*;
 import lombok.Data;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.netty.NettyTcpSource;
+import org.apache.pulsar.io.netty.NettySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,19 +32,19 @@ import java.util.Optional;
  * Handles a server-side channel
  */
 @ChannelHandler.Sharable
-public class NettyTcpServerHandler extends SimpleChannelInboundHandler<byte[]> {
+public class NettyServerHandler extends SimpleChannelInboundHandler<byte[]> {
 
-    private static final Logger logger = LoggerFactory.getLogger(NettyTcpServerHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(NettyServerHandler.class);
 
-    private NettyTcpSource nettyTcpSource;
+    private NettySource nettySource;
 
-    public NettyTcpServerHandler(NettyTcpSource nettyTcpSource) {
-        this.nettyTcpSource = nettyTcpSource;
+    public NettyServerHandler(NettySource nettySource) {
+        this.nettySource = nettySource;
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, byte[] bytes) throws Exception {
-        nettyTcpSource.consume(new NettyTcpRecord(Optional.ofNullable(""), bytes));
+        nettySource.consume(new NettyRecord(Optional.ofNullable(""), bytes));
     }
 
     @Override
@@ -54,7 +54,7 @@ public class NettyTcpServerHandler extends SimpleChannelInboundHandler<byte[]> {
     }
 
     @Data
-    static private class NettyTcpRecord implements Record<byte[]>, Serializable {
+    static private class NettyRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }
