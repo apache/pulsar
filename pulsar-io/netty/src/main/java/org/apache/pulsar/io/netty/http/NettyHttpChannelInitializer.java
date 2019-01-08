@@ -16,28 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
+package org.apache.pulsar.io.netty.http;
 
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.ssl.SslContext;
 
 /**
- * Netty Channel Initializer to register decoder and handler.
+ * Netty Channel Initializer to register HTTP decoder and handler.
  */
-public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
+public class NettyHttpChannelInitializer extends ChannelInitializer<SocketChannel> {
 
+    private final SslContext sslCtx;
     private ChannelInboundHandlerAdapter handler;
 
-    public NettyChannelInitializer(ChannelInboundHandlerAdapter handler) {
+    public NettyHttpChannelInitializer(ChannelInboundHandlerAdapter handler, SslContext sslCtx) {
         this.handler = handler;
+        this.sslCtx = sslCtx;
     }
 
     @Override
     protected void initChannel(SocketChannel socketChannel) throws Exception {
-        socketChannel.pipeline().addLast(new ByteArrayDecoder());
+        if (sslCtx != null) {
+            socketChannel.pipeline().addLast(sslCtx.newHandler(socketChannel.alloc()));
+        }
+        socketChannel.pipeline().addLast(new HttpServerCodec());
         socketChannel.pipeline().addLast(this.handler);
     }
-
 }
