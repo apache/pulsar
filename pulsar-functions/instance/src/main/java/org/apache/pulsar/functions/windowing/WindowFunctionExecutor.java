@@ -80,13 +80,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
         } else if (userClassObject instanceof WindowFunction) {
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
-                    WindowFunction.class, userClassObject.getClass());
-            if (typeArgs[0].equals(Collection.class)) {
-                windowFunction = (WindowFunction) userClassObject;
-            } else {
-                throw new IllegalArgumentException("Window function must take a collection as input");
-            }
+            windowFunction = (WindowFunction) userClassObject;
         } else {
             throw new IllegalArgumentException("Window function does not implement the correct interface");
         }
