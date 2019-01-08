@@ -131,8 +131,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
                         | currentNumAcksFailed) != 0) {
                     log.info(
-                            "[{}] [{}] [{}] Prefetched messages: {} --- Consume throughput: {} msgs/s --- "
-                                    + "Throughput received: {} msg/s --- {} Mbit/s --- "
+                            "[{}] [{}] [{}] Prefetched messages: {} --- "
+                                    + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
                                     + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- " + "Failed acks: {}",
                             consumer.getTopic(), consumer.getSubscription(), consumer.consumerName,
                             consumer.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
