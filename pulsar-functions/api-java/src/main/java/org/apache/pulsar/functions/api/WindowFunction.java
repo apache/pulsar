@@ -21,11 +21,8 @@ package org.apache.pulsar.functions.api;
 import java.util.Collection;
 
 /**
- * This is the core interface of the function api. The process is called
- * for every message of the input topic of the function. The incoming input bytes
- * are converted to the input type I for simple Java types(String, Integer, Boolean,
- * Map, and List types) and for org.Json type. If this serialization approach does not
- * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
+ * This is the interface of the windowed function api. The process method is called
+ * for every triggered window.
  */
 @FunctionalInterface
 public interface WindowFunction<I, O> {
