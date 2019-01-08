@@ -16,35 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.tcp.server;
+package org.apache.pulsar.io.netty.tcp;
 
-import io.netty.channel.*;
-import lombok.Data;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.netty.NettyTcpSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.io.Serializable;
 import java.util.Optional;
 
+import lombok.Data;
+
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.netty.NettySource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 /**
- * Handles a server-side channel
+ * Handles a server-side TCP channel.
  */
 @ChannelHandler.Sharable
 public class NettyTcpServerHandler extends SimpleChannelInboundHandler<byte[]> {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyTcpServerHandler.class);
 
-    private NettyTcpSource nettyTcpSource;
+    private NettySource nettySource;
 
-    public NettyTcpServerHandler(NettyTcpSource nettyTcpSource) {
-        this.nettyTcpSource = nettyTcpSource;
+    public NettyTcpServerHandler(NettySource nettySource) {
+        this.nettySource = nettySource;
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, byte[] bytes) throws Exception {
-        nettyTcpSource.consume(new NettyTcpRecord(Optional.ofNullable(""), bytes));
+        nettySource.consume(new NettyTcpRecord(Optional.ofNullable(""), bytes));
     }
 
     @Override

@@ -20,17 +20,22 @@ package org.apache.pulsar.io.netty;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+
 /**
- * Netty Tcp Source Connector Config.
+ * Netty Source Connector Config.
  */
 @Data
 @Setter
@@ -38,7 +43,7 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class NettyTcpSourceConfig implements Serializable {
+public class NettySourceConfig implements Serializable {
 
     private static final long serialVersionUID = -7116130435021510496L;
 
@@ -57,18 +62,24 @@ public class NettyTcpSourceConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "1",
-            help = "The number of threads of Netty Tcp Server to accept incoming connections and " +
-                    "handle the traffic of the accepted connections")
+            help = "The number of threads of Netty Tcp Server to accept incoming connections and "
+                    + "handle the traffic of the accepted connections")
     private int numberOfThreads = 1;
 
-    public static NettyTcpSourceConfig load(Map<String, Object> map) throws IOException {
+    @FieldDoc(
+            required = true,
+            defaultValue = "TCP",
+            help = "The protocol to listen on, valid values are 'TCP' & 'HTTP'")
+    private String protocol = "TCP";
+
+    public static NettySourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), NettyTcpSourceConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), NettySourceConfig.class);
     }
 
-    public static NettyTcpSourceConfig load(String yamlFile) throws IOException {
+    public static NettySourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), NettyTcpSourceConfig.class);
+        return mapper.readValue(new File(yamlFile), NettySourceConfig.class);
     }
 
 }

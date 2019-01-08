@@ -19,4 +19,4 @@
 
 name: tcp
 description: Netty Tcp Source Connector
-sourceClass: org.apache.pulsar.io.netty.NettyTcpSource
+sourceClass: org.apache.pulsar.io.netty.NettySource

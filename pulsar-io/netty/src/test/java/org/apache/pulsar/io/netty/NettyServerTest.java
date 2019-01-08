@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.tcp.server;
+package org.apache.pulsar.io.netty;
 
-import org.apache.pulsar.io.netty.NettyTcpSource;
+import org.apache.pulsar.io.netty.NettyServer;
+import org.apache.pulsar.io.netty.NettySource;
+import org.apache.pulsar.io.netty.tcp.NettyTcpChannelInitializer;
+import org.apache.pulsar.io.netty.tcp.NettyTcpServerHandler;
 import org.junit.Test;
 
 import static org.junit.Assert.assertNotNull;
@@ -26,98 +29,109 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Tests for Netty Tcp Server
  */
-public class NettyTcpServerTest {
+public class NettyServerTest {
 
     private static final String LOCALHOST = "127.0.0.1";
+    
+    NettySource source = new NettySource();
+    NettyTcpChannelInitializer initializer = new NettyTcpChannelInitializer(new NettyTcpServerHandler(source), null);
 
     @Test
-    public void testNettyTcpServerConstructor() {
-        NettyTcpServer nettyTcpServer = new NettyTcpServer.Builder()
+    public void testNettyTcpServerConstructor() {       
+        NettyServer nettyTcpServer = new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(10999)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
 
         assertNotNull(nettyTcpServer);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testNettyTcpServerConstructorWhenHostIsNotSet() {
-        new NettyTcpServer.Builder()
+    public void testNettyTcpServerConstructorWhenHostIsNotSet() {  
+        new NettyServer.Builder()
                 .setPort(10999)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenPortIsNotSet() {
-        new NettyTcpServer.Builder()
+        new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenNumberOfThreadsIsNotSet() {
-        new NettyTcpServer.Builder()
+         new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(10999)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
 
     @Test(expected = NullPointerException.class)
     public void testNettyTcpServerConstructorWhenNettyTcpSourceIsNotSet() {
-        new NettyTcpServer.Builder()
+        new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(10999)
                 .setNumberOfThreads(2)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenHostIsSetAsBlank() {
-        new NettyTcpServer.Builder()
+         new NettyServer.Builder()
                 .setHost(" ")
                 .setPort(10999)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetAsZero() {
-        new NettyTcpServer.Builder()
+        new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(0)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetLowerThan1024() {
-        new NettyTcpServer.Builder()
+        new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(1022)
                 .setNumberOfThreads(2)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNettyTcpServerWhenNumberOfThreadsIsSetAsZero() {
-        new NettyTcpServer.Builder()
+        new NettyServer.Builder()
                 .setHost(LOCALHOST)
                 .setPort(10999)
                 .setNumberOfThreads(0)
-                .setNettyTcpSource(new NettyTcpSource())
+                .setNettyTcpSource(source)
+                .setChannelInitializer(initializer)
                 .build();
     }
-
 }
