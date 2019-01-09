@@ -16,57 +16,52 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
-
-import java.util.Map;
-import java.util.function.Supplier;
+package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-public final class AuthenticationFactory {
-
-    /**
-     * Create an authentication provider for token based authentication.
-     *
-     * @param token
-     *            the client auth token
-     */
-    public static Authentication token(String token) {
-        return new AuthenticationToken(token);
+public class AuthenticationUtil {
+    public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        return jsonMapper.readValue(authParamsString, new TypeReference<HashMap<String, String>>() {
+        });
     }
 
-    /**
-     * Create an authentication provider for token based authentication.
-     *
-     * @param tokenSupplier
-     *            a supplier of the client auth token
-     */
-    public static Authentication token(Supplier<String> tokenSupplier) {
-        return new AuthenticationToken(tokenSupplier);
-    }
+    public static Map<String, String> configureFromPulsar1AuthParamString(String authParamsString) {
+        Map<String, String> authParams = new HashMap<>();
 
-    /**
-     * Create an authentication provider for TLS based authentication.
-     *
-     * @param certFilePath
-     *            the path to the TLS client public key
-     * @param keyFilePath
-     *            the path to the TLS client private key
-     */
-    public static Authentication TLS(String certFilePath, String keyFilePath) {
-        return new AuthenticationTls(certFilePath, keyFilePath);
+        if (isNotBlank(authParamsString)) {
+            String[] params = authParamsString.split(",");
+            for (String p : params) {
+                String[] kv = p.split(":");
+                if (kv.length == 2) {
+                    authParams.put(kv[0], kv[1]);
+                }
+            }
+        }
+        return authParams;
     }
 
     /**
      * Create an instance of the Authentication-Plugin
      *
-     * @param authPluginClassName name of the Authentication-Plugin you want to use
-     * @param authParamsString    string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @param authPluginClassName
+     *            name of the Authentication-Plugin you want to use
+     * @param authParamsString
+     *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
@@ -82,7 +77,7 @@ public final class AuthenticationFactory {
                     ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
                 } else {
                     // Parse parameters by default parse logic.
-                    auth.configure(AuthenticationUtil.configureFromPulsar1AuthParamString(authParamsString));
+                    auth.configure(configureFromPulsar1AuthParamString(authParamsString));
                 }
                 return auth;
             } else {
@@ -96,8 +91,10 @@ public final class AuthenticationFactory {
     /**
      * Create an instance of the Authentication-Plugin
      *
-     * @param authPluginClassName name of the Authentication-Plugin you want to use
-     * @param authParams          map which represents parameters for the Authentication-Plugin
+     * @param authPluginClassName
+     *            name of the Authentication-Plugin you want to use
+     * @param authParams
+     *            map which represents parameters for the Authentication-Plugin
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */

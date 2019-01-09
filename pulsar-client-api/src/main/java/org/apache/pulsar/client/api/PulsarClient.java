@@ -22,7 +22,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -40,7 +40,7 @@ public interface PulsarClient extends Closeable {
      * @since 2.0.0
      */
     public static ClientBuilder builder() {
-        return new ClientBuilderImpl();
+        return DefaultImplementation.newClientBuilder();
     }
 
     /**

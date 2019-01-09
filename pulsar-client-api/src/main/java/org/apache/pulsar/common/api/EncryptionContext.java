@@ -21,12 +21,12 @@ package org.apache.pulsar.common.api;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import org.apache.pulsar.client.api.CompressionType;
 
 @Getter
 @Setter

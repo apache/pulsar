@@ -63,6 +63,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -648,7 +649,7 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(getPulsarClientException(rc, commandGetSchemaResponse.getErrorMessage()));
             }
         } else {
-            future.complete(Optional.of(new SchemaInfo(commandGetSchemaResponse.getSchema())));
+            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(commandGetSchemaResponse.getSchema())));
         }
     }
 
