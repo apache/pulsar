@@ -18,6 +18,7 @@ to a Pulsar topic.
 | fetchMinBytes | `false` | `null` | Minimum bytes expected for each fetch response. |
 | autoCommitEnabled | `false` | `false` | If true, periodically commit to ZooKeeper the offset of messages already fetched by the consumer. This committed offset will be used when the process fails as the position from which the new consumer will begin. | 
 | autoCommitIntervalMs | `false` | `null` | The frequency in ms that the consumer offsets are committed to zookeeper. |
+| heartbeatIntervalMs | `false` | `3000` | The interval between heartbeats to the consumer when using Kafka's group management facilities. |
 | sessionTimeoutMs | `false` | `null` | The timeout used to detect consumer failures when using Kafka's group management facility. |
 | topic | `true` | `null` | Topic name to receive records from Kafka |
 | keySerializerClass | false | org.apache.kafka.common.serialization.StringSerializer | Serializer class for key that implements the org.apache.kafka.common.serialization.Serializer interface. |

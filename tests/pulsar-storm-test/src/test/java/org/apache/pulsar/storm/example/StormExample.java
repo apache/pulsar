@@ -22,15 +22,18 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.storm.MessageToValuesMapper;
 import org.apache.pulsar.storm.PulsarBolt;
 import org.apache.pulsar.storm.PulsarBoltConfiguration;
 import org.apache.pulsar.storm.PulsarSpout;
 import org.apache.pulsar.storm.PulsarSpoutConfiguration;
 import org.apache.pulsar.storm.TupleToMessageMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.metric.api.IMetricsConsumer;
@@ -42,14 +45,8 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.apache.storm.utils.Utils;
-
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.Producer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StormExample {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarSpout.class);
@@ -74,11 +71,11 @@ public class StormExample {
     static TupleToMessageMapper tupleToMessageMapper = new TupleToMessageMapper() {
 
         @Override
-        public Message toMessage(Tuple tuple) {
+        public TypedMessageBuilder<byte[]> toMessage(TypedMessageBuilder<byte[]> msgBuilder, Tuple tuple) {
             String receivedMessage = tuple.getString(0);
             // message processing
             String processedMsg = receivedMessage + "-processed";
-            return MessageBuilder.create().setContent(processedMsg.getBytes()).build();
+            return msgBuilder.value(processedMsg.getBytes());
         }
 
         @Override
@@ -88,8 +85,6 @@ public class StormExample {
     };
 
     public static void main(String[] args) throws PulsarClientException {
-
-        ClientConfiguration clientConf = new ClientConfiguration();
         // String authPluginClassName = "org.apache.pulsar.client.impl.auth.MyAuthentication";
         // String authParams = "key1:val1,key2:val2";
         // clientConf.setAuthentication(authPluginClassName, authParams);
@@ -105,14 +100,14 @@ public class StormExample {
         spoutConf.setTopic(topic1);
         spoutConf.setSubscriptionName(subscriptionName1);
         spoutConf.setMessageToValuesMapper(messageToValuesMapper);
-        PulsarSpout spout = new PulsarSpout(spoutConf, clientConf);
+        PulsarSpout spout = new PulsarSpout(spoutConf, PulsarClient.builder());
 
         // create bolt
         PulsarBoltConfiguration boltConf = new PulsarBoltConfiguration();
         boltConf.setServiceUrl(serviceUrl);
         boltConf.setTopic(topic2);
         boltConf.setTupleToMessageMapper(tupleToMessageMapper);
-        PulsarBolt bolt = new PulsarBolt(boltConf, clientConf);
+        PulsarBolt bolt = new PulsarBolt(boltConf, PulsarClient.builder());
 
         TopologyBuilder builder = new TopologyBuilder();
         builder.setSpout("testSpout", spout);
@@ -127,18 +122,18 @@ public class StormExample {
         cluster.submitTopology("test", conf, builder.createTopology());
         Utils.sleep(10000);
 
-        PulsarClient pulsarClient = PulsarClient.create(serviceUrl, clientConf);
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl).build();
         // create a consumer on topic2 to receive messages from the bolt when the processing is done
-        Consumer consumer = pulsarClient.subscribe(topic2, subscriptionName2);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic2).subscriptionName(subscriptionName2).subscribe();
         // create a producer on topic1 to send messages that will be received by the spout
-        Producer producer = pulsarClient.createProducer(topic1);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic1).create();
 
         for (int i = 0; i < 10; i++) {
             String msg = "msg-" + i;
             producer.send(msg.getBytes());
             LOG.info("Message {} sent", msg);
         }
-        Message msg = null;
+        Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
             LOG.info("Message {} received", new String(msg.getData()));

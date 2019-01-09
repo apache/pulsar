@@ -103,6 +103,12 @@ static Result getResult(ServerError serverError) {
 
         case TopicTerminatedError:
             return ResultTopicTerminated;
+
+        case ProducerBusy:
+            return ResultProducerBusy;
+
+        case InvalidTopicName:
+            return ResultInvalidTopicName;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -695,7 +701,8 @@ void ClientConnection::handleIncomingCommand() {
                     PendingLookupRequestsMap::iterator it =
                         pendingLookupRequests_.find(partitionMetadataResponse.request_id());
                     if (it != pendingLookupRequests_.end()) {
-                        LookupDataResultPromisePtr lookupDataPromise = it->second;
+                        it->second.timer->cancel();
+                        LookupDataResultPromisePtr lookupDataPromise = it->second.promise;
                         pendingLookupRequests_.erase(it);
                         numOfPendingLookupRequest_--;
                         lock.unlock();
@@ -779,7 +786,8 @@ void ClientConnection::handleIncomingCommand() {
                     PendingLookupRequestsMap::iterator it =
                         pendingLookupRequests_.find(lookupTopicResponse.request_id());
                     if (it != pendingLookupRequests_.end()) {
-                        LookupDataResultPromisePtr lookupDataPromise = it->second;
+                        it->second.timer->cancel();
+                        LookupDataResultPromisePtr lookupDataPromise = it->second.promise;
                         pendingLookupRequests_.erase(it);
                         numOfPendingLookupRequest_--;
                         lock.unlock();
@@ -1082,7 +1090,14 @@ void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t request
         promise->setFailed(ResultTooManyLookupRequestException);
         return;
     }
-    pendingLookupRequests_.insert(std::make_pair(requestId, promise));
+    LookupRequestData requestData;
+    requestData.timer = executor_->createDeadlineTimer();
+    requestData.timer->expires_from_now(operationsTimeout_);
+    requestData.timer->async_wait(
+        boost::bind(&ClientConnection::handleLookupTimeout, shared_from_this(), _1, requestData));
+    requestData.promise = promise;
+
+    pendingLookupRequests_.insert(std::make_pair(requestId, requestData));
     numOfPendingLookupRequest_++;
     lock.unlock();
     sendCommand(cmd);
@@ -1194,6 +1209,13 @@ void ClientConnection::handleRequestTimeout(const boost::system::error_code& ec,
     }
 }
 
+void ClientConnection::handleLookupTimeout(const boost::system::error_code& ec,
+                                           LookupRequestData pendingRequestData) {
+    if (!ec) {
+        pendingRequestData.promise->setFailed(ResultTimeout);
+    }
+}
+
 void ClientConnection::handleKeepAliveTimeout() {
     if (isClosed()) {
         return;
@@ -1270,7 +1292,7 @@ void ClientConnection::close() {
 
     for (PendingLookupRequestsMap::iterator it = pendingLookupRequests.begin();
          it != pendingLookupRequests.end(); ++it) {
-        it->second->setFailed(ResultConnectError);
+        it->second.promise->setFailed(ResultConnectError);
     }
 
     for (PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap.begin();

@@ -52,12 +52,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public MessageId send() throws PulsarClientException {
-        return producer.send((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.send(getMessage());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        return producer.internalSendAsync((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.internalSendAsync(getMessage());
     }
 
     @Override
@@ -128,6 +128,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
+    }
+
+    public MessageMetadata.Builder getMetadataBuilder() {
+        return msgMetadataBuilder;
+    }
+
+    public Message<T> getMessage() {
+        return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 
     public long getPublishTime() {

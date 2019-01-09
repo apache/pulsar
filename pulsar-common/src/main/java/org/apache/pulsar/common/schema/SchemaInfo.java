@@ -41,7 +41,6 @@ public class SchemaInfo {
     @EqualsAndHashCode.Exclude
     private String name;
 
-
     /**
      * The schema data in AVRO JSON format
      */

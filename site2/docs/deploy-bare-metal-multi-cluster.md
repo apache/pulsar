@@ -13,6 +13,10 @@ sidebar_label: Bare metal multi-cluster
 > 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
 > package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
 > have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+>
+> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
+> package and make sure it is installed under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
+> this feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 A Pulsar *instance* consists of multiple Pulsar clusters working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 

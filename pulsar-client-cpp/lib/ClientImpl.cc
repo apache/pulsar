@@ -213,7 +213,8 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
                                             TopicNamePtr topicName, MessageId startMessageId,
                                             ReaderConfiguration conf, ReaderCallback callback) {
     if (result != ResultOk) {
-        LOG_ERROR("Error Checking/Getting Partition Metadata while creating reader: " << result);
+        LOG_ERROR("Error Checking/Getting Partition Metadata while creating readeron "
+                  << topicName->toString() << " -- " << result);
         callback(result, Reader());
         return;
     }
@@ -373,7 +374,8 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
         lock.unlock();
         consumer->start();
     } else {
-        LOG_ERROR("Error Checking/Getting Partition Metadata while Subscribing- " << result);
+        LOG_ERROR("Error Checking/Getting Partition Metadata while Subscribing on " << topicName->toString()
+                                                                                    << " -- " << result);
         callback(result, Consumer());
     }
 }
@@ -468,7 +470,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     state_ = Closing;
     lock.unlock();
 
-    LOG_DEBUG("Closing Pulsar client");
+    LOG_INFO("Closing Pulsar client");
     SharedInt numberOfOpenHandlers = boost::make_shared<int>(producers.size() + consumers.size());
 
     for (ProducersList::iterator it = producers.begin(); it != producers.end(); ++it) {

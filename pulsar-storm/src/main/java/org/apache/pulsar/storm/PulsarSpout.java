@@ -31,9 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -51,7 +49,6 @@ import org.apache.storm.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("deprecation")
 public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     private static final long serialVersionUID = 1L;
@@ -94,30 +91,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         this.consumerConf = new ConsumerConfigurationData<>();
         this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
-
-        this.pulsarSpoutConf = pulsarSpoutConf;
-        this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
-        this.maxFailedRetries = pulsarSpoutConf.getMaxFailedRetries();
-    }
-
-    @Deprecated
-    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfiguration clientConf) {
-        this(pulsarSpoutConf, clientConf, new ConsumerConfiguration());
-    }
-
-    @Deprecated
-    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfiguration clientConf,
-            ConsumerConfiguration consumerConf) {
-        this.clientConf = clientConf.getConfigurationData().clone();
-        this.consumerConf = consumerConf.getConfigurationData().clone();
-        Objects.requireNonNull(pulsarSpoutConf.getServiceUrl());
-        Objects.requireNonNull(pulsarSpoutConf.getTopic());
-        Objects.requireNonNull(pulsarSpoutConf.getSubscriptionName());
-        Objects.requireNonNull(pulsarSpoutConf.getMessageToValuesMapper());
-
-        this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
-        this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
-        this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
+        this.consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
 
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);

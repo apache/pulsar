@@ -154,6 +154,11 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
         DeadlineTimerPtr timer;
     };
 
+    struct LookupRequestData {
+        LookupDataResultPromisePtr promise;
+        DeadlineTimerPtr timer;
+    };
+
     /*
      * handler for connectAsync
      * creates a ConnectionPtr which has a valid ClientConnection object
@@ -190,6 +195,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     void newLookup(const SharedBuffer& cmd, const uint64_t requestId, LookupDataResultPromisePtr promise);
 
     void handleRequestTimeout(const boost::system::error_code& ec, PendingRequestData pendingRequestData);
+
+    void handleLookupTimeout(const boost::system::error_code&, LookupRequestData);
 
     void handleKeepAliveTimeout();
 
@@ -259,7 +266,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, PendingRequestData> PendingRequestsMap;
     PendingRequestsMap pendingRequests_;
 
-    typedef std::map<long, LookupDataResultPromisePtr> PendingLookupRequestsMap;
+    typedef std::map<long, LookupRequestData> PendingLookupRequestsMap;
     PendingLookupRequestsMap pendingLookupRequests_;
 
     typedef std::map<long, ProducerImplWeakPtr> ProducersMap;

@@ -700,7 +700,7 @@ void ConsumerImpl::doAcknowledge(const MessageId& messageId, proto::CommandAck_A
 }
 
 void ConsumerImpl::disconnectConsumer() {
-    LOG_DEBUG("Broker notification of Closed consumer: " << consumerId_);
+    LOG_INFO("Broker notification of Closed consumer: " << consumerId_);
     Lock lock(mutex_);
     connection_.reset();
     lock.unlock();
@@ -727,6 +727,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
+    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     ClientImplPtr client = client_.lock();
     if (!client) {
         lock.unlock();

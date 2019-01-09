@@ -142,7 +142,7 @@ Pulsar Go producers have the following methods available:
 Method | Description | Return type
 :------|:------------|:-----------
 `Topic()` | Fetches the producer's [topic](reference-terminology.md#topic)| `string`
-`Name()` | Fetchs the producer's name | `string`
+`Name()` | Fetches the producer's name | `string`
 `Send(context.Context, ProducerMessage) error` | Publishes a [message](#messages) to the producer's topic. This call will block until the message is successfully acknowledged by the Pulsar broker, or an error will be thrown if the timeout set using the `SendTimeout` in the producer's [configuration](#producer-configuration) is exceeded. | `error`
 `SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))` | Publishes a [message](#messages) to the producer's topic asynchronously. The third argument is a callback function that specifies what happens either when the message is acknowledged or an error is thrown. |
 `Close()` | Closes the producer and releases all resources allocated to it. If `Close()` is called then no more messages will be accepted from the publisher. This method will block until all pending publish requests have been persisted by Pulsar. If an error is thrown, no pending writes will be retried. | `error`

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
