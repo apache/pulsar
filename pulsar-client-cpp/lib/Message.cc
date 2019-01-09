@@ -111,6 +111,13 @@ const std::string& Message::getPartitionKey() const {
     return impl_->getPartitionKey();
 }
 
+const std::string& Message::getTopicName() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getTopicName();
+}
+
 uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }
 
 uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTimestamp() : 0ull; }
