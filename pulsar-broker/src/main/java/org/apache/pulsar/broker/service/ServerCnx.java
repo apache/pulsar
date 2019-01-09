@@ -98,6 +98,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1248,7 +1249,7 @@ public class ServerCnx extends PulsarHandler {
                         "Topic not found or no-schema"));
             } else {
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
-                        new SchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
         }).exceptionally(ex -> {
             ctx.writeAndFlush(

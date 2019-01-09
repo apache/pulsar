@@ -1,4 +1,3 @@
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -156,7 +155,7 @@ public interface Message<T> {
     /**
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
-     * 
+     *
      * @return
      */
     Optional<EncryptionContext> getEncryptionCtx();

@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
-
 import java.io.Serializable;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.TopicName;
+
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
  * Opaque unique identifier of a single message
@@ -47,14 +46,14 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
      * @return the de-serialized messageId object
      */
     public static MessageId fromByteArray(byte[] data) throws IOException {
-        return MessageIdImpl.fromByteArray(data);
+        return DefaultImplementation.newMessageIdFromByteArray(data);
     }
 
-    public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
-        return MessageIdImpl.fromByteArrayWithTopic(data, topicName);
+    public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
+        return DefaultImplementation.newMessageIdFromByteArrayWithTopic(data, topicName);
     }
 
-    public static final MessageId earliest = new MessageIdImpl(-1, -1, -1);
+    public static final MessageId earliest = DefaultImplementation.newMessageId(-1, -1, -1);
 
-    public static final MessageId latest = new MessageIdImpl(Long.MAX_VALUE, Long.MAX_VALUE, -1);
+    public static final MessageId latest = DefaultImplementation.newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
 }

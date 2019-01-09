@@ -2647,8 +2647,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String version = metadata.get("version");
         assertEquals(version, "1.0");
 
-        org.apache.pulsar.common.api.proto.PulsarApi.CompressionType compressionType = encryptionCtx
-                .getCompressionType();
+        CompressionType compressionType = encryptionCtx.getCompressionType();
         int uncompressedSize = encryptionCtx.getUncompressedMessageSize();
         byte[] encrParam = encryptionCtx.getParam();
         String encAlgo = encryptionCtx.getAlgorithm();
@@ -2669,7 +2668,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         metadataBuilder.setSequenceId(123);
         metadataBuilder.setPublishTime(12333453454L);
         metadataBuilder.addEncryptionKeys(encKey);
-        metadataBuilder.setCompression(compressionType);
+        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
         metadataBuilder.setUncompressedSize(uncompressedSize);
         ByteBuf decryptedPayload = crypto.decrypt(metadataBuilder.build(), payloadBuf, reader);
 
