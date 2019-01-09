@@ -136,7 +136,7 @@ public class ClientCnx extends PulsarHandler {
             this.requestId = requestId;
         }
     }
-    
+
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
     }
@@ -831,6 +831,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
         case TopicTerminatedError:
             return new PulsarClientException.TopicTerminatedException(errorMsg);
+        case IncompatibleSchema:
+            return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
@@ -862,6 +864,6 @@ public class ClientCnx extends PulsarHandler {
             }
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
 }
