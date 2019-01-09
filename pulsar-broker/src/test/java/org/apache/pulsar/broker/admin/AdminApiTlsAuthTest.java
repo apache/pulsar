@@ -38,6 +38,10 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.SecurityUtility;
 
@@ -46,6 +50,8 @@ import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -53,6 +59,8 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
+    private static final Logger log = LoggerFactory.getLogger(AdminApiTlsAuthTest.class);
+
     private static String getTLSFile(String name) {
         return String.format("./src/test/resources/authentication/tls-http/%s.pem", name);
     }
@@ -70,6 +78,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setSuperUserRoles(ImmutableSet.of("admin", "superproxy"));
         conf.setProxyRoles(ImmutableSet.of("proxy", "superproxy"));
         conf.setAuthorizationEnabled(true);
+
+        conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
+        conf.setBrokerClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("admin.cert"), getTLSFile("admin.key-pk8")));
+        conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
+        conf.setBrokerClientTlsEnabled(true);
 
         super.internalSetup();
     }
@@ -106,6 +120,16 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .allowTlsInsecureConnection(false)
             .enableTlsHostnameVerification(false)
             .serviceHttpUrl(brokerUrlTls.toString())
+            .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                            String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                                          getTLSFile(user + ".cert"), getTLSFile(user + ".key-pk8")))
+            .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
+    }
+
+    PulsarClient buildClient(String user) throws Exception {
+        return PulsarClient.builder()
+            .serviceUrl("pulsar+ssl://localhost:" + BROKER_PORT_TLS)
+            .enableTlsHostnameVerification(false)
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",
                                           getTLSFile(user + ".cert"), getTLSFile(user + ".key-pk8")))
@@ -316,6 +340,31 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Proxy shouldn't be able to set original principal.");
         } catch (NotAuthorizedException e) {
             // expected
+        }
+    }
+
+    // For https://github.com/apache/pulsar/issues/2880
+    @Test
+    public void testDeleteNamespace() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            log.info("Creating tenant");
+            admin.tenants().createTenant("tenant1",
+                                         new TenantInfo(ImmutableSet.of("admin"), ImmutableSet.of("test")));
+            log.info("Creating namespace, and granting perms to user1");
+            admin.namespaces().createNamespace("tenant1/ns1", ImmutableSet.of("test"));
+            admin.namespaces().grantPermissionOnNamespace("tenant1/ns1", "user1", ImmutableSet.of(AuthAction.produce));
+
+            log.info("user1 produces some messages");
+            try (PulsarClient client = buildClient("user1");
+                 Producer<String> producer = client.newProducer(Schema.STRING).topic("tenant1/ns1/foobar").create()) {
+                producer.send("foobar");
+            }
+
+            log.info("Deleting the topic");
+            admin.topics().delete("tenant1/ns1/foobar", true);
+
+            log.info("Deleting namespace");
+            admin.namespaces().deleteNamespace("tenant1/ns1");
         }
     }
 }
