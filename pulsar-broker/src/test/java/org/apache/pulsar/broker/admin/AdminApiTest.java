@@ -798,7 +798,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().getPartitionedStats(partitionedTopicName, false);
-            fail("should have failed");
         } catch (PulsarAdminException e) {
             // ok
             assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
