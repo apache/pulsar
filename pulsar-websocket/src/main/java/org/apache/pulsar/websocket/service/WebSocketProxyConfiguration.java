@@ -52,8 +52,6 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String statusFilePath;
 
     // Configuration Store connection string
-    @Deprecated
-    private String globalZookeeperServers;
     private String configurationStoreServers;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
@@ -170,18 +168,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.statusFilePath = statusFilePath;
     }
 
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        return globalZookeeperServers;
-    }
-
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
-
     public String getConfigurationStoreServers() {
-        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
+        return configurationStoreServers;
     }
 
     public void setConfigurationStoreServers(String configurationStoreServers) {

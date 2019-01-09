@@ -159,7 +159,7 @@ public abstract class AdminResource extends PulsarWebResource {
      * zookeeper.
      *
      * @throws WebApplicationException
-     *             if broker has a read only access if broker is not connected to the global zookeeper
+     *             if broker has a read only access if broker is not connected to the configuration store
      */
     public void validatePoliciesReadOnlyAccess() {
         boolean arePoliciesReadOnly = true;
@@ -167,7 +167,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             arePoliciesReadOnly = globalZkCache().exists(POLICIES_READONLY_FLAG_PATH);
         } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
+            log.warn("Unable to fetch contents of [{}] from configuration store", POLICIES_READONLY_FLAG_PATH, e);
             throw new RestException(e);
         }
 
@@ -175,11 +175,11 @@ public abstract class AdminResource extends PulsarWebResource {
             log.debug("Policies are read-only. Broker cannot do read-write operations");
             throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
         } else {
-            // Make sure the broker is connected to the global zookeeper before writing. If not, throw an exception.
+            // Make sure the broker is connected to the configuration store before writing. If not, throw an exception.
             if (globalZkCache().getZooKeeper().getState() != States.CONNECTED) {
-                log.debug("Broker is not connected to the global zookeeper");
+                log.debug("Broker is not connected to the configuration store");
                 throw new RestException(Status.PRECONDITION_FAILED,
-                        "Broker needs to be connected to global zookeeper before making a read-write operation");
+                        "Broker needs to be connected to configuration store before making a read-write operation");
             } else {
                 // Do nothing, just log the message.
                 log.debug("Broker is allowed to make read-write operations");

@@ -88,10 +88,6 @@ public class PulsarClusterMetadataSetup {
         }, description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = { "-gzk",
-                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
-        private String globalZookeeper;
-
         @Parameter(names = { "-cs",
             "--configuration-store" }, description = "Configuration Store connection string", required = false)
         private String configurationStore;
@@ -120,20 +116,10 @@ public class PulsarClusterMetadataSetup {
             throw e;
         }
 
-        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
+        if (arguments.configurationStore == null) {
             System.err.println("Configuration store address argument is required (--configuration-store)");
             jcommander.usage();
             System.exit(1);
-        }
-
-        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) supercedes the deprecated (--global-zookeeper) argument");
-            jcommander.usage();
-            System.exit(1);
-        }
-
-        if (arguments.configurationStore == null) {
-            arguments.configurationStore = arguments.globalZookeeper;
         }
 
         log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,

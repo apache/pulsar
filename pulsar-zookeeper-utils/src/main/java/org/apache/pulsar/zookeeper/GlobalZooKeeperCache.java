@@ -71,7 +71,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
             newSession.register(this);
             zkSession.set(newSession);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            LOG.error("Failed to establish global zookeeper session: {}", e.getMessage(), e);
+            LOG.error("Failed to establish configuration store session: {}", e.getMessage(), e);
             throw new IOException(e);
         }
     }
@@ -93,7 +93,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
     public <T> void process(WatchedEvent event, final CacheUpdater<T> updater) {
         synchronized (this) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Got Global ZooKeeper WatchdEvent: EventType: {}, KeeperState: {}, path: {}",
+                LOG.debug("[{}] Got Configuration Store WatchedEvent: EventType: {}, KeeperState: {}, path: {}",
                         this.hashCode(), event.getType(), event.getState(), event.getPath());
             }
             if (event.getType() == Event.EventType.None) {

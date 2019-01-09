@@ -38,7 +38,7 @@
 # Configuration file of settings used in zookeeper server
 # PULSAR_ZK_CONF=
 
-# Configuration file of settings used in global zookeeper server
+# Configuration file of settings used in configuration store server
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm

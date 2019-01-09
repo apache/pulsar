@@ -78,12 +78,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "Configuration store connection string (as a comma-separated list)"
     )
     private String configurationStoreServers;
-    @FieldContext(
-        category = CATEGORY_BROKER_DISCOVERY,
-        doc = "Global ZooKeeper quorum connection string (as a comma-separated list)"
-    )
-    @Deprecated
-    private String globalZookeeperServers;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,

@@ -82,15 +82,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The Zookeeper quorum connection string (as a comma-separated list)"
     )
     private String zookeeperServers;
-    @Deprecated
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        required = false,
-        deprecated = true,
-        doc = "Global Zookeeper quorum connection string (as a comma-separated list)."
-            + " Deprecated in favor of using `configurationStoreServers`"
-    )
-    private String globalZookeeperServers;
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
@@ -1064,31 +1055,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerOffloadMaxThreads = 2;
 
-    /**
-     * @deprecated See {@link #getConfigurationStoreServers}
-     */
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
-            // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
-            // ZooKeeper cluster
-            return this.getZookeeperServers();
-        }
-        return globalZookeeperServers;
-    }
-
-    /**
-     * @deprecated See {@link #setConfigurationStoreServers(String)}
-     */
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
-
     public String getConfigurationStoreServers() {
-        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
-            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
-            return this.getGlobalZookeeperServers();
+        if (configurationStoreServers == null || configurationStoreServers.isEmpty()) {
+            return getZookeeperServers();
         }
         return configurationStoreServers;
     }

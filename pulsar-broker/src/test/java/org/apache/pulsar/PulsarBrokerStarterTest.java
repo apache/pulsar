@@ -212,7 +212,7 @@ public class PulsarBrokerStarterTest {
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
     @Test
-    public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
+    public void testConfigurationStoreConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
