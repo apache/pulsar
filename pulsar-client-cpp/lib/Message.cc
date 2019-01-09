@@ -73,12 +73,13 @@ Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metad
 }
 
 Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-                 proto::SingleMessageMetadata& singleMetadata)
+                 proto::SingleMessageMetadata& singleMetadata, const std::string& topicName)
     : impl_(boost::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;
     impl_->metadata = metadata;
     impl_->payload = payload;
     impl_->metadata.mutable_properties()->CopyFrom(singleMetadata.properties());
+    impl_->topicName_ = &topicName;
 
     if (singleMetadata.has_partition_key()) {
         impl_->metadata.set_partition_key(singleMetadata.partition_key());

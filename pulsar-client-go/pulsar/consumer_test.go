@@ -95,6 +95,7 @@ func TestConsumer(t *testing.T) {
 		assertNotNil(t, msg)
 
 		assertEqual(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+		assertEqual(t, string(msg.Topic()), "persistent://public/default/my-topic")
 
 		consumer.Ack(msg)
 	}
