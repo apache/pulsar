@@ -75,6 +75,8 @@ enum Result
     ResultUnsupportedVersionError,  /// Error when an older client/version doesn't support a required feature
     ResultTopicTerminated,          /// Topic was already terminated
     ResultCryptoError,              /// Error when crypto operation fails
+
+    ResultIncompatibleSchema,       /// Specified schema is incompatible with the topic's schema
 };
 
 // Return string representation of result code
