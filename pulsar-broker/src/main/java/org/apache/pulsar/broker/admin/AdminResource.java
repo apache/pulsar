@@ -70,6 +70,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,14 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    protected boolean zkPathExists(String path) throws KeeperException, InterruptedException {
+        Stat stat = globalZk().exists(path, false);
+        if (null != stat) {
+            return true;
+        }
+        return false;
     }
 
     /**
