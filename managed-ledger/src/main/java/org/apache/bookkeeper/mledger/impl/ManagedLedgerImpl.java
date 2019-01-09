@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.time.Clock;
@@ -105,6 +106,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -166,6 +168,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final Map<String, CompletableFuture<ManagedCursor>> uninitializedCursors;
 
     final EntryCache entryCache;
+    
+    private ScheduledFuture<?> timeoutTask;
 
     /**
      * This lock is held while the ledgers list is updated asynchronously on the metadata store. Since we use the store
@@ -328,6 +332,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         });
+        
+        scheduleTimeoutTask();
+    }
+
+    private void scheduleTimeoutTask() {
+        long timeoutSec = config.getAddEntryTimeoutSeconds();
+        // disable timeout task checker if timeout <= 0
+        if (timeoutSec > 0) {
+            this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(() -> {
+                OpAddEntry opAddEntry = pendingAddEntries.peek();
+                if (opAddEntry != null) {
+                    boolean isTimedOut = opAddEntry.lastInitTime != -1
+                            && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - opAddEntry.lastInitTime) >= timeoutSec
+                            && opAddEntry.completed == FALSE;
+                    if (isTimedOut) {
+                        log.error("Failed to add entry for ledger {} in time-out {} sec",
+                                (opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1), timeoutSec);
+                        opAddEntry.handleAddFailure(opAddEntry.ledger);
+                    }
+                }
+            }, config.getAddEntryTimeoutSeconds(), config.getAddEntryTimeoutSeconds(), TimeUnit.SECONDS);
+        }
     }
 
     private synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -1146,6 +1172,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             closeAllCursors(callback, ctx);
         }, null);
+        
+        if (this.timeoutTask != null) {
+            this.timeoutTask.cancel(false);
+        }
     }
 
     private void closeAllCursors(CloseCallback callback, final Object ctx) {

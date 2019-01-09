@@ -245,6 +245,9 @@ configs:
 - name: managedLedgerReadEntryTimeoutSeconds
   default: '120'
   description: Read entries timeout when broker tries to read messages from bookkeeper.
+- name: managedLedgerAddEntryTimeoutSeconds
+  default: '120'
+  description: Add entry timeout when broker tries to publish message to bookkeeper (0 to disable it).
 - name: loadBalancerEnabled
   default: 'true'
   description: Enable load balancer
