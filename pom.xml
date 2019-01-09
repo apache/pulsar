@@ -191,7 +191,7 @@ flexible messaging model and an intuitive client API.</description>
     <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.8.0</testcontainers.version>
+    <testcontainers.version>1.10.5</testcontainers.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
