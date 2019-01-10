@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -103,34 +104,33 @@ public class NettyServer {
     }
 
     private void runTcp() throws InterruptedException {
-        bossGroup = new NioEventLoopGroup(this.numberOfThreads);
-        workerGroup = new NioEventLoopGroup(this.numberOfThreads);
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
-        serverBootstrap.group(bossGroup, workerGroup);
-        serverBootstrap.channel(NioServerSocketChannel.class);
-        serverBootstrap.childHandler(new NettyChannelInitializer(new NettyServerHandler(this.nettySource)))
-                .option(ChannelOption.SO_BACKLOG, 1024)
-                .childOption(ChannelOption.SO_KEEPALIVE, true);
+        ServerBootstrap serverBootstrap = getServerBootstrap(
+                new NettyChannelInitializer(new NettyServerHandler(this.nettySource)));
 
         ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
         channelFuture.channel().closeFuture().sync();
     }
 
     private void runHttp() throws InterruptedException {
-        bossGroup = new NioEventLoopGroup(this.numberOfThreads);
-        workerGroup = new NioEventLoopGroup(this.numberOfThreads);
-
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
-        serverBootstrap.group(bossGroup, workerGroup)
-                .channel(NioServerSocketChannel.class)
-                .childHandler(new NettyHttpChannelInitializer(new NettyHttpServerHandler(this.nettySource), null))
-                .option(ChannelOption.SO_BACKLOG, 1024)
-                .childOption(ChannelOption.SO_KEEPALIVE, true);
+        ServerBootstrap serverBootstrap = getServerBootstrap(
+                new NettyHttpChannelInitializer(new NettyHttpServerHandler(this.nettySource), null));
 
         ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
         channelFuture.channel().closeFuture().sync();
     }
 
+    private ServerBootstrap getServerBootstrap(ChannelHandler childHandler) {
+        bossGroup = new NioEventLoopGroup(this.numberOfThreads);
+        workerGroup = new NioEventLoopGroup(this.numberOfThreads);
+        ServerBootstrap serverBootstrap = new ServerBootstrap();
+        serverBootstrap.group(bossGroup, workerGroup);
+        serverBootstrap.channel(NioServerSocketChannel.class);
+        serverBootstrap.childHandler(childHandler)
+        .option(ChannelOption.SO_BACKLOG, 1024)
+        .childOption(ChannelOption.SO_KEEPALIVE, true);
+
+        return serverBootstrap;
+    }
 
     /**
      * Pulsar Netty Server Builder.
