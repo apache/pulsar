@@ -26,18 +26,18 @@ from kazoo.retry import KazooRetry
 logging.getLogger('kazoo.client').addHandler(logging.StreamHandler())
 
 def usage():
-    print >> sys.stderr, "\n%s -z <zookeeper> -p <path> [-w|-c|-e]" % (sys.argv[0])
-    print >> sys.stderr, "\nWait for, or create znode"
-    print >> sys.stderr, "\n-z Specify zookeeper connect string"
-    print >> sys.stderr, "\n-p Znode path to watch or create"
-    print >> sys.stderr, "\n-w Watch for path creation"
-    print >> sys.stderr, "\n-c Create path"
-    print >> sys.stderr, "\n-e Check if znode exists"
+    print("\n%s -z <zookeeper> -p <path> [-w|-c|-e]" % (sys.argv[0]), file=sys.stderr)
+    print("\nWait for, or create znode", file=sys.stderr)
+    print("\n-z Specify zookeeper connect string", file=sys.stderr)
+    print("\n-p Znode path to watch or create", file=sys.stderr)
+    print("\n-w Watch for path creation", file=sys.stderr)
+    print("\n-c Create path", file=sys.stderr)
+    print("\n-e Check if znode exists", file=sys.stderr)
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], "z:p:cweh")
 except getopt.GetoptError as err:
-    print >> sys.stderr, str(err)
+    print(str(err), file=sys.stderr)
     usage()
     sys.exit(2)
 
@@ -67,17 +67,17 @@ for o, a in opts:
         sys.exit(2)
 
 if not zookeeper:
-    print >> sys.stderr, "Zookeeper must be specified"
+    print("Zookeeper must be specified", file=sys.stderr)
     usage()
     sys.exit(3)
 
 if not znode:
-    print >> sys.stderr, "Znode must be specified"
+    print("Znode must be specified", file=sys.stderr)
     usage()
     sys.exit(4)
 
 if (not watch and not create and not exists):
-    print >> sys.stderr, "Exactly one of watch (-w), create (-c) or exists (-e) must be specified"
+    print("Exactly one of watch (-w), create (-c) or exists (-e) must be specified", file=sys.stderr)
     usage()
     sys.exit(5)
 
@@ -93,7 +93,7 @@ while True:
             sys.exit(0)
         elif watch:
             while not zk.exists(znode):
-                print "Waiting for %s" % znode
+                print("Waiting for %s" % znode)
                 time.sleep(1)
             sys.exit(0)
         elif exists:
