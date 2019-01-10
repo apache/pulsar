@@ -796,14 +796,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
 
-        try {
-            admin.topics().getPartitionedStats(partitionedTopicName, false);
-        } catch (PulsarAdminException e) {
-            // ok
-            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+                4);
+
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+                admin.topics().getPartitionedStats(partitionedTopicName,false).metadata.partitions);
+
+        assertEquals(admin.topics().getPartitionedStats(partitionedTopicName, false).partitions.size(),
+                0);
 
         try {
             admin.topics().getSubscriptions(partitionedTopicName);
