@@ -167,6 +167,8 @@ uint64_t pulsar_message_get_publish_timestamp(pulsar_message_t *message);
  */
 uint64_t pulsar_message_get_event_timestamp(pulsar_message_t *message);
 
+const char *pulsar_message_get_topic_name(pulsar_message_t *message);
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus

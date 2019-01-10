@@ -136,7 +136,7 @@ class Message {
             int32_t partition);
     /// Used for Batch Messages
     Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-            proto::SingleMessageMetadata& singleMetadata);
+            proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;
