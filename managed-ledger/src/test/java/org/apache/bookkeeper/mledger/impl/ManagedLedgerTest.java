@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -54,6 +55,8 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -61,6 +64,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
@@ -2246,6 +2250,78 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
         
+        ledger.close();
+    }
+    
+    /**
+     * It verifies that asyncRead timesout if it doesn't receive response from bk-client in configured timeout
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testManagedLedgerWithReadEntryTimeOut() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
+
+        BookKeeper bk = mock(BookKeeper.class);
+        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+        AtomicReference<ManagedLedgerException> responseException1 = new AtomicReference<>();
+        CountDownLatch latch1 = new CountDownLatch(1);
+
+        CompletableFuture<LedgerEntries> entriesFuture = new CompletableFuture<>();
+        ReadHandle ledgerHandle = mock(ReadHandle.class);
+        doReturn(entriesFuture).when(ledgerHandle).readAsync(PositionImpl.earliest.getLedgerId(),
+                PositionImpl.earliest.getEntryId());
+
+        // (1) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                responseException1.set(null);
+                latch1.countDown();
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                responseException1.set(exception);
+                latch1.countDown();
+            }
+        }, null);
+        ledger.asyncCreateLedger(bk, config, null, new CreateCallback() {
+            @Override
+            public void createComplete(int rc, LedgerHandle lh, Object ctx) {
+
+            }
+        }, Collections.emptyMap());
+        latch1.await(config.getReadEntryTimeoutSeconds() + 2, TimeUnit.SECONDS);
+        assertNotNull(responseException1.get());
+        assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+
+        // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        CountDownLatch latch2 = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
+        PositionImpl readPositionRef = PositionImpl.earliest;
+        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor1");
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
+
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                latch2.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                responseException2.set(exception);
+                latch2.countDown();
+            }
+
+        }, null);
+        ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest.getEntryId(), PositionImpl.earliest.getEntryId(),
+                false, opReadEntry, null);
+        latch2.await(config.getReadEntryTimeoutSeconds() + 2, TimeUnit.SECONDS);
+        assertNotNull(responseException2.get());
+        assertEquals(responseException2.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+
         ledger.close();
     }
 }
