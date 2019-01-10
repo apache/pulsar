@@ -67,6 +67,12 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    public static class IncompatibleSchemaException extends PulsarClientException {
+        public IncompatibleSchemaException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class LookupException extends PulsarClientException {
         public LookupException(String msg) {
             super(msg);
