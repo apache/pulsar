@@ -39,6 +39,17 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
             BROKER_HTTP_PORT);
     }
 
+    public StandaloneContainer(String clusterName, String pulsarImageName) {
+        super(clusterName,
+                NAME,
+                NAME + "-cluster",
+                "bin/pulsar",
+                BROKER_PORT,
+                BROKER_HTTP_PORT,
+                "",
+                pulsarImageName);
+    }
+
     @Override
     protected void configure() {
         super.configure();

@@ -40,7 +40,10 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_PORT = 6650;
     public static final int BROKER_HTTP_PORT = 8080;
 
-    private static final String IMAGE_NAME = "apachepulsar/pulsar-test-latest-version:latest";
+    public static final String DEFAULT_IMAGE_NAME = "apachepulsar/pulsar-test-latest-version:latest";
+    public static final String PULSAR_2_2_IMAGE_NAME = "apachepulsar/pulsar:2.2.0";
+    public static final String PULSAR_2_1_IMAGE_NAME = "apachepulsar/pulsar:2.1.0";
+    public static final String PULSAR_2_0_IMAGE_NAME = "apachepulsar/pulsar:2.0.0";
 
     private final String hostname;
     private final String serviceName;
@@ -65,7 +68,24 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                            int servicePort,
                            int httpPort,
                            String httpPath) {
-        super(clusterName, IMAGE_NAME);
+        super(clusterName, DEFAULT_IMAGE_NAME);
+        this.hostname = hostname;
+        this.serviceName = serviceName;
+        this.serviceEntryPoint = serviceEntryPoint;
+        this.servicePort = servicePort;
+        this.httpPort = httpPort;
+        this.httpPath = httpPath;
+    }
+
+    public PulsarContainer(String clusterName,
+                           String hostname,
+                           String serviceName,
+                           String serviceEntryPoint,
+                           int servicePort,
+                           int httpPort,
+                           String httpPath,
+                           String pulsarImageName) {
+        super(clusterName, pulsarImageName);
         this.hostname = hostname;
         this.serviceName = serviceName;
         this.serviceEntryPoint = serviceEntryPoint;
