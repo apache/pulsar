@@ -104,8 +104,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
+    public static final int FALSE = 0;
+    public static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
