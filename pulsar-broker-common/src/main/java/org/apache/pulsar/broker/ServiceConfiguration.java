@@ -387,18 +387,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable broker to load persistent topics"
-    )
-    private boolean enablePersistentTopics = true;
-
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Enable broker to load non-persistent topics"
-    )
-    private boolean enableNonPersistentTopics = true;
-
-    @FieldContext(
-        category = CATEGORY_SERVER,
         doc = "Enable to run bookie along with broker"
     )
     private boolean enableRunBookieTogether = false;

@@ -61,8 +61,4 @@ public interface LoadManagerReport extends ServiceLookupData {
 
     public String getBrokerVersionString();
 
-    public boolean isPersistentTopicsEnabled();
-
-    public boolean isNonPersistentTopicsEnabled();
-
 }
