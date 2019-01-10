@@ -1,6 +1,6 @@
 ---
 id: cookbooks-partitioned
-title: Non-persistent messaging
+title: cookbooks-partitioned
 sidebar_label: Partitioned Topics
 ---
 
