@@ -540,7 +540,8 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     const MessageId& m = batchedMessage.impl_->messageId;
     MessageId singleMessageId(m.partition(), m.ledgerId(), m.entryId(), batchIndex);
-    Message singleMessage(singleMessageId, batchedMessage.impl_->metadata, payload, metadata);
+    Message singleMessage(singleMessageId, batchedMessage.impl_->metadata, payload, metadata,
+                          batchedMessage.impl_->getTopicName());
     singleMessage.impl_->cnx_ = batchedMessage.impl_->cnx_;
 
     return singleMessage;
