@@ -17,27 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.io.netty.server;
-
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.bytes.ByteArrayDecoder;
-
-/**
- * Netty Channel Initializer to register decoder and handler.
- */
-public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
-
-    private ChannelInboundHandlerAdapter handler;
-
-    public NettyChannelInitializer(ChannelInboundHandlerAdapter handler) {
-        this.handler = handler;
-    }
-
-    @Override
-    protected void initChannel(SocketChannel socketChannel) throws Exception {
-        socketChannel.pipeline().addLast(new ByteArrayDecoder());
-        socketChannel.pipeline().addLast(this.handler);
-    }
-
-}
