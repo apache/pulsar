@@ -28,7 +28,7 @@
 import os, sys
 
 if len(sys.argv) < 2:
-    print 'Usage: %s' % (sys.argv[0])
+    print('Usage: %s' % (sys.argv[0]))
     sys.exit(1)
 
 # Always apply env config to env scripts as well
@@ -52,7 +52,7 @@ for conf_filename in conf_files:
     for k in sorted(os.environ.keys()):
         v = os.environ[k]
         if k in keys:
-            print '[%s] Applying config %s = %s' % (conf_filename, k, v)
+            print('[%s] Applying config %s = %s' % (conf_filename, k, v))
             idx = keys[k]
             lines[idx] = '%s=%s\n' % (k, v)
 
