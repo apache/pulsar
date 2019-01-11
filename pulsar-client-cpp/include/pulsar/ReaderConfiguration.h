@@ -23,6 +23,7 @@
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
+#include <pulsar/Schema.h>
 
 #pragma GCC visibility push(default)
 namespace pulsar {
@@ -47,6 +48,21 @@ class ReaderConfiguration {
     ~ReaderConfiguration();
     ReaderConfiguration(const ReaderConfiguration&);
     ReaderConfiguration& operator=(const ReaderConfiguration&);
+
+    /**
+     * Declare the schema of the data that this reader will be accepting.
+     *
+     * The schema will be checked against the schema of the topic, and the
+     * reader creation will fail if it's not compatible.
+     *
+     * @param schemaInfo the schema definition object
+     */
+    ReaderConfiguration& setSchema(const SchemaInfo& schemaInfo);
+
+    /**
+     * @return the schema information declared for this consumer
+     */
+    const SchemaInfo& getSchema() const;
 
     /**
      * A message listener enables your application to configure how to process

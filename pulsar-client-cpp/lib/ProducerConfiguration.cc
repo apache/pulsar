@@ -187,6 +187,13 @@ ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) 
     return *this;
 }
 
+ProducerConfiguration& ProducerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ProducerConfiguration::getSchema() const { return impl_->schemaInfo; }
+
 bool ProducerConfiguration::hasProperty(const std::string& name) const {
     const std::map<std::string, std::string>& m = impl_->properties;
     return m.find(name) != m.end();
