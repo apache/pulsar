@@ -33,6 +33,13 @@ ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfigurat
     return *this;
 }
 
+ConsumerConfiguration& ConsumerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ConsumerConfiguration::getSchema() const { return impl_->schemaInfo; }
+
 long ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs() const {
     return impl_->brokerConsumerStatsCacheTimeInMs;
 }

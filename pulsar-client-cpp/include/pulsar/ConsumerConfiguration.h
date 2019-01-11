@@ -24,6 +24,7 @@
 #include <pulsar/Result.h>
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
+#include <pulsar/Schema.h>
 #include <pulsar/ConsumerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 
@@ -50,6 +51,21 @@ class ConsumerConfiguration {
     ~ConsumerConfiguration();
     ConsumerConfiguration(const ConsumerConfiguration&);
     ConsumerConfiguration& operator=(const ConsumerConfiguration&);
+
+    /**
+     * Declare the schema of the data that this consumer will be accepting.
+     *
+     * The schema will be checked against the schema of the topic, and the
+     * consumer creation will fail if it's not compatible.
+     *
+     * @param schemaInfo the schema definition object
+     */
+    ConsumerConfiguration& setSchema(const SchemaInfo& schemaInfo);
+
+    /**
+     * @return the schema information declared for this consumer
+     */
+    const SchemaInfo& getSchema() const;
 
     /**
      * Specify the consumer type. The consumer type enables

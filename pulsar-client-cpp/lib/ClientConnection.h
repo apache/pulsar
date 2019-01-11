@@ -68,7 +68,12 @@ class LookupDataResult;
 
 struct OpSendMsg;
 
-typedef std::pair<std::string, int64_t> ResponseData;
+// Data returned on the request operation. Mostly used on create-producer command
+struct ResponseData {
+    std::string producerName;
+    int64_t lastSequenceId;
+    std::string schemaVersion;
+};
 
 typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
