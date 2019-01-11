@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.standalone;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.annotations.Test;
 
-
 public class SmokeTest extends PulsarStandaloneTestSuite {
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")

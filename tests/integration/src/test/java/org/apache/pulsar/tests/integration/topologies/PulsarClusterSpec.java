@@ -28,6 +28,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
 
 /**
@@ -78,11 +79,10 @@ public class PulsarClusterSpec {
     @Default
     int numFunctionWorkers = 0;
 
-
     /**
-     * Enable a Preto Worker Node
+     * Enable a Presto Worker Node
      *
-     * @return the flag whether presto worker is eanbled
+     * @return the flag whether presto worker is enabled
      */
     @Default
     boolean enablePrestoWorker = false;
@@ -116,4 +116,12 @@ public class PulsarClusterSpec {
      */
     @Builder.Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
+
+    /**
+     * Pulsar Test Image Name
+     *
+     * @return the version of the pulsar test image to use
+     */
+    @Default
+    String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
 }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.suites;
+package org.apache.pulsar.tests.integration.backwardscompatibility;
 
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
@@ -24,11 +24,11 @@ import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
-public class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase implements ITest {
+public class PulsarStandaloneTestSuite2_2 extends PulsarStandaloneTestBase implements ITest {
 
     @BeforeSuite
     public void setUpCluster() throws Exception {
-        super.startCluster(PulsarContainer.DEFAULT_IMAGE_NAME);
+        super.startCluster(PulsarContainer.PULSAR_2_2_IMAGE_NAME);
     }
 
     @AfterSuite
