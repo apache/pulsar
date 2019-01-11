@@ -17,11 +17,13 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.twitter;
+package org.apache.pulsar.io.twitter.data;
 
-import java.util.List;
 import lombok.Data;
 
+/**
+ * POJO for Tweet object.
+ */
 @Data
 public class TweetData {
     private String createdAt;
@@ -44,7 +46,9 @@ public class TweetData {
     private String timestampMs;
     private Delete delete;
 
-
+    /**
+     * POJO for Twitter User object.
+     */
     @Data
     public static class User {
         private Long id;
@@ -54,7 +58,7 @@ public class TweetData {
         private String location;
         private String description;
         private String translatorType;
-        private Boolean _protected;
+        private Boolean protectedUser;
         private Boolean verified;
         private Long followersCount;
         private Long friendsCount;
@@ -81,6 +85,10 @@ public class TweetData {
         private Boolean defaultProfile;
         private Boolean defaultProfileImage;
     }
+
+    /**
+     * POJO for Re-Tweet object.
+     */
     @Data
     public static class RetweetedStatus {
         private String createdAt;
@@ -100,6 +108,10 @@ public class TweetData {
         private String filterLevel;
         private String lang;
     }
+
+    /**
+     * POJO for Tweet Status object.
+     */
     @Data
     public static class Status {
         private Long id;
@@ -107,6 +119,10 @@ public class TweetData {
         private Long userId;
         private String userIdStr;
     }
+
+    /**
+     * POJO for Tweet Delete object.
+     */
     @Data
     public static class Delete {
         private Status status;
