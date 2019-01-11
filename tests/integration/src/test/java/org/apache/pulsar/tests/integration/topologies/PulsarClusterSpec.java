@@ -26,6 +26,7 @@ import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.Singular;
 import lombok.experimental.Accessors;
 
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -101,6 +102,7 @@ public class PulsarClusterSpec {
      *
      * @return the list of external services to start with the cluster.
      */
+    @Singular
     Map<String, GenericContainer<?>> externalServices = Collections.EMPTY_MAP;
 
     /**
