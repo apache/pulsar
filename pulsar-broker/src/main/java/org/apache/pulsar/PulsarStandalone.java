@@ -272,8 +272,16 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
-            workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
+            boolean useTls = workerConfig.isUseTls();
+            String localhost = "127.0.0.1";
+            String pulsarServiceUrl = useTls
+                    ? PulsarService.brokerUrlTls(localhost, config.getBrokerServicePortTls().get())
+                    : PulsarService.brokerUrl(localhost, config.getBrokerServicePort().get());
+            String webServiceUrl = useTls
+                    ? PulsarService.webAddressTls(localhost, config.getWebServicePortTls().get())
+                    : PulsarService.webAddress(localhost, config.getWebServicePort().get());
+            workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
+            workerConfig.setPulsarWebServiceUrl(webServiceUrl);
             if (!this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
                 workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
