@@ -45,7 +45,7 @@ public interface Runtime {
     
     CompletableFuture<Void> resetMetrics();
     
-    CompletableFuture<InstanceCommunication.MetricsData> getMetrics();
+    CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId);
 
     String getPrometheusMetrics() throws IOException;
 }
