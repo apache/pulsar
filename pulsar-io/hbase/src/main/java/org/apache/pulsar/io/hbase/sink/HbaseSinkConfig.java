@@ -65,7 +65,6 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
         help = "The hbase table column qualifier names")
     private List<String> qualifierNames;
 
-
     /**
      * The hbase operation timeout in milliseconds
      */

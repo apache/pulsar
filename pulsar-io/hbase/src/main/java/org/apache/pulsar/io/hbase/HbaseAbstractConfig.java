@@ -58,20 +58,19 @@ public class HbaseAbstractConfig implements Serializable {
         required = true,
         defaultValue = "2181",
         help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
-    private String zookeeperClientPort;
+    private String zookeeperClientPort = "2181";
 
     @FieldDoc(
         required = true,
         defaultValue = "/hbase",
         help = "hbase system configuration about zookeeper.znode.parent value")
-    private String zookeeperZnodeParent;
+    private String zookeeperZnodeParent = "/hbase";
 
     @FieldDoc(
         required = true,
         defaultValue = "",
         help = "hbase system configuration about hbase.master value")
     private String hbaseMaster;
-
 
     @FieldDoc(
         required = true,
