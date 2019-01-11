@@ -16,28 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.suites;
 
-import org.apache.pulsar.tests.integration.containers.PulsarContainer;
-import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+package org.apache.pulsar.tests.integration.backwardscompatibility;
 
-public class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase implements ITest {
+import org.testng.annotations.Test;
 
-    @BeforeSuite
-    public void setUpCluster() throws Exception {
-        super.startCluster(PulsarContainer.DEFAULT_IMAGE_NAME);
+public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
+
+    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+        super.testPublishAndConsume(serviceUrl, isPersistent);
     }
 
-    @AfterSuite
-    public void tearDownCluster() throws Exception {
-        super.stopCluster();
-    }
-
-    @Override
-    public String getTestName() {
-        return "pulsar-standalone-suite";
-    }
 }
