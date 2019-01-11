@@ -132,7 +132,7 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
+        logger.error("Error when processing incoming data", cause);
         ctx.close();
     }
 
