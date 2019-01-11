@@ -40,7 +40,7 @@ INT_KEYS = [
 PF_ENV_PREFIX = 'PF_'
 
 if len(sys.argv) < 2:
-    print 'Usage: %s' % (sys.argv[0])
+    print('Usage: %s' % (sys.argv[0]))
     sys.exit(1)
 
 conf_files = sys.argv[1:]
