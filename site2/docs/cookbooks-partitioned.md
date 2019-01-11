@@ -1,6 +1,6 @@
 ---
 id: cookbooks-partitioned
-title: cookbooks-partitioned
+title: Partitioned topics
 sidebar_label: Partitioned Topics
 ---
 
