@@ -688,7 +688,7 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue(ResponseData());
+                        requestData.promise.setValue({});
                         requestData.timer->cancel();
                     }
                     break;

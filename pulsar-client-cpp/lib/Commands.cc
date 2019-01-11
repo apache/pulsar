@@ -72,11 +72,10 @@ static proto::Schema* getSchema(const SchemaInfo& schemaInfo) {
     schema->set_name(schemaInfo.getName());
     schema->set_schema_data(schemaInfo.getSchema());
     schema->set_type(getSchemaType(schemaInfo.getSchemaType()));
-    for (std::map<std::string, std::string>::const_iterator it = schemaInfo.getProperties().begin();
-         it != schemaInfo.getProperties().end(); it++) {
+    for (const auto& kv : schemaInfo.getProperties()) {
         proto::KeyValue* keyValue = proto::KeyValue().New();
-        keyValue->set_key(it->first);
-        keyValue->set_value(it->second);
+        keyValue->set_key(kv.first);
+        keyValue->set_value(kv.second);
         schema->mutable_properties()->AddAllocated(keyValue);
     }
 
