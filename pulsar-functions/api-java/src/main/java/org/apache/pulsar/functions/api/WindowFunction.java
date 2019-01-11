@@ -30,5 +30,5 @@ public interface WindowFunction<I, O> {
      * Process the input.
      * @return the output
      */
-    O process(Collection<I> input, WindowContext context) throws Exception;
+    O process(Collection<Record<I>> input, WindowContext context) throws Exception;
 }

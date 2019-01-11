@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api.examples;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
 
@@ -30,7 +31,11 @@ import java.util.Collection;
 @Slf4j
 public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
     @Override
-    public Integer process(Collection<Integer> integers, WindowContext context) {
-        return integers.stream().reduce(0, (x, y) -> x + y);
+    public Integer process(Collection<Record<Integer>> integers, WindowContext context) {
+        Integer retval = 0;
+        for (Record<Integer> record : integers) {
+            retval += record.getValue();
+        }
+        return retval;
     }
 }
