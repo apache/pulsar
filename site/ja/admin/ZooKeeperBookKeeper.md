@@ -39,7 +39,7 @@ ZooKeeperとBookKeeperはどちらもオープンソースの[Apache](https://ww
 
 ### ZooKeeperの設定
 
-PulsarにおけるZooKeeperの設定はインストール時に生成された`conf`ディレクトリにある2つの設定ファイル: `conf/zookeeper.conf`（[Local ZooKeeper](#local-zookeeper)用）と`conf/global-zookeeper.conf`（[Global ZooKeeper](#global-zookeeper)用）によって操作されます。
+PulsarにおけるZooKeeperの設定はインストール時に生成された`conf`ディレクトリにある2つの設定ファイル: `conf/zookeeper.conf`（[Local ZooKeeper](#local-zookeeper)用）と`conf/global-zookeeper.conf`（[Configuration Store](#global-zookeeper)用）によって操作されます。
 
 #### Local ZooKeeper
 
@@ -47,11 +47,11 @@ Local ZooKeeperの設定は[`conf/zookeeper.conf`](../../reference/Configuration
 
 {% include config.html id="zookeeper" %}
 
-#### Global ZooKeeper
+#### Configuration Store
 
-Global ZooKeeperの設定は[`conf/global-zookeeper.conf`](../../reference/Configuration#global-zookeeper)によって操作されます。下記の表は利用可能な設定項目を表しています：
+Configuration Storeの設定は[`conf/global-zookeeper.conf`](../../reference/Configuration#configuration-store)によって操作されます。下記の表は利用可能な設定項目を表しています：
 
-{% include config.html id="global-zookeeper" %}
+{% include config.html id="configuration-store" %}
 
 ## BookKeeper
 
