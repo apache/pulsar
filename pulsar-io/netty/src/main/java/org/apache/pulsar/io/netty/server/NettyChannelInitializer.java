@@ -24,7 +24,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**
- * Netty Channel Initializer to register decoder and handler
+ * Netty Channel Initializer to register decoder and handler.
  */
 public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 

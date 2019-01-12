@@ -59,6 +59,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
 
     virtual int64_t getLastSequenceId() const;
 
+    virtual const std::string& getSchemaVersion() const;
+
     virtual void start();
 
     virtual void shutdown();

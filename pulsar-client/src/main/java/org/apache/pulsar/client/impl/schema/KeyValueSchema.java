@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.nio.ByteBuffer;
+
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -29,7 +32,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * [Key, Value] pair schema definition
  */
-@Slf4j
 public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     @Getter
     private final Schema<K> keySchema;
@@ -39,6 +41,19 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
     //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
     private final SchemaInfo schemaInfo;
+
+    /**
+     * Key Value Schema using passed in schema type, support JSON and AVRO currently.
+     */
+    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type) {
+        checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
+        if (SchemaType.JSON == type) {
+            return new KeyValueSchema<>(JSONSchema.of(key), JSONSchema.of(value));
+        } else {
+            // AVRO
+            return new KeyValueSchema<>(AvroSchema.of(key), AvroSchema.of(value));
+        }
+    }
 
     public KeyValueSchema(Schema<K> keySchema,
                           Schema<V> valueSchema) {

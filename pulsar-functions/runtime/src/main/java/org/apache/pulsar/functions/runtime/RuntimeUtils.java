@@ -62,12 +62,12 @@ class RuntimeUtils {
                                            String logConfigFile,
                                            String secretsProviderClassName,
                                            String secretsProviderConfig,
-                                           Boolean installUserCodeDepdendencies,
+                                           Boolean installUserCodeDependencies,
                                            String pythonDependencyRepository,
                                            String pythonExtraDependencyRepository,
                                            int metricsPort) throws Exception {
-        List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        final List<String> args = new LinkedList<>();
+        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
 
@@ -115,7 +115,7 @@ class RuntimeUtils {
             args.add("--logging_config_file");
             args.add(logConfigFile);
             // `installUserCodeDependencies` is only valid for python runtime
-            if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
+            if (installUserCodeDependencies != null && installUserCodeDependencies) {
                 args.add("--install_usercode_dependencies");
                 args.add("True");
             }

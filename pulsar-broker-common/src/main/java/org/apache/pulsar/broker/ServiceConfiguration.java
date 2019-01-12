@@ -757,6 +757,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "operation timeout while updating managed-ledger metadata."
     )
     private long managedLedgerMetadataOperationsTimeoutSeconds = 60;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Read entries timeout when broker tries to read messages from bookkeeper "
+                    + "(disable timeout by setting readTimeoutSeconds <= 0)"
+        )
+    private long managedLedgerReadEntryTimeoutSeconds = 60;
+        
+    
 
     /*** --- Load balancer --- ****/
     @FieldContext(

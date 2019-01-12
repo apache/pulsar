@@ -32,4 +32,12 @@
     <artifactId>pulsar-client-api</artifactId>
     <name>Pulsar Client :: API</name>
 
+    <dependencies>
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${protobuf3.version}</version>
+        <scope>provided</scope>
+      </dependency>
+    </dependencies>
 </project>

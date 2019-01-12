@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -267,8 +268,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 	}
 
     @Override
-    public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull Mode mode) {
-        conf.setSubscriptionTopicsMode(mode);
+    public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
+        conf.setRegexSubscriptionMode(mode);
         return this;
     }
 

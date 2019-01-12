@@ -154,13 +154,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
-        this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, SubscriptionMode.Durable, null, schema, interceptors);
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+            Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+        this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, SubscriptionMode.Durable, null,
+                schema, interceptors);
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors interceptors) {
+                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
@@ -268,12 +270,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 client.cleanupConsumer(ConsumerImpl.this);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
-                unsubscribeFuture.complete(null);
                 setState(State.Closed);
+                unsubscribeFuture.complete(null);
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed to unsubscribe: {}", topic, subscription, e.getCause().getMessage());
-                unsubscribeFuture.completeExceptionally(e.getCause());
                 setState(State.Ready);
+                unsubscribeFuture.completeExceptionally(e.getCause());
                 return null;
             });
         } else {
@@ -1150,7 +1152,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (decryptedData != null) {
             return decryptedData;
         }
-        
+
         switch (conf.getCryptoFailureAction()) {
             case CONSUME:
                 // Note, batch message will fail to consume even if config is set to consume
@@ -1544,7 +1546,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             encryptionCtx.setKeys(keys);
             encryptionCtx.setParam(encParam);
             encryptionCtx.setAlgorithm(msgMetadata.getEncryptionAlgo());
-            encryptionCtx.setCompressionType(msgMetadata.getCompression());
+            encryptionCtx
+                    .setCompressionType(CompressionCodecProvider.convertFromWireProtocol(msgMetadata.getCompression()));
             encryptionCtx.setUncompressedMessageSize(msgMetadata.getUncompressedSize());
             encryptionCtx.setBatchSize(batchSize);
         }

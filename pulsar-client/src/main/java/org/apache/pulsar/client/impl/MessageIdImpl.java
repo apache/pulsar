@@ -114,6 +114,10 @@ public class MessageIdImpl implements MessageId {
         return messageId;
     }
 
+    public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
+        return fromByteArrayWithTopic(data, TopicName.get(topicName));
+    }
+
     public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
         checkNotNull(data);
         ByteBufCodedInputStream inputStream = ByteBufCodedInputStream.get(Unpooled.wrappedBuffer(data, 0, data.length));

@@ -26,6 +26,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.Serializable;
 
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.impl.v1.ReaderV1Impl;
 
 /**
  *
@@ -36,11 +37,13 @@ public class ReaderConfiguration implements Serializable {
 
     private final ReaderConfigurationData<byte[]> conf = new ReaderConfigurationData<>();
 
+    private ReaderListener<byte[]> readerListener;
+
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
     public ReaderListener<byte[]> getReaderListener() {
-        return conf.getReaderListener();
+        return readerListener;
     }
 
     /**
@@ -54,7 +57,19 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setReaderListener(ReaderListener<byte[]> readerListener) {
         checkNotNull(readerListener);
-        conf.setReaderListener(readerListener);
+        this.readerListener = readerListener;
+        conf.setReaderListener(new org.apache.pulsar.shade.client.api.v2.ReaderListener<byte[]>() {
+
+            @Override
+            public void received(org.apache.pulsar.shade.client.api.v2.Reader<byte[]> v2Reader, Message<byte[]> msg) {
+                readerListener.received(new ReaderV1Impl(v2Reader), msg);
+            }
+
+            @Override
+            public void reachedEndOfTopic(org.apache.pulsar.shade.client.api.v2.Reader<byte[]> reader) {
+                readerListener.reachedEndOfTopic(new ReaderV1Impl(reader));
+            }
+        });
         return this;
     }
 
@@ -86,7 +101,7 @@ public class ReaderConfiguration implements Serializable {
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
-     * 
+     *
      * @param action
      *            The action to take when the decoding fails
      */

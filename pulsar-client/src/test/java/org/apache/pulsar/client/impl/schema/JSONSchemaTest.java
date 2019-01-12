@@ -23,6 +23,7 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.DerivedFoo;
@@ -117,7 +118,6 @@ public class JSONSchemaTest {
 
     @Test
     public void testCorrectPolymorphism() {
-
         Bar bar = new Bar();
         bar.setField1(true);
 
@@ -160,8 +160,11 @@ public class JSONSchemaTest {
         JSONSchema<SchemaTestUtils.DerivedDerivedFoo> derivedDerivedJsonSchema
                 = JSONSchema.of(SchemaTestUtils.DerivedDerivedFoo.class);
         Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
+    }
 
-
-
+    @Test(expectedExceptions = SchemaSerializationException.class)
+    public void testDecodeWithInvalidContent() {
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(Foo.class);
+        jsonSchema.decode(new byte[0]);
     }
 }

@@ -18,18 +18,21 @@
  */
 package org.apache.pulsar.io.netty.server;
 
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+
+import java.io.Serializable;
+import java.util.Optional;
+
 import lombok.Data;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.netty.NettySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-import java.util.Optional;
-
 /**
- * Handles a server-side channel
+ * Handles a server-side channel.
  */
 @ChannelHandler.Sharable
 public class NettyServerHandler extends SimpleChannelInboundHandler<byte[]> {

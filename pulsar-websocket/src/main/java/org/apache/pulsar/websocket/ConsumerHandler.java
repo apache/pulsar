@@ -238,7 +238,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 }
             } else {
                 // We should have received an ack
-                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId), topic);
+                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                        topic.toString());
                 consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
                 if (!this.pullMode) {
                     int pending = pendingMessages.getAndDecrement();
