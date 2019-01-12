@@ -53,7 +53,7 @@ When provision a new cluster, you need to initialize that cluster's [metadata](c
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
-* The Configuration Store connection string for the entire instance
+* The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 

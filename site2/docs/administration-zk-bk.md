@@ -19,7 +19,7 @@ ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) 
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
 * [Local ZooKeeper](#deploying-local-zookeeper) operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Configuration Store](#deploying-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The Configuration Store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
+* [Configuration Store](#deploying-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
 
 ### Deploying local ZooKeeper
 
@@ -78,12 +78,12 @@ As before, create the `myid` files for each server on `data/global-zookeeper/myi
 
 #### Multi-cluster Pulsar instance
 
-When deploying a global Pulsar instance, with clusters distributed across different geographical regions, the Configuration Store serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.
+When deploying a global Pulsar instance, with clusters distributed across different geographical regions, the configuration store serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.
 
 The key here is to make sure the ZK quorum members are spread across at least 3
 regions and that other regions are running as observers.
 
-Again, given the very low expected load on the Configuration Store servers, we can
+Again, given the very low expected load on the configuration store servers, we can
 share the same hosts used for the local ZooKeeper quorum.
 
 For example, let's assume a Pulsar instance with the following clusters `us-west`,

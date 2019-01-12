@@ -52,7 +52,7 @@ consumer:
   q: グローバルトピックとは？
   def: グローバルなインスタンス全体のネームスペースに属し、特定のクラスタに紐づいていないトピックです。
 configuration-store:
-  q: Configuration Store？
+  q: Configuration Storeとは？
   def: "Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。"
 インスタンス:
   q: Pulsarインスタンスとは？
