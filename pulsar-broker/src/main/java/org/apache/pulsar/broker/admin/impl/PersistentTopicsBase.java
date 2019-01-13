@@ -643,7 +643,19 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+
+                String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                try {
+                    boolean zkPathExists = zkPathExists(path);
+                    if (zkPathExists) {
+                        stats.partitions.put(topicName.toString(), new TopicStats());
+                    } else {
+                        throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                    }
+                } catch (KeeperException | InterruptedException exception) {
+                    throw new RestException(e);
+                }
+
             } else {
                 throw new RestException(e);
             }
