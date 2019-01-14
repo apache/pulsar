@@ -30,9 +30,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.*;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
@@ -51,22 +49,23 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
 
     private boolean initialized;
     protected WindowConfig windowConfig;
-    private WindowManager<I> windowManager;
+    private WindowManager<Record<I>> windowManager;
     private TimestampExtractor<I> timestampExtractor;
-    protected transient WaterMarkEventGenerator<I> waterMarkEventGenerator;
+    protected transient WaterMarkEventGenerator<Record<I>> waterMarkEventGenerator;
 
-    protected java.util.function.Function<Collection<I>, O> windowFunction;
+    protected java.util.function.Function<Collection<I>, O> bareWindowFunction;
+    protected WindowFunction<I, O> windowFunction;
 
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
-        this.windowFunction = intializeUserFunction(this.windowConfig);
+        initializeUserFunction(this.windowConfig);
         log.info("Window Config: {}", this.windowConfig);
         this.windowManager = this.getWindowManager(this.windowConfig, context);
         this.initialized = true;
         this.start();
     }
 
-    private java.util.function.Function<Collection<I>, O> intializeUserFunction(WindowConfig windowConfig) {
+    private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
         Object userClassObject = Reflections.createInstance(
@@ -76,10 +75,12 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
                     java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
-                return (java.util.function.Function) userClassObject;
+                bareWindowFunction = (java.util.function.Function) userClassObject;
             } else {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
+        } else if (userClassObject instanceof WindowFunction) {
+            windowFunction = (WindowFunction) userClassObject;
         } else {
             throw new IllegalArgumentException("Window function does not implement the correct interface");
         }
@@ -97,10 +98,10 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return windowConfig;
     }
 
-    private WindowManager<I> getWindowManager(WindowConfig windowConfig, Context context) {
+    private WindowManager<Record<I>> getWindowManager(WindowConfig windowConfig, Context context) {
 
-        WindowLifecycleListener<Event<I>> lifecycleListener = newWindowLifecycleListener(context);
-        WindowManager<I> manager = new WindowManager<>(lifecycleListener, new ConcurrentLinkedQueue<>());
+        WindowLifecycleListener<Event<Record<I>>> lifecycleListener = newWindowLifecycleListener(context);
+        WindowManager<Record<I>> manager = new WindowManager<>(lifecycleListener, new ConcurrentLinkedQueue<>());
 
         if (this.windowConfig.getTimestampExtractorClassName() != null) {
             this.timestampExtractor = getTimeStampExtractor(windowConfig);
@@ -115,8 +116,8 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             }
         }
 
-        EvictionPolicy<I, ?> evictionPolicy = getEvictionPolicy(windowConfig);
-        TriggerPolicy<I, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager,
+        EvictionPolicy<Record<I>, ?> evictionPolicy = getEvictionPolicy(windowConfig);
+        TriggerPolicy<Record<I>, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager,
                 evictionPolicy, context);
         manager.setEvictionPolicy(evictionPolicy);
         manager.setTriggerPolicy(triggerPolicy);
@@ -162,8 +163,8 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return (TimestampExtractor<I>) result;
     }
 
-    private TriggerPolicy<I, ?> getTriggerPolicy(WindowConfig windowConfig, WindowManager<I> manager,
-                                                 EvictionPolicy<I, ?> evictionPolicy, Context context) {
+    private TriggerPolicy<Record<I>, ?> getTriggerPolicy(WindowConfig windowConfig, WindowManager<Record<I>> manager,
+                                                 EvictionPolicy<Record<I>, ?> evictionPolicy, Context context) {
         if (windowConfig.getSlidingIntervalCount() != null) {
             if (this.isEventTime()) {
                 return new WatermarkCountTriggerPolicy<>(
@@ -181,7 +182,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         }
     }
 
-    private EvictionPolicy<I, ?> getEvictionPolicy(WindowConfig windowConfig) {
+    private EvictionPolicy<Record<I>, ?> getEvictionPolicy(WindowConfig windowConfig) {
         if (windowConfig.getWindowLengthCount() != null) {
             if (this.isEventTime()) {
                 return new WatermarkCountEvictionPolicy<>(windowConfig.getWindowLengthCount());
@@ -198,17 +199,17 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         }
     }
 
-    protected WindowLifecycleListener<Event<I>> newWindowLifecycleListener(Context context) {
-        return new WindowLifecycleListener<Event<I>>() {
+    protected WindowLifecycleListener<Event<Record<I>>> newWindowLifecycleListener(Context context) {
+        return new WindowLifecycleListener<Event<Record<I>>>() {
             @Override
-            public void onExpiry(List<Event<I>> events) {
-                for (Event<I> event : events) {
+            public void onExpiry(List<Event<Record<I>>> events) {
+                for (Event<Record<I>> event : events) {
                     event.getRecord().ack();
                 }
             }
 
             @Override
-            public void onActivation(List<Event<I>> tuples, List<Event<I>> newTuples, List<Event<I>>
+            public void onActivation(List<Event<Record<I>>> tuples, List<Event<Record<I>>> newTuples, List<Event<Record<I>>>
                     expiredTuples, Long referenceTime) {
                 processWindow(
                         context,
@@ -220,7 +221,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         };
     }
 
-    private void processWindow(Context context, List<I> tuples, List<I> newTuples, List<I>
+    private void processWindow(Context context, List<Record<I>> tuples, List<Record<I>> newTuples, List<Record<I>>
             expiredTuples, Long referenceTime) {
 
         O output = null;
@@ -273,12 +274,12 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             initialize(context);
         }
 
-        Record<?> record = context.getCurrentRecord();
+        Record<I> record = (Record<I>)context.getCurrentRecord();
 
         if (isEventTime()) {
-            long ts = this.timestampExtractor.extractTimestamp(input);
+            long ts = this.timestampExtractor.extractTimestamp(record.getValue());
             if (this.waterMarkEventGenerator.track(record.getTopicName().get(), ts)) {
-                this.windowManager.add(input, ts, record);
+                this.windowManager.add(record, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
                     context.publish(this.windowConfig.getLateDataTopic(), input);
@@ -290,12 +291,17 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 record.ack();
             }
         } else {
-            this.windowManager.add(input, System.currentTimeMillis(), record);
+            this.windowManager.add(record, System.currentTimeMillis(), record);
         }
         return null;
     }
 
-    public O process(Window<I> inputWindow, WindowContext context) throws Exception {
-        return this.windowFunction.apply(inputWindow.get());
+    public O process(Window<Record<I>> inputWindow, WindowContext context) throws Exception {
+        if (this.bareWindowFunction != null) {
+            Collection<I> newCollection = inputWindow.get().stream().map(Record::getValue).collect(Collectors.toList());
+            return this.bareWindowFunction.apply(newCollection);
+        } else {
+            return this.windowFunction.process(inputWindow.get(), context);
+        }
     }
 }
