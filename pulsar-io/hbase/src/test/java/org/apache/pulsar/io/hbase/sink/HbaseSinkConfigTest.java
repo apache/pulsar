@@ -32,7 +32,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 /**
- * HbaseSink Config test
+ * HbaseSinkConfig test
  */
 public class HbaseSinkConfigTest {
 

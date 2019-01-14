@@ -35,11 +35,11 @@ import java.util.List;
 @Connector(
     name = "hbase",
     type = IOType.SINK,
-    help = "The HbaseSink is used for moving messages from Pulsar to Hbase.",
+    help = "The HbaseGenericRecordSink is used for moving messages from Pulsar to Hbase.",
     configClass = HbaseSinkConfig.class
 )
 @Slf4j
-public class HbaseSink extends HbaseAbstractSink<GenericRecord> {
+public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
     @Override
     public List<Put> bindValue(Record<GenericRecord> message) throws Exception {
         List<Put> result = new ArrayList<>();

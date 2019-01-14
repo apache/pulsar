@@ -53,7 +53,7 @@ import static org.mockito.Mockito.mock;
  * hbase Sink test
  */
 @Slf4j
-public class HbaseSinkTest {
+public class HbaseGenericRecordSinkTest {
 
     /**
      * A Simple class to test hbase class
@@ -95,7 +95,7 @@ public class HbaseSinkTest {
         map.put("qualifierNames",qualifierNames);
 
         mockSinkContext = mock(SinkContext.class);
-        HbaseSink sink = new HbaseSink();
+        HbaseGenericRecordSink sink = new HbaseGenericRecordSink();
 
         // prepare a foo Record
         Foo obj = new Foo();

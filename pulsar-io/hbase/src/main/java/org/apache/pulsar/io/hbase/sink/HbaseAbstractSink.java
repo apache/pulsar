@@ -40,6 +40,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -76,7 +77,6 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     // for flush
     private List<Record<T>> incomingList;
-    private List<Record<T>> swapList;
     private AtomicBoolean isFlushing;
     private int timeoutMs;
     private int batchSize;
@@ -97,8 +97,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         timeoutMs = hbaseSinkConfig.getTimeoutMs();
         batchSize = hbaseSinkConfig.getBatchSize();
 
-        incomingList = Lists.newArrayList();
-        swapList = Lists.newArrayList();
+        incomingList = Collections.synchronizedList(Lists.newArrayList());
         isFlushing = new AtomicBoolean(false);
 
         flushExecutor = Executors.newScheduledThreadPool(1);
@@ -107,19 +106,23 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
-        admin.close();
-        connection.close();
+        if (null != admin) {
+            admin.close();
+        }
+
+        if (null != connection) {
+            connection.close();
+        }
+
+        if (null != flushExecutor) {
+            flushExecutor.shutdown();
+        }
     }
 
     @Override
     public void write(Record<T> record) throws Exception {
-        int number;
-        synchronized (incomingList) {
-            incomingList.add(record);
-            number = incomingList.size();
-        }
-
-        if (number == batchSize) {
+        incomingList.add(record);
+        if (batchSize == incomingList.size()) {
             flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
         }
     }
@@ -133,21 +136,10 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
             if (log.isDebugEnabled()) {
                 log.debug("Starting flush, queue size: {}", incomingList.size());
             }
-            if (!swapList.isEmpty()) {
-                throw new IllegalStateException("swapList should be empty since last flush. swapList.size: " + swapList.size());
-            }
 
-            synchronized (incomingList) {
-                List<Record<T>> tmpList;
-                swapList.clear();
-
-                tmpList = swapList;
-                swapList = incomingList;
-                incomingList = tmpList;
-            }
             try {
                 // bind each record value
-                for (Record<T> record : swapList) {
+                for (Record<T> record : incomingList) {
                     List<Put> puts = bindValue(record);
                     if (CollectionUtils.isNotEmpty(puts)) {
                         table.put(puts);
@@ -155,16 +147,18 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
                 }
 
                 admin.flush(tableName);
-                swapList.forEach(tRecord -> tRecord.ack());
+                incomingList.forEach(tRecord -> tRecord.ack());
             } catch (Exception e) {
                 log.error("Got exception ", e);
-                swapList.forEach(tRecord -> tRecord.fail());
+                incomingList.forEach(tRecord -> tRecord.fail());
             }
 
             // finish flush
             if (log.isDebugEnabled()) {
-                log.debug("Finish flush, queue size: {}", swapList.size());
+                log.debug("Finish flush, queue size: {}", incomingList.size());
             }
+
+            incomingList.clear();
             isFlushing.set(false);
         } else {
             if (log.isDebugEnabled()) {
