@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.windowing;
 
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.WindowContext;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
