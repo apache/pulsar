@@ -2892,4 +2892,42 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(latch.getCount(), 1);
         consumer.close();
     }
+
+    // Issue 3226: https://github.com/apache/pulsar/issues/3226
+    // Pull 3312: https://github.com/apache/pulsar/pull/3312
+    // Bugfix preventing duplicated consumers on same client cnx with shared subscription mode
+    @Test()
+    public void testPreventDupConsumersOnClientCnx() throws Exception {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String subName = "my-subscription";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
+            if (t1 != null) {
+                future.completeExceptionally(t1);
+                return;
+            }
+
+            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
+                if (t2 != null) {
+                    future.completeExceptionally(t2);
+                    return;
+                }
+                future.complete(null);
+            });
+        });
+
+        future.get(5, TimeUnit.SECONDS);
+        Assert.assertTrue(future.isDone());
+        Assert.assertFalse(future.isCompletedExceptionally());
+    }
 }
