@@ -65,15 +65,6 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
         help = "The hbase table column qualifier names")
     private List<String> qualifierNames;
 
-    /**
-     * The hbase operation timeout in milliseconds
-     */
-    @FieldDoc(
-        required = false,
-        defaultValue = "3000",
-        help = "The hbase table operation timeout in milliseconds")
-    private int timeoutMs = 3000;
-
     @FieldDoc(
         required = false,
         defaultValue = "200",
@@ -98,10 +89,6 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
                 StringUtils.isEmpty(familyName) ||
                 CollectionUtils.isEmpty(qualifierNames)) {
             throw new IllegalArgumentException("Required property not set.");
-        }
-
-        if (timeoutMs < 0) {
-            throw new IllegalArgumentException("timeout cannot be negative");
         }
 
         if (batchSize < 1) {

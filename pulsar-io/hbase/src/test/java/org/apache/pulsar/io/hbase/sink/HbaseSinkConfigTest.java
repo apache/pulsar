@@ -135,26 +135,6 @@ public class HbaseSinkConfigTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "timeout cannot be negative")
-    public final void invalidTimeoutMsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put("zookeeperQuorum", "localhost");
-        map.put("zookeeperClientPort", "2181");
-        map.put("zookeeperZnodeParent", "/hbase");
-        map.put("hbaseMaster", "localhost:60000");
-        map.put("tableName", "pulsar_hbase");
-        map.put("rowKeyName", "rowKey");
-        map.put("familyName", "info");
-        List<String> qualifierNames = new ArrayList<>();
-        qualifierNames.add("qualifierName");
-        map.put("qualifierNames", qualifierNames);
-        map.put("timeoutMs",-10);
-
-        HbaseSinkConfig config = HbaseSinkConfig.load(map);
-        config.validate();
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer")
     public final void invalidBatchSizeTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();

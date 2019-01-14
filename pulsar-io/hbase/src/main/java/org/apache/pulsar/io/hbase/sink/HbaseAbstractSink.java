@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
-import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -40,6 +39,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +78,6 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     // for flush
     private List<Record<T>> incomingList;
     private AtomicBoolean isFlushing;
-    private int timeoutMs;
     private int batchSize;
     private ScheduledExecutorService flushExecutor;
 
@@ -94,14 +93,12 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         getTable(hbaseSinkConfig);
         tableDefinition = getTableDefinition(hbaseSinkConfig);
 
-        timeoutMs = hbaseSinkConfig.getTimeoutMs();
         batchSize = hbaseSinkConfig.getBatchSize();
 
-        incomingList = Collections.synchronizedList(Lists.newArrayList());
+        incomingList = Collections.synchronizedList(new ArrayList());
         isFlushing = new AtomicBoolean(false);
 
         flushExecutor = Executors.newScheduledThreadPool(1);
-        flushExecutor.scheduleAtFixedRate(() -> flush(), timeoutMs, timeoutMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -132,7 +129,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     private void flush() {
         // if not in flushing state, do flush, else return;
-        if (incomingList.size() > 0 && isFlushing.compareAndSet(false, true)) {
+        if (isFlushing.compareAndSet(false, true)) {
             if (log.isDebugEnabled()) {
                 log.debug("Starting flush, queue size: {}", incomingList.size());
             }
