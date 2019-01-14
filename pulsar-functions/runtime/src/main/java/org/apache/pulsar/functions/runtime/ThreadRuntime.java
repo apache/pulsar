@@ -155,7 +155,7 @@ class ThreadRuntime implements Runtime {
     
     
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
     }
 
