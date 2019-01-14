@@ -124,6 +124,8 @@ class ThreadRuntime implements Runtime {
             } catch (InterruptedException e) {
                 // ignore this
             }
+            // make sure JavaInstanceRunnable is closed
+            this.javaInstanceRunnable.close();
         }
     }
 

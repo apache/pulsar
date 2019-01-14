@@ -103,7 +103,7 @@ class Stats(object):
     self._stat_total_received_1min = self.stat_total_received_1min.labels(*self.metrics_labels)
 
     # start time for windowed metrics
-    util.FixedTimer(60, self.reset).start()
+    util.FixedTimer(60, self.reset, name="windowed-metrics-timer").start()
 
   def get_total_received(self):
     return self._stat_total_received._value.get();
