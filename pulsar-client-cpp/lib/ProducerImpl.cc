@@ -463,7 +463,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
 
     if (state_ != Ready) {
         lock.unlock();
-        if (!callback.empty()) {
+        if (!callback) {
             callback(ResultAlreadyClosed);
         }
         return;
@@ -474,7 +474,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
         lock.unlock();
-        if (!callback.empty()) {
+        if (!callback) {
             callback(ResultOk);
         }
         return;
@@ -488,7 +488,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     ClientImplPtr client = client_.lock();
     if (!client) {
         // Client was already destroyed
-        if (!callback.empty()) {
+        if (!callback) {
             callback(ResultOk);
         }
         return;
@@ -496,7 +496,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     int requestId = client->newRequestId();
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseProducer(producerId_, requestId), requestId);
-    if (!callback.empty()) {
+    if (!callback) {
         future.addListener(boost::bind(&ProducerImpl::handleClose, shared_from_this(), _1, callback));
     }
 }

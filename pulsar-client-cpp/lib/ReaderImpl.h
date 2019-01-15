@@ -31,7 +31,7 @@ class ReaderImpl;
 typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
 typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
-class ReaderImpl : public boost::enable_shared_from_this<ReaderImpl> {
+class ReaderImpl : public std::enable_shared_from_this<ReaderImpl> {
    public:
     ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
                const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback);

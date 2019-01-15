@@ -24,8 +24,7 @@
 namespace pulsar {
 class ConsumerImplBase;
 
-typedef boost::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
-typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
+typedef std::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
 
 class ConsumerImplBase {
    public:

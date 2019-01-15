@@ -29,7 +29,7 @@
 namespace pulsar {
 
 class PartitionedProducerImpl : public ProducerImplBase,
-                                public boost::enable_shared_from_this<PartitionedProducerImpl> {
+                                public std::enable_shared_from_this<PartitionedProducerImpl> {
    public:
     enum PartitionedProducerState
     {

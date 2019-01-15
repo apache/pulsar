@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-ClientConfiguration::ClientConfiguration() : impl_(boost::make_shared<ClientConfigurationImpl>()) {}
+ClientConfiguration::ClientConfiguration() : impl_(std::make_shared<ClientConfigurationImpl>()) {}
 
 ClientConfiguration::~ClientConfiguration() {}
 

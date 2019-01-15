@@ -162,7 +162,7 @@ void PartitionedConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId,
 
 void PartitionedConsumerImpl::start() {
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
-    boost::shared_ptr<ConsumerImpl> consumer;
+    std::shared_ptr<ConsumerImpl> consumer;
     ConsumerConfiguration config;
     // all the partitioned-consumer belonging to one partitioned topic should have same name
     config.setConsumerName(conf_.getConsumerName());
@@ -179,7 +179,7 @@ void PartitionedConsumerImpl::start() {
     // create consumer on each partition
     for (unsigned int i = 0; i < numPartitions_; i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
-        consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
+        consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
                                                     internalListenerExecutor, Partitioned);
         consumer->getConsumerCreatedFuture().addListener(boost::bind(
             &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(), _1, _2, i));
@@ -240,7 +240,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
         LOG_ERROR("Closing the consumer failed for partition - " << partitionIndex);
         lock.unlock();
         partitionedConsumerCreatedPromise_.setFailed(result);
-        if (!callback.empty()) {
+        if (!callback) {
             callback(result);
         }
         return;
@@ -255,7 +255,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
         lock.unlock();
         // set the producerCreatedPromise to failure
         partitionedConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (!callback.empty()) {
+        if (!callback) {
             callback(result);
         }
         return;
@@ -380,7 +380,7 @@ void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
         return;
     }
     PartitionedBrokerConsumerStatsPtr statsPtr =
-        boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
+        std::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
     LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
     ConsumerList consumerList = consumers_;
     lock.unlock();

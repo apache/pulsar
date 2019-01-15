@@ -86,7 +86,7 @@ class MultiTopicsBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 
     friend std::ostream &operator<<(std::ostream &os, const MultiTopicsBrokerConsumerStatsImpl &obj);
 };
-typedef boost::shared_ptr<MultiTopicsBrokerConsumerStatsImpl> MultiTopicsBrokerConsumerStatsPtr;
+typedef std::shared_ptr<MultiTopicsBrokerConsumerStatsImpl> MultiTopicsBrokerConsumerStatsPtr;
 }  // namespace pulsar
 #pragma GCC visibility pop
 #endif  // PULSAR_CPP_MULTITOPICSBROKERCONSUMERSTATSIMPL_H

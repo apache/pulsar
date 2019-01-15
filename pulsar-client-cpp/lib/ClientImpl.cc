@@ -164,10 +164,10 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
     if (!result) {
         ProducerImplBasePtr producer;
         if (partitionMetadata->getPartitions() > 1) {
-            producer = boost::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
+            producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                    partitionMetadata->getPartitions(), conf);
         } else {
-            producer = boost::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
+            producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
         }
         producer->getProducerCreatedFuture().addListener(
             boost::bind(&ClientImpl::handleProducerCreated, shared_from_this(), _1, _2, callback, producer));
@@ -271,7 +271,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
         NamespaceTopicsPtr matchTopics =
             PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
 
-        consumer = boost::make_shared<PatternMultiTopicsConsumerImpl>(
+        consumer = std::make_shared<PatternMultiTopicsConsumerImpl>(
             shared_from_this(), regexPattern, *matchTopics, consumerName, conf, lookupServicePtr_);
 
         consumer->getConsumerCreatedFuture().addListener(
@@ -310,7 +310,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
         topicNamePtr = TopicName::get(consumerTopicNameStream.str());
     }
 
-    ConsumerImplBasePtr consumer = boost::make_shared<MultiTopicsConsumerImpl>(
+    ConsumerImplBasePtr consumer = std::make_shared<MultiTopicsConsumerImpl>(
         shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
 
     consumer->getConsumerCreatedFuture().addListener(
@@ -361,10 +361,10 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = boost::make_shared<PartitionedConsumerImpl>(
+            consumer = std::make_shared<PartitionedConsumerImpl>(
                 shared_from_this(), consumerName, topicName, partitionMetadata->getPartitions(), conf);
         } else {
-            consumer = boost::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
+            consumer = std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
                                                         consumerName, conf);
         }
         consumer->getConsumerCreatedFuture().addListener(

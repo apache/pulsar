@@ -19,7 +19,6 @@
 #ifndef CONSUMER_HPP_
 #define CONSUMER_HPP_
 
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <iostream>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
@@ -29,6 +28,7 @@ namespace pulsar {
 class PulsarWrapper;
 class ConsumerImplBase;
 class PulsarFriend;
+typedef std::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
 /**
  *
  */
@@ -236,7 +236,6 @@ class Consumer {
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
    private:
-    typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
 

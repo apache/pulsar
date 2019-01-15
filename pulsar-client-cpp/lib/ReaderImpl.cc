@@ -51,7 +51,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
         subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
     }
 
-    consumer_ = boost::make_shared<ConsumerImpl>(
+    consumer_ = std::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
     consumer_->getConsumerCreatedFuture().addListener(

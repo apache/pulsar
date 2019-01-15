@@ -56,7 +56,7 @@ struct OpSendMsg {
 };
 
 class ProducerImpl : public HandlerBase,
-                     public boost::enable_shared_from_this<ProducerImpl>,
+                     public std::enable_shared_from_this<ProducerImpl>,
                      public ProducerImplBase {
    public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,

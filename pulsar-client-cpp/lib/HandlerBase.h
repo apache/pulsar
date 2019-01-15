@@ -36,8 +36,8 @@ ptime now();
 int64_t currentTimeMillis();
 
 class HandlerBase;
-typedef boost::weak_ptr<HandlerBase> HandlerBaseWeakPtr;
-typedef boost::shared_ptr<HandlerBase> HandlerBasePtr;
+typedef std::weak_ptr<HandlerBase> HandlerBaseWeakPtr;
+typedef std::shared_ptr<HandlerBase> HandlerBasePtr;
 
 class HandlerBase {
    public:

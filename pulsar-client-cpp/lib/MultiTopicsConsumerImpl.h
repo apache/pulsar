@@ -34,11 +34,10 @@
 
 namespace pulsar {
 typedef boost::shared_ptr<Promise<Result, Consumer>> ConsumerSubResultPromisePtr;
-typedef boost::function<void(Result result)> ResultCallback;
 
 class MultiTopicsConsumerImpl;
 class MultiTopicsConsumerImpl : public ConsumerImplBase,
-                                public boost::enable_shared_from_this<MultiTopicsConsumerImpl> {
+                                public std::enable_shared_from_this<MultiTopicsConsumerImpl> {
    public:
     enum MultiTopicsConsumerState
     {

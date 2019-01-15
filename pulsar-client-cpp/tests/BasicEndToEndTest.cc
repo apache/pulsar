@@ -723,7 +723,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::CustomPartition);
-    producerConfiguration.setMessageRouter(boost::make_shared<CustomRoutingPolicy>());
+    producerConfiguration.setMessageRouter(std::make_shared<CustomRoutingPolicy>());
 
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -1189,7 +1189,7 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.addEncryptionKey("client-rsa.pem");
@@ -1247,7 +1247,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
 
     ConsumerConfiguration consConfig;
 

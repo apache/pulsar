@@ -150,7 +150,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
         return;
     }
 
-    boost::shared_ptr<ConsumerImpl> consumer;
+    std::shared_ptr<ConsumerImpl> consumer;
     ConsumerConfiguration config;
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
 
@@ -177,7 +177,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
 
     if (numPartitions == 1) {
         // We don't have to add partition-n suffix
-        consumer = boost::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
+        consumer = std::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
                                                     internalListenerExecutor, NonPartitioned);
         consumer->getConsumerCreatedFuture().addListener(
             boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
@@ -189,7 +189,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     } else {
         for (int i = 0; i < numPartitions; i++) {
             std::string topicPartitionName = topicName->getTopicPartitionName(i);
-            consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_,
+            consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_,
                                                         config, internalListenerExecutor, Partitioned);
             consumer->getConsumerCreatedFuture().addListener(
                 boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
@@ -417,7 +417,7 @@ void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::stri
         }
 
         multiTopicsConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (!callback.empty()) {
+        if (!callback) {
             callback(result);
         }
         return;
@@ -597,7 +597,7 @@ void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
         return;
     }
     MultiTopicsBrokerConsumerStatsPtr statsPtr =
-        boost::make_shared<MultiTopicsBrokerConsumerStatsImpl>(numberTopicPartitions_->load());
+        std::make_shared<MultiTopicsBrokerConsumerStatsImpl>(numberTopicPartitions_->load());
     LatchPtr latchPtr = boost::make_shared<Latch>(numberTopicPartitions_->load());
     int size = consumers_.size();
     lock.unlock();

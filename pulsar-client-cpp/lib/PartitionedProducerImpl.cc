@@ -55,13 +55,13 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
 MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
     switch (conf_.getPartitionsRoutingMode()) {
         case ProducerConfiguration::RoundRobinDistribution:
-            return boost::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
+            return std::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
         case ProducerConfiguration::CustomPartition:
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
         default:
             unsigned int random = rand();
-            return boost::make_shared<SinglePartitionMessageRouter>(
+            return std::make_shared<SinglePartitionMessageRouter>(
                 random % topicMetadata_->getNumPartitions(), conf_.getHashingScheme());
     }
 }
@@ -72,11 +72,11 @@ const std::string& PartitionedProducerImpl::getTopic() const { return topic_; }
 
 // override
 void PartitionedProducerImpl::start() {
-    boost::shared_ptr<ProducerImpl> producer;
+    std::shared_ptr<ProducerImpl> producer;
     // create producer per partition
     for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
-        producer = boost::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
+        producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
         producer->getProducerCreatedFuture().addListener(boost::bind(
             &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), _1, _2, i));
         producers_.push_back(producer);

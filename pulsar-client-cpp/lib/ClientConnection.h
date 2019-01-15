@@ -53,16 +53,16 @@ class PulsarFriend;
 class ExecutorService;
 
 class ClientConnection;
-typedef boost::shared_ptr<ClientConnection> ClientConnectionPtr;
-typedef boost::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
+typedef std::shared_ptr<ClientConnection> ClientConnectionPtr;
+typedef std::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
 
 class ProducerImpl;
-typedef boost::shared_ptr<ProducerImpl> ProducerImplPtr;
-typedef boost::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
+typedef std::shared_ptr<ProducerImpl> ProducerImplPtr;
+typedef std::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
 
 class ConsumerImpl;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
+typedef std::shared_ptr<ConsumerImpl> ConsumerImplPtr;
+typedef std::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
 
 class LookupDataResult;
 
@@ -77,7 +77,7 @@ struct ResponseData {
 
 typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
-class ClientConnection : public boost::enable_shared_from_this<ClientConnection> {
+class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     enum State
     {
         Pending,

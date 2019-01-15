@@ -22,7 +22,7 @@
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
-#include <boost/function.hpp>
+#include <functional>
 #include <pulsar/ProducerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/Schema.h>
@@ -33,8 +33,8 @@
 
 namespace pulsar {
 
-typedef boost::function<void(Result, const Message& msg)> SendCallback;
-typedef boost::function<void(Result)> CloseCallback;
+typedef std::function<void(Result, const Message& msg)> SendCallback;
+typedef std::function<void(Result)> CloseCallback;
 
 class ProducerConfigurationImpl;
 class PulsarWrapper;
@@ -187,7 +187,7 @@ class ProducerConfiguration {
 
    private:
     struct Impl;
-    boost::shared_ptr<ProducerConfigurationImpl> impl_;
+    std::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 #pragma GCC visibility pop

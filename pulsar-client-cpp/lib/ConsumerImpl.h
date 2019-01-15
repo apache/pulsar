@@ -50,11 +50,8 @@ class UnAckedMessageTracker;
 class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
 typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
 typedef boost::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
-typedef boost::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
 
 enum ConsumerTopicType
 {
@@ -64,7 +61,7 @@ enum ConsumerTopicType
 
 class ConsumerImpl : public ConsumerImplBase,
                      public HandlerBase,
-                     public boost::enable_shared_from_this<ConsumerImpl> {
+                     public std::enable_shared_from_this<ConsumerImpl> {
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscription,
                  const ConsumerConfiguration&,
