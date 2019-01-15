@@ -79,7 +79,7 @@ public class HbaseGenericRecordSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test
+    @Test(enabled = false)
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("zookeeperQuorum", "localhost");
