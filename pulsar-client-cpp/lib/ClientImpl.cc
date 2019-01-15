@@ -165,7 +165,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
         ProducerImplBasePtr producer;
         if (partitionMetadata->getPartitions() > 1) {
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
-                                                                   partitionMetadata->getPartitions(), conf);
+                                                                 partitionMetadata->getPartitions(), conf);
         } else {
             producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
         }
@@ -361,11 +361,11 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = std::make_shared<PartitionedConsumerImpl>(
-                shared_from_this(), consumerName, topicName, partitionMetadata->getPartitions(), conf);
+            consumer = std::make_shared<PartitionedConsumerImpl>(shared_from_this(), consumerName, topicName,
+                                                                 partitionMetadata->getPartitions(), conf);
         } else {
-            consumer = std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
-                                                        consumerName, conf);
+            consumer =
+                std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(), consumerName, conf);
         }
         consumer->getConsumerCreatedFuture().addListener(
             boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));

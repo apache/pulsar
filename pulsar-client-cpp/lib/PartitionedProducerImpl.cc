@@ -61,8 +61,8 @@ MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
         case ProducerConfiguration::UseSinglePartition:
         default:
             unsigned int random = rand();
-            return std::make_shared<SinglePartitionMessageRouter>(
-                random % topicMetadata_->getNumPartitions(), conf_.getHashingScheme());
+            return std::make_shared<SinglePartitionMessageRouter>(random % topicMetadata_->getNumPartitions(),
+                                                                  conf_.getHashingScheme());
     }
 }
 

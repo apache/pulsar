@@ -180,7 +180,7 @@ void PartitionedConsumerImpl::start() {
     for (unsigned int i = 0; i < numPartitions_; i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                    internalListenerExecutor, Partitioned);
+                                                  internalListenerExecutor, Partitioned);
         consumer->getConsumerCreatedFuture().addListener(boost::bind(
             &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(), _1, _2, i));
         consumer->setPartitionIndex(i);
