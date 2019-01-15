@@ -28,14 +28,17 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.hbase.TableUtils;
 import org.mockito.Mock;
@@ -76,10 +79,9 @@ public class HbaseGenericRecordSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test(enabled = false)
+    @Test
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> map = new HashMap<>();
-//        map.put("hbaseConfigResources", "../pulsar/pulsar-io/hbase/src/test/resources/hbase/hbase-site.xml");
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
         map.put("zookeeperZnodeParent", "/hbase");
@@ -109,10 +111,24 @@ public class HbaseGenericRecordSinkTest {
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchema.of(schema.getSchemaInfo()));
 
+        PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
+        Consumer consumer = mock(Consumer.class);
         Message<GenericRecord> message = new MessageImpl("fake_topic_name", "11:111", map, payload, autoConsumeSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
                 .message(message)
                 .topicName("fake_topic_name")
+                .ackFunction(() -> {
+                    if (pulsarSourceConfig
+                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        consumer.acknowledgeCumulativeAsync(message);
+                    } else {
+                        consumer.acknowledgeAsync(message);
+                    }
+                }).failFunction(() -> {
+                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                    }
+                })
                 .build();
 
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
@@ -122,6 +138,7 @@ public class HbaseGenericRecordSinkTest {
 
         // change batchSize to 1, to flush on each write.
         map.put("batchTimeMs", 1);
+        map.put("batchSize", 1);
         // open should success
         sink.open(map,mockSinkContext);
 

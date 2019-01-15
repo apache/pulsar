@@ -39,7 +39,6 @@ public class TableUtils {
         configuration.set("hbase.zookeeper.quorum", config.get("zookeeperQuorum").toString());
         configuration.set("hbase.zookeeper.property.clientPort", config.get("zookeeperClientPort").toString());
         configuration.set("zookeeper.znode.parent", config.get("zookeeperZnodeParent").toString());
-        configuration.set("hbase.master", config.get("hbaseMaster").toString());
 
         Connection connection = ConnectionFactory.createConnection(configuration);
         Admin admin = connection.getAdmin();

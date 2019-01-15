@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -39,13 +40,12 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
 import java.io.IOException;
-import java.math.BigInteger;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A Simple abstract class for Hbase sink
@@ -76,9 +76,9 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     // for flush
     private int batchTimeMs;
-    private Long currentTime = System.currentTimeMillis();
-    public ConcurrentHashMap<String, Record<T>> rowMap = new ConcurrentHashMap<>();
-
+    private int batchSize;
+    private long currentTime;
+    private List<Record<T>> incomingList;
     private ScheduledExecutorService flushExecutor;
 
     @Override
@@ -94,6 +94,9 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         tableDefinition = getTableDefinition(hbaseSinkConfig);
 
         batchTimeMs = hbaseSinkConfig.getBatchTimeMs();
+        batchSize = hbaseSinkConfig.getBatchSize();
+        currentTime = System.currentTimeMillis();
+        incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
     }
 
@@ -106,42 +109,38 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         if (null != connection) {
             connection.close();
         }
-
-        if (null != flushExecutor) {
-            flushExecutor.shutdown();
-        }
     }
 
     @Override
     public void write(Record<T> record) throws Exception {
-        if (record != null) {
-            byte[] bytes = new byte[16];
-            new Random().nextBytes(bytes);
-            String mapKey = "INDEX_" + new BigInteger(bytes).abs().toString(16);
-            rowMap.put(mapKey, record);
-        }
+        synchronized (incomingList) {
+            incomingList.add(record);
 
-        if (System.currentTimeMillis() - currentTime > batchTimeMs * 1000 && rowMap.size() > 0) {
-            Collection<Record<T>> values = rowMap.values();
-            List<Put> puts = new ArrayList<>();
-            try {
-                // bind each record value
-                for (Record<T> value : values) {
-                   bindValue(value, puts);
-                }
-                if (CollectionUtils.isNotEmpty(puts)) {
-                    table.put(puts);
-                }
-
-                admin.flush(tableName);
-                values.forEach(tRecord -> tRecord.ack());
-
-                rowMap.clear();
-                currentTime = System.currentTimeMillis();
-            } catch (Exception e) {
-                log.error("Got exception ", e);
-                values.forEach(tRecord -> tRecord.fail());
+            if (System.currentTimeMillis() - currentTime > batchTimeMs * 1000
+                    || incomingList.size() >= batchSize) {
+                flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
             }
+        }
+    }
+
+    private void flush() {
+        try {
+            List<Put> puts = new ArrayList<>();
+            for (Record<T> value : incomingList) {
+                bindValue(value, puts);
+            }
+
+            if (CollectionUtils.isNotEmpty(puts)) {
+                table.put(puts);
+            }
+            admin.flush(tableName);
+            incomingList.forEach(tRecord -> tRecord.ack());
+
+            incomingList.clear();
+            currentTime = System.currentTimeMillis();
+        } catch (Exception e) {
+            log.error("Got exception ", e);
+            incomingList.forEach(tRecord -> tRecord.fail());
         }
     }
 

@@ -71,6 +71,13 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
        help = "The hbase operation time in milliseconds")
     private int batchTimeMs = 10;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "200",
+        help = "The batch size of write to the hbase table"
+    )
+    private int batchSize = 200;
+
     public static HbaseSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), HbaseSinkConfig.class);
@@ -93,6 +100,10 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
 
         if (batchTimeMs < 1) {
             throw new IllegalArgumentException("batchTimeMs must be a positive integer");
+        }
+
+        if (batchSize < 1) {
+            throw new IllegalArgumentException("batchSize must be a positive integer");
         }
     }
 }

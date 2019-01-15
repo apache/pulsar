@@ -26,7 +26,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
