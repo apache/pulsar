@@ -59,7 +59,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     long lastEntry = -1;
     boolean fenced = false;
 
-    PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
+    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
         super(bk, id, new LedgerMetadata(3, 3, 2, DigestType.MAC, "".getBytes()), DigestType.MAC, "".getBytes(),
                 EnumSet.noneOf(WriteFlag.class));
