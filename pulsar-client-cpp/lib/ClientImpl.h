@@ -36,8 +36,8 @@ namespace pulsar {
 
 class ClientImpl;
 class PulsarFriend;
-typedef boost::shared_ptr<ClientImpl> ClientImplPtr;
-typedef boost::weak_ptr<ClientImpl> ClientImplWeakPtr;
+typedef std::shared_ptr<ClientImpl> ClientImplPtr;
+typedef std::weak_ptr<ClientImpl> ClientImplWeakPtr;
 
 class ReaderImpl;
 typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
@@ -45,7 +45,7 @@ typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
 const std::string generateRandomName();
 
-class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
+class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
    public:
     ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                bool poolConnections);
@@ -151,9 +151,6 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
 
     friend class Client;
 };
-
-typedef boost::shared_ptr<ClientImpl> ClientImplPtr;
-
 } /* namespace pulsar */
 
 #endif /* LIB_CLIENTIMPL_H_ */
