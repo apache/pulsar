@@ -23,6 +23,7 @@
 #include <iostream>
 #include <pulsar/Result.h>
 #include <functional>
+#include <memory>
 #include <pulsar/ConsumerType.h>
 
 #pragma GCC visibility push(default)
