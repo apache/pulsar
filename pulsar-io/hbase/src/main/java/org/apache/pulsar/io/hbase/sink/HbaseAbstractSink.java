@@ -109,6 +109,10 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         if (null != connection) {
             connection.close();
         }
+
+        if (null != flushExecutor) {
+            flushExecutor.shutdown();
+        }
     }
 
     @Override

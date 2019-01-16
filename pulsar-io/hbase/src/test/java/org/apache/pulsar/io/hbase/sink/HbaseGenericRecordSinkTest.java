@@ -115,21 +115,21 @@ public class HbaseGenericRecordSinkTest {
         Consumer consumer = mock(Consumer.class);
         Message<GenericRecord> message = new MessageImpl("fake_topic_name", "11:111", map, payload, autoConsumeSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
-                .message(message)
-                .topicName("fake_topic_name")
-                .ackFunction(() -> {
-                    if (pulsarSourceConfig
-                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        consumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        consumer.acknowledgeAsync(message);
-                    }
-                }).failFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
-                    }
-                })
-                .build();
+            .message(message)
+            .topicName("fake_topic_name")
+            .ackFunction(() -> {
+                if (pulsarSourceConfig
+                        .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    consumer.acknowledgeCumulativeAsync(message);
+                } else {
+                    consumer.acknowledgeAsync(message);
+                }
+            }).failFunction(() -> {
+                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                }
+            })
+            .build();
 
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
                 obj.toString(),

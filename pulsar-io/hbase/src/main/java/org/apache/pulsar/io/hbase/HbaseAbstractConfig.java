@@ -76,7 +76,6 @@ public class HbaseAbstractConfig implements Serializable {
         if (StringUtils.isEmpty(zookeeperQuorum)  ||
                 StringUtils.isEmpty(zookeeperClientPort)  ||
                 StringUtils.isEmpty(zookeeperZnodeParent)  ||
-//                StringUtils.isEmpty(hbaseMaster)  ||
                 StringUtils.isEmpty(tableName)) {
             throw new IllegalArgumentException("Required property not set.");
         }
