@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -167,6 +168,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateSuperUserAccess() {
         if (config().isAuthenticationEnabled()) {
+
             String appId = clientAppId();
             if(log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
@@ -176,9 +178,23 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
-                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
-                boolean proxyAuthorized = superUserRoles.contains(appId);
-                boolean originalPrincipalAuthorized = superUserRoles.contains(originalPrincipal);
+
+                boolean proxyAuthorized;
+                boolean originalPrincipalAuthorized;
+
+                try {
+                    proxyAuthorized = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(appId)
+                            .get();
+
+                    originalPrincipalAuthorized = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(originalPrincipal)
+                            .get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                }
 
                 if (!proxyAuthorized || !originalPrincipalAuthorized) {
                     throw new RestException(Status.UNAUTHORIZED,
@@ -238,11 +254,28 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
+
+                boolean isProxySuperUser;
+                boolean isOriginalPrincipalSuperUser;
+
+                try {
+                    isProxySuperUser = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(clientAppId)
+                            .get();
+
+                    isOriginalPrincipalSuperUser = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(originalPrincipal)
+                            .get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                }
+
                 Set<String> adminRoles = tenantInfo.getAdminRoles();
-                boolean proxyAuthorized = superUserRoles.contains(clientAppId) || adminRoles.contains(clientAppId);
+                boolean proxyAuthorized = isProxySuperUser || adminRoles.contains(clientAppId);
                 boolean originalPrincipalAuthorized
-                    = superUserRoles.contains(originalPrincipal) || adminRoles.contains(originalPrincipal);
+                    = isOriginalPrincipalSuperUser || adminRoles.contains(originalPrincipal);
 
                 if (!proxyAuthorized || !originalPrincipalAuthorized) {
                     throw new RestException(Status.UNAUTHORIZED,

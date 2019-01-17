@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -112,7 +113,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
-                    if (isNotBlank(subscription) && !isSuperUser(role)) {
+                    if (isNotBlank(subscription) && !_isSuperUser(role)) {
                         // validate if role is authorize to access subscription. (skip validatation if authorization
                         // list is empty)
                         Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
@@ -323,7 +324,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        if (isSuperUser(role)) {
+        if (_isSuperUser(role)) {
             return CompletableFuture.completedFuture(true);
         } else {
             return checkPermission(topicName, role, action)
@@ -430,9 +431,22 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
      * @param role
      *            the app id used to receive messages from the topic.
      */
-    public boolean isSuperUser(String role) {
+
+
+    @Override
+    public CompletableFuture<Boolean> isSuperUser(String role) {
         Set<String> superUserRoles = conf.getSuperUserRoles();
-        return role != null && superUserRoles.contains(role) ? true : false;
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        future.complete(role != null && superUserRoles.contains(role) ? true : false);
+        return future;
+    }
+
+    private boolean _isSuperUser(String role) {
+        try {
+            return isSuperUser(role).get();
+        } catch (InterruptedException | ExecutionException e) {
+           throw new RuntimeException(e);
+        }
     }
 
     @Override

@@ -36,6 +36,14 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 public interface AuthorizationProvider extends Closeable {
 
     /**
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    CompletableFuture<Boolean> isSuperUser(String role);
+
+    /**
      * Perform initialization for the authorization provider
      *
      * @param config
