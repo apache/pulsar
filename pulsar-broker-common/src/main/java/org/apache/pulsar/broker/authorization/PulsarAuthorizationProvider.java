@@ -432,9 +432,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Boolean> isSuperUser(String role) {
         Set<String> superUserRoles = conf.getSuperUserRoles();
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(role != null && superUserRoles.contains(role) ? true : false);
-        return future;
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
     }
 
     @Override
