@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 {
 "url": "http://localhost:8080/nifi",
 "portName": "Data for Pulsar",
