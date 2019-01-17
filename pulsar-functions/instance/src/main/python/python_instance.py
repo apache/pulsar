@@ -290,7 +290,7 @@ class PythonInstance(object):
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, consumer.topic(), serde, consumer)
+    item = InternalMessage(message, message.topic_name(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
