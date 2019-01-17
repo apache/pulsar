@@ -118,6 +118,11 @@ public class FunctionConfigUtils {
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
         }
+        if (functionConfig.getCleanupSubscription() != null) {
+            sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
+        } else {
+            sourceSpecBuilder.setCleanupSubscription(true);
+        }
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // Setup sink

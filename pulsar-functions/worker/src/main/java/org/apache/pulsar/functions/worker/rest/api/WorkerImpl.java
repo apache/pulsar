@@ -158,14 +158,28 @@ public class WorkerImpl {
             String fullyQualifiedInstanceName = entry.getKey();
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
-            FunctionStats.FunctionInstanceStats functionInstanceStats =
-                    Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo);
-
-            WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
-            workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
-            workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
-
-            metricsList.add(workerFunctionInstanceStats);
+            if (workerService.getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+                int parallelism = functionDetails.getParallelism();
+                for (int i = 0; i < parallelism; ++i) {
+                    FunctionStats.FunctionInstanceStats functionInstanceStats =
+                            Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo, i);
+                    WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
+                    workerFunctionInstanceStats.setName(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(
+                            functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName(), i
+                    ));
+                    workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
+                    metricsList.add(workerFunctionInstanceStats);
+                }
+            } else {
+                FunctionStats.FunctionInstanceStats functionInstanceStats =
+                        Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo,
+                                functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
+                workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
+                workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
+                metricsList.add(workerFunctionInstanceStats);
+            }
         }
         return metricsList;
     }

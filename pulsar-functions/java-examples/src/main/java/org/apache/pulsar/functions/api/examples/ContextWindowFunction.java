@@ -16,36 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.api.examples;
 
-package org.apache.pulsar.functions.runtime;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.apache.pulsar.functions.api.WindowFunction;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
+import java.util.Collection;
 
 /**
- * A function container is an environment for invoking functions.
+ * Example Function that acts on a window of tuples at a time rather than per tuple basis.
  */
-public interface Runtime {
-
-    void start() throws Exception;
-
-    void join() throws Exception;
-
-    void stop() throws Exception;
-
-    boolean isAlive();
-
-    Throwable getDeathException();
-
-    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus(int instanceId);
-
-    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
-    
-    CompletableFuture<Void> resetMetrics();
-    
-    CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId);
-
-    String getPrometheusMetrics() throws IOException;
+@Slf4j
+public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
+    @Override
+    public Integer process(Collection<Record<Integer>> integers, WindowContext context) {
+        Integer retval = 0;
+        for (Record<Integer> record : integers) {
+            retval += record.getValue();
+        }
+        return retval;
+    }
 }
