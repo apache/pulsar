@@ -113,7 +113,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
-                    if (isNotBlank(subscription) && !_isSuperUser(role)) {
+                    if (isNotBlank(subscription)) {
                         // validate if role is authorize to access subscription. (skip validatation if authorization
                         // list is empty)
                         Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
@@ -324,12 +324,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        if (_isSuperUser(role)) {
-            return CompletableFuture.completedFuture(true);
-        } else {
-            return checkPermission(topicName, role, action)
-                    .thenApply(isPermission -> isPermission && checkCluster(topicName));
-        }
+        return checkPermission(topicName, role, action)
+                .thenApply(isPermission -> isPermission && checkCluster(topicName));
     }
 
     private boolean checkCluster(TopicName topicName) {
@@ -439,14 +435,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         future.complete(role != null && superUserRoles.contains(role) ? true : false);
         return future;
-    }
-
-    private boolean _isSuperUser(String role) {
-        try {
-            return isSuperUser(role).get();
-        } catch (InterruptedException | ExecutionException e) {
-           throw new RuntimeException(e);
-        }
     }
 
     @Override
