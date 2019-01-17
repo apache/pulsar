@@ -29,13 +29,13 @@ namespace pulsar {
 
 class NamespaceName : public ServiceUnitId {
    public:
-    boost::shared_ptr<NamespaceName> getNamespaceObject();
+    std::shared_ptr<NamespaceName> getNamespaceObject();
     std::string getProperty();
     std::string getCluster();
     std::string getLocalName();
-    static boost::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
                                                 const std::string& namespaceName);
-    static boost::shared_ptr<NamespaceName> get(const std::string& property,
+    static std::shared_ptr<NamespaceName> get(const std::string& property,
                                                 const std::string& namespaceName);
     bool operator==(const NamespaceName& namespaceName);
     bool isV2();
@@ -53,7 +53,7 @@ class NamespaceName : public ServiceUnitId {
     NamespaceName(const std::string& property, const std::string& namespace_);
 };
 
-typedef boost::shared_ptr<NamespaceName> NamespaceNamePtr;
+typedef std::shared_ptr<NamespaceName> NamespaceNamePtr;
 
 }  // namespace pulsar
 #pragma GCC visibility pop

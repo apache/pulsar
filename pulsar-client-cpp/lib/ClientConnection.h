@@ -26,7 +26,7 @@
 #include <boost/any.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/function.hpp>
+#include <functional>
 #include <string>
 #include <vector>
 #include <deque>
@@ -75,7 +75,7 @@ struct ResponseData {
     std::string schemaVersion;
 };
 
-typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
 class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     enum State
@@ -87,10 +87,10 @@ class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     };
 
    public:
-    typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
-    typedef boost::shared_ptr<ClientConnection> ConnectionPtr;
-    typedef boost::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
+    typedef std::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+    typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
+    typedef std::shared_ptr<ClientConnection> ConnectionPtr;
+    typedef std::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
 
     /*

@@ -322,7 +322,7 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
                 }
             }
             tlsSocket_->async_handshake(boost::asio::ssl::stream<tcp::socket>::client,
-                                        boost::bind(&ClientConnection::handleHandshake, shared_from_this(),
+            		boost::bind(&ClientConnection::handleHandshake, shared_from_this(),
                                                     boost::asio::placeholders::error));
         } else {
             handleHandshake(boost::system::errc::make_error_code(boost::system::errc::success));
@@ -346,7 +346,7 @@ void ClientConnection::handleHandshake(const boost::system::error_code& err) {
     SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
     // Send CONNECT command to broker
     asyncWrite(buffer.const_asio_buffer(),
-               boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
+    		boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
                            boost::asio::placeholders::error, buffer));
 }
 
@@ -407,7 +407,7 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
                              << " to " << endpointIterator->endpoint());
         socket_->async_connect(*endpointIterator++,
-                               boost::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
+        		boost::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                            boost::asio::placeholders::error, endpointIterator));
     } else {
         LOG_WARN(cnxString_ << "No IP address found");
@@ -420,7 +420,7 @@ void ClientConnection::readNextCommand() {
     const static uint32_t minReadSize = sizeof(uint32_t);
     asyncReceive(incomingBuffer_.asio_buffer(),
                  customAllocReadHandler(
-                     boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2, minReadSize)));
+                		 boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2, minReadSize)));
 }
 
 void ClientConnection::handleRead(const boost::system::error_code& err, size_t bytesTransferred,
@@ -527,8 +527,7 @@ void ClientConnection::processIncomingBuffer() {
         uint32_t minReadSize = sizeof(uint32_t) - incomingBuffer_.readableBytes();
 
         asyncReceive(incomingBuffer_.asio_buffer(),
-                     customAllocReadHandler(boost::bind(&ClientConnection::handleRead, shared_from_this(), _1,
-                                                        _2, minReadSize)));
+                     customAllocReadHandler(boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2, minReadSize)));
         return;
     }
 
@@ -724,7 +723,7 @@ void ClientConnection::handleIncomingCommand() {
                             }
                             lookupDataPromise->setFailed(ResultConnectError);
                         } else {
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
                             lookupResultPtr->setPartitions(partitionMetadataResponse.partitions());
                             lookupDataPromise->setValue(lookupResultPtr);
                         }
@@ -816,7 +815,7 @@ void ClientConnection::handleIncomingCommand() {
                                       << lookupTopicResponse.brokerserviceurltls()
                                       << " authoritative: " << lookupTopicResponse.authoritative()  //
                                       << " redirect: " << lookupTopicResponse.response());
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
 
                             if (tlsSocket_) {
                                 lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurltls());
@@ -1036,7 +1035,7 @@ void ClientConnection::handleIncomingCommand() {
                         }
 
                         NamespaceTopicsPtr topicsPtr =
-                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+                            std::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
 
                         getTopicsPromise.setValue(topicsPtr);
                     } else {
@@ -1087,8 +1086,8 @@ void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,
                                  LookupDataResultPromisePtr promise) {
     Lock lock(mutex_);
-    boost::shared_ptr<LookupDataResultPtr> lookupDataResult;
-    lookupDataResult = boost::make_shared<LookupDataResultPtr>();
+    std::shared_ptr<LookupDataResultPtr> lookupDataResult;
+    lookupDataResult = std::make_shared<LookupDataResultPtr>();
     if (isClosed()) {
         lock.unlock();
         promise->setFailed(ResultNotConnected);
@@ -1133,7 +1132,7 @@ void ClientConnection::sendMessage(const OpSendMsg& opSend) {
 
         // Write immediately to socket
         asyncWrite(buffer, customAllocWriteHandler(
-                               boost::bind(&ClientConnection::handleSendPair, shared_from_this(), _1)));
+        		boost::bind(&ClientConnection::handleSendPair, shared_from_this(), _1)));
     } else {
         // Queue to send later
         pendingWriteBuffers_.push_back(opSend);
@@ -1170,7 +1169,7 @@ void ClientConnection::sendPendingCommands() {
             SharedBuffer buffer = boost::any_cast<SharedBuffer>(any);
             asyncWrite(buffer.const_asio_buffer(),
                        customAllocWriteHandler(
-                           boost::bind(&ClientConnection::handleSend, shared_from_this(), _1, buffer)));
+                    		   boost::bind(&ClientConnection::handleSend, shared_from_this(), _1, buffer)));
         } else {
             assert(any.type() == typeid(OpSendMsg));
 
@@ -1179,7 +1178,7 @@ void ClientConnection::sendPendingCommands() {
                                                         op.sequenceId_, getChecksumType(), op.msg_);
 
             asyncWrite(buffer, customAllocWriteHandler(
-                                   boost::bind(&ClientConnection::handleSendPair, shared_from_this(), _1)));
+            		boost::bind(&ClientConnection::handleSendPair, shared_from_this(), _1)));
         }
     } else {
         // No more pending writes
@@ -1240,7 +1239,7 @@ void ClientConnection::handleKeepAliveTimeout() {
 
         keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
         keepAliveTimer_->async_wait(
-            boost::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        		boost::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
     }
 }
 

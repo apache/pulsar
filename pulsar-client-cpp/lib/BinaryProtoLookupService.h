@@ -29,7 +29,7 @@
 namespace pulsar {
 class LookupDataResult;
 
-class BinaryProtoLookupService : public LookupService {
+class BinaryProtoLookupService : public LookupService, public std::enable_shared_from_this<BinaryProtoLookupService> {
    public:
     /*
      * constructor
@@ -72,7 +72,7 @@ class BinaryProtoLookupService : public LookupService {
 
     uint64_t newRequestId();
 };
-typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
+typedef std::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }  // namespace pulsar
 
 #pragma GCC visibility pop

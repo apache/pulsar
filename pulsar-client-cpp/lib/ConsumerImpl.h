@@ -50,8 +50,8 @@ class UnAckedMessageTracker;
 class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
-typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef boost::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
+typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
+typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {

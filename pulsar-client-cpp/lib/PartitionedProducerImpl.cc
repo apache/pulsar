@@ -77,8 +77,8 @@ void PartitionedProducerImpl::start() {
     for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
-        producer->getProducerCreatedFuture().addListener(boost::bind(
-            &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), _1, _2, i));
+        producer->getProducerCreatedFuture().addListener(std::bind(
+            &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, i));
         producers_.push_back(producer);
         LOG_DEBUG("Creating Producer for single Partition - " << topicPartitionName);
     }
@@ -173,8 +173,8 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
     for (ProducerList::const_iterator i = producers_.begin(); i != producers_.end(); i++) {
         ProducerImplPtr prod = *i;
         if (!prod->isClosed()) {
-            prod->closeAsync(boost::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
-                                         shared_from_this(), _1, producerIndex, closeCallback));
+            prod->closeAsync(std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
+                                         shared_from_this(), std::placeholders::_1, producerIndex, closeCallback));
         } else {
             producerAlreadyClosed++;
         }
@@ -249,10 +249,10 @@ void PartitionedProducerImpl::triggerFlush() {
 
 void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
     if (!flushPromise_ || flushPromise_->isComplete()) {
-        flushPromise_ = boost::make_shared<Promise<Result, bool_type>>();
+        flushPromise_ = std::make_shared<Promise<Result, bool_type>>();
     } else {
         // already in flushing, register a listener callback
-        boost::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
+        std::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
             if (v) {
                 callback(ResultOk);
             } else {

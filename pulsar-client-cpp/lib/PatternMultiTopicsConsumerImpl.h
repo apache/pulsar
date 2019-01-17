@@ -21,10 +21,10 @@
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include <regex>
-#include "boost/enable_shared_from_this.hpp"
 #include <lib/TopicName.h>
 #include <lib/NamespaceName.h>
 #include "MultiTopicsConsumerImpl.h"
+#include <memory>
 
 namespace pulsar {
 
@@ -60,7 +60,7 @@ class PatternMultiTopicsConsumerImpl : public MultiTopicsConsumerImpl {
    private:
     const std::string patternString_;
     const std::regex pattern_;
-    typedef boost::shared_ptr<boost::asio::deadline_timer> TimerPtr;
+    typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr autoDiscoveryTimer_;
     bool autoDiscoveryRunning_;
 
@@ -69,7 +69,7 @@ class PatternMultiTopicsConsumerImpl : public MultiTopicsConsumerImpl {
     void onTopicsAdded(NamespaceTopicsPtr addedTopics, ResultCallback callback);
     void onTopicsRemoved(NamespaceTopicsPtr removedTopics, ResultCallback callback);
     void handleOneTopicAdded(const Result result, const std::string& topic,
-                             boost::shared_ptr<std::atomic<int>> topicsNeedCreate, ResultCallback callback);
+                             std::shared_ptr<std::atomic<int>> topicsNeedCreate, ResultCallback callback);
 };
 
 }  // namespace pulsar

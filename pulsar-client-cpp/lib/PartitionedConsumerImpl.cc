@@ -109,8 +109,8 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
              consumer++) {
             LOG_DEBUG("Unsubcribing Consumer - " << index << " for Subscription - " << subscriptionName_
                                                  << " for Topic - " << topicName_->toString());
-            (*consumer)->unsubscribeAsync(boost::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
-                                                      shared_from_this(), _1, index++, callback));
+            (*consumer)->unsubscribeAsync(std::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
+                                                      shared_from_this(), std::placeholders::_1, index++, callback));
         }
     }
 }
@@ -169,7 +169,7 @@ void PartitionedConsumerImpl::start() {
     config.setConsumerType(conf_.getConsumerType());
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
     config.setMessageListener(
-        boost::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), _1, _2));
+        std::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 
     // Apply total limit of receiver queue size across partitions
     config.setReceiverQueueSize(
@@ -181,8 +181,8 @@ void PartitionedConsumerImpl::start() {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
                                                   internalListenerExecutor, Partitioned);
-        consumer->getConsumerCreatedFuture().addListener(boost::bind(
-            &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(), _1, _2, i));
+        consumer->getConsumerCreatedFuture().addListener(std::bind(
+            &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, i));
         consumer->setPartitionIndex(i);
         consumers_.push_back(consumer);
 
@@ -273,8 +273,8 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         ConsumerImplPtr consumer = *i;
         if (!consumer->isClosed()) {
-            consumer->closeAsync(boost::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerClose,
-                                             shared_from_this(), _1, consumerIndex, callback));
+            consumer->closeAsync(std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerClose,
+                                             shared_from_this(), std::placeholders::_1, consumerIndex, callback));
         } else {
             if (++consumerAlreadyClosed == consumers_.size()) {
                 // everything is closed already. so we are good.
@@ -319,7 +319,7 @@ void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& 
     messages_.push(msg);
     if (messageListener_) {
         listenerExecutor_->postWork(
-            boost::bind(&PartitionedConsumerImpl::internalListener, shared_from_this(), consumer));
+            std::bind(&PartitionedConsumerImpl::internalListener, shared_from_this(), consumer));
     }
 }
 
@@ -381,12 +381,12 @@ void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
     }
     PartitionedBrokerConsumerStatsPtr statsPtr =
         std::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
-    LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
+    LatchPtr latchPtr = std::make_shared<Latch>(numPartitions_);
     ConsumerList consumerList = consumers_;
     lock.unlock();
     for (int i = 0; i < consumerList.size(); i++) {
         consumerList[i]->getBrokerConsumerStatsAsync(
-            boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats, shared_from_this(), _1, _2,
+            std::bind(&PartitionedConsumerImpl::handleGetConsumerStats, shared_from_this(), std::placeholders::_1, std::placeholders::_2,
                         latchPtr, statsPtr, i, callback));
     }
 }

@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "BatchMessageContainer.h"
+#include <memory>
 
 namespace pulsar {
 
@@ -104,7 +105,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     msg.impl_ = impl_;
 
     // bind keeps a copy of the parameters
-    SendCallback callback = boost::bind(&BatchMessageContainer::batchMessageCallBack, _1,
+    SendCallback callback = std::bind(&BatchMessageContainer::batchMessageCallBack, std::placeholders::_1,
                                         messagesContainerListPtr_, flushCallback);
 
     producer_.sendMessage(msg, callback);

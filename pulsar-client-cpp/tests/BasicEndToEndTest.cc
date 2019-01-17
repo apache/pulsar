@@ -688,7 +688,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
 }
 
 TEST(BasicEndToEndTest, testNamespaceName) {
-    boost::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
+    std::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
     ASSERT_STREQ(nameSpaceName->getCluster().c_str(), "bf1");
     ASSERT_STREQ(nameSpaceName->getLocalName().c_str(), "nameSpace");
     ASSERT_STREQ(nameSpaceName->getProperty().c_str(), "property");

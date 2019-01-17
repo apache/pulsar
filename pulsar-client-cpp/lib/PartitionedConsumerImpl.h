@@ -102,7 +102,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
 };
-typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
-typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
+typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
+typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
 }  // namespace pulsar
 #endif  // PULSAR_PARTITIONED_CONSUMER_HEADER

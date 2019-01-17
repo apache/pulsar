@@ -121,7 +121,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr getMessageRouter();
 
     std::atomic<int> flushedPartitions_;
-    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
+    std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 }  // namespace pulsar

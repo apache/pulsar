@@ -28,8 +28,8 @@ namespace pulsar {
 
 class ReaderImpl;
 
-typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
-typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
+typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
+typedef std::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
 class ReaderImpl : public std::enable_shared_from_this<ReaderImpl> {
    public:

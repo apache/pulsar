@@ -85,11 +85,11 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       state_(Open),
       serviceUrl_(serviceUrl),
       clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
-      ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
+      ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
+          std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
       partitionListenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
+          std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
       pool_(clientConfiguration_, ioExecutorProvider_, clientConfiguration_.getAuthPtr(), poolConnections),
       producerIdGenerator_(0),
       consumerIdGenerator_(0),
@@ -116,12 +116,12 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     if (serviceUrl_.compare(0, 4, "http") == 0) {
         LOG_DEBUG("Using HTTP Lookup");
         lookupServicePtr_ =
-            boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_), boost::cref(clientConfiguration_),
+            std::make_shared<HTTPLookupService>(boost::cref(serviceUrl_), boost::cref(clientConfiguration_),
                                                   boost::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
         lookupServicePtr_ =
-            boost::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl));
+            std::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl));
     }
 }
 
@@ -154,8 +154,8 @@ void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfigura
             return;
         }
     }
-    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(boost::bind(
-        &ClientImpl::handleCreateProducer, shared_from_this(), _1, _2, topicName, conf, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(std::bind(
+        &ClientImpl::handleCreateProducer, shared_from_this(), std::placeholders::_1, std::placeholders::_2, topicName, conf, callback));
 }
 
 void ClientImpl::handleCreateProducer(const Result result, const LookupDataResultPtr partitionMetadata,
@@ -170,7 +170,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
             producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
         }
         producer->getProducerCreatedFuture().addListener(
-            boost::bind(&ClientImpl::handleProducerCreated, shared_from_this(), _1, _2, callback, producer));
+            std::bind(&ClientImpl::handleProducerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, callback, producer));
         Lock lock(mutex_);
         producers_.push_back(producer);
         lock.unlock();
@@ -205,7 +205,7 @@ void ClientImpl::createReaderAsync(const std::string& topic, const MessageId& st
 
     MessageId msgId(startMessageId);
     lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
-        boost::bind(&ClientImpl::handleReaderMetadataLookup, shared_from_this(), _1, _2, topicName, msgId,
+        std::bind(&ClientImpl::handleReaderMetadataLookup, shared_from_this(), std::placeholders::_1, std::placeholders::_2, topicName, msgId,
                     conf, callback));
 }
 
@@ -225,7 +225,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
         return;
     }
 
-    ReaderImplPtr reader = boost::make_shared<ReaderImpl>(shared_from_this(), topicName->toString(), conf,
+    ReaderImplPtr reader = std::make_shared<ReaderImpl>(shared_from_this(), topicName->toString(), conf,
                                                           getListenerExecutorProvider()->get(), callback);
     reader->start(startMessageId);
 
@@ -254,7 +254,7 @@ void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const 
     NamespaceNamePtr nsName = topicNamePtr->getNamespaceName();
 
     lookupServicePtr_->getTopicsOfNamespaceAsync(nsName).addListener(
-        boost::bind(&ClientImpl::createPatternMultiTopicsConsumer, shared_from_this(), _1, _2, regexPattern,
+        std::bind(&ClientImpl::createPatternMultiTopicsConsumer, shared_from_this(), std::placeholders::_1, std::placeholders::_2, regexPattern,
                     consumerName, conf, callback));
 }
 
@@ -275,7 +275,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
             shared_from_this(), regexPattern, *matchTopics, consumerName, conf, lookupServicePtr_);
 
         consumer->getConsumerCreatedFuture().addListener(
-            boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+            std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, callback, consumer));
         Lock lock(mutex_);
         consumers_.push_back(consumer);
         lock.unlock();
@@ -314,7 +314,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
         shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
 
     consumer->getConsumerCreatedFuture().addListener(
-        boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+        std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, callback, consumer));
     consumers_.push_back(consumer);
     lock.unlock();
     consumer->start();
@@ -342,8 +342,8 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
         }
     }
 
-    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(boost::bind(
-        &ClientImpl::handleSubscribe, shared_from_this(), _1, _2, topicName, consumerName, conf, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(std::bind(
+        &ClientImpl::handleSubscribe, shared_from_this(), std::placeholders::_1, std::placeholders::_2, topicName, consumerName, conf, callback));
 }
 
 void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr partitionMetadata,
@@ -368,7 +368,7 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(), consumerName, conf);
         }
         consumer->getConsumerCreatedFuture().addListener(
-            boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+            std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, callback, consumer));
         Lock lock(mutex_);
         consumers_.push_back(consumer);
         lock.unlock();
@@ -388,7 +388,7 @@ void ClientImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr co
 Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::string& topic) {
     Promise<Result, ClientConnectionWeakPtr> promise;
     lookupServicePtr_->lookupAsync(topic).addListener(
-        boost::bind(&ClientImpl::handleLookup, this, _1, _2, promise));
+        std::bind(&ClientImpl::handleLookup, shared_from_this(), std::placeholders::_1, std::placeholders::_2, promise));
     return promise.getFuture();
 }
 
@@ -402,7 +402,7 @@ void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
             data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
         Future<Result, ClientConnectionWeakPtr> future =
             pool_.getConnectionAsync(logicalAddress, physicalAddress);
-        future.addListener(boost::bind(&ClientImpl::handleNewConnection, this, _1, _2, promise));
+        future.addListener(std::bind(&ClientImpl::handleNewConnection, shared_from_this(), std::placeholders::_1, std::placeholders::_2, promise));
     } else {
         promise.setFailed(result);
     }
@@ -453,7 +453,7 @@ void ClientImpl::getPartitionsForTopicAsync(const std::string& topic, GetPartiti
         }
     }
     lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
-        boost::bind(&ClientImpl::handleGetPartitions, shared_from_this(), _1, _2, topicName, callback));
+        std::bind(&ClientImpl::handleGetPartitions, shared_from_this(), std::placeholders::_1, std::placeholders::_2, topicName, callback));
 }
 
 void ClientImpl::closeAsync(CloseCallback callback) {
@@ -471,12 +471,12 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     lock.unlock();
 
     LOG_INFO("Closing Pulsar client");
-    SharedInt numberOfOpenHandlers = boost::make_shared<int>(producers.size() + consumers.size());
+    SharedInt numberOfOpenHandlers = std::make_shared<int>(producers.size() + consumers.size());
 
     for (ProducersList::iterator it = producers.begin(); it != producers.end(); ++it) {
         ProducerImplBasePtr producer = it->lock();
         if (producer && !producer->isClosed()) {
-            producer->closeAsync(boost::bind(&ClientImpl::handleClose, shared_from_this(), _1,
+            producer->closeAsync(std::bind(&ClientImpl::handleClose, shared_from_this(), std::placeholders::_1,
                                              numberOfOpenHandlers, callback));
         } else {
             // Since the connection is already closed
@@ -487,7 +487,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     for (ConsumersList::iterator it = consumers.begin(); it != consumers.end(); ++it) {
         ConsumerImplBasePtr consumer = it->lock();
         if (consumer && !consumer->isClosed()) {
-            consumer->closeAsync(boost::bind(&ClientImpl::handleClose, shared_from_this(), _1,
+            consumer->closeAsync(std::bind(&ClientImpl::handleClose, shared_from_this(), std::placeholders::_1,
                                              numberOfOpenHandlers, callback));
         } else {
             // Since the connection is already closed
