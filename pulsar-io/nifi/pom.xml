@@ -27,12 +27,8 @@
         <version>2.3.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>pulsar-io-nif</artifactId>
+    <artifactId>pulsar-io-nifi</artifactId>
     <name>Pulsar IO :: NiFi</name>
-
-    <properties>
-        <nifi.version>1.8.0</nifi.version>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -64,11 +60,15 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-site-to-site-client</artifactId>
             <version>${nifi.version}</version>
         </dependency>
-
     </dependencies>
 
     <build>

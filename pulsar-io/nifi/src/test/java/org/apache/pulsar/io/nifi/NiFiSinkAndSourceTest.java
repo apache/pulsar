@@ -65,6 +65,7 @@ public class NiFiSinkAndSourceTest {
 
         // first: msg send to nifi Input Port
         sink.write(mockRecord);
+        sink.close();
     }
 
     @Test(enabled = false)
@@ -74,7 +75,6 @@ public class NiFiSinkAndSourceTest {
         map.put("portName","Data to Pulsar");
         map.put("requestBatchCount",1);
         map.put("waitTimeMs",10);
-
 
         NiFiSource source = new NiFiSource();
         mockSourceContext = mock(SourceContext.class);
@@ -114,7 +114,6 @@ public class NiFiSinkAndSourceTest {
 
         Record<NiFiDataPacket> readRecord = source.read();
         NiFiDataPacket recordValue = readRecord.getValue();
-
         Assert.assertEquals(msg, new String(recordValue.getContent()));
     }
 }

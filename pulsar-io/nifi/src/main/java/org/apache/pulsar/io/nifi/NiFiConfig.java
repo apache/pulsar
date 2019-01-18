@@ -20,6 +20,7 @@ package org.apache.pulsar.io.nifi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -67,7 +68,7 @@ public class NiFiConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "1000",
+            defaultValue = "1000l",
             help = "the amount of time to wait (in milliseconds) if no data is available to pull from NiFi.")
     private long waitTimeMs = 1000l;
 
@@ -82,9 +83,7 @@ public class NiFiConfig implements Serializable {
     }
 
     public void validate() {
-        if (StringUtils.isEmpty(url)  ||
-                StringUtils.isEmpty(portName)) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(url, "NiFi url property not set.");
+        Preconditions.checkNotNull(portName, "NiFi portName property not set.");
     }
 }

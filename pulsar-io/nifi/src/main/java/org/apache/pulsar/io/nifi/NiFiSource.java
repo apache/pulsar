@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.nifi;
 
+import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
@@ -55,15 +56,15 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
     private NiFiConfig niFiConfig;
     private SiteToSiteClientConfig clientConfig;
 
-    Thread runnerThread;
+    private Thread runnerThread;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         niFiConfig = NiFiConfig.load(config);
-        if (niFiConfig.getUrl() == null
-                || niFiConfig.getPortName() == null) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(niFiConfig.getUrl(), "url property not set.");
+        Preconditions.checkNotNull(niFiConfig.getPortName(), "portName property not set.");
+        Preconditions.checkArgument(niFiConfig.getWaitTimeMs() > 0,
+                "waitTimeMs must be a positive long.");
 
         waitTimeMs = niFiConfig.getWaitTimeMs();
         clientConfig = new SiteToSiteClient.Builder()
@@ -95,6 +96,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
     class ReceiveRunnable implements Runnable {
 
         public ReceiveRunnable() {
+
         }
 
         @Override
@@ -113,6 +115,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                             try {
                                 Thread.sleep(waitTimeMs);
                             } catch (InterruptedException e) {
+                                log.warn("Failed to thread sleep milliseconds " + waitTimeMs, e);
                             }
                             continue;
                         }

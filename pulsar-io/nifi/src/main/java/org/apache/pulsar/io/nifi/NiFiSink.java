@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.io.nifi;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
 import org.apache.nifi.remote.client.SiteToSiteClient;
@@ -30,7 +33,12 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -47,60 +55,107 @@ import java.util.Map;
 public class NiFiSink implements Sink<NiFiDataPacket> {
 
     private NiFiConfig niFiConfig;
-    private SiteToSiteClient client;
     private SiteToSiteClientConfig clientConfig;
+
+    private int requestBatchCount;
+    private long waitTimeMs;
+    private List<Record<NiFiDataPacket>>  currentList;
+    private ArrayBlockingQueue<Record<NiFiDataPacket>> recordsForPush;
+
+    private ScheduledExecutorService recordsPushExecutor;
+    private ScheduledExecutorService flushExecutor;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         niFiConfig = NiFiConfig.load(config);
-        if (niFiConfig.getUrl() == null
-                || niFiConfig.getPortName() == null
-                || niFiConfig.getRequestBatchCount() <=0) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(niFiConfig.getUrl(), "url property not set.");
+        Preconditions.checkNotNull(niFiConfig.getPortName(), "portName property not set.");
+        Preconditions.checkArgument(niFiConfig.getRequestBatchCount() > 0,
+                "requestBatchCount must be a positive integer.");
 
         clientConfig = new SiteToSiteClient.Builder()
                 .url(niFiConfig.getUrl())
                 .portName(niFiConfig.getPortName())
                 .requestBatchCount(niFiConfig.getRequestBatchCount())
                 .buildConfig();
-        client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
-    }
 
-    @Override
-    public void write(Record<NiFiDataPacket> record) {
-        Transaction transaction = null;
-        try {
-            transaction = client.createTransaction(TransferDirection.SEND);
-        } catch (IOException e) {
-            log.error("create Transaction exception ", e);
-        }
-        if (transaction == null) {
-            throw new IllegalStateException("Unable to create a NiFi Transaction to send data");
-        }
-        NiFiDataPacket niFiDataPacket = record.getValue();
+        requestBatchCount = niFiConfig.getRequestBatchCount();
+        waitTimeMs = niFiConfig.getWaitTimeMs();
+        currentList= Lists.newArrayList();
+        recordsForPush = new ArrayBlockingQueue<>(requestBatchCount);
 
-        if (log.isDebugEnabled()) {
-            log.debug("Record sending to kafka, record={}.", record);
-        }
-
-        try {
-            transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
-            record.ack();
-
-            transaction.confirm();
-            transaction.complete();
-        } catch (IOException e) {
-            log.error("Got exception ", e);
-            record.fail();
-        }
-
+        flushExecutor = Executors.newScheduledThreadPool(1);
+        recordsPushExecutor = Executors.newScheduledThreadPool(1);
+        flushExecutor.scheduleAtFixedRate(() -> flush(), waitTimeMs, waitTimeMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void close() throws Exception {
-        if (null  != client) {
-            client.close();
+        if (null != recordsPushExecutor) {
+            recordsPushExecutor.shutdown();
+        }
+
+        if (null != flushExecutor) {
+            flushExecutor.shutdown();
+        }
+
+    }
+
+    @Override
+    public void write(Record<NiFiDataPacket> record) {
+        int number;
+        synchronized (currentList) {
+            currentList.add(record);
+            number = currentList.size();
+        }
+
+        if (number == requestBatchCount) {
+            recordsPushExecutor.schedule(() -> recordsPush(), 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void recordsPush(){
+        List<Record<NiFiDataPacket>> swapList = Lists.newArrayList();
+
+        synchronized (currentList) {
+            if (!currentList.isEmpty()) {
+                swapList.addAll(currentList);
+                currentList = Lists.newArrayList();
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(swapList)) {
+            for (Record<NiFiDataPacket> record : swapList) {
+                try {
+                    recordsForPush.put(record);
+                } catch (InterruptedException e) {
+                    log.warn("Record put was interrupted ", e);
+                }
+            }
+        }
+    }
+
+    private void flush() {
+        try (final SiteToSiteClient client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build()) {
+            final Transaction transaction = client.createTransaction(TransferDirection.SEND);
+            while (!recordsForPush.isEmpty()) {
+                Record<NiFiDataPacket> record = null;
+                try {
+                    record = recordsForPush.take();
+                    NiFiDataPacket niFiDataPacket = record.getValue();
+                    transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
+                    transaction.confirm();
+                    transaction.complete();
+                    record.ack();
+                } catch (InterruptedException e) {
+                    log.warn("Record flush thread was interrupted", e);
+                    if (null != record) {
+                        record.fail();
+                    }
+                }
+            }
+        } catch (final IOException ioe) {
+            log.warn("Failed to receive data from NiFi", ioe);
         }
     }
 }
