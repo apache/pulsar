@@ -490,7 +490,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString());
 
         // Test producer creation
         resetChannel();
