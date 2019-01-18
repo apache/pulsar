@@ -168,7 +168,6 @@ public abstract class PulsarWebResource {
      */
     protected void validateSuperUserAccess() {
         if (config().isAuthenticationEnabled()) {
-
             String appId = clientAppId();
             if(log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
