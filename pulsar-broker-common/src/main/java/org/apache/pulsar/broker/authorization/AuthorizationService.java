@@ -203,9 +203,7 @@ public class AuthorizationService {
         if (provider != null) {
             return provider.isSuperUser(role).thenComposeAsync(isSuperUser -> {
                 if (isSuperUser) {
-                    CompletableFuture<Boolean> future = new CompletableFuture<>();
-                    future.complete(true);
-                    return future;
+                    return CompletableFuture.completedFuture(true);
                 } else {
                     return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
                 }
