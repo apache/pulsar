@@ -129,11 +129,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 409, message = "Partitioned topic already exist"),
-        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+        @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateGlobalNamespaceOwnership(tenant,namespace);
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalCreatePartitionedTopic(numPartitions, authoritative);
     }
