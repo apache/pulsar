@@ -46,10 +46,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private Consumer<String, byte[]> consumer;
-    private KafkaSourceConfig kafkaSourceConfig;
-    Thread runnerThread;
+    private volatile Consumer<String, byte[]> consumer;
     private volatile boolean running = false;
+    private KafkaSourceConfig kafkaSourceConfig;
+    private Thread runnerThread;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -69,6 +69,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Invalid Kafka Consumer sessionTimeoutMs : "
                 + kafkaSourceConfig.getSessionTimeoutMs());
         }
+        if (kafkaSourceConfig.getHeartbeatIntervalMs() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer heartbeatIntervalMs : "
+                    + kafkaSourceConfig.getHeartbeatIntervalMs());
+        }
 
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
@@ -76,6 +80,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getHeartbeatIntervalMs()));
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
@@ -138,7 +143,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 }
             }
         });
-        runnerThread.setUncaughtExceptionHandler((t, e) -> LOG.error("[{}] Error while consuming records from Kafka", t.getName(), e));
+        runnerThread.setUncaughtExceptionHandler((t, e) -> LOG.error("[{}] Error while consuming records", t.getName(), e));
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }
