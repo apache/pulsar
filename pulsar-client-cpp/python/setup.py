@@ -60,7 +60,7 @@ class my_build_ext(build_ext.build_ext):
 setup(
     name="pulsar-client",
     version=VERSION,
-    packages=['pulsar', 'pulsar.functions'],
+    packages=['pulsar', 'pulsar.schema', 'pulsar.functions'],
     cmdclass={'build_ext': my_build_ext},
     ext_modules=[Extension('_pulsar', [])],
 
