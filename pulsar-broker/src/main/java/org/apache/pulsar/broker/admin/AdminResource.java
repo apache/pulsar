@@ -243,6 +243,19 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validateGlobalNamespaceOwnership(String property, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            validateGlobalNamespaceOwnership(this.namespaceName);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
+        } catch (RestException re) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+        } catch (Exception e) {
+            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
+        }
+    }
     @Deprecated
     protected void validateNamespaceName(String property, String cluster, String namespace) {
         try {
