@@ -47,7 +47,7 @@ class GenericJsonSchema extends GenericSchema {
         try {
             return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
         } catch (IOException ioe) {
-            throw new RuntimeException(new SchemaSerializationException(ioe));
+            throw new SchemaSerializationException(ioe);
         }
     }
 
@@ -57,7 +57,7 @@ class GenericJsonSchema extends GenericSchema {
             JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
             return new GenericJsonRecord(fields, jn);
         } catch (IOException ioe) {
-            throw new RuntimeException(new SchemaSerializationException(ioe));
+            throw new SchemaSerializationException(ioe);
         }
     }
 }

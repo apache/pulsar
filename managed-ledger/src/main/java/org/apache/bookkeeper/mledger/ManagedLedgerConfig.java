@@ -57,7 +57,8 @@ public class ManagedLedgerConfig {
     private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     private long offloadAutoTriggerSizeThresholdBytes = -1;
     private long metadataOperationsTimeoutSeconds = 60;
-
+    private long readEntryTimeoutSeconds = 120;
+    private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
@@ -530,6 +531,41 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
         this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
+        return this;
+    }
+    
+    /**
+     * Ledger read-entry timeout
+     * 
+     * @return
+     */
+    public long getReadEntryTimeoutSeconds() {
+        return readEntryTimeoutSeconds;
+    }
+
+    /**
+     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
+     * readTimeoutSeconds <= 0)
+     * 
+     * @param readTimeoutSeconds
+     * @return
+     */
+    public ManagedLedgerConfig setReadEntryTimeoutSeconds(long readEntryTimeoutSeconds) {
+        this.readEntryTimeoutSeconds = readEntryTimeoutSeconds;
+        return this;
+    }
+    
+    public long getAddEntryTimeoutSeconds() {
+        return addEntryTimeoutSeconds;
+    }
+
+    /**
+     * Add-entry timeout after which add-entry callback will be failed if add-entry is not succeeded.
+     * 
+     * @param addEntryTimeoutSeconds
+     */
+    public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
+        this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
     }
 }

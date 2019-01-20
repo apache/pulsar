@@ -31,6 +31,13 @@ ReaderConfiguration& ReaderConfiguration::operator=(const ReaderConfiguration& x
     return *this;
 }
 
+ReaderConfiguration& ReaderConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ReaderConfiguration::getSchema() const { return impl_->schemaInfo; }
+
 ReaderConfiguration& ReaderConfiguration::setReaderListener(ReaderListener readerListener) {
     impl_->readerListener = readerListener;
     impl_->hasReaderListener = true;

@@ -66,6 +66,7 @@ public class SinkConfig {
     private Resources resources;
     private Boolean autoAck;
     private Long timeoutMs;
-
     private String archive;
+    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
+    private Boolean cleanupSubscription;
 }

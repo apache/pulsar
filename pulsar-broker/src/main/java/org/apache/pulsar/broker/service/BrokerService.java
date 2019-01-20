@@ -744,6 +744,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             managedLedgerConfig.setMetadataOperationsTimeoutSeconds(
                     serviceConfig.getManagedLedgerMetadataOperationsTimeoutSeconds());
+            managedLedgerConfig.setReadEntryTimeoutSeconds(serviceConfig.getManagedLedgerReadEntryTimeoutSeconds());
+            managedLedgerConfig.setAddEntryTimeoutSeconds(serviceConfig.getManagedLedgerAddEntryTimeoutSeconds());
             managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
             managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
             managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());

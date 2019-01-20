@@ -147,6 +147,12 @@ const std::string& PartitionedProducerImpl::getProducerName() const {
     return producers_[0]->getProducerName();
 }
 
+const std::string& PartitionedProducerImpl::getSchemaVersion() const {
+    // Since the schema is atomically assigned on the partitioned-topic,
+    // it's guaranteed that all the partitions will have the same schema version.
+    return producers_[0]->getSchemaVersion();
+}
+
 int64_t PartitionedProducerImpl::getLastSequenceId() const {
     int64_t currentMax = -1L;
     for (int i = 0; i < producers_.size(); i++) {

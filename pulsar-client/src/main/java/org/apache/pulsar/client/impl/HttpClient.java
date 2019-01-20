@@ -29,7 +29,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.Properties;
@@ -60,7 +59,7 @@ public class HttpClient implements Closeable {
     protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
-    protected volatile URL url;
+    protected final ServiceNameResolver serviceNameResolver;
     protected final Authentication authentication;
 
     protected HttpClient(String serviceUrl, Authentication authentication,
@@ -74,7 +73,8 @@ public class HttpClient implements Closeable {
             EventLoopGroup eventLoopGroup, boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath,
             int connectTimeoutInSeconds, int readTimeoutInSeconds) throws PulsarClientException {
         this.authentication = authentication;
-        setServiceUrl(serviceUrl);
+        this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.serviceNameResolver.updateServiceUrl(serviceUrl);
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
@@ -89,7 +89,7 @@ public class HttpClient implements Closeable {
             }
         });
 
-        if ("https".equals(url.getProtocol())) {
+        if ("https".equals(serviceNameResolver.getServiceUri().getServiceName())) {
             try {
                 SslContext sslCtx = null;
 
@@ -112,16 +112,15 @@ public class HttpClient implements Closeable {
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 
-        log.debug("Using HTTP url: {}", this.url);
+        log.debug("Using HTTP url: {}", serviceUrl);
+    }
+
+    String getServiceUrl() {
+        return this.serviceNameResolver.getServiceUrl();
     }
 
     void setServiceUrl(String serviceUrl) throws PulsarClientException {
-        try {
-            // Ensure trailing "/" on url
-            url = new URL(serviceUrl);
-        } catch (MalformedURLException e) {
-            throw new PulsarClientException.InvalidServiceURL(e);
-        }
+        this.serviceNameResolver.updateServiceUrl(serviceUrl);
     }
 
     @Override
@@ -132,7 +131,7 @@ public class HttpClient implements Closeable {
     public <T> CompletableFuture<T> get(String path, Class<T> clazz) {
         final CompletableFuture<T> future = new CompletableFuture<>();
         try {
-            String requestUrl = new URL(url, path).toString();
+            String requestUrl = new URL(serviceNameResolver.resolveHostUri().toURL(), path).toString();
             AuthenticationDataProvider authData = authentication.getAuthData();
             BoundRequestBuilder builder = httpClient.prepareGet(requestUrl);
 

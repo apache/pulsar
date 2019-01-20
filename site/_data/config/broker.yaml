@@ -30,9 +30,9 @@ configs:
 - name: zookeeperServers
   default: ''
   description: Zookeeper quorum connection string
-- name: globalZookeeperServers
+- name: configurationStoreServers
   default: ''
-  description: Global Zookeeper quorum connection string
+  description: Configuration store connection string
 - name: brokerServicePort
   default: '6650'
   description: Broker data port
@@ -239,6 +239,15 @@ configs:
 - name: autoSkipNonRecoverableData
   default: 'false'
   description: Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+- name: managedLedgerMetadataOperationsTimeoutSeconds
+  default: '60'
+  description: Operation timeout while updating managed-ledger metadata.
+- name: managedLedgerReadEntryTimeoutSeconds
+  default: '120'
+  description: Read entries timeout when broker tries to read messages from bookkeeper.
+- name: managedLedgerAddEntryTimeoutSeconds
+  default: '120'
+  description: Add entry timeout when broker tries to publish message to bookkeeper (0 to disable it).
 - name: loadBalancerEnabled
   default: 'true'
   description: Enable load balancer

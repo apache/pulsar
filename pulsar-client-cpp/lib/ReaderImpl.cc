@@ -33,6 +33,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumerConf.setConsumerType(ConsumerExclusive);
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
     consumerConf.setReadCompacted(readerConf_.isReadCompacted());
+    consumerConf.setSchema(readerConf_.getSchema());
 
     if (readerConf_.getReaderName().length() > 0) {
         consumerConf.setConsumerName(readerConf_.getReaderName());

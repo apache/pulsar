@@ -128,6 +128,9 @@ const char* pulsar::strResult(Result result) {
 
         case ResultProducerBusy:
             return "ProducerBusy";
+
+        case ResultIncompatibleSchema:
+            return "IncompatibleSchema";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding

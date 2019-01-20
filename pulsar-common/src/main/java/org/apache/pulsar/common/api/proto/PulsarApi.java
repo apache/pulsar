@@ -72,6 +72,7 @@ public final class PulsarApi {
     TopicTerminatedError(15, 15),
     ProducerBusy(16, 16),
     InvalidTopicName(17, 17),
+    IncompatibleSchema(18, 18),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -92,6 +93,7 @@ public final class PulsarApi {
     public static final int TopicTerminatedError_VALUE = 15;
     public static final int ProducerBusy_VALUE = 16;
     public static final int InvalidTopicName_VALUE = 17;
+    public static final int IncompatibleSchema_VALUE = 18;
     
     
     public final int getNumber() { return value; }
@@ -116,6 +118,7 @@ public final class PulsarApi {
         case 15: return TopicTerminatedError;
         case 16: return ProducerBusy;
         case 17: return InvalidTopicName;
+        case 18: return IncompatibleSchema;
         default: return null;
       }
     }

@@ -132,6 +132,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private InstanceCache instanceCache;
 
+    private final Utils.ComponentType componentType;
+
+    private final Map<String, String> properties;
+
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
@@ -155,6 +159,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getClusterName(),
                 FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())
         };
+
+        this.componentType = InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails());
+
+        this.properties = InstanceUtils.getProperties(this.componentType,
+                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                this.instanceConfig.getInstanceId());
 
         // Declare function local collector registry so that it will not clash with other function instances'
         // metrics collection especially in threaded mode
@@ -205,7 +215,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
-                collectorRegistry, metricsLabels, InstanceUtils.calculateSubjectType(this.instanceConfig.getFunctionDetails()));
+                collectorRegistry, metricsLabels, this.componentType);
     }
 
     /**
@@ -221,7 +231,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
             this.stats = ComponentStatsManager.getStatsManager(this.collectorRegistry, this.metricsLabels,
                     this.instanceCache.getScheduledExecutorService(),
-                    InstanceUtils.calculateSubjectType(this.instanceConfig.getFunctionDetails()));
+                    this.componentType);
 
             ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance(contextImpl);
@@ -289,7 +299,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void loadJars() throws Exception {
         try {
-            log.info("jarFile: {}", jarFile);
+            log.info("Load JAR: {}", jarFile);
             // Let's first try to treat it as a nar archive
             fnCache.registerFunctionInstanceWithArchive(
                 instanceConfig.getFunctionId(),
@@ -624,7 +634,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             pulsarSourceConfig.setSubscriptionName(
                     StringUtils.isNotBlank(sourceSpec.getSubscriptionName()) ? sourceSpec.getSubscriptionName()
-                            : FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
+                            : InstanceUtils.getDefaultSubscriptionName(instanceConfig.getFunctionDetails()));
             pulsarSourceConfig.setProcessingGuarantees(
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
@@ -648,8 +658,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig,
-                    FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
+            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties);
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
@@ -695,8 +704,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
-                object = new PulsarSink(this.client, pulsarSinkConfig,
-                        FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties);
             }
         } else {
             object = Reflections.createInstance(

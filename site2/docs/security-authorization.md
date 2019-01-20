@@ -16,7 +16,7 @@ When a [tenant](reference-terminology.md#tenant) is created by a superuser, that
 
 ### Enabling Authorization and Assigning Superusers
 
-Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) and proxy ([`conf/proxy.conf`](reference-configuration.md#proxy)) configuration files.
+Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) configuration files.
 
 ```properties
 authorizationEnabled=true
@@ -27,6 +27,8 @@ superUserRoles=my-super-user-1,my-super-user-2
 > as well as the default values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker) 
 
 Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other clusters' topics.
+
+Authorization can also be enabled for the proxy the proxy configuration file (`conf/proxy.conf`). If it is enabled on the proxy, the proxy will do an additional authorization check before forwarding the request to a broker. The broker will still check the authorization of the request when it receives the forwarded request.
 
 ### Proxy Roles
 

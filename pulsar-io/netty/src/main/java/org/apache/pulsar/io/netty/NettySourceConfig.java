@@ -20,17 +20,22 @@ package org.apache.pulsar.io.netty;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+
 /**
- * Netty Tcp or Udp Source Connector Config.
+ * Netty Source Connector Config.
  */
 @Data
 @Setter
@@ -45,7 +50,7 @@ public class NettySourceConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "tcp",
-            help = "The tcp or udp network protocols")
+            help = "The network protocol to use, supported values are 'tcp', 'udp', and 'http'")
     private String type = "tcp";
 
     @FieldDoc(
@@ -63,8 +68,8 @@ public class NettySourceConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "1",
-            help = "The number of threads of Netty Tcp Server to accept incoming connections and " +
-                    "handle the traffic of the accepted connections")
+            help = "The number of threads of Netty Tcp Server to accept incoming connections and "
+                    + "handle the traffic of the accepted connections")
     private int numberOfThreads = 1;
 
     public static NettySourceConfig load(Map<String, Object> map) throws IOException {

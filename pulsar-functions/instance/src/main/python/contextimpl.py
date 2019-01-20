@@ -147,7 +147,12 @@ class ContextImpl(pulsar.Context):
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000,
-        compression_type=pulsar_compression_type
+        compression_type=pulsar_compression_type,
+        properties=util.get_properties(util.getFullyQualifiedFunctionName(
+          self.instance_config.function_details.tenant,
+          self.instance_config.function_details.namespace,
+          self.instance_config.function_details.name),
+          self.instance_config.instance_id)
       )
 
     if serde_class_name not in self.publish_serializers:

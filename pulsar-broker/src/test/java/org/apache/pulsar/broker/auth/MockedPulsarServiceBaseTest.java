@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -290,5 +291,11 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     }
 
+    public static void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(classObj, fieldValue);
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

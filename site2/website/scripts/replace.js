@@ -66,6 +66,23 @@ function debReleaseUrl(version, type) {
     }
 }
 
+function rpmDistUrl(version, type) {
+  rpmVersion = version.replace('incubating', '1_incubating');
+  if (version.includes('incubating')) {
+      return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+  } else {
+      return `https://archive.apache.org/dist/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+  }
+}
+
+function debDistUrl(version, type) {
+    if (version.includes('incubating')) {
+        return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
+    } else {
+        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
+    }
+}
+
 function doReplace(options) {
   replace(options)
     .then(changes => {
@@ -98,6 +115,12 @@ const from = [
   /{{pulsar:rpm:client-devel}}/g,
   /{{pulsar:deb:client}}/g,
   /{{pulsar:deb:client-devel}}/g,
+
+  /{{pulsar:dist_rpm:client}}/g,
+  /{{pulsar:dist_rpm:client-debuginfo}}/g,
+  /{{pulsar:dist_rpm:client-devel}}/g,
+  /{{pulsar:dist_deb:client}}/g,
+  /{{pulsar:dist_deb:client-devel}}/g,
 ];
 
 const options = {
@@ -120,6 +143,12 @@ const options = {
     rpmReleaseUrl(`${latestVersion}`, "-devel"),
     debReleaseUrl(`${latestVersion}`, ""),
     debReleaseUrl(`${latestVersion}`, "-dev"),
+
+    rpmDistUrl(`${latestVersion}`, ""),
+    rpmDistUrl(`${latestVersion}`, "-debuginfo"),
+    rpmDistUrl(`${latestVersion}`, "-devel"),
+    debDistUrl(`${latestVersion}`, ""),
+    debDistUrl(`${latestVersion}`, "-dev"),
   ],
   dry: false
 };
