@@ -26,7 +26,7 @@ tags_ja: [admin, instance]
 
 Pulsar*インスタンス*は協調して動作する複数のPulsar{% popover_ja クラスタ %}から構成されます。クラスタは複数のデータセンターや地理的地域に分散させる事ができ、[ジオレプリケーション](../../admin/GeoReplication)を使用してそれらの間での複製が可能です。マルチクラスタのPulsarインスタンスをデプロイするには、以下の基本的な手順を踏む必要があります:
 
-* 2つの異なる[ZooKeeper](#zookeeperのデプロイ)クォーラムのデプロイ: インスタンス内の個別のクラスタのための[Local ZooKeeper](#local-zookeeperのデプロイ)クォーラムとインスタンス全体のタスクのための[Global ZooKeeper](#global-zookeeperのデプロイ)クォーラム
+* 2つの異なる[ZooKeeper](#zookeeperのデプロイ)クォーラムのデプロイ: インスタンス内の個別のクラスタのための[Local ZooKeeper](#local-zookeeperのデプロイ)クォーラムとインスタンス全体のタスクのための[Configuration Store](#configuration-storeのデプロイ)クォーラム
 * 各クラスタの[メタデータ](#クラスタメタデータの初期化)の初期化
 * 各Pulsarクラスタ内の{% popover_ja Bookie %}の[BookKeeperクラスタ](#bookkeeperのデプロイ)のデプロイ
 * 各Pulsarクラスタ内の[Broker](../../admin/ClustersBrokers#brokerの管理)のデプロイ
@@ -46,7 +46,7 @@ Pulsar*インスタンス*は協調して動作する複数のPulsar{% popover_j
 
 ## クラスタメタデータの初期化
 
-インスタンスのLocal ZooKeeperとGlobal ZooKeeperをセットアップしたら、インスタンス内の各クラスタのZooKeeperに対していくつかのメタデータを書き込む必要があります。書き込みは一度だけで構いません。
+インスタンスのLocal ZooKeeperとConfiguration Storeをセットアップしたら、インスタンス内の各クラスタのZooKeeperに対していくつかのメタデータを書き込む必要があります。書き込みは一度だけで構いません。
 
 このメタデータは、[`pulsar`](../../reference/CliTools#pulsar) CLIツールの[`initialize-cluster-metadata`](../../reference/CliTools#pulsar-initialize-cluster-metadata)コマンドを使用して初期化できます。以下は例となります:
 
@@ -54,7 +54,7 @@ Pulsar*インスタンス*は協調して動作する複数のPulsar{% popover_j
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -65,7 +65,7 @@ $ bin/pulsar initialize-cluster-metadata \
 
 * クラスタの名前
 * そのクラスタのLocal ZooKeeperをカンマで連結した文字列
-* インスタンス全体のGlobal ZooKeeperをカンマで連結した文字列
+* インスタンス全体のConfiguration Storeをカンマで連結した文字列
 * クラスタのウェブサービスのURL
 * クラスタ内の{% popover_ja Broker %}との対話を可能にするBrokerサービスのURL
 
@@ -89,7 +89,7 @@ ZooKeeperのセットアップ、クラスタメタデータの初期化、BookK
 
 Brokerは設定ファイル[`conf/broker.conf`](../../reference/Configuration#broker)を使用する事で設定が可能です。
 
-Brokerの設定で最も重要な点は、各BrokerがLocal ZooKeeperクォーラムとGlobal ZooKeeperクォーラムを認識しているかを確認する事です。[`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers)パラメータにLocal ZooKeeperクォーラムを、[`globalZookeeperServers`](../../reference/Configuration#broker-globalZookeeperServers)パラメータにGlobal ZooKeeperクォーラムを反映させてください（ただし、同じクラスタ内に存在するGlobal ZooKeeperのみを指定する必要があります）。
+Brokerの設定で最も重要な点は、各BrokerがLocal ZooKeeperクォーラムとConfiguration Storeクォーラムを認識しているかを確認する事です。[`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers)パラメータにLocal ZooKeeperクォーラムを、[`configurationStoreServers`](../../reference/Configuration#broker-configurationStoreServers)パラメータにConfiguration Storeクォーラムを反映させてください（ただし、同じクラスタ内に存在するConfiguration Storeのみを指定する必要があります）。
 
 また、[`clusterName`](../../reference/Configuration#broker-clusterName)パラメータを使用してBrokerが所属する{% popover_ja クラスタ %}の名前を指定する必要があります。
 
@@ -99,8 +99,8 @@ Brokerの設定で最も重要な点は、各BrokerがLocal ZooKeeperクォー�
 # Local ZooKeeperをカンマで連結した文字列
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global Zookeeperをカンマで連結した文字列
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+# Configuration Storeをカンマで連結した文字列
+configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 ```
