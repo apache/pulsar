@@ -73,6 +73,15 @@ Result Consumer::receive(Message& msg, int timeoutMs) {
     return impl_->receive(msg, timeoutMs);
 }
 
+void Consumer::receiveAsync(ReceiveCallback callback) {
+    if (!impl_) {
+        Message msg;
+        callback(ResultConsumerNotInitialized, msg);
+        return;
+    }
+    impl_->receiveAsync(callback);
+}
+
 Result Consumer::acknowledge(const Message& message) { return acknowledge(message.getMessageId()); }
 
 Result Consumer::acknowledge(const MessageId& messageId) {
