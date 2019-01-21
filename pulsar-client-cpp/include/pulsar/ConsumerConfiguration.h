@@ -36,6 +36,7 @@ class PulsarWrapper;
 
 /// Callback definition for non-data operation
 typedef boost::function<void(Result result)> ResultCallback;
+typedef boost::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
 typedef boost::function<void(Consumer consumer, const Message& msg)> MessageListener;
