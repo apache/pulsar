@@ -27,8 +27,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.io.hbase.HbaseAbstractConfig;
 

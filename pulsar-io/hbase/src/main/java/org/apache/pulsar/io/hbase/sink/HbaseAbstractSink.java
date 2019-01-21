@@ -122,7 +122,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) throws Exception {
         int number;
-        synchronized (this) {
+        synchronized (incomingList) {
             incomingList.add(record);
             number = incomingList.size();
         }
@@ -134,7 +134,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     private void recordsPush(){
         List<Record<T>> swapList = null;
-        synchronized (this) {
+        synchronized (incomingList) {
             if (!incomingList.isEmpty()) {
                 swapList = incomingList;
                 incomingList = Lists.newArrayList();
@@ -178,6 +178,8 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
             if (CollectionUtils.isNotEmpty(swapList)) {
                 swapList.forEach(tRecord -> tRecord.ack());
             }
+            puts.clear();
+            swapList.clear();
         } catch (Exception e) {
             log.error("Hbase table put data exception ", e);
             if (CollectionUtils.isNotEmpty(swapList)) {
@@ -186,7 +188,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
     }
 
-    // bind value with a PreparedStetement
+    // bind value with a Hbase put
     public abstract void bindValue(Record<T> message, List<Put> puts) throws Exception;
 
     private void getTable(HbaseSinkConfig hbaseSinkConfig) throws IOException {
@@ -220,5 +222,4 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
         return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
     }
-
 }

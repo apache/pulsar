@@ -20,8 +20,14 @@ package org.apache.pulsar.io.hbase.sink;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
+import org.apache.pulsar.client.impl.schema.DoubleSchema;
+import org.apache.pulsar.client.impl.schema.FloatSchema;
+import org.apache.pulsar.client.impl.schema.IntSchema;
+import org.apache.pulsar.client.impl.schema.LongSchema;
+import org.apache.pulsar.client.impl.schema.ShortSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
@@ -63,19 +69,19 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
 
     private byte[] getBytes(Object value) throws Exception{
         if (value instanceof Integer) {
-            return Bytes.toBytes((Integer) value);
+            return IntSchema.of().encode((Integer)value);
         } else if (value instanceof Long) {
-            return Bytes.toBytes((Long) value);
+            return LongSchema.of().encode((Long) value);
         } else if (value instanceof Double) {
-            return Bytes.toBytes((Double) value);
+            return DoubleSchema.of().encode((Double) value);
         } else if (value instanceof Float) {
-            return Bytes.toBytes((Float) value);
+            return FloatSchema.of().encode((Float) value);
         } else if (value instanceof Boolean) {
-            return Bytes.toBytes((Boolean) value);
+            return BooleanSchema.of().encode((Boolean) value);
         } else if (value instanceof String) {
-            return Bytes.toBytes((String) value);
+            return StringSchema.utf8().encode((String) value);
         } else if (value instanceof Short) {
-            return Bytes.toBytes((Short) value);
+            return ShortSchema.of().encode((Short) value);
         } else {
             throw new Exception("Not support value type, need to add it. " + value.getClass());
         }

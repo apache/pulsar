@@ -25,7 +25,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.io.Serializable;
