@@ -275,7 +275,7 @@ var message = {
 };
 
 ws.on('open', function() {
-  // Send one message
+  // 1つのメッセージを送信します
   ws.send(JSON.stringify(message));
 });
 
