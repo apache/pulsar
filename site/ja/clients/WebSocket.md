@@ -256,6 +256,17 @@ ws.close()
 $ npm install ws
 ```
 
+### Pulsar tenant and namespace created
+
+作成tenantとnamespace, standalone cluster使用する.
+
+```shell
+$ bin/pulsar standalone
+$ bin/pulsar-admin tenants create my-tenant --allowed-clusters standalone
+$ bin/pulsar-admin namespaces create my-tenant/my-ns
+$ bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --clusters standalone
+```
+
 #### Node.js Producer
 
 Pulsarの{% popover_ja トピック %}に簡単なメッセージを送信するNode.jsの実装例です。
