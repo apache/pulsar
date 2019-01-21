@@ -362,24 +362,13 @@ This example uses the [`ws`](https://websockets.github.io/ws/) package. You can 
 $ npm install ws
 ```
 
-### Pulsar tenant and namespace created
-
-Create tenant and namespace has to be able to be used by standalone cluster.
-
-```shell
-$ bin/pulsar standalone
-$ bin/pulsar-admin tenants create my-tenant --allowed-clusters standalone
-$ bin/pulsar-admin namespaces create my-tenant/my-ns
-$ bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --clusters standalone
-```
-
 #### Node.js producer
 
 Here's an example Node.js {% popover producer %} that sends a simple message to a Pulsar {% popover topic %}:
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/producer/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 var message = {
@@ -407,7 +396,7 @@ Here's an example Node.js {% popover consumer %} that listens on the same topic 
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
@@ -421,7 +410,7 @@ ws.on('message', function(message) {
 #### NodeJS reader
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/reader/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {

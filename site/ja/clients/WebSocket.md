@@ -256,24 +256,13 @@ ws.close()
 $ npm install ws
 ```
 
-### Pulsar tenant and namespace created
-
-作成tenantとnamespace, standalone cluster使用する.
-
-```shell
-$ bin/pulsar standalone
-$ bin/pulsar-admin tenants create my-tenant --allowed-clusters standalone
-$ bin/pulsar-admin namespaces create my-tenant/my-ns
-$ bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --clusters standalone
-```
-
 #### Node.js Producer
 
 Pulsarの{% popover_ja トピック %}に簡単なメッセージを送信するNode.jsの実装例です。
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 var message = {
@@ -286,20 +275,19 @@ var message = {
 };
 
 ws.on('open', function() {
-  // 1つのメッセージを送信します
-  ws.send(JSON.stringify(message));
+  // Send one message
+  ws.send(JSON.stringify(message));
 });
 
 ws.on('message', function(message) {
   console.log('received ack: %s', message);
 });
-
 ```
 
 #### NodeJS Consumer
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic/my-sub",
     ws = new WebSocket(topic);
 
 socket.onmessage = function(packet) {
@@ -307,4 +295,18 @@ socket.onmessage = function(packet) {
 	var ackMsg = {"messageId" : receiveMsg.messageId};
 	socket.send(JSON.stringify(ackMsg));      
 };
+```
+
+#### NodeJS reader
+```javascript
+var WebSocket = require('ws'),
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
+    ws = new WebSocket(topic);
+
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
 ```
