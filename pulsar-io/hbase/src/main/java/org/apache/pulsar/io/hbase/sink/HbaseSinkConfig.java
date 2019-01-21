@@ -20,6 +20,7 @@ package org.apache.pulsar.io.hbase.sink;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -67,9 +68,9 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
 
     @FieldDoc(
        required = false,
-       defaultValue = "10",
+       defaultValue = "1000l",
        help = "The hbase operation time in milliseconds")
-    private int batchTimeMs = 10;
+    private long batchTimeMs = 1000l;
 
     @FieldDoc(
         required = false,
@@ -92,18 +93,12 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
     public void validate() {
         super.validate();
 
-        if (StringUtils.isEmpty(rowKeyName) ||
-                StringUtils.isEmpty(familyName) ||
-                CollectionUtils.isEmpty(qualifierNames)) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
-
-        if (batchTimeMs < 1) {
-            throw new IllegalArgumentException("batchTimeMs must be a positive integer");
-        }
-
-        if (batchSize < 1) {
-            throw new IllegalArgumentException("batchSize must be a positive integer");
-        }
+        Preconditions.checkNotNull(rowKeyName, "rowKeyName property not set.");
+        Preconditions.checkNotNull(familyName, "familyName property not set.");
+        Preconditions.checkNotNull(qualifierNames, "qualifierNames property not set.");
+        Preconditions.checkArgument(batchTimeMs > 0,
+                "batchTimeMs must be a positive long.");
+        Preconditions.checkArgument(batchSize > 0,
+                "batchSize must be a positive integer.");
     }
 }

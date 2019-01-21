@@ -30,10 +30,6 @@
     <artifactId>pulsar-io-hbase</artifactId>
     <name>Pulsar IO :: Hbase</name>
 
-    <properties>
-        <hbase.version>1.4.9</hbase.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -61,6 +57,11 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
         </dependency>
 
         <dependency>

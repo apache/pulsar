@@ -148,8 +148,6 @@ public class HbaseGenericRecordSinkTest {
         // sleep to wait backend flush complete
         Thread.sleep(500);
 
-        sink.close();
-
         // value has been written to hbase table, read it out and verify.
         Table table = TableUtils.getTable(map);
         Get scan = new Get(Bytes.toBytes(obj.getRowKey()));
@@ -162,6 +160,7 @@ public class HbaseGenericRecordSinkTest {
         Assert.assertEquals(obj.getAge(), Bytes.toInt(byteAge));
 
         table.close();
+        sink.close();
     }
 
 }

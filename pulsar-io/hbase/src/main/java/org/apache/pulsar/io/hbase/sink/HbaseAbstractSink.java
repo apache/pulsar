@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -75,29 +77,31 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     protected TableDefinition tableDefinition;
 
     // for flush
-    private int batchTimeMs;
+    private long batchTimeMs;
     private int batchSize;
-    private long currentTime;
     private List<Record<T>> incomingList;
+    private ArrayBlockingQueue<Record<T>> recordsForPush;
+
     private ScheduledExecutorService flushExecutor;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         hbaseSinkConfig = HbaseSinkConfig.load(config);
-        if (hbaseSinkConfig.getZookeeperQuorum() == null
-                || hbaseSinkConfig.getZookeeperClientPort() == null
-                || hbaseSinkConfig.getTableName() == null) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(hbaseSinkConfig.getZookeeperQuorum(), "zookeeperQuorum property not set.");
+        Preconditions.checkNotNull(hbaseSinkConfig.getZookeeperClientPort(), "zookeeperClientPort property not set.");
+        Preconditions.checkNotNull(hbaseSinkConfig.getZookeeperZnodeParent(), "zookeeperZnodeParent property not set.");
+        Preconditions.checkNotNull(hbaseSinkConfig.getTableName(), "hbase tableName property not set.");
 
         getTable(hbaseSinkConfig);
         tableDefinition = getTableDefinition(hbaseSinkConfig);
 
         batchTimeMs = hbaseSinkConfig.getBatchTimeMs();
         batchSize = hbaseSinkConfig.getBatchSize();
-        currentTime = System.currentTimeMillis();
         incomingList = Lists.newArrayList();
+        recordsForPush = new ArrayBlockingQueue<>(batchSize);
+
         flushExecutor = Executors.newScheduledThreadPool(1);
+        flushExecutor.scheduleAtFixedRate(() -> flush(), batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -117,34 +121,68 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     @Override
     public void write(Record<T> record) throws Exception {
-        synchronized (incomingList) {
+        int number;
+        synchronized (this) {
             incomingList.add(record);
+            number = incomingList.size();
+        }
 
-            if (System.currentTimeMillis() - currentTime > batchTimeMs * 1000
-                    || incomingList.size() >= batchSize) {
-                flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
+        if (number == batchSize) {
+            flushExecutor.schedule(() -> recordsPush(), 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void recordsPush(){
+        List<Record<T>> swapList = null;
+        synchronized (this) {
+            if (!incomingList.isEmpty()) {
+                swapList = incomingList;
+                incomingList = Lists.newArrayList();
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(swapList)) {
+            for (Record<T> record : swapList) {
+                try {
+                    recordsForPush.put(record);
+                } catch (InterruptedException e) {
+                    log.warn("Record put was interrupted ", e);
+                }
             }
         }
     }
 
     private void flush() {
-        try {
-            List<Put> puts = new ArrayList<>();
-            for (Record<T> value : incomingList) {
-                bindValue(value, puts);
+        List<Put> puts = new ArrayList<>();
+        List<Record<T>> swapList = new ArrayList<>();
+        while (!recordsForPush.isEmpty()) {
+            Record<T> record = null;
+            try {
+                record = recordsForPush.take();
+                bindValue(record, puts);
+                swapList.add(record);
+                record.ack();
+            } catch (Exception e) {
+                log.warn("Record flush thread was exception ", e);
+                if (null != record) {
+                    record.fail();
+                }
             }
+        }
 
+        try {
             if (CollectionUtils.isNotEmpty(puts)) {
                 table.put(puts);
             }
             admin.flush(tableName);
-            incomingList.forEach(tRecord -> tRecord.ack());
-
-            incomingList.clear();
-            currentTime = System.currentTimeMillis();
+            if (CollectionUtils.isNotEmpty(swapList)) {
+                swapList.forEach(tRecord -> tRecord.ack());
+            }
         } catch (Exception e) {
-            log.error("Got exception ", e);
-            incomingList.forEach(tRecord -> tRecord.fail());
+            log.error("Hbase table put data exception ", e);
+            if (CollectionUtils.isNotEmpty(swapList)) {
+                swapList.forEach(tRecord -> tRecord.fail());
+            }
         }
     }
 
@@ -166,7 +204,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         admin = connection.getAdmin();
         tableName = TableName.valueOf(hbaseSinkConfig.getTableName());
         if (!admin.tableExists(this.tableName)) {
-            throw new IllegalArgumentException("Table does not exist.");
+            throw new IllegalArgumentException(this.tableName + " table does not exist.");
         }
 
         table = connection.getTable(this.tableName);
@@ -176,11 +214,10 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
      * Get the {@link TableDefinition} for the given table.
      */
     private TableDefinition getTableDefinition(HbaseSinkConfig hbaseSinkConfig) throws Exception {
-        if (hbaseSinkConfig.getRowKeyName() == null
-                || hbaseSinkConfig.getFamilyName() == null
-                || hbaseSinkConfig.getQualifierNames() == null) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(hbaseSinkConfig.getRowKeyName(), "rowKeyName property not set.");
+        Preconditions.checkNotNull(hbaseSinkConfig.getFamilyName(), "familyName property not set.");
+        Preconditions.checkNotNull(hbaseSinkConfig.getQualifierNames(), "qualifierNames property not set.");
+
         return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
     }
 

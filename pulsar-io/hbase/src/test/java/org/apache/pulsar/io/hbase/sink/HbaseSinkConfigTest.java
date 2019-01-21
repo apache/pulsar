@@ -97,8 +97,8 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Required property not set.")
+    @Test(expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "hbase tableName property not set.")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");
@@ -130,8 +130,8 @@ public class HbaseSinkConfigTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "batchTimeMs must be a positive integer")
-    public final void invalidBatchSizeTest() throws IOException {
+            expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
+    public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");

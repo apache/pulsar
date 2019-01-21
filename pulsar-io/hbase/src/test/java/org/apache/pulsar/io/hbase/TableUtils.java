@@ -44,7 +44,7 @@ public class TableUtils {
         Admin admin = connection.getAdmin();
         TableName tableName = TableName.valueOf(config.get("tableName").toString());
         if (!admin.tableExists(tableName)) {
-            throw new IllegalArgumentException("Table does not exist.");
+            throw new IllegalArgumentException(tableName + " table does not exist.");
         }
         return connection.getTable(tableName);
     }

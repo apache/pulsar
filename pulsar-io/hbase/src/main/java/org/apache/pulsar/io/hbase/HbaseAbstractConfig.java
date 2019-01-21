@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.hbase;
 
+import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -55,13 +56,13 @@ public class HbaseAbstractConfig implements Serializable {
     private String zookeeperQuorum;
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "2181",
         help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
     private String zookeeperClientPort = "2181";
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "/hbase",
         help = "hbase system configuration about zookeeper.znode.parent value")
     private String zookeeperZnodeParent = "/hbase";
@@ -73,11 +74,9 @@ public class HbaseAbstractConfig implements Serializable {
     private String tableName;
 
     public void validate() {
-        if (StringUtils.isEmpty(zookeeperQuorum)  ||
-                StringUtils.isEmpty(zookeeperClientPort)  ||
-                StringUtils.isEmpty(zookeeperZnodeParent)  ||
-                StringUtils.isEmpty(tableName)) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        Preconditions.checkNotNull(zookeeperQuorum, "zookeeperQuorum property not set.");
+        Preconditions.checkNotNull(zookeeperClientPort, "zookeeperClientPort property not set.");
+        Preconditions.checkNotNull(zookeeperZnodeParent, "zookeeperZnodeParent property not set.");
+        Preconditions.checkNotNull(tableName, "hbase tableName property not set.");
     }
 }
