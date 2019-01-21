@@ -69,6 +69,7 @@ public class HbaseGenericRecordSinkTest {
         private String name;
         private String address;
         private int age;
+        private boolean flag;
     }
 
     private String rowKeyName = "rowKey";
@@ -76,6 +77,7 @@ public class HbaseGenericRecordSinkTest {
     private String name = "name";
     private String address = "address";
     private String age = "age";
+    private String flag = "flag";
     @Mock
     protected SinkContext mockSinkContext;
 
@@ -93,6 +95,7 @@ public class HbaseGenericRecordSinkTest {
         qualifierNames.add(name);
         qualifierNames.add(address);
         qualifierNames.add(age);
+        qualifierNames.add(flag);
         map.put("qualifierNames",qualifierNames);
 
         mockSinkContext = mock(SinkContext.class);
@@ -104,6 +107,7 @@ public class HbaseGenericRecordSinkTest {
         obj.setName("name_value");
         obj.setAddress("address_value");
         obj.setAge(30);
+        obj.setFlag(true);
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
 
         byte[] bytes = schema.encode(obj);
@@ -155,9 +159,11 @@ public class HbaseGenericRecordSinkTest {
         byte[] byteName = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(name));
         byte[] byteAddress = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(address));
         byte[] byteAge = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(age));
+        byte[] byteFlag = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(flag));
         Assert.assertEquals(obj.getName(), Bytes.toString(byteName));
         Assert.assertEquals(obj.getAddress(), Bytes.toString(byteAddress));
         Assert.assertEquals(obj.getAge(), Bytes.toInt(byteAge));
+        Assert.assertEquals(obj.isFlag(), Bytes.toBoolean(byteFlag));
 
         table.close();
         sink.close();
