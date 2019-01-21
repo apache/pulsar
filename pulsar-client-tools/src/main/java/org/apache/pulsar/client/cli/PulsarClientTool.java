@@ -134,8 +134,9 @@ public class PulsarClientTool {
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
+            String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage();
+                commandParser.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }

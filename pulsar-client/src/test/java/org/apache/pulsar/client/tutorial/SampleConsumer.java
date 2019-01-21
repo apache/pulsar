@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class SampleConsumer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException {
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer() //
                 .topic("persistent://my-tenant/my-ns/my-topic") //

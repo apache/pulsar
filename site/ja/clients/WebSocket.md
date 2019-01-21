@@ -48,14 +48,14 @@ webSocketServiceEnabled=true
 
 このモードでは、Pulsar {% popover_ja Broker %}とは別サービスとして起動されます。このモードの設定は[`conf/websocket.conf`](../../reference/Configuration#websocket)ファイルでハンドリングされます。*少なくとも*以下のパラメータを設定する必要があります:
 
-* [`globalZookeeperServers`](../../reference/Configuration#websocket-globalZookeeperServers)
+* [`configurationStoreServers`](../../reference/Configuration#websocket-configurationStoreServers)
 * [`webServicePort`](../../reference/Configuration#websocket-webServicePort)
 * [`clusterName`](../../reference/Configuration#websocket-clusterName)
 
 こちらは設定例です:
 
 ```properties
-globalZookeeperServers=zk1:2181,zk2:2181,zk3:2181
+configurationStoreServers=zk1:2181,zk2:2181,zk3:2181
 webServicePort=8080
 clusterName=my-cluster
 ```

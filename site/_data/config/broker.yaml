@@ -30,9 +30,9 @@ configs:
 - name: zookeeperServers
   default: ''
   description: Zookeeper quorum connection string
-- name: globalZookeeperServers
+- name: configurationStoreServers
   default: ''
-  description: Global Zookeeper quorum connection string
+  description: Configuration store connection string
 - name: brokerServicePort
   default: '6650'
   description: Broker data port

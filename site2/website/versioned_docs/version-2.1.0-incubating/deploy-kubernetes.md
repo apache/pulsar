@@ -213,7 +213,7 @@ For the sake of reference, that job runs the following command on an ephemeral p
 $ bin/pulsar initialize-cluster-metadata \
   --cluster local \
   --zookeeper zookeeper \
-  --global-zookeeper zookeeper \
+  --configuration-store zookeeper \
   --web-service-url http://broker.default.svc.cluster.local:8080/ \
   --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
 ```
