@@ -23,7 +23,7 @@ import java.util.Properties;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public class ConsumerExample {
 
     public static void main(String[] args) {
-        String topic = "persistent://prop/ns-abc/my-topic";
+        String topic = "persistent://public/default/test";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");
@@ -42,7 +42,7 @@ public class ConsumerExample {
         props.put("value.deserializer", StringDeserializer.class.getName());
 
         @SuppressWarnings("resource")
-        Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
+        Consumer<Integer, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
         while (true) {

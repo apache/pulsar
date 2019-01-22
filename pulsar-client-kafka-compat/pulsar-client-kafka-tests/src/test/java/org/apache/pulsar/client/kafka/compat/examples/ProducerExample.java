@@ -20,9 +20,9 @@ package org.apache.pulsar.client.kafka.compat.examples;
 
 import java.util.Properties;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.PulsarKafkaProducer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProducerExample {
     public static void main(String[] args) {
-        String topic = "persistent://prop/ns-abc/my-topic";
+        String topic = "persistent://public/default/test";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");
@@ -38,7 +38,7 @@ public class ProducerExample {
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());
 
-        Producer<Integer, String> producer = new KafkaProducer<>(props);
+        Producer<Integer, String> producer = new PulsarKafkaProducer<>(props);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new ProducerRecord<Integer, String>(topic, i, Integer.toString(i)));
