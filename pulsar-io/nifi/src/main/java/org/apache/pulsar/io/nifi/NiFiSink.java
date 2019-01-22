@@ -121,6 +121,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 toFlushList = currentList;
                 currentList = Lists.newArrayList();
             }
+
             for (Record<NiFiDataPacket> record : toFlushList) {
                 NiFiDataPacket niFiDataPacket = record.getValue();
                 transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());

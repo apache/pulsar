@@ -108,9 +108,6 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         final Transaction transaction = client.createTransaction(TransferDirection.RECEIVE);
                         DataPacket dataPacket = transaction.receive();
                         if (dataPacket == null) {
-                            transaction.confirm();
-                            transaction.complete();
-
                             // no data available. Wait a bit and try again
                             try {
                                 Thread.sleep(waitTimeMs);
@@ -138,7 +135,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         transaction.confirm();
 
                         for (NiFiDataPacket dp : dataPackets) {
-                            consume(new NiFiRecord(dp));
+                            consume(new NiFiRecord(dp, transaction));
                         }
 
                         transaction.complete();
@@ -158,14 +155,30 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
 
     static private class NiFiRecord implements Record<NiFiDataPacket>{
         private final NiFiDataPacket value;
+        private final Transaction transaction;
 
-        public NiFiRecord(NiFiDataPacket value) {
+        public NiFiRecord(NiFiDataPacket value, Transaction transaction) {
             this.value = value;
+            this.transaction = transaction;
         }
 
         @Override
         public NiFiDataPacket getValue() {
             return value;
+        }
+
+        @Override
+        public void ack() {
+            try {
+                transaction.complete();
+            } catch (IOException e) {
+                log.warn("Receive data from NiFi transfer was Failed", e);
+            }
+        }
+
+        @Override
+        public void fail() {
+            transaction.error();
         }
     }
 
