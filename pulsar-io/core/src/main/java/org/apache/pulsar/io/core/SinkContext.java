@@ -26,16 +26,16 @@ import java.util.Collection;
 public interface SinkContext {
 
     /**
-     * The id of the instance that invokes this function.
+     * The id of the instance that invokes this sink.
      *
      * @return the instance id
      */
     int getInstanceId();
 
     /**
-     * Get the number of instances that invoke this function.
+     * Get the number of instances that invoke this sink.
      *
-     * @return the number of instances that invoke this function.
+     * @return the number of instances that invoke this sink.
      */
     int getNumInstances();
 
@@ -53,25 +53,25 @@ public interface SinkContext {
     Collection<String> getInputTopics();
 
     /**
-     * The tenant this function belongs to
-     * @return the tenant this function belongs to
+     * The tenant this sink belongs to
+     * @return the tenant this sink belongs to
      */
     String getTenant();
 
     /**
-     * The namespace this function belongs to
-     * @return the namespace this function belongs to
+     * The namespace this sink belongs to
+     * @return the namespace this sink belongs to
      */
     String getNamespace();
 
     /**
-     * The name of the function that we are executing
-     * @return The Function name
+     * The name of the sink that we are executing
+     * @return The Sink name
      */
     String getSinkName();
 
     /**
-     * The logger object that can be used to log in a function
+     * The logger object that can be used to log in a sink
      * @return the logger object
      */
     Logger getLogger();

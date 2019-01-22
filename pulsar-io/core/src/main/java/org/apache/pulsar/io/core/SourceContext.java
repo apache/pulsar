@@ -25,16 +25,16 @@ import java.nio.ByteBuffer;
 public interface SourceContext {
 
     /**
-     * The id of the instance that invokes this function.
+     * The id of the instance that invokes this source.
      *
      * @return the instance id
      */
     int getInstanceId();
 
     /**
-     * Get the number of instances that invoke this function.
+     * Get the number of instances that invoke this source.
      *
-     * @return the number of instances that invoke this function.
+     * @return the number of instances that invoke this source.
      */
     int getNumInstances();
 
@@ -46,31 +46,31 @@ public interface SourceContext {
     void recordMetric(String metricName, double value);
 
     /**
-     * Get the output topic of the function
+     * Get the output topic of the source
      * @return output topic name
      */
     String getOutputTopic();
 
     /**
-     * The tenant this function belongs to
-     * @return the tenant this function belongs to
+     * The tenant this source belongs to
+     * @return the tenant this source belongs to
      */
     String getTenant();
 
     /**
-     * The namespace this function belongs to
-     * @return the namespace this function belongs to
+     * The namespace this source belongs to
+     * @return the namespace this source belongs to
      */
     String getNamespace();
 
     /**
-     * The name of the function that we are executing
-     * @return The Function name
+     * The name of the source that we are executing
+     * @return The Source name
      */
     String getSourceName();
 
     /**
-     * The logger object that can be used to log in a function
+     * The logger object that can be used to log in a source
      * @return the logger object
      */
     Logger getLogger();
