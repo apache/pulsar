@@ -44,7 +44,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -80,8 +79,6 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     private long batchTimeMs;
     private int batchSize;
     private List<Record<T>> incomingList;
-    private ArrayBlockingQueue<Record<T>> recordsForPush;
-
     private ScheduledExecutorService flushExecutor;
 
     @Override
@@ -98,8 +95,6 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         batchTimeMs = hbaseSinkConfig.getBatchTimeMs();
         batchSize = hbaseSinkConfig.getBatchSize();
         incomingList = Lists.newArrayList();
-        recordsForPush = new ArrayBlockingQueue<>(batchSize);
-
         flushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(), batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
     }
@@ -128,44 +123,31 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
 
         if (number == batchSize) {
-            flushExecutor.schedule(() -> recordsPush(), 0, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    private void recordsPush(){
-        List<Record<T>> swapList = null;
-        synchronized (this) {
-            if (!incomingList.isEmpty()) {
-                swapList = incomingList;
-                incomingList = Lists.newArrayList();
-            }
-        }
-
-        if (CollectionUtils.isNotEmpty(swapList)) {
-            for (Record<T> record : swapList) {
-                try {
-                    recordsForPush.put(record);
-                } catch (InterruptedException e) {
-                    log.warn("Record put was interrupted ", e);
-                }
-            }
+            flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
         }
     }
 
     private void flush() {
         List<Put> puts = new ArrayList<>();
-        List<Record<T>> swapList = new ArrayList<>();
-        while (!recordsForPush.isEmpty()) {
-            Record<T> record = null;
-            try {
-                record = recordsForPush.take();
-                bindValue(record, puts);
-                swapList.add(record);
-                record.ack();
-            } catch (Exception e) {
-                log.warn("Record flush thread was exception ", e);
-                if (null != record) {
-                    record.fail();
+        List<Record<T>>  toFlushList;
+        synchronized (this) {
+            if (incomingList.isEmpty()) {
+                return;
+            }
+            toFlushList = incomingList;
+            incomingList = Lists.newArrayList();
+        }
+
+        if (CollectionUtils.isNotEmpty(toFlushList)) {
+            for (Record<T> record: toFlushList) {
+                try {
+                    bindValue(record, puts);
+                    record.ack();
+                } catch (Exception e) {
+                    log.warn("Record flush thread was exception ", e);
+                    if (null != record) {
+                        record.fail();
+                    }
                 }
             }
         }
@@ -175,15 +157,14 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
                 table.put(puts);
             }
             admin.flush(tableName);
-            if (CollectionUtils.isNotEmpty(swapList)) {
-                swapList.forEach(tRecord -> tRecord.ack());
-            }
+            toFlushList.forEach(tRecord -> tRecord.ack());
+
             puts.clear();
-            swapList.clear();
+            toFlushList.clear();
         } catch (Exception e) {
             log.error("Hbase table put data exception ", e);
-            if (CollectionUtils.isNotEmpty(swapList)) {
-                swapList.forEach(tRecord -> tRecord.fail());
+            if (CollectionUtils.isNotEmpty(toFlushList)) {
+                toFlushList.forEach(tRecord -> tRecord.fail());
             }
         }
     }
