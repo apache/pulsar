@@ -21,7 +21,6 @@ package org.apache.pulsar.io.nifi;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
 import org.apache.nifi.remote.client.SiteToSiteClient;
@@ -35,7 +34,6 @@ import org.apache.pulsar.io.core.annotations.IOType;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -56,13 +54,11 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
 
     private NiFiConfig niFiConfig;
     private SiteToSiteClientConfig clientConfig;
+    private SiteToSiteClient client;
 
     private int requestBatchCount;
     private long waitTimeMs;
     private List<Record<NiFiDataPacket>>  currentList;
-    private ArrayBlockingQueue<Record<NiFiDataPacket>> recordsForPush;
-
-    private ScheduledExecutorService recordsPushExecutor;
     private ScheduledExecutorService flushExecutor;
 
     @Override
@@ -78,21 +74,21 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 .portName(niFiConfig.getPortName())
                 .requestBatchCount(niFiConfig.getRequestBatchCount())
                 .buildConfig();
+        client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
+
 
         requestBatchCount = niFiConfig.getRequestBatchCount();
         waitTimeMs = niFiConfig.getWaitTimeMs();
         currentList= Lists.newArrayList();
-        recordsForPush = new ArrayBlockingQueue<>(requestBatchCount);
 
         flushExecutor = Executors.newScheduledThreadPool(1);
-        recordsPushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(), waitTimeMs, waitTimeMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void close() throws Exception {
-        if (null != recordsPushExecutor) {
-            recordsPushExecutor.shutdown();
+        if (null != client) {
+            client.close();
         }
 
         if (null != flushExecutor) {
@@ -104,55 +100,38 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
     @Override
     public void write(Record<NiFiDataPacket> record) {
         int number;
-        synchronized (currentList) {
+        synchronized (this) {
             currentList.add(record);
             number = currentList.size();
         }
 
         if (number == requestBatchCount) {
-            recordsPushExecutor.schedule(() -> recordsPush(), 0, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    private void recordsPush(){
-        List<Record<NiFiDataPacket>> swapList = Lists.newArrayList();
-
-        synchronized (currentList) {
-            if (!currentList.isEmpty()) {
-                swapList.addAll(currentList);
-                currentList = Lists.newArrayList();
-            }
-        }
-
-        if (CollectionUtils.isNotEmpty(swapList)) {
-            for (Record<NiFiDataPacket> record : swapList) {
-                try {
-                    recordsForPush.put(record);
-                } catch (InterruptedException e) {
-                    log.warn("Record put was interrupted ", e);
-                }
-            }
+            flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
         }
     }
 
     private void flush() {
-        try (final SiteToSiteClient client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build()) {
+        try {
             final Transaction transaction = client.createTransaction(TransferDirection.SEND);
-            while (!recordsForPush.isEmpty()) {
-                Record<NiFiDataPacket> record = null;
-                try {
-                    record = recordsForPush.take();
-                    NiFiDataPacket niFiDataPacket = record.getValue();
-                    transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
-                    transaction.confirm();
-                    transaction.complete();
-                    record.ack();
-                } catch (InterruptedException e) {
-                    log.warn("Record flush thread was interrupted", e);
-                    if (null != record) {
-                        record.fail();
-                    }
+            List<Record<NiFiDataPacket>>  toFlushList;
+            synchronized (this) {
+                if (currentList.isEmpty()) {
+                    return;
                 }
+                toFlushList = currentList;
+                currentList = Lists.newArrayList();
+            }
+            for (Record<NiFiDataPacket> record : toFlushList) {
+                NiFiDataPacket niFiDataPacket = record.getValue();
+                transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
+            }
+            try {
+                transaction.confirm();
+                transaction.complete();
+                toFlushList.forEach(record -> record.ack());
+            } catch (Exception e) {
+                log.warn("Record flush thread was interrupted", e);
+                toFlushList.forEach(record -> record.fail());
             }
         } catch (final IOException ioe) {
             log.warn("Failed to receive data from NiFi", ioe);

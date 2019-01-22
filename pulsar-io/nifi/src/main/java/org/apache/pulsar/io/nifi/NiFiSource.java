@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.nifi;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
@@ -34,7 +35,6 @@ import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -120,7 +120,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                             continue;
                         }
 
-                        final List<NiFiDataPacket> dataPackets = new ArrayList<>();
+                        final List<NiFiDataPacket> dataPackets = Lists.newArrayList();
                         do {
                             // Read the data into a byte array and wrap it along with the attributes
                             // into a NiFiDataPacket.
@@ -156,7 +156,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
         }
     }
 
-    static private class NiFiRecord implements Record<NiFiDataPacket> {
+    static private class NiFiRecord implements Record<NiFiDataPacket>{
         private final NiFiDataPacket value;
 
         public NiFiRecord(NiFiDataPacket value) {

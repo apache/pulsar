@@ -46,47 +46,6 @@ public class NiFiSinkAndSourceTest {
     private Map<String, Object> map;
 
     @Test(enabled = false)
-    public void TestOpenAndWriteSink() throws Exception {
-        map = new HashMap<>();
-        map.put("url","http://localhost:8080/nifi");
-        map.put("portName","Data from Pulsar");
-        map.put("requestBatchCount",1);
-        map.put("waitTimeMs",10);
-
-        NiFiSink sink = new NiFiSink();
-        mockSinkContext = mock(SinkContext.class);
-        sink.open(map, mockSinkContext);
-
-        Record<NiFiDataPacket> mockRecord = mock(Record.class);
-        when(mockRecord.getValue()).thenAnswer(new Answer<NiFiDataPacket>() {
-            public NiFiDataPacket answer(InvocationOnMock invocation) throws Throwable {
-                return new StandardNiFiDataPacket(msg.getBytes(), new HashMap<String, String>());
-            }});
-
-        // first: msg send to nifi Input Port
-        sink.write(mockRecord);
-        sink.close();
-    }
-
-    @Test(enabled = false)
-    public void TestOpenAndReadSource() throws Exception {
-        map = new HashMap<>();
-        map.put("url","http://localhost:8080/nifi");
-        map.put("portName","Data to Pulsar");
-        map.put("requestBatchCount",1);
-        map.put("waitTimeMs",10);
-
-        NiFiSource source = new NiFiSource();
-        mockSourceContext = mock(SourceContext.class);
-        source.open(map, mockSourceContext);
-
-        // second: read msg from Output Port and verify.
-        Record<NiFiDataPacket> readRecord = source.read();
-        NiFiDataPacket recordValue = readRecord.getValue();
-        Assert.assertEquals(msg, new String(recordValue.getContent()));
-    }
-
-    @Test(enabled = false)
     public void TestSinkAndSource() throws Exception {
         map = new HashMap<>();
         map.put("url","http://localhost:8080/nifi");
@@ -115,5 +74,6 @@ public class NiFiSinkAndSourceTest {
         Record<NiFiDataPacket> readRecord = source.read();
         NiFiDataPacket recordValue = readRecord.getValue();
         Assert.assertEquals(msg, new String(recordValue.getContent()));
+        Assert.assertNotNull(recordValue.getAttributes());
     }
 }
