@@ -52,7 +52,7 @@ class MessageId {
     void serialize(std::string& result) const;
 
     /**
-     * Get the topic Name
+     * Get the topic Name from which this message originated from
      */
     const std::string& getTopicName() const;
 

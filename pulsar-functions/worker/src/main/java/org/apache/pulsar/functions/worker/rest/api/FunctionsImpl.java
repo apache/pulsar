@@ -24,6 +24,7 @@ import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
 
@@ -199,7 +200,7 @@ public class FunctionsImpl extends ComponentImpl {
     }
 
     public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, ComponentType.FUNCTION);
+        super(workerServiceSupplier, Utils.ComponentType.FUNCTION);
     }
 
     /**

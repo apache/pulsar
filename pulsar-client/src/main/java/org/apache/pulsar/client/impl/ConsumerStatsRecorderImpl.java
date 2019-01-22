@@ -100,7 +100,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
         try {
             log.info("Starting Pulsar consumer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
+            log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info: {}", e);
         }
@@ -131,8 +131,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
                         | currentNumAcksFailed) != 0) {
                     log.info(
-                            "[{}] [{}] [{}] Prefetched messages: {} --- Consume throughput: {} msgs/s --- "
-                                    + "Throughput received: {} msg/s --- {} Mbit/s --- "
+                            "[{}] [{}] [{}] Prefetched messages: {} --- "
+                                    + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
                                     + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- " + "Failed acks: {}",
                             consumer.getTopic(), consumer.getSubscription(), consumer.consumerName,
                             consumer.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),

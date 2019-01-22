@@ -21,7 +21,7 @@ package org.apache.pulsar.storm;
 import java.io.Serializable;
 
 import org.apache.pulsar.client.api.Message;
-
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Tuple;
 
@@ -32,8 +32,30 @@ public interface TupleToMessageMapper extends Serializable {
      *
      * @param tuple
      * @return
+     * @deprecated use {@link #toMessage(TypedMessageBuilder, Tuple)}
      */
-    public Message<byte[]> toMessage(Tuple tuple);
+    @Deprecated
+    default Message<byte[]> toMessage(Tuple tuple) {
+        return null;
+    }
+
+    /**
+     * Set the value on a message builder to prepare the message to be published from the Bolt.
+     *
+     * @param tuple
+     * @return
+     */
+    default TypedMessageBuilder<byte[]> toMessage(TypedMessageBuilder<byte[]> msgBuilder, Tuple tuple) {
+        // Default implementation provided for backward compatibility
+        Message<byte[]> msg = toMessage(tuple);
+        msgBuilder.value(msg.getData())
+            .properties(msg.getProperties());
+        if (msg.hasKey()) {
+            msgBuilder.key(msg.getKey());
+        }
+        return msgBuilder;
+    }
+
 
     /**
      * Declare the output schema for the bolt.

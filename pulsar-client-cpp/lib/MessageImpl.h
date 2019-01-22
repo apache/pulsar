@@ -52,7 +52,7 @@ class MessageImpl {
     uint64_t getEventTimestamp() const;
 
     /**
-     * Get a valid topicName
+     * Get the topic Name from which this message originated from
      */
     const std::string& getTopicName();
 

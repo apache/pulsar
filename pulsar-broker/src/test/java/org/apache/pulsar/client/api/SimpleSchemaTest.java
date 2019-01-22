@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -156,7 +157,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
         } catch (PulsarClientException e) {
             if (schemaValidationEnforced) {
-                Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+                Assert.assertTrue(e instanceof IncompatibleSchemaException);
             } else {
                 Assert.fail("Shouldn't throw IncompatibleSchemaException"
                     + " if SchemaValidationEnforced is disabled");
@@ -193,7 +194,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 .topic(topic).subscriptionName("sub1").subscribe()) {
             Assert.fail("Shouldn't be able to consume with a schema from a topic which has no schema set");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("Trying to subscribe with incompatible schema"));
+            Assert.assertTrue(e instanceof IncompatibleSchemaException);
         }
     }
 

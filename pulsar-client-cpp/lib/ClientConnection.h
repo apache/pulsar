@@ -68,7 +68,12 @@ class LookupDataResult;
 
 struct OpSendMsg;
 
-typedef std::pair<std::string, int64_t> ResponseData;
+// Data returned on the request operation. Mostly used on create-producer command
+struct ResponseData {
+    std::string producerName;
+    int64_t lastSequenceId;
+    std::string schemaVersion;
+};
 
 typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
@@ -154,6 +159,11 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
         DeadlineTimerPtr timer;
     };
 
+    struct LookupRequestData {
+        LookupDataResultPromisePtr promise;
+        DeadlineTimerPtr timer;
+    };
+
     /*
      * handler for connectAsync
      * creates a ConnectionPtr which has a valid ClientConnection object
@@ -190,6 +200,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     void newLookup(const SharedBuffer& cmd, const uint64_t requestId, LookupDataResultPromisePtr promise);
 
     void handleRequestTimeout(const boost::system::error_code& ec, PendingRequestData pendingRequestData);
+
+    void handleLookupTimeout(const boost::system::error_code&, LookupRequestData);
 
     void handleKeepAliveTimeout();
 
@@ -259,7 +271,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, PendingRequestData> PendingRequestsMap;
     PendingRequestsMap pendingRequests_;
 
-    typedef std::map<long, LookupDataResultPromisePtr> PendingLookupRequestsMap;
+    typedef std::map<long, LookupRequestData> PendingLookupRequestsMap;
     PendingLookupRequestsMap pendingLookupRequests_;
 
     typedef std::map<long, ProducerImplWeakPtr> ProducersMap;

@@ -32,11 +32,26 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.pulsar.client.admin.internal.*;
+import org.apache.pulsar.client.admin.internal.BookiesImpl;
+import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
+import org.apache.pulsar.client.admin.internal.BrokersImpl;
+import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
+import org.apache.pulsar.client.admin.internal.LookupImpl;
+import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
+import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
+import org.apache.pulsar.client.admin.internal.SchemasImpl;
+import org.apache.pulsar.client.admin.internal.SinkImpl;
+import org.apache.pulsar.client.admin.internal.SourceImpl;
+import org.apache.pulsar.client.admin.internal.TenantsImpl;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.admin.internal.WorkerImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -118,8 +133,10 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
-                .register(JacksonConfigurator.class).register(JacksonFeature.class);
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+            .withConfig(httpConfig)
+            .register(JacksonConfigurator.class)
+            .register(JacksonFeature.class);
 
         boolean useTls = false;
 
@@ -191,34 +208,19 @@ public class PulsarAdmin implements Closeable {
      *
      * @param serviceUrl
      *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
-     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
-     */
-    @Deprecated
-    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
-        this(serviceUrl.toString(), pulsarConfig.getConfigurationData());
-    }
-
-    /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
      * @param auth
      *            the Authentication object to be used to talk with Pulsar
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
     @Deprecated
     public PulsarAdmin(URL serviceUrl, Authentication auth) throws PulsarClientException {
-        this(serviceUrl, new ClientConfiguration() {
-            private static final long serialVersionUID = 1L;
-            {
-                setAuthentication(auth);
-            }
-        });
+        this(serviceUrl.toString(), getConfigData(auth));
+    }
+
+    private static ClientConfigurationData getConfigData(Authentication auth) {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setAuthentication(auth);
+        return conf;
     }
 
     /**
@@ -370,7 +372,7 @@ public class PulsarAdmin implements Closeable {
    public Worker worker() {
        return worker;
    }
-    
+
     /**
      * @return the broker statics
      */

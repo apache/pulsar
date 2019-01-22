@@ -76,6 +76,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.Utils.mergeJson;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -179,7 +180,7 @@ public class FunctionApiV2ResourceTest {
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
 
-        doReturn(ComponentImpl.ComponentType.FUNCTION).when(functions).calculateSubjectType(any());
+        doReturn(FUNCTION).when(functions).calculateSubjectType(any());
 
         this.resource = spy(new FunctionsImplV2(functions));
 

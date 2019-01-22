@@ -84,5 +84,5 @@ public class FlinkPulsarBatchAvroSinkExample {
         // execute program
         env.execute("Flink - Pulsar Batch Avro");
     }
-
+  
 }

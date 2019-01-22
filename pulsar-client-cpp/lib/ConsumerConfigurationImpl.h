@@ -24,6 +24,7 @@
 
 namespace pulsar {
 struct ConsumerConfigurationImpl {
+    SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
     ConsumerType consumerType;
     MessageListener messageListener;
@@ -38,7 +39,8 @@ struct ConsumerConfigurationImpl {
     int patternAutoDiscoveryPeriod;
     std::map<std::string, std::string> properties;
     ConsumerConfigurationImpl()
-        : unAckedMessagesTimeoutMs(0),
+        : schemaInfo(),
+          unAckedMessagesTimeoutMs(0),
           consumerType(ConsumerExclusive),
           messageListener(),
           hasMessageListener(false),

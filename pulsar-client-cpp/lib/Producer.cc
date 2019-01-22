@@ -60,6 +60,8 @@ const std::string& Producer::getProducerName() const { return impl_->getProducer
 
 int64_t Producer::getLastSequenceId() const { return impl_->getLastSequenceId(); }
 
+const std::string& Producer::getSchemaVersion() const { return impl_->getSchemaVersion(); }
+
 Result Producer::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));

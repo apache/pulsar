@@ -152,7 +152,7 @@ public class BrokerDiscoveryProvider implements Closeable {
                         topicName.getTenant(), e.getMessage()));
             }
             if (!tenantInfo.getAdminRoles().contains(role)) {
-                throw new IllegalAccessException("Don't have permission to administrate resources on this property");
+                throw new IllegalAccessException("Don't have permission to administrate resources on this tenant");
             }
         }
         if (LOG.isDebugEnabled()) {

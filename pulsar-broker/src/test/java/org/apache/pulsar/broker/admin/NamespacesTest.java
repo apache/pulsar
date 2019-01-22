@@ -1144,7 +1144,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://" + namespace + "/my-topic";
         TopicName topic = TopicName.get(topicName);
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
         NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(topic);
         // (2) Delete topic
@@ -1171,7 +1171,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topicName, 2);
         pulsar.getConfiguration().setAuthorizationEnabled(false);
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("subscribe-rate")

@@ -83,7 +83,7 @@
     </file>
 
     <file>
-      <source>${basedir}/../../pulsar-io/data-genenator/target/pulsar-io-data-generator-${project.version}.nar</source>
+      <source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source>
       <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>

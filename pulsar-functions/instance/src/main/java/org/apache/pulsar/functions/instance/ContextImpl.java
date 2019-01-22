@@ -34,9 +34,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
+import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
+import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -52,7 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.pulsar.functions.instance.FunctionStatsManager.USER_METRIC_PREFIX;
+import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -87,12 +93,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final static String[] userMetricsLabelNames;
     static {
         // add label to indicate user metric
-        userMetricsLabelNames = Arrays.copyOf(FunctionStatsManager.metricsLabelNames, FunctionStatsManager.metricsLabelNames.length + 1);
-        userMetricsLabelNames[FunctionStatsManager.metricsLabelNames.length] = "metric";
+        userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
+        userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
+    private final Utils.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
-                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
+                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
+                       Utils.ComponentType componentType) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
@@ -119,15 +127,30 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
 
         this.metricsLabels = metricsLabels;
+        String prefix;
+        switch (componentType) {
+            case FUNCTION:
+                prefix = FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX;
+                break;
+            case SINK:
+                prefix = SinkStatsManager.PULSAR_SINK_METRICS_PREFIX;
+                break;
+            case SOURCE:
+                prefix = SourceStatsManager.PULSAR_SOURCE_METRICS_PREFIX;
+                break;
+            default:
+                throw new RuntimeException("Unknown component type: " + componentType);
+        }
         this.userMetricsSummary = Summary.build()
-                .name("pulsar_function_user_metric")
-                .help("Pulsar Function user defined metric.")
+                .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
+                .help("User defined metric.")
                 .labelNames(userMetricsLabelNames)
                 .quantile(0.5, 0.01)
                 .quantile(0.9, 0.01)
                 .quantile(0.99, 0.01)
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
+        this.componentType = componentType;
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -287,7 +310,15 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         if (producer == null) {
             try {
                 Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
-                        .schema(schema).topic(topicName).create();
+                        .schema(schema)
+                        .topic(topicName)
+                        .properties(InstanceUtils.getProperties(componentType,
+                                FunctionDetailsUtils.getFullyQualifiedName(
+                                        this.config.getFunctionDetails().getTenant(),
+                                        this.config.getFunctionDetails().getNamespace(),
+                                        this.config.getFunctionDetails().getName()),
+                                this.config.getInstanceId()))
+                        .create();
 
                 Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
 
