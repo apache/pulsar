@@ -45,7 +45,7 @@ public class NiFiSinkAndSourceTest {
     private String msg = "Data from Pulsar";
     private Map<String, Object> map;
 
-    @Test
+    @Test(enabled = false)
     public void TestSinkAndSource() throws Exception {
         map = new HashMap<>();
         map.put("url","http://localhost:8080/nifi");
@@ -76,4 +76,5 @@ public class NiFiSinkAndSourceTest {
         Assert.assertEquals(msg, new String(recordValue.getContent()));
         Assert.assertNotNull(recordValue.getAttributes());
     }
+
 }
