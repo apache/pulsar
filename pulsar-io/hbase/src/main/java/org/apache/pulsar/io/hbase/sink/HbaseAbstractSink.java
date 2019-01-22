@@ -122,7 +122,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) throws Exception {
         int number;
-        synchronized (incomingList) {
+        synchronized (this) {
             incomingList.add(record);
             number = incomingList.size();
         }
@@ -134,7 +134,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     private void recordsPush(){
         List<Record<T>> swapList = null;
-        synchronized (incomingList) {
+        synchronized (this) {
             if (!incomingList.isEmpty()) {
                 swapList = incomingList;
                 incomingList = Lists.newArrayList();
