@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.slf4j.Logger;
+
+import java.nio.ByteBuffer;
+
 public interface SourceContext {
 
     /**
@@ -40,4 +44,66 @@ public interface SourceContext {
      * @param value The value of the metric
      */
     void recordMetric(String metricName, double value);
+
+    /**
+     * Get the output topic of the function
+     * @return output topic name
+     */
+    String getOutputTopic();
+
+    /**
+     * The tenant this function belongs to
+     * @return the tenant this function belongs to
+     */
+    String getTenant();
+
+    /**
+     * The namespace this function belongs to
+     * @return the namespace this function belongs to
+     */
+    String getNamespace();
+
+    /**
+     * The name of the function that we are executing
+     * @return The Function name
+     */
+    String getSourceName();
+
+    /**
+     * The logger object that can be used to log in a function
+     * @return the logger object
+     */
+    Logger getLogger();
+
+
+    /**
+     * Increment the builtin distributed counter refered by key
+     * @param key The name of the key
+     * @param amount The amount to be incremented
+     */
+    void incrCounter(String key, long amount);
+
+    /**
+     * Retrieve the counter value for the key.
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    long getCounter(String key);
+
+    /**
+     * Updare the state value for the key.
+     *
+     * @param key name of the key
+     * @param value state value of the key
+     */
+    void putState(String key, ByteBuffer value);
+
+    /**
+     * Retrieve the state value for the key.
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    ByteBuffer getState(String key);
 }
