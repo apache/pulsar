@@ -75,8 +75,7 @@ public interface SinkContext {
      * @return the logger object
      */
     Logger getLogger();
-
-
+    
     /**
      * Increment the builtin distributed counter refered by key
      * @param key The name of the key
