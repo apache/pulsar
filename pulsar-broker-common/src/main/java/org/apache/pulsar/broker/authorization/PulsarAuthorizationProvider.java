@@ -39,9 +39,11 @@ import org.apache.pulsar.common.policies.data.Policies;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.data.Stat;
+import org.apache.zookeeper.CreateMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -226,13 +228,28 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         }
 
         ZooKeeper globalZk = configCache.getZooKeeper();
-        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
 
+        final String policiesMutexPath = String.format("/%s/%s/%s/%s", "admin", POLICIES, namespaceName.toString(),"mutex");
+        Stat mutexStat = new Stat();
+        try {
+            if (globalZk.exists(policiesMutexPath, false) != null ){
+                log.error("[{}] Failed to grant permissions for namespace {} due to another granting process is running", role, namespaceName);
+                result.completeExceptionally(new IllegalStateException("Failed to grant permissions for namespace " + namespaceName + " , another grant process is running."));
+            }
+        } catch (Exception e){
+            log.error("Failed to get grant mutex for namespace {}, {}", namespaceName, e);
+            result.completeExceptionally(new IllegalStateException("Failed to grant permissions for namespace " + namespaceName + " ,failed to get grant mutex."));
+        }
+
+        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
         try {
             Stat nodeStat = new Stat();
             byte[] content = globalZk.getData(policiesPath, null, nodeStat);
             Policies policies = getThreadLocal().readValue(content, Policies.class);
             policies.auth_policies.namespace_auth.put(role, actions);
+
+            // Write mutex path into zookeeper for namespace grant permission operation
+            globalZk.create(policiesMutexPath,content, ZooDefs.Ids.OPEN_ACL_UNSAFE,CreateMode.PERSISTENT);
 
             // Write back the new policies into zookeeper
             globalZk.setData(policiesPath, getThreadLocal().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -253,6 +270,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
             result.completeExceptionally(
                     new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
+        } finally {
+            try{
+                if (globalZk.exists(policiesMutexPath, false) != null) {
+                    globalZk.delete(policiesMutexPath,mutexStat.getVersion());
+                    log.info("Successfully deleted policiesMutexPath for namespace {} , {}: ", namespaceName, policiesMutexPath);
+                }
+            } catch (Exception e){
+                log.error("Failed to delete policiesMutexPath for namespace {} {} ,{}", namespaceName, policiesMutexPath, e);
+            }
         }
 
         return result;
@@ -281,6 +307,19 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         }
 
         ZooKeeper globalZk = configCache.getZooKeeper();
+
+        final String policiesMutexPath = String.format("/%s/%s/%s/%s", "admin", POLICIES, namespace.toString(),"mutex");
+        Stat mutexStat = new Stat();
+        try {
+            if (globalZk.exists(policiesMutexPath, false) != null ){
+                log.error("[{}] Failed to grant permissions for namespace {} due to another granting process is running", roles, namespace);
+                result.completeExceptionally(new IllegalStateException("Failed to grant permissions for namespace " + namespace + " , another grant process is running."));
+            }
+        } catch (Exception e){
+            log.error("Failed to get grant mutex for namespace {}, {}", namespace, e);
+            result.completeExceptionally(new IllegalStateException("Failed to grant permissions for namespace " + namespace + " ,failed to get grant mutex."));
+        }
+
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
 
         try {
@@ -298,6 +337,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             } else {
                 policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
             }
+
+            // Write mutex path into zookeeper for namespace grant permission operation
+            globalZk.create(policiesMutexPath,content, ZooDefs.Ids.OPEN_ACL_UNSAFE,CreateMode.PERSISTENT);
 
             // Write back the new policies into zookeeper
             globalZk.setData(policiesPath, getThreadLocal().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -317,6 +359,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
             result.completeExceptionally(
                     new IllegalStateException("Failed to get permissions for namespace " + namespace));
+        } finally {
+            try{
+                if (globalZk.exists(policiesMutexPath, false) != null) {
+                    globalZk.delete(policiesMutexPath,mutexStat.getVersion());
+                    log.info("Successfully deleted policiesMutexPath for namespace {} , {}: ", namespace, policiesMutexPath);
+                }
+            } catch (Exception e){
+                log.error("Failed to delete policiesMutexPath for namespace {} {} ,{}", namespace, policiesMutexPath, e);
+            }
         }
 
         return result;
