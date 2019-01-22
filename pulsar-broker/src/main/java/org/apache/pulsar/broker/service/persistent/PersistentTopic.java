@@ -249,7 +249,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor));
+                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
+                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor)));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -291,12 +292,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
-    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor) {
+    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
+            boolean replicated) {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 
@@ -489,7 +491,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicatedSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -564,7 +567,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initialPosition) //
+                getDurableSubscription(subscriptionName, initialPosition, replicatedSubscriptionState) //
                 : getNonDurableSubscription(subscriptionName, startMessageId);
 
         int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
@@ -610,17 +613,27 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
+            InitialPosition initialPosition, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, new OpenCursorCallback() {
+
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
+
+        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
 
-                subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor)));
+                PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
+                        name -> createPersistentSubscription(subscriptionName, cursor, replicated));
+
+                if (replicated && !subscription.isReplicated()) {
+                    // Flip the subscription state
+                    subscription.setReplicated(replicated);
+                }
+                subscriptionFuture.complete(subscription);
             }
 
             @Override
@@ -664,7 +677,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 subscriptionFuture.completeExceptionally(e);
             }
 
-            return new PersistentSubscription(this, subscriptionName, cursor);
+            return new PersistentSubscription(this, subscriptionName, cursor, false);
         });
 
         if (!subscriptionFuture.isDone()) {
@@ -679,8 +692,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
-        return getDurableSubscription(subscriptionName, initialPosition);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
+        return getDurableSubscription(subscriptionName, initialPosition, replicateSubscriptionState);
     }
 
     /**

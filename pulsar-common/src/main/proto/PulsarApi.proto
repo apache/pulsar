@@ -272,6 +272,11 @@ message CommandSubscribe {
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
 	optional InitialPosition initialPosition = 13 [default = Latest];
+
+    // Mark the subscription as "replicated". Pulsar will make sure
+    // to periodically sync the state of replicated subscriptions
+    // across different clusters (when using geo-replication).
+    optional bool replicate_subscription_state = 14;
 }
 
 message CommandPartitionedTopicMetadata {

@@ -76,6 +76,11 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
+    public boolean isReplicated() {
+        return false;
+    }
+
+    @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
