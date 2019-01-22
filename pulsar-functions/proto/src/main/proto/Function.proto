@@ -98,6 +98,7 @@ message SourceSpec {
      * already present in the server */
     string builtin = 8;
     string subscriptionName = 9;
+    bool cleanupSubscription = 11;
 }
 
 message SinkSpec {

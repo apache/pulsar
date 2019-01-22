@@ -39,6 +39,9 @@ type ProducerMessage struct {
 }
 
 type Message interface {
+	// Get the topic from which this message originated from
+	Topic() string
+
 	// Return the properties attached to the message.
 	// Properties are application defined key/value pairs that will be attached to the message
 	Properties() map[string]string

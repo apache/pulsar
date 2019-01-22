@@ -322,7 +322,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.7.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.7.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.7.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava -- com.google.guava-guava-21.0.jar
@@ -368,28 +368,28 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-web-2.10.0.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.7.2.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.7.2.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.7.2.jar
-    - org.apache.bookkeeper-circe-checksum-4.7.2.jar
-    - org.apache.bookkeeper-statelib-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-api-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-common-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-server-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.7.2.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.7.2.jar
-    - org.apache.bookkeeper.http-http-server-4.7.2.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.7.2.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.7.2.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.7.2.jar
-    - org.apache.distributedlog-distributedlog-common-4.7.2.jar
-    - org.apache.distributedlog-distributedlog-core-4.7.2-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.7.2.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.7.2.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.7.2.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.7.3.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.7.3.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.7.3.jar
+    - org.apache.bookkeeper-circe-checksum-4.7.3.jar
+    - org.apache.bookkeeper-statelib-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-api-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-common-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-server-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.7.3.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.7.3.jar
+    - org.apache.bookkeeper.http-http-server-4.7.3.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.7.3.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.7.3.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.7.3.jar
+    - org.apache.distributedlog-distributedlog-common-4.7.3.jar
+    - org.apache.distributedlog-distributedlog-core-4.7.3-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.7.3.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.7.3.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.7.3.jar
  * LZ4 -- org.lz4-lz4-java-1.5.0.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.1.0-alpha26.jar
@@ -442,6 +442,7 @@ The Apache Software License, Version 2.0
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
     - org.apache.avro-avro-1.8.2.jar
+    - org.apache.avro-avro-protobuf-1.8.2.jar
   * Apache Curator
     - org.apache.curator-curator-client-4.0.1.jar
     - org.apache.curator-curator-framework-4.0.1.jar

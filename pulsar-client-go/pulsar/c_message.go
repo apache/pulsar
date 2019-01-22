@@ -151,6 +151,10 @@ func (m *message) Key() string {
 	return C.GoString(C.pulsar_message_get_partitionKey(m.ptr))
 }
 
+func (m *message) Topic() string {
+	return C.GoString(C.pulsar_message_get_topic_name(m.ptr))
+}
+
 //////// MessageID
 
 func newMessageId(msg *C.pulsar_message_t) MessageID {

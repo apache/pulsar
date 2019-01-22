@@ -102,6 +102,8 @@ const std::string& ProducerImpl::getProducerName() const { return producerName_;
 
 int64_t ProducerImpl::getLastSequenceId() const { return lastSequenceIdPublished_; }
 
+const std::string& ProducerImpl::getSchemaVersion() const { return schemaVersion_; }
+
 void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
     if (ec) {
         LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
@@ -127,8 +129,8 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     ClientImplPtr client = client_.lock();
     int requestId = client->newRequestId();
 
-    SharedBuffer cmd =
-        Commands::newProducer(topic_, producerId_, producerName_, requestId, conf_.getProperties());
+    SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
+                                             conf_.getProperties(), conf_.getSchema());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(boost::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx, _1, _2));
 }
@@ -150,20 +152,19 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
     if (result == ResultOk) {
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
         // set the cnx pointer so that new messages will be sent immediately
-        const std::string& producerName = responseData.first;
-        int64_t lastSequenceId = responseData.second;
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
         Lock lock(mutex_);
         cnx->registerProducer(producerId_, shared_from_this());
-        producerName_ = producerName;
+        producerName_ = responseData.producerName;
+        schemaVersion_ = responseData.schemaVersion;
         producerStr_ = "[" + topic_ + ", " + producerName_ + "] ";
         if (batchMessageContainer) {
             batchMessageContainer->producerName_ = producerName_;
         }
 
         if (lastSequenceIdPublished_ == -1 && conf_.getInitialSequenceId() == -1) {
-            lastSequenceIdPublished_ = lastSequenceId;
+            lastSequenceIdPublished_ = responseData.lastSequenceId;
             msgSequenceGenerator_ = lastSequenceIdPublished_ + 1;
         }
         resendMessages(cnx);
@@ -467,7 +468,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
         }
         return;
     }
-    LOG_DEBUG(getName() << "Closing producer");
+    LOG_INFO(getName() << "Closing producer for topic " << topic_);
     state_ = Closing;
 
     ClientConnectionPtr cnx = getCnx().lock();

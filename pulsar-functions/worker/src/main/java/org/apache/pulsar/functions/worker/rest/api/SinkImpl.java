@@ -20,17 +20,19 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -62,17 +64,18 @@ public class SinkImpl extends ComponentImpl {
             sinkInstanceStatusData.setNumRestarts(status.getNumRestarts());
             sinkInstanceStatusData.setNumReadFromPulsar(status.getNumReceived());
 
-            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            // We treat source/user/system exceptions returned from function as system exceptions
+            sinkInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
+                    + status.getNumUserExceptions() + status.getNumSourceExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
-                userExceptionInformationList.add(exceptionInformation);
+                systemExceptionInformationList.add(exceptionInformation);
             }
 
-            sinkInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
-            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
@@ -80,7 +83,26 @@ public class SinkImpl extends ComponentImpl {
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
                 systemExceptionInformationList.add(exceptionInformation);
             }
+
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
             sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+            sinkInstanceStatusData.setNumSinkExceptions(status.getNumSinkExceptions());
+            List<ExceptionInformation> sinkExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                sinkExceptionInformationList.add(exceptionInformation);
+            }
+            sinkInstanceStatusData.setLatestSinkExceptions(sinkExceptionInformationList);
 
             sinkInstanceStatusData.setNumWrittenToSink(status.getNumSuccessfullyProcessed());
             sinkInstanceStatusData.setLastReceivedTime(status.getLastInvocationTime());
@@ -103,13 +125,18 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus getStatus(String tenant, String namespace, String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException {
+        public SinkStatus getStatus(final String tenant,
+                                    final String namespace,
+                                    final String name,
+                                    final Collection<Function.Assignment> assignments,
+                                    final URI uri) throws PulsarAdminException {
             SinkStatus sinkStatus = new SinkStatus();
             for (Function.Assignment assignment : assignments) {
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
                 if (isOwner) {
-                    sinkInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                    sinkInstanceStatusData = getComponentInstanceStatus(tenant,
+                            namespace, name, assignment.getInstance().getInstanceId(), null);
                 } else {
                     sinkInstanceStatusData = worker().getFunctionAdmin().sink().getSinkStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
@@ -134,7 +161,10 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus getStatusExternal (String tenant, String namespace, String name, int parallelism) {
+        public SinkStatus getStatusExternal(final String tenant,
+                                            final String namespace,
+                                            final String name,
+                                            final int parallelism) {
             SinkStatus sinkStatus = new SinkStatus();
             for (int i = 0; i < parallelism; ++i) {
                 SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
@@ -156,7 +186,7 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus emptyStatus(int parallelism) {
+        public SinkStatus emptyStatus(final int parallelism) {
             SinkStatus sinkStatus = new SinkStatus();
             sinkStatus.setNumInstances(parallelism);
             sinkStatus.setNumRunning(0);
@@ -177,12 +207,14 @@ public class SinkImpl extends ComponentImpl {
     }
 
     public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, ComponentType.SINK);
+        super(workerServiceSupplier, Utils.ComponentType.SINK);
     }
 
-    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(
-            String tenant, String namespace, String sinkName, String instanceId, URI uri)
-            throws IOException {
+    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
+                                                                                      final String namespace,
+                                                                                      final String sinkName,
+                                                                                      final String instanceId,
+                                                                                      final URI uri) {
 
         // validate parameters
         componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
@@ -201,9 +233,10 @@ public class SinkImpl extends ComponentImpl {
         return sinkInstanceStatusData;
     }
 
-    public SinkStatus getSinkStatus(
-            final String tenant, final String namespace,
-            final String componentName, URI uri) {
+    public SinkStatus getSinkStatus(final String tenant,
+                                    final String namespace,
+                                    final String componentName,
+                                    final URI uri) {
 
         // validate parameters
         componentStatusRequestValidate(tenant, namespace, componentName);
@@ -219,5 +252,35 @@ public class SinkImpl extends ComponentImpl {
         }
 
         return sinkStatus;
+    }
+
+    public SinkConfig getSinkInfo(final String tenant,
+                                  final String namespace,
+                                  final String componentName) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid get {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            throw new RestException(Response.Status.NOT_FOUND, String.format(componentType + " %s doesn't exist", componentName));
+        }
+        Function.FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            throw new RestException(Response.Status.NOT_FOUND, String.format(componentType + " %s doesn't exist", componentName));
+        }
+        SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+        return config;
     }
 }

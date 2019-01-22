@@ -20,8 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
@@ -58,7 +56,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     public FunctionsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.functions = web.path("/admin/functions");
+        this.functions = web.path("/admin/v3/functions");
     }
 
     @Override
@@ -372,10 +370,5 @@ public class FunctionsImpl extends BaseResource implements Functions {
         } catch (Exception e) {
             throw getApiException(e);
         }
-    }
-
-
-    public static void mergeJson(String json, Builder builder) throws IOException {
-        JsonFormat.parser().merge(json, builder);
     }
 }

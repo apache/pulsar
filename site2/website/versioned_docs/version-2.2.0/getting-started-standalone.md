@@ -61,7 +61,7 @@ Directory | Contains
 `logs` | Logs created by the installation
 
 
-### Installing Builtin Connectors
+### Installing Builtin Connectors (optional)
 
 Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 If you would like to enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
@@ -107,6 +107,52 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 > If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
 > you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
+## Installing Tiered Storage Offloaders (optional)
+
+> Since release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
+> If you would like to enable tiered storage feature, you can follow the instructions as below; otherwise you can
+> skip this section for now.
+
+To get started using [tiered storage offloaders](concepts-tiered-storage.md), you'll need to download the offloaders tarball release on every broker node in
+one of the following ways:
+
+* by clicking the link below and downloading the release from an Apache mirror:
+
+  * <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:offloader_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders`
+in the pulsar directory:
+
+```bash
+$ tar xvfz apache-pulsar-offloaders-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-offloaders-{{pulsar:version}}` in the pulsar directory
+// then copy the offloaders
+
+$ mv apache-pulsar-offloaders-{{pulsar:version}}/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-{{pulsar:version}}.nar
+```
+
+For more details of how to configure tiered storage feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md)
+
+> #### NOTES
+>
+> If you are running Pulsar in a bare metal cluster, you need to make sure `offloaders` tarball is unzipped in every broker's pulsar directory
+> 
+> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
+> you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+
+
 ### Starting the cluster
 
 Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](reference-cli-tools.md#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start up Pulsar in standalone mode:
@@ -118,7 +164,7 @@ $ bin/pulsar standalone
 If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
 
 ```bash
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
+2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
 ```

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 import io.jsonwebtoken.Claims;
@@ -48,6 +49,8 @@ import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
 
+    private static final String SUBJECT = "my-test-subject";
+
     @Test
     public void testInvalidInitialize() throws Exception {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
@@ -57,17 +60,18 @@ public class AuthenticationProviderTokenTest {
             fail("should have failed");
         } catch (IOException e) {
             // Expected, secret key was not defined
+        } finally {
+            // currently, will not close any resource
+            provider.close();
         }
-
-        provider.close();
     }
 
     @Test
-    public void testSerializeSecretKey() throws Exception {
+    public void testSerializeSecretKey() {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
         String token = Jwts.builder()
-                .setSubject("my-test-subject")
+                .setSubject(SUBJECT)
                 .signWith(secretKey)
                 .compact();
 
@@ -76,7 +80,9 @@ public class AuthenticationProviderTokenTest {
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
                 .parse(token);
 
-        System.out.println("Subject: " + jwt.getBody().getSubject());
+        assertNotNull(jwt);
+        assertNotNull(jwt.getBody());
+        assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
     @Test
@@ -87,7 +93,7 @@ public class AuthenticationProviderTokenTest {
         String publicKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
 
         String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey)),
-                "my-test-subject",
+                SUBJECT,
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
@@ -95,7 +101,9 @@ public class AuthenticationProviderTokenTest {
                 .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey)))
                 .parse(token);
 
-        System.out.println("Subject: " + jwt.getBody().getSubject());
+        assertNotNull(jwt);
+        assertNotNull(jwt.getBody());
+        assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
     @Test
@@ -103,7 +111,7 @@ public class AuthenticationProviderTokenTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        assertEquals(provider.getAuthMethodName(), "token");
+        assertEquals(provider.getAuthMethodName(), AuthenticationProviderToken.TOKEN);
 
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
@@ -121,7 +129,7 @@ public class AuthenticationProviderTokenTest {
             // expected, no credential passed
         }
 
-        String token = AuthTokenUtils.createToken(secretKey, "my-test-subject", Optional.empty());
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
         String subject = provider.authenticate(new AuthenticationDataSource() {
@@ -135,7 +143,7 @@ public class AuthenticationProviderTokenTest {
                 return token;
             }
         });
-        assertEquals(subject, "my-test-subject");
+        assertEquals(subject, SUBJECT);
 
         // HTTP protocol auth
         provider.authenticate(new AuthenticationDataSource() {
@@ -146,17 +154,17 @@ public class AuthenticationProviderTokenTest {
 
             @Override
             public String getHttpHeader(String name) {
-                if (name.equals("Authorization")) {
-                    return "Bearer " + token;
+                if (name.equals(AuthenticationProviderToken.HTTP_HEADER_NAME)) {
+                    return AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX + token;
                 } else {
                     throw new IllegalArgumentException("Wrong HTTP header");
                 }
             }
         });
-        assertEquals(subject, "my-test-subject");
+        assertEquals(subject, SUBJECT);
 
         // Expired token. This should be rejected by the authentication provider
-        String expiredToken = AuthTokenUtils.createToken(secretKey, "my-test-subject",
+        String expiredToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
                 Optional.of(new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1))));
 
         // Pulsar protocol auth
@@ -184,7 +192,7 @@ public class AuthenticationProviderTokenTest {
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
-        File secretKeyFile = File.createTempFile("pular-test-secret-key-", ".key");
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-", ".key");
         secretKeyFile.deleteOnExit();
         Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
 
@@ -197,7 +205,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        String token = AuthTokenUtils.createToken(secretKey, "my-test-subject", Optional.empty());
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
         String subject = provider.authenticate(new AuthenticationDataSource() {
@@ -211,7 +219,7 @@ public class AuthenticationProviderTokenTest {
                 return token;
             }
         });
-        assertEquals(subject, "my-test-subject");
+        assertEquals(subject, SUBJECT);
         provider.close();
     }
 
@@ -229,7 +237,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        String token = AuthTokenUtils.createToken(secretKey, "my-test-subject", Optional.empty());
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
         String subject = provider.authenticate(new AuthenticationDataSource() {
@@ -243,7 +251,7 @@ public class AuthenticationProviderTokenTest {
                 return token;
             }
         });
-        assertEquals(subject, "my-test-subject");
+        assertEquals(subject, SUBJECT);
         provider.close();
     }
 
@@ -266,7 +274,7 @@ public class AuthenticationProviderTokenTest {
 
         // Use private key to generate token
         PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr));
-        String token = AuthTokenUtils.createToken(privateKey, "my-test-subject", Optional.empty());
+        String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
         String subject = provider.authenticate(new AuthenticationDataSource() {
@@ -280,8 +288,146 @@ public class AuthenticationProviderTokenTest {
                 return token;
             }
         });
-        assertEquals(subject, "my-test-subject");
+        assertEquals(subject, SUBJECT);
 
         provider.close();
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return false;
+            }
+
+            @Override
+            public boolean hasDataFromHttp() {
+                return false;
+            }
+        });
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testAuthenticateWhenAuthorizationHeaderNotExist() throws AuthenticationException {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public String getHttpHeader(String name) {
+                return null;
+            }
+
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+        });
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws AuthenticationException {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public String getHttpHeader(String name) {
+                return "MyBearer ";
+            }
+
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+        });
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testAuthenticateWhenJwtIsBlank() throws AuthenticationException {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public String getHttpHeader(String name) {
+                return AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX + "      ";
+            }
+
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+        });
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testAuthenticateWhenInvalidTokenIsPassed() throws AuthenticationException, IOException {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initialize(conf);
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public String getHttpHeader(String name) {
+                return AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX + "invalid_token";
+            }
+
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+        });
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testValidationKeyWhenBlankSecretKeyIsPassed() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "   ");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testValidationKeyWhenBlankPublicKeyIsPassed() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, "   ");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenSecretKeyFilePathIsInvalid() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                "file://" + "invalid_secret_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenPublicKeyFilePathIsInvalid() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
+                "file://" + "invalid_public_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
     }
 }

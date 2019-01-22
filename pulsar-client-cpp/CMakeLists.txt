@@ -24,6 +24,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
+option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
+MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
+
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
@@ -46,7 +49,7 @@ if (NOT C_STANDARD)
     set(C_STANDARD "-std=c11")
 endif(NOT C_STANDARD)
 
-set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -103,39 +106,39 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
+find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
 
-find_package(PythonLibs REQUIRED)
+if (BUILD_PYTHON_WRAPPER)
+    find_package(PythonLibs REQUIRED)
+    MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
+    if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
+        MESSAGE(STATUS "DETECTED Python 3")
+        string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+        list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+        list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+        set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
+        # For python3 the lib name is boost_python3
+        set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+    else ()
+        # Regular boost_python
+        set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
+    endif ()
 
-MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
+    foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
+        find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
+        if (${Boost_FOUND})
+            set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
+            break()
+        endif()
+    endforeach()
 
-if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
-    MESSAGE(STATUS "DETECTED Python 3")
-    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
-    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
-    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
-    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
-    # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
-else ()
-    # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
-endif ()
+    if (NOT ${Boost_FOUND})
+        MESSAGE(FATAL_ERROR "Could not find Boost Python library")
+    endif ()
 
-foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
-    find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
-    if (${Boost_FOUND})
-        set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
-        break()
-    endif()
-endforeach()
-
-if (NOT ${Boost_FOUND})
-    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
-endif ()
-
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
-                                       thread system ${BOOST_PYTHON_NAME_FOUND})
+    find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
+endif (BUILD_PYTHON_WRAPPER)
 
 if (APPLE)
     set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
@@ -259,7 +262,9 @@ if (BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(python)
+if (BUILD_PYTHON_WRAPPER)
+    add_subdirectory(python)
+endif ()
 
 # `make format` option
 if (NOT APPLE)

@@ -45,7 +45,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals("sample/standalone/functions", wc.getPulsarFunctionsNamespace());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals(TEST_NAME + "-worker", wc.getWorkerId());
-        assertEquals(1234, wc.getWorkerPort());
+        assertEquals(new Integer(1234), wc.getWorkerPort());
     }
 
     @Test
@@ -57,7 +57,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals("test-function-metadata-topic", wc.getFunctionMetadataTopicName());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals("test-worker", wc.getWorkerId());
-        assertEquals(7654, wc.getWorkerPort());
+        assertEquals(new Integer(7654), wc.getWorkerPort());
     }
 
 }

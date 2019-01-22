@@ -179,6 +179,12 @@ class Message:
         """
         return self._message.message_id()
 
+    def topic_name(self):
+        """
+        Get the topic Name from which this message originated from
+        """
+        return self._message.topic_name()
+
 
 class Authentication:
     """

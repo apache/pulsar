@@ -32,6 +32,7 @@ import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
@@ -45,7 +46,6 @@ import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -55,23 +55,22 @@ public class ProxyServer {
     private final Server server;
     private final List<Handler> handlers = Lists.newArrayList();
     private final WebSocketProxyConfiguration conf;
-    private final ExecutorThreadPool executorService;
+    private final WebExecutorThreadPool executorService;
 
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = new ExecutorThreadPool();
-        executorService.setName("pulsar-websocket-web");
+        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web");
         this.server = new Server(executorService);
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new ServerConnector(server);
-
-        connector.setPort(config.getWebServicePort());
-        connectors.add(connector);
-
+        if (config.getWebServicePort().isPresent()) {
+			ServerConnector connector = new ServerConnector(server);
+			connector.setPort(config.getWebServicePort().get());
+			connectors.add(connector);
+        }
         // TLS enabled connector
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
@@ -80,12 +79,11 @@ public class ProxyServer {
                         config.getTlsKeyFilePath(),
                         config.getTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
-
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of
@@ -117,7 +115,7 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", conf.getWebServicePort());
+        log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             Slf4jRequestLog requestLog = new Slf4jRequestLog();

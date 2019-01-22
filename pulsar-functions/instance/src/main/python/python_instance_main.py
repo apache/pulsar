@@ -31,6 +31,7 @@ import time
 import zipfile
 import json
 import inspect
+import threading
 
 import pulsar
 
@@ -39,7 +40,8 @@ import log
 import server
 import python_instance
 import util
-import prometheus_client
+# import prometheus_client
+import prometheus_client_fix
 
 from google.protobuf import json_format
 
@@ -180,14 +182,20 @@ def main():
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 
-  prometheus_client.start_http_server(args.metrics_port)
+  # Cannot use latest version of prometheus client because of thread leak
+  # prometheus_client.start_http_server(args.metrics_port)
+  # Use patched version of prometheus
+  # Contains fix from https://github.com/prometheus/client_python/pull/356
+  # This can be removed one the fix in is a official prometheus client release
+  prometheus_client_fix.start_http_server(args.metrics_port)
 
   global to_run
   while to_run:
     time.sleep(1)
 
   pyinstance.join()
-  sys.exit(1)
+  # make sure to close all non-daemon threads before this!
+  sys.exit(0)
 
 if __name__ == '__main__':
   main()

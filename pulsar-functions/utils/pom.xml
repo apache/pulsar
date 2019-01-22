@@ -93,6 +93,12 @@
       <artifactId>typetools</artifactId>
     </dependency>
 
+    <dependency>
+        <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-client-original</artifactId>
+        <version>${project.version}</version>
+    </dependency>
+
   </dependencies>
 
 </project>

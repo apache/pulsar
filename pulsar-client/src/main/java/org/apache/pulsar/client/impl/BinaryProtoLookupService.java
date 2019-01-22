@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public class BinaryProtoLookupService implements LookupService {
 
     private final PulsarClientImpl client;
-    protected volatile InetSocketAddress serviceAddress;
+    private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
     private final ExecutorService executor;
 
@@ -60,22 +60,13 @@ public class BinaryProtoLookupService implements LookupService {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
+        this.serviceNameResolver = new PulsarServiceNameResolver();
         updateServiceUrl(serviceUrl);
     }
 
     @Override
     public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
-        URI uri;
-        try {
-            uri = new URI(serviceUrl);
-
-            // Don't attempt to resolve the hostname in DNS at this point. It will be done each time when attempting to
-            // connect
-            this.serviceAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-        } catch (Exception e) {
-            log.error("Invalid service-url {} provided {}", serviceUrl, e.getMessage(), e);
-            throw new PulsarClientException.InvalidServiceURL(e);
-        }
+        serviceNameResolver.updateServiceUrl(serviceUrl);
     }
 
     /**
@@ -86,7 +77,7 @@ public class BinaryProtoLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return findBroker(serviceAddress, false, topicName);
+        return findBroker(serviceNameResolver.resolveHost(), false, topicName);
     }
 
     /**
@@ -94,7 +85,7 @@ public class BinaryProtoLookupService implements LookupService {
      *
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        return getPartitionedTopicMetadata(serviceAddress, topicName);
+        return getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
     }
 
     private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
@@ -133,7 +124,7 @@ public class BinaryProtoLookupService implements LookupService {
                         // (3) received correct broker to connect
                         if (lookupDataResult.proxyThroughServiceUrl) {
                             // Connect through proxy
-                            addressFuture.complete(Pair.of(responseBrokerAddress, serviceAddress));
+                            addressFuture.complete(Pair.of(responseBrokerAddress, socketAddress));
                         } else {
                             // Normal result with direct connection to broker
                             addressFuture.complete(Pair.of(responseBrokerAddress, responseBrokerAddress));
@@ -192,7 +183,7 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return client.getCnxPool().getConnection(serviceAddress).thenCompose(clientCnx -> {
+        return client.getCnxPool().getConnection(serviceNameResolver.resolveHost()).thenCompose(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(), Optional.empty());
 
@@ -201,7 +192,7 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     public String getServiceUrl() {
-        return serviceAddress.toString();
+        return serviceNameResolver.getServiceUrl();
     }
 
     @Override
@@ -212,7 +203,7 @@ public class BinaryProtoLookupService implements LookupService {
         Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
             opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
             0 , TimeUnit.MILLISECONDS);
-        getTopicsUnderNamespace(serviceAddress, namespace, backoff, opTimeoutMs, topicsFuture, mode);
+        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
     }
 

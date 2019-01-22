@@ -190,12 +190,12 @@ public class WebSocketService implements Closeable {
                     config.getBrokerClientAuthenticationParameters());
         }
 
-        if (config.isTlsEnabled()) {
-            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
-                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-            }
+        if (config.isBrokerClientTlsEnabled()) {
+			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
+					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
+			}
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {

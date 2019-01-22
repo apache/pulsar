@@ -35,7 +35,7 @@ public class RawMessageImpl implements RawMessage {
 
     private final RawMessageIdImpl messageId = new RawMessageIdImpl();
 
-    private MessageMetadata msgMetadata;
+    private ReferenceCountedObject<MessageMetadata> msgMetadata;
     private PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata;
     private ByteBuf payload;
 
@@ -54,6 +54,9 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public void release() {
+        msgMetadata.release();
+        msgMetadata = null;
+
         if (singleMessageMetadata != null) {
             singleMessageMetadata.recycle();
             singleMessageMetadata = null;
@@ -63,12 +66,13 @@ public class RawMessageImpl implements RawMessage {
         handle.recycle(this);
     }
 
-    public static RawMessage get(MessageMetadata msgMetadata,
+    public static RawMessage get(ReferenceCountedObject<MessageMetadata> msgMetadata,
             PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata,
             ByteBuf payload,
             long ledgerId, long entryId, long batchIndex) {
         RawMessageImpl msg = RECYCLER.get();
         msg.msgMetadata = msgMetadata;
+        msg.msgMetadata.retain();
         msg.singleMessageMetadata = singleMessageMetadata;
         msg.messageId.ledgerId = ledgerId;
         msg.messageId.entryId = entryId;
@@ -82,8 +86,8 @@ public class RawMessageImpl implements RawMessage {
         if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
-        } else if (msgMetadata.getPropertiesCount() > 0) {
-            return msgMetadata.getPropertiesList().stream()
+        } else if (msgMetadata.get().getPropertiesCount() > 0) {
+            return msgMetadata.get().getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
         } else {
             return Collections.emptyMap();
@@ -102,15 +106,15 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public long getPublishTime() {
-        return msgMetadata.getPublishTime();
+        return msgMetadata.get().getPublishTime();
     }
 
     @Override
     public long getEventTime() {
         if (singleMessageMetadata != null && singleMessageMetadata.hasEventTime()) {
             return singleMessageMetadata.getEventTime();
-        } else if (msgMetadata.hasEventTime()) {
-            return msgMetadata.getEventTime();
+        } else if (msgMetadata.get().hasEventTime()) {
+            return msgMetadata.get().getEventTime();
         } else {
             return 0;
         }
@@ -118,20 +122,20 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public long getSequenceId() {
-        return msgMetadata.getSequenceId() + messageId.batchIndex;
+        return msgMetadata.get().getSequenceId() + messageId.batchIndex;
     }
 
     @Override
     public String getProducerName() {
-        return msgMetadata.getProducerName();
+        return msgMetadata.get().getProducerName();
     }
 
     @Override
     public Optional<String> getKey() {
         if (singleMessageMetadata != null && singleMessageMetadata.hasPartitionKey()) {
             return Optional.of(singleMessageMetadata.getPartitionKey());
-        } else if (msgMetadata.hasPartitionKey()){
-            return Optional.of(msgMetadata.getPartitionKey());
+        } else if (msgMetadata.get().hasPartitionKey()){
+            return Optional.of(msgMetadata.get().getPartitionKey());
         } else {
             return Optional.empty();
         }

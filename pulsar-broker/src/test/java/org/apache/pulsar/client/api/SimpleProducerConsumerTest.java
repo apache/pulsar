@@ -29,6 +29,13 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -56,15 +63,15 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
@@ -82,13 +89,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
@@ -395,11 +395,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
         }
 
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic6")
+                    .create();
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic6")
                 .subscriptionName("my-subscriber-name").subscribe();
 
         try {
-            Message<byte[]> msg = MessageBuilder.create().setContent("InvalidMessage".getBytes()).build();
+            TypedMessageBuilder<byte[]> builder = producer.newMessage().value("InvalidMessage".getBytes());
+            Message<byte[]> msg = ((TypedMessageBuilderImpl<byte[]>) builder).getMessage();
             consumer.acknowledge(msg);
         } catch (PulsarClientException.InvalidMessageException e) {
             // ok
@@ -421,8 +425,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // ok
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic6")
-                .create();
         producer.close();
 
         try {
@@ -489,16 +491,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic7").subscriptionName(null)
                     .subscribe();
             Assert.fail("Should fail");
-        } catch (PulsarClientException e) {
-            assertEquals(e.getClass(), InvalidConfigurationException.class);
+        } catch (PulsarClientException | IllegalArgumentException e) {
+            assertEquals(e.getClass(), IllegalArgumentException.class);
         }
 
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic7").subscriptionName("")
                     .subscribe();
             Assert.fail("Should fail");
-        } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
+        } catch (PulsarClientException | IllegalArgumentException e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
         }
 
         try {
@@ -622,12 +624,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testSendBigMessageSize() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        final String topic = "persistent://my-property/my-ns/bigMsg";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+
+
         // Messages are allowed up to MaxMessageSize
-        MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize]).build();
+        producer.newMessage().value(new byte[PulsarDecoder.MaxMessageSize]);
 
         try {
-            final String topic = "persistent://my-property/my-ns/bigMsg";
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
@@ -661,9 +665,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        Message<byte[]> message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1])
-                .build();
-        producer.send(message);
+        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
         // (b) batch-msg
@@ -672,9 +674,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
-            producer.send(message);
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK
@@ -2306,7 +2307,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     @Test(groups = "encryption")
     public void testRedeliveryOfFailedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -2352,7 +2353,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             }
         }
-        
+
         class InvalidKeyReader implements CryptoKeyReader {
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
@@ -2366,24 +2367,24 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             }
         }
-        
+
         /*
          * Redelivery functionality guarantees that customer will get a chance to process the message again.
          * In case of shared subscription eventually every client will get a chance to process the message, till one of them acks it.
-         * 
-         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers 
+         *
+         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers
          * - few which can decrypt, few which can't (due to errors or cryptoReader not configured).
-         * 
+         *
          * In that case eventually all messages should be acked as long as there is a single consumer who can decrypt the message.
-         * 
+         *
          * Consumer 1 - Can decrypt message
          * Consumer 2 - Has invalid Reader configured.
          * Consumer 3 - Has no reader configured.
-         * 
+         *
          */
 
         String topicName = "persistent://my-property/my-ns/myrsa-topic1";
-        
+
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
@@ -2391,47 +2392,47 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
-        
+
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
-        
+
         int numberOfMessages = 100;
         String message = "my-message";
         Set<String> messages = new HashSet(); // Since messages are in random order
         for (int i = 0; i<numberOfMessages; i++) {
             producer.send((message + i).getBytes());
         }
-        
-        // Consuming from consumer 2 and 3 
+
+        // Consuming from consumer 2 and 3
         // no message should be returned since they can't decrypt the message
         Message m = consumer2.receive(3, TimeUnit.SECONDS);
         assertNull(m);
         m = consumer3.receive(3, TimeUnit.SECONDS);
         assertNull(m);
-        
+
         for (int i = 0; i<numberOfMessages; i++) {
-            // All messages would be received by consumer 1 
+            // All messages would be received by consumer 1
             m = consumer1.receive();
             messages.add(new String(m.getData()));
             consumer1.acknowledge(m);
         }
-        
-        // Consuming from consumer 2 and 3 again just to be sure 
+
+        // Consuming from consumer 2 and 3 again just to be sure
         // no message should be returned since they can't decrypt the message
         m = consumer2.receive(3, TimeUnit.SECONDS);
         assertNull(m);
         m = consumer3.receive(3, TimeUnit.SECONDS);
         assertNull(m);
-        
+
         // checking if all messages were received
         for (int i = 0; i<numberOfMessages; i++) {
             assertTrue(messages.contains((message + i)));
         }
-        
+
         consumer1.close();
         consumer2.close();
         consumer3.close();
@@ -2646,8 +2647,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String version = metadata.get("version");
         assertEquals(version, "1.0");
 
-        org.apache.pulsar.common.api.proto.PulsarApi.CompressionType compressionType = encryptionCtx
-                .getCompressionType();
+        CompressionType compressionType = encryptionCtx.getCompressionType();
         int uncompressedSize = encryptionCtx.getUncompressedMessageSize();
         byte[] encrParam = encryptionCtx.getParam();
         String encAlgo = encryptionCtx.getAlgorithm();
@@ -2668,7 +2668,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         metadataBuilder.setSequenceId(123);
         metadataBuilder.setPublishTime(12333453454L);
         metadataBuilder.addEncryptionKeys(encKey);
-        metadataBuilder.setCompression(compressionType);
+        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
         metadataBuilder.setUncompressedSize(uncompressedSize);
         ByteBuf decryptedPayload = crypto.decrypt(metadataBuilder.build(), payloadBuf, reader);
 

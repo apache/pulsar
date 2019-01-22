@@ -36,7 +36,9 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -45,17 +47,16 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     private final PulsarClient pulsarClient;
     private final PulsarSourceConfig pulsarSourceConfig;
+    private final Map<String, String> properties;
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
-    private final String fqfn;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig,
-                        String fqfn) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
-        this.fqfn = fqfn;
+        this.properties = properties;
     }
 
     @Override
@@ -63,10 +64,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
-
-        Map<String, String> properties = new HashMap<>();
-        properties.put("application", "pulsarfunction");
-        properties.put("fqfn", fqfn);
 
         inputConsumers = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
@@ -142,12 +139,14 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void close() throws Exception {
-        inputConsumers.forEach(consumer -> {
-            try {
-                consumer.close();
-            } catch (PulsarClientException e) {
-            }
-        });
+        if (inputConsumers != null ) {
+            inputConsumers.forEach(consumer -> {
+                try {
+                    consumer.close();
+                } catch (PulsarClientException e) {
+                }
+            });
+        }
     }
 
     @SuppressWarnings("unchecked")
