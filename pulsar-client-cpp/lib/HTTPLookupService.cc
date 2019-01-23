@@ -310,18 +310,21 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
 NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string &json) {
     Json::Value root;
     Json::Reader reader;
+    LOG_INFO("GetNamespaceTopics json = " << json);
+
+    // passed in json is like: ["topic1", "topic2"...]
+    // root will be an array of topics
     if (!reader.parse(json, root, false)) {
         LOG_ERROR("Failed to parse json of Topics of Namespace: " << reader.getFormatedErrorMessages()
                                                                   << "\nInput Json = " << json);
         return NamespaceTopicsPtr();
     }
 
-    Json::Value topicsArray = root["topics"];
     std::set<std::string> topicSet;
     // get all topics
-    for (int i = 0; i < topicsArray.size(); i++) {
+    for (int i = 0; i < root.size(); i++) {
         // remove partition part
-        const std::string &topicName = topicsArray[i].asString();
+        const std::string &topicName = root[i].asString();
         int pos = topicName.find("-partition-");
         std::string filteredName = topicName.substr(0, pos);
 

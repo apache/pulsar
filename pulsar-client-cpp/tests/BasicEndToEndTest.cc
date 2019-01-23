@@ -1756,7 +1756,7 @@ TEST(BasicEndToEndTest, testPatternTopicsConsumerInvalid) {
 // verify PatternMultiTopicsConsumer subscribed matched topics,
 // and only receive messages from matched topics.
 TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
-    Client client(lookupUrl);
+    Client client(adminUrl);
     std::string pattern = "persistent://public/default/patternMultiTopicsConsumer.*";
 
     std::string subName = "testPatternMultiTopicsConsumer";
