@@ -114,7 +114,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         if (message instanceof TopicMessageImpl) {
             topicName = ((TopicMessageImpl<?>) message).getTopicName();
         } else {
-            topicName = consumer.getTopic();
+            topicName = message.getTopicName();
         }
 
         Record<T> record = PulsarRecord.<T>builder()
