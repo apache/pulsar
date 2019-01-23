@@ -54,7 +54,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
     private final String name;
-    private DispatchRateLimiter dispatchRateLimiter;
+    private final DispatchRateLimiter dispatchRateLimiter;
 
     private volatile boolean havePendingRead = false;
 
@@ -75,7 +75,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
-        this.dispatchRateLimiter = null;
+        this.dispatchRateLimiter = new DispatchRateLimiter(topic, name);
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
@@ -214,9 +214,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         topic.getDispatchRateLimiter().tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
                                 sentMsgInfo.getTotalSentMessageBytes());
 
-                        if (dispatchRateLimiter == null) {
-                            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
-                        }
                         dispatchRateLimiter.tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
                                 sentMsgInfo.getTotalSentMessageBytes());
                     }
@@ -370,9 +367,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     }
                 }
 
-                if (dispatchRateLimiter == null) {
-                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
-                }
                 if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
                     if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
@@ -479,10 +473,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     public DispatchRateLimiter getDispatchRateLimiter() {
-        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
-            (dispatchRateLimiter == null)) {
-            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
-        }
         return dispatchRateLimiter;
     }
 
