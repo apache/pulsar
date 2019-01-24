@@ -28,6 +28,11 @@ public enum SchemaType {
     NONE,
 
     /**
+     * boolean schema defined
+     */
+    Boolean,
+
+    /**
      * Simple String encoding with UTF-8
      */
     STRING,
