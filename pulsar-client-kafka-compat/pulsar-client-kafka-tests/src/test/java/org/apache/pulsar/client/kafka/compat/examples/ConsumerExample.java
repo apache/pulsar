@@ -23,7 +23,7 @@ import java.util.Properties;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -42,7 +42,7 @@ public class ConsumerExample {
         props.put("value.deserializer", StringDeserializer.class.getName());
 
         @SuppressWarnings("resource")
-        Consumer<Integer, String> consumer = new PulsarKafkaConsumer<>(props);
+        Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
         while (true) {
