@@ -34,6 +34,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       messages_(1000),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
+      pendingReceives_(),
       namespaceName_(topicName ? topicName->getNamespaceName() : std::shared_ptr<NamespaceName>()),
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
@@ -385,6 +386,9 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
         consumerPtr->closeAsync(std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerClose,
                                             shared_from_this(), std::placeholders::_1, topicPartitionName, callback));
     }
+
+    // fail pending recieve
+    failPendingReceiveCallback();
 }
 
 void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string& topicPartitionName,
@@ -429,11 +433,23 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
                                                           << " message:" << msg.getDataAsString());
     const std::string& topicPartitionName = consumer.getTopic();
     msg.impl_->setTopicName(topicPartitionName);
-    messages_.push(msg);
 
-    if (messageListener_) {
-        listenerExecutor_->postWork(
-            std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
+    Lock lock(pendingReceiveMutex_);
+    if (!pendingReceives_.empty()) {
+        ReceiveCallback callback = pendingReceives_.front();
+        pendingReceives_.pop();
+        lock.unlock();
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+        listenerExecutor_->postWork(boost::bind(callback, ResultOk, msg));
+    } else {
+        if (messages_.full()) {
+            lock.unlock();
+        }
+        messages_.push(msg);
+        if (messageListener_) {
+            listenerExecutor_->postWork(
+                std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
+        }
     }
 }
 
@@ -487,6 +503,38 @@ Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
     } else {
         return ResultTimeout;
     }
+}
+
+void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
+    Message msg;
+
+    // fail the callback if consumer is closing or closed
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        callback(ResultAlreadyClosed, msg);
+        return;
+    }
+    stateLock.unlock();
+
+    Lock lock(pendingReceiveMutex_);
+    if (messages_.pop(msg, milliseconds(0))) {
+        lock.unlock();
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+        callback(ResultOk, msg);
+    } else {
+        pendingReceives_.push(callback);
+    }
+}
+
+void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
+    Message msg;
+    Lock lock(pendingReceiveMutex_);
+    while (!pendingReceives_.empty()) {
+        ReceiveCallback callback = pendingReceives_.front();
+        pendingReceives_.pop();
+        listenerExecutor_->postWork(boost::bind(callback, ResultAlreadyClosed, msg));
+    }
+    lock.unlock();
 }
 
 void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {

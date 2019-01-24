@@ -91,6 +91,7 @@ class HandlerBase {
     const std::string topic_;
     ClientConnectionWeakPtr connection_;
     boost::mutex mutex_;
+    boost::mutex pendingReceiveMutex_;
     ptime creationTimestamp_;
 
     const TimeDuration operationTimeut_;

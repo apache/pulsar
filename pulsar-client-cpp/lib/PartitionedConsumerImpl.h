@@ -21,6 +21,7 @@
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
+#include <queue>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include "boost/enable_shared_from_this.hpp"
@@ -52,6 +53,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     virtual const std::string& getTopic() const;
     virtual Result receive(Message& msg);
     virtual Result receive(Message& msg, int timeout);
+    virtual void receiveAsync(ReceiveCallback& callback);
     virtual void unsubscribeAsync(ResultCallback callback);
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
@@ -80,6 +82,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     typedef std::vector<ConsumerImplPtr> ConsumerList;
     ConsumerList consumers_;
     boost::mutex mutex_;
+    boost::mutex pendingReceiveMutex_;
     PartitionedConsumerState state_;
     unsigned int unsubscribedSoFar_;
     BlockingQueue<Message> messages_;
@@ -99,8 +102,10 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void messageReceived(Consumer consumer, const Message& msg);
     void internalListener(Consumer consumer);
     void receiveMessages();
+    void failPendingReceiveCallback();
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    std::queue<ReceiveCallback> pendingReceives_;
 };
 typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
 typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;

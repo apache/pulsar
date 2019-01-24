@@ -36,6 +36,7 @@ class PulsarWrapper;
 
 /// Callback definition for non-data operation
 typedef std::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;

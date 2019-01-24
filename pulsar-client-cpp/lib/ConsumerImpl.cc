@@ -48,6 +48,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       startMessageId_(startMessageId),
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
+      pendingReceives_(),
       availablePermits_(conf.getReceiverQueueSize()),
       consumerId_(client->newConsumerId()),
       consumerName_(config_.getConsumerName()),
@@ -290,6 +291,22 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         Lock lock(mutex_);
         numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
     } else {
+        Lock lock(pendingReceiveMutex_);
+        // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+        bool asyncReceivedWaiting = !pendingReceives_.empty();
+        ReceiveCallback callback;
+        if (asyncReceivedWaiting) {
+            callback = pendingReceives_.front();
+            pendingReceives_.pop();
+        }
+        lock.unlock();
+
+        if (asyncReceivedWaiting) {
+            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                    shared_from_this(), ResultOk, m, callback));
+            return;
+        }
+
         // config_.getReceiverQueueSize() != 0 or waiting For ZeroQueueSize Message`
         if (config_.getReceiverQueueSize() != 0 ||
             (config_.getReceiverQueueSize() == 0 && messageListener_)) {
@@ -314,6 +331,27 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
             listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
         }
     }
+}
+
+void ConsumerImpl::failPendingReceiveCallback() {
+    Message msg;
+    Lock lock(pendingReceiveMutex_);
+    while (!pendingReceives_.empty()) {
+        ReceiveCallback callback = pendingReceives_.front();
+        pendingReceives_.pop();
+        listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                shared_from_this(), ResultAlreadyClosed, msg, callback));
+    }
+    lock.unlock();
+}
+
+void ConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
+                                                 const ReceiveCallback& callback) {
+    if (result == ResultOk && config_.getReceiverQueueSize() != 0) {
+        messageProcessed(msg);
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+    }
+    callback(result, msg);
 }
 
 // Zero Queue size is not supported with Batch Messages
@@ -345,8 +383,19 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
             }
         }
 
-        // Regular path, append individual message to incoming messages queue
-        incomingMessages_.push(msg);
+        //
+        Lock lock(pendingReceiveMutex_);
+        if (!pendingReceives_.empty()) {
+            ReceiveCallback callback = pendingReceives_.front();
+            pendingReceives_.pop();
+            lock.unlock();
+            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                    shared_from_this(), ResultOk, msg, callback));
+        } else {
+            // Regular path, append individual message to incoming messages queue
+            incomingMessages_.push(msg);
+            lock.unlock();
+        }
     }
 
     if (skippedMessages > 0) {
@@ -507,6 +556,37 @@ Result ConsumerImpl::receive(Message& msg) {
     Result res = receiveHelper(msg);
     consumerStatsBasePtr_->receivedMessage(msg, res);
     return res;
+}
+
+void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
+    Message msg;
+
+    // fail the callback if consumer is closing or closed
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        callback(ResultAlreadyClosed, msg);
+        return;
+    }
+    stateLock.unlock();
+
+    Lock lock(pendingReceiveMutex_);
+    if (incomingMessages_.pop(msg, milliseconds(0))) {
+        lock.unlock();
+        messageProcessed(msg);
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+        callback(ResultOk, msg);
+    } else {
+        pendingReceives_.push(callback);
+        lock.unlock();
+
+        if (config_.getReceiverQueueSize() == 0) {
+            ClientConnectionPtr currentCnx = getCnx().lock();
+            if (currentCnx) {
+                LOG_DEBUG(getName() << "Send more permits: " << 1);
+                receiveMessages(currentCnx, 1);
+            }
+        }
+    }
 }
 
 Result ConsumerImpl::receiveHelper(Message& msg) {
@@ -747,6 +827,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     if (!callback) {
         future.addListener(std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
     }
+
+    // fail pendingReceive callback
+    failPendingReceiveCallback();
 }
 
 void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
