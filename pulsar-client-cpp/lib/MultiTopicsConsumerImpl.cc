@@ -423,7 +423,7 @@ void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::stri
         }
 
         multiTopicsConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (!callback) {
+        if (callback) {
             callback(result);
         }
         return;

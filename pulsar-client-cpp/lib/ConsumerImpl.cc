@@ -794,7 +794,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     Lock lock(mutex_);
     if (state_ != Ready) {
         lock.unlock();
-        if (!callback) {
+        if (callback) {
             callback(ResultAlreadyClosed);
         }
         return;
@@ -804,7 +804,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     if (!cnx) {
         lock.unlock();
         // If connection is gone, also the consumer is closed on the broker side
-        if (!callback) {
+        if (callback) {
             callback(ResultOk);
         }
         return;
@@ -815,7 +815,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     if (!client) {
         lock.unlock();
         // Client was already destroyed
-        if (!callback) {
+        if (callback) {
             callback(ResultOk);
         }
         return;
@@ -826,7 +826,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     int requestId = client->newRequestId();
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
-    if (!callback) {
+    if (callback) {
         future.addListener(
             std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
     }
@@ -971,7 +971,7 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
         brokerConsumerStats_ = brokerConsumerStats;
     }
 
-    if (!callback) {
+    if (callback) {
         callback(res, BrokerConsumerStats(std::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats)));
     }
 }
@@ -990,7 +990,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     if (state_ == Closed || state_ == Closing) {
         lock.unlock();
         LOG_ERROR(getName() << "Client connection already closed.");
-        if (!callback) {
+        if (callback) {
             callback(ResultAlreadyClosed);
         }
         return;
@@ -1006,7 +1006,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         Future<Result, ResponseData> future =
             cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
-        if (!callback) {
+        if (callback) {
             future.addListener(
                 std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
         }
@@ -1061,7 +1061,7 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
     if (state_ == Closed || state_ == Closing) {
         lock.unlock();
         LOG_ERROR(getName() << "Client connection already closed.");
-        if (!callback) {
+        if (callback) {
             callback(ResultAlreadyClosed, MessageId());
         }
         return;

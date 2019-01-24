@@ -264,7 +264,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
         LOG_ERROR("Closing the consumer failed for partition - " << partitionIndex);
         lock.unlock();
         partitionedConsumerCreatedPromise_.setFailed(result);
-        if (!callback) {
+        if (callback) {
             callback(result);
         }
         return;
@@ -279,7 +279,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
         lock.unlock();
         // set the producerCreatedPromise to failure
         partitionedConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (!callback) {
+        if (callback) {
             callback(result);
         }
         return;
