@@ -87,7 +87,7 @@ where command is one of:
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
 
-    help                           This help message
+    help                    This help message
 
 or command is the full name of a class with a defined main() method.
 
