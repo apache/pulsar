@@ -35,7 +35,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
     ExecutorServicePtr executorService = client_->getIOExecutorProvider()->get();
     timer_ = executorService->createDeadlineTimer();
     timer_->expires_from_now(boost::posix_time::milliseconds(timeoutMs_));
-    timer_->async_wait(boost::bind(&pulsar::UnAckedMessageTrackerEnabled::timeoutHandler, shared_from_this(),
+    timer_->async_wait(boost::bind(&pulsar::UnAckedMessageTrackerEnabled::timeoutHandler, this,
                                    boost::asio::placeholders::error));
 }
 

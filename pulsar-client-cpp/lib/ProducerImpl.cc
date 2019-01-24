@@ -82,8 +82,8 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
 
         dataKeyGenTImer_ = executor_->createDeadlineTimer();
         dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-        dataKeyGenTImer_->async_wait(boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey,
-                                                 shared_from_this(), boost::asio::placeholders::error));
+        dataKeyGenTImer_->async_wait(
+            boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, boost::asio::placeholders::error));
     }
 }
 

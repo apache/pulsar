@@ -29,8 +29,7 @@
 namespace pulsar {
 class LookupDataResult;
 
-class BinaryProtoLookupService : public LookupService,
-                                 public std::enable_shared_from_this<BinaryProtoLookupService> {
+class BinaryProtoLookupService : public LookupService {
    public:
     /*
      * constructor
