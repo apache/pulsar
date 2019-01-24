@@ -71,6 +71,7 @@ setup(
     url="http://pulsar.apache.org/",
     install_requires=[
         'grpcio', 'protobuf',
+        'six',
         # functions dependencies
         "prometheus_client",
         "ratelimit"

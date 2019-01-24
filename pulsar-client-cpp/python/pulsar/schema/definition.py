@@ -20,6 +20,7 @@
 from abc import abstractmethod, ABCMeta
 from enum import Enum, EnumMeta
 from collections import OrderedDict
+from six import with_metaclass
 
 
 def _check_record_or_field(x):
@@ -52,7 +53,7 @@ class RecordMeta(type):
         return fields
 
 
-class Record(metaclass=RecordMeta):
+class Record(with_metaclass(RecordMeta, object)):
 
     def __init__(self, *args, **kwargs):
         if args:
