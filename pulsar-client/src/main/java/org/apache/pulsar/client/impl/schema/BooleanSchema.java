@@ -35,7 +35,7 @@ public class BooleanSchema implements Schema<Boolean> {
     private static final BooleanSchema INSTANCE = new BooleanSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
             .setName("Boolean")
-            .setType(SchemaType.Boolean)
+            .setType(SchemaType.BOOLEAN)
             .setSchema(new byte[0]);
 
     @Override
@@ -47,7 +47,7 @@ public class BooleanSchema implements Schema<Boolean> {
 
     @Override
     public byte[] encode(Boolean message) {
-        return new byte[]{(byte)(message ? -1 : 0)};
+        return new byte[]{(byte)(message ? 1 : 0)};
     }
 
     @Override
@@ -56,11 +56,7 @@ public class BooleanSchema implements Schema<Boolean> {
             return null;
         }
         validate(bytes);
-        return byte[0] != 0;
-            throw new IllegalArgumentException("bytes Array has wrong size: " + bytes.length);
-        } else {
-            return bytes[0] != 0;
-        }
+        return bytes[0] != 0;
     }
 
     @Override
