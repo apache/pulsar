@@ -421,19 +421,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return false;
     }
 
-    /**
-     * Super user roles are allowed to do anything, used for replication primarily
-     *
-     * @param role
-     *            the app id used to receive messages from the topic.
-     */
-
-
-    @Override
-    public CompletableFuture<Boolean> isSuperUser(String role) {
-        Set<String> superUserRoles = conf.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
-    }
 
     @Override
     public void close() throws IOException {

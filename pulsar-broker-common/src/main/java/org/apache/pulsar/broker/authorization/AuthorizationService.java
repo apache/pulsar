@@ -74,7 +74,7 @@ public class AuthorizationService {
 
     public CompletableFuture<Boolean> isSuperUser(String user) {
         if (provider != null) {
-           return provider.isSuperUser(user);
+           return provider.isSuperUser(user, conf);
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -174,7 +174,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.isSuperUser(role).thenComposeAsync(isSuperUser -> {
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
                 if (isSuperUser) {
                     return CompletableFuture.completedFuture(true);
                 } else {
@@ -201,7 +201,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.isSuperUser(role).thenComposeAsync(isSuperUser -> {
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
                 if (isSuperUser) {
                     return CompletableFuture.completedFuture(true);
                 } else {
