@@ -34,7 +34,6 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
         echo "Running tests: $1"
     fi
     /gtest-parallel/gtest-parallel ./main $tests --workers=10
-    exit 0
     RES=$?
 else
     ./main
