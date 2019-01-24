@@ -107,19 +107,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void received(Consumer<T> consumer, Message<T> message) {
-        String topicName;
-
-        // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
-        // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
-        if (message instanceof TopicMessageImpl) {
-            topicName = ((TopicMessageImpl<?>) message).getTopicName();
-        } else {
-            topicName = message.getTopicName();
-        }
 
         Record<T> record = PulsarRecord.<T>builder()
                 .message(message)
-                .topicName(topicName)
+                .topicName(message.getTopicName())
                 .ackFunction(() -> {
                     if (pulsarSourceConfig
                             .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
