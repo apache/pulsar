@@ -81,6 +81,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -89,6 +90,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -1037,15 +1039,16 @@ public abstract class ComponentImpl {
                         && msg.getProperties().containsKey("__pfn_input_topic__")) {
                     MessageId newMsgId = MessageId.fromByteArray(
                             Base64.getDecoder().decode((String) msg.getProperties().get("__pfn_input_msg_id__")));
+
                     if (msgId.equals(newMsgId)
-                            && msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
+                            && msg.getProperties().get("__pfn_input_topic__").equals(TopicName.get(inputTopicToWrite).toString())) {
                        return new String(msg.getData());
                     }
                 }
                 curTime = System.currentTimeMillis();
             }
-            throw new RestException(Status.REQUEST_TIMEOUT, "Requeste Timed Out");
-        } catch (Exception e) {
+            throw new RestException(Status.REQUEST_TIMEOUT, "Request Timed Out");
+        } catch (IOException e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } finally {
             if (reader != null) {
