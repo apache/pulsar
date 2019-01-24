@@ -52,7 +52,11 @@ public class BooleanSchema implements Schema<Boolean> {
 
     @Override
     public Boolean decode(byte[] bytes) {
-        if (bytes.length != 1) {
+        if (null == bytes) {
+            return null;
+        }
+        validate(bytes);
+        return byte[0] != 0;
             throw new IllegalArgumentException("bytes Array has wrong size: " + bytes.length);
         } else {
             return bytes[0] != 0;
