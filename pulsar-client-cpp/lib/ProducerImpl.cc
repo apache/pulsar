@@ -517,7 +517,7 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback) {
         LOG_ERROR(getName() << "Failed to close producer: " << strResult(result));
     }
     if (callback) {
-    	callback(result);
+        callback(result);
     }
 }
 

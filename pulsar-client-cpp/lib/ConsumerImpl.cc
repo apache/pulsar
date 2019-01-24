@@ -852,7 +852,7 @@ void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
     }
 
     if (callback) {
-    	callback(result);
+        callback(result);
     }
 }
 
