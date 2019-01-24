@@ -164,12 +164,12 @@ type Producer interface {
 	SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))
 
 	// Get the last sequence id that was published by this producer.
-	// This represent either the automatically assigned or custom sequence id (set on the MessageBuilder) that
+	// This represent either the automatically assigned or custom sequence id (set on the ProduceMessage) that
 	// was published and acknowledged by the broker.
 	// After recreating a producer with the same producer name, this will return the last message that was
 	// published in the previous producer session, or -1 if there no message was ever published.
 	// return the last sequence id published by this producer.
-	GetLastSequenceID() int64
+	LastSequenceID() int64
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case

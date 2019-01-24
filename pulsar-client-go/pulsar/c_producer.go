@@ -178,7 +178,7 @@ func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 
-func (p *producer) GetLastSequenceID() int64 {
+func (p *producer) LastSequenceID() int64 {
 	return int64(C.pulsar_producer_get_last_sequence_id(p.ptr))
 }
 
