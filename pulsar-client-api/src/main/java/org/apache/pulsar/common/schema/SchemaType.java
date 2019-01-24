@@ -29,6 +29,8 @@ public enum SchemaType {
 
     /**
      * boolean schema defined
+     *
+     * @since 2.3.0
      */
     Boolean,
 
