@@ -70,9 +70,9 @@ void MultiTopicsConsumerImpl::start() {
     std::shared_ptr<std::atomic<int>> topicsNeedCreate = std::make_shared<std::atomic<int>>(topicsNumber);
     // subscribe for each passed in topic
     for (std::vector<std::string>::const_iterator itr = topics_.begin(); itr != topics_.end(); itr++) {
-        subscribeOneTopicAsync(*itr).addListener(
-            std::bind(&MultiTopicsConsumerImpl::handleOneTopicSubscribed, shared_from_this(), std::placeholders::_1, std::placeholders::_2, *itr,
-                        topicsNeedCreate));
+        subscribeOneTopicAsync(*itr).addListener(std::bind(&MultiTopicsConsumerImpl::handleOneTopicSubscribed,
+                                                           shared_from_this(), std::placeholders::_1,
+                                                           std::placeholders::_2, *itr, topicsNeedCreate));
     }
 }
 
@@ -132,9 +132,9 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
     }
 
     // subscribe for each partition, when all partitions completed, complete promise
-    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
-        std::bind(&MultiTopicsConsumerImpl::subscribeTopicPartitions, shared_from_this(), std::placeholders::_1, std::placeholders::_2, topicName,
-                    subscriptionName_, conf_, topicPromise));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(std::bind(
+        &MultiTopicsConsumerImpl::subscribeTopicPartitions, shared_from_this(), std::placeholders::_1,
+        std::placeholders::_2, topicName, subscriptionName_, conf_, topicPromise));
     return topicPromise->getFuture();
 }
 
@@ -159,8 +159,8 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     config.setConsumerName(conf_.getConsumerName());
     config.setConsumerType(conf_.getConsumerType());
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
-    config.setMessageListener(
-        std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
+                                        std::placeholders::_1, std::placeholders::_2));
 
     int numPartitions = partitionMetadata->getPartitions() >= 1 ? partitionMetadata->getPartitions() : 1;
     // Apply total limit of receiver queue size across partitions
@@ -180,9 +180,9 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
         // We don't have to add partition-n suffix
         consumer = std::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
                                                   internalListenerExecutor, NonPartitioned);
-        consumer->getConsumerCreatedFuture().addListener(
-            std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2,
-                        partitionsNeedCreate, topicSubResultPromise));
+        consumer->getConsumerCreatedFuture().addListener(std::bind(
+            &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1,
+            std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
         consumers_.insert(std::make_pair(topicName->toString(), consumer));
         LOG_DEBUG("Creating Consumer for - " << topicName << " - " << consumerStr_);
         consumer->start();
@@ -192,9 +192,9 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
             std::string topicPartitionName = topicName->getTopicPartitionName(i);
             consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
                                                       internalListenerExecutor, Partitioned);
-            consumer->getConsumerCreatedFuture().addListener(
-                std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2,
-                            partitionsNeedCreate, topicSubResultPromise));
+            consumer->getConsumerCreatedFuture().addListener(std::bind(
+                &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(),
+                std::placeholders::_1, std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
             consumer->setPartitionIndex(i);
             consumers_.insert(std::make_pair(topicPartitionName, consumer));
             LOG_DEBUG("Creating Consumer for - " << topicPartitionName << " - " << consumerStr_);
@@ -251,7 +251,8 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
         LOG_DEBUG("Unsubcribing Consumer - " << consumer->first);
         (consumer->second)
             ->unsubscribeAsync(std::bind(&MultiTopicsConsumerImpl::handleUnsubscribedAsync,
-                                           shared_from_this(), std::placeholders::_1, consumerUnsubed, callback));
+                                         shared_from_this(), std::placeholders::_1, consumerUnsubed,
+                                         callback));
     }
 }
 
@@ -315,8 +316,8 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
 
         (iterator->second)
             ->unsubscribeAsync(std::bind(&MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync,
-                                           shared_from_this(), std::placeholders::_1, consumerUnsubed, numberPartitions,
-                                           topicName, topicPartitionName, callback));
+                                         shared_from_this(), std::placeholders::_1, consumerUnsubed,
+                                         numberPartitions, topicName, topicPartitionName, callback));
     }
 }
 
@@ -384,7 +385,8 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
         ConsumerImplPtr consumerPtr = consumer->second;
 
         consumerPtr->closeAsync(std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerClose,
-                                            shared_from_this(), std::placeholders::_1, topicPartitionName, callback));
+                                          shared_from_this(), std::placeholders::_1, topicPartitionName,
+                                          callback));
     }
 
     // fail pending recieve
@@ -653,8 +655,8 @@ void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
     ConsumerMap::const_iterator consumer = consumers_.begin();
     for (int i = 0; i < size; i++, consumer++) {
         consumer->second->getBrokerConsumerStatsAsync(
-            std::bind(&MultiTopicsConsumerImpl::handleGetConsumerStats, shared_from_this(), std::placeholders::_1, std::placeholders::_2,
-                        latchPtr, statsPtr, i, callback));
+            std::bind(&MultiTopicsConsumerImpl::handleGetConsumerStats, shared_from_this(),
+                      std::placeholders::_1, std::placeholders::_2, latchPtr, statsPtr, i, callback));
     }
 }
 
@@ -677,8 +679,7 @@ void MultiTopicsConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
     }
 }
 
-std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(
-    const std::vector<std::string>& topics) {
+std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(const std::vector<std::string>& topics) {
     TopicNamePtr topicNamePtr = std::shared_ptr<TopicName>();
     NamespaceNamePtr namespaceNamePtr = std::shared_ptr<NamespaceName>();
 

@@ -30,7 +30,7 @@ DECLARE_LOG_OBJECT()
 namespace pulsar {
 
 std::shared_ptr<NamespaceName> NamespaceName::get(const std::string& property, const std::string& cluster,
-                                                    const std::string& namespaceName) {
+                                                  const std::string& namespaceName) {
     if (validateNamespace(property, cluster, namespaceName)) {
         std::shared_ptr<NamespaceName> ptr(new NamespaceName(property, cluster, namespaceName));
         return ptr;
@@ -62,7 +62,7 @@ bool NamespaceName::validateNamespace(const std::string& property, const std::st
 }
 
 std::shared_ptr<NamespaceName> NamespaceName::get(const std::string& property,
-                                                    const std::string& namespaceName) {
+                                                  const std::string& namespaceName) {
     if (validateNamespace(property, namespaceName)) {
         std::shared_ptr<NamespaceName> ptr(new NamespaceName(property, namespaceName));
         return ptr;

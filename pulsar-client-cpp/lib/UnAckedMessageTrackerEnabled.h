@@ -21,7 +21,8 @@
 #include "lib/UnAckedMessageTrackerInterface.h"
 namespace pulsar {
 
-class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface, public std::enable_shared_from_this<UnAckedMessageTrackerEnabled> {
+class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface,
+                                     public std::enable_shared_from_this<UnAckedMessageTrackerEnabled> {
    public:
     ~UnAckedMessageTrackerEnabled();
     UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr, ConsumerImplBase&);

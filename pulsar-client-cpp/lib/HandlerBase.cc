@@ -53,7 +53,8 @@ void HandlerBase::grabCnx() {
     LOG_INFO(getName() << "Getting connection from pool");
     ClientImplPtr client = client_.lock();
     Future<Result, ClientConnectionWeakPtr> future = client->getConnection(topic_);
-    future.addListener(std::bind(&HandlerBase::handleNewConnection, std::placeholders::_1, std::placeholders::_2, get_weak_from_this()));
+    future.addListener(std::bind(&HandlerBase::handleNewConnection, std::placeholders::_1,
+                                 std::placeholders::_2, get_weak_from_this()));
 }
 
 void HandlerBase::handleNewConnection(Result result, ClientConnectionWeakPtr connection,

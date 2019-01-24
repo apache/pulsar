@@ -142,7 +142,8 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
                                               consumerName_, subscriptionMode_, startMessageId_,
                                               readCompacted_, config_.getProperties(), config_.getSchema());
     cnx->sendRequestWithId(cmd, requestId)
-        .addListener(std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
+        .addListener(
+            std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
 }
 
 void ConsumerImpl::connectionFailed(Result result) {
@@ -237,7 +238,8 @@ void ConsumerImpl::unsubscribeAsync(ResultCallback callback) {
         int requestId = client->newRequestId();
         SharedBuffer cmd = Commands::newUnsubscribe(consumerId_, requestId);
         cnx->sendRequestWithId(cmd, requestId)
-            .addListener(std::bind(&ConsumerImpl::handleUnsubscribe, shared_from_this(), std::placeholders::_1, callback));
+            .addListener(std::bind(&ConsumerImpl::handleUnsubscribe, shared_from_this(),
+                                   std::placeholders::_1, callback));
     } else {
         Result result = ResultNotConnected;
         lock.unlock();
@@ -727,8 +729,8 @@ void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::Com
 }
 
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb =
-        std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1, callback, proto::CommandAck_AckType_Individual);
+    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Individual);
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Individual)) {
         cb(ResultOk);
@@ -738,8 +740,8 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
 }
 
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb =
-        std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1, callback, proto::CommandAck_AckType_Cumulative);
+    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Cumulative);
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
         MessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
@@ -825,7 +827,8 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
     if (!callback) {
-        future.addListener(std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
+        future.addListener(
+            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
     }
 
     // fail pendingReceive callback
@@ -946,8 +949,8 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
                                 << ", requestId - " << requestId);
 
             cnx->newConsumerStats(consumerId_, requestId)
-                .addListener(std::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(), std::placeholders::_1,
-                                         std::placeholders::_2, callback));
+                .addListener(std::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(),
+                                       std::placeholders::_1, std::placeholders::_2, callback));
             return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
@@ -1004,7 +1007,8 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
             cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
         if (!callback) {
-            future.addListener(std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
+            future.addListener(
+                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
         }
         return;
     }
@@ -1074,7 +1078,7 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
 
             cnx->newGetLastMessageId(consumerId_, requestId)
                 .addListener(std::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
-                                         std::placeholders::_1, std::placeholders::_2, callback));
+                                       std::placeholders::_1, std::placeholders::_2, callback));
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
                                 << cnx->getServerProtocolVersion() << " is older than proto::v12");

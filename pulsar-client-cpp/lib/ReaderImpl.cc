@@ -42,8 +42,8 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     if (readerConf_.hasReaderListener()) {
         // Adapt the message listener to be a reader-listener
         readerListener_ = readerConf_.getReaderListener();
-        consumerConf.setMessageListener(
-            std::bind(&ReaderImpl::messageListener, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+        consumerConf.setMessageListener(std::bind(&ReaderImpl::messageListener, shared_from_this(),
+                                                  std::placeholders::_1, std::placeholders::_2));
     }
 
     std::string subscription = "reader-" + generateRandomName();
@@ -54,8 +54,9 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumer_ = std::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
-    consumer_->getConsumerCreatedFuture().addListener(
-        std::bind(&ReaderImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
+                                                                shared_from_this(), std::placeholders::_1,
+                                                                std::placeholders::_2));
     consumer_->start();
 }
 

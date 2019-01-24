@@ -82,8 +82,8 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
 
         dataKeyGenTImer_ = executor_->createDeadlineTimer();
         dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-        dataKeyGenTImer_->async_wait(
-            boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(), boost::asio::placeholders::error));
+        dataKeyGenTImer_->async_wait(boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey,
+                                                 shared_from_this(), boost::asio::placeholders::error));
     }
 }
 
@@ -113,8 +113,8 @@ void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
     msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
 
     dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-    dataKeyGenTImer_->async_wait(
-        boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(), boost::asio::placeholders::error));
+    dataKeyGenTImer_->async_wait(boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(),
+                                             boost::asio::placeholders::error));
 }
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
@@ -132,7 +132,8 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
                                              conf_.getProperties(), conf_.getSchema());
     cnx->sendRequestWithId(cmd, requestId)
-        .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx, std::placeholders::_1, std::placeholders::_2));
+        .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx,
+                               std::placeholders::_1, std::placeholders::_2));
 }
 
 void ProducerImpl::connectionFailed(Result result) {
@@ -293,7 +294,7 @@ void ProducerImpl::flushAsync(FlushCallback callback) {
         } else {
             // already in flushing, register a listener callback
             std::function<void(Result, bool)> listenerCallback = [this, callback](Result result,
-                                                                                    bool_type v) {
+                                                                                  bool_type v) {
                 if (v) {
                     callback(ResultOk);
                 } else {
@@ -328,8 +329,9 @@ void ProducerImpl::triggerFlush() {
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
-    SendCallback cb = std::bind(&ProducerImpl::statsCallBackHandler, shared_from_this(), std::placeholders::_1, std::placeholders::_2, callback,
-                                  boost::posix_time::microsec_clock::universal_time());
+    SendCallback cb =
+        std::bind(&ProducerImpl::statsCallBackHandler, shared_from_this(), std::placeholders::_1,
+                  std::placeholders::_2, callback, boost::posix_time::microsec_clock::universal_time());
 
     // Compress the payload if required
     SharedBuffer& payload = msg.impl_->payload;
@@ -497,7 +499,8 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseProducer(producerId_, requestId), requestId);
     if (!callback) {
-        future.addListener(std::bind(&ProducerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
+        future.addListener(
+            std::bind(&ProducerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
     }
 }
 

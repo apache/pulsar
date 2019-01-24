@@ -34,9 +34,8 @@ class NamespaceName : public ServiceUnitId {
     std::string getCluster();
     std::string getLocalName();
     static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
-                                                const std::string& namespaceName);
-    static std::shared_ptr<NamespaceName> get(const std::string& property,
-                                                const std::string& namespaceName);
+                                              const std::string& namespaceName);
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& namespaceName);
     bool operator==(const NamespaceName& namespaceName);
     bool isV2();
     std::string toString();

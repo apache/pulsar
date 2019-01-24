@@ -132,7 +132,8 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
             LOG_DEBUG("Unsubcribing Consumer - " << index << " for Subscription - " << subscriptionName_
                                                  << " for Topic - " << topicName_->toString());
             (*consumer)->unsubscribeAsync(std::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
-                                                      shared_from_this(), std::placeholders::_1, index++, callback));
+                                                    shared_from_this(), std::placeholders::_1, index++,
+                                                    callback));
         }
     }
 }
@@ -190,8 +191,8 @@ void PartitionedConsumerImpl::start() {
     config.setConsumerName(conf_.getConsumerName());
     config.setConsumerType(conf_.getConsumerType());
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
-    config.setMessageListener(
-        std::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    config.setMessageListener(std::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(),
+                                        std::placeholders::_1, std::placeholders::_2));
 
     // Apply total limit of receiver queue size across partitions
     config.setReceiverQueueSize(
@@ -203,8 +204,9 @@ void PartitionedConsumerImpl::start() {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
                                                   internalListenerExecutor, Partitioned);
-        consumer->getConsumerCreatedFuture().addListener(std::bind(
-            &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, i));
+        consumer->getConsumerCreatedFuture().addListener(
+            std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_from_this(),
+                      std::placeholders::_1, std::placeholders::_2, i));
         consumer->setPartitionIndex(i);
         consumers_.push_back(consumer);
 
@@ -296,7 +298,8 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
         ConsumerImplPtr consumer = *i;
         if (!consumer->isClosed()) {
             consumer->closeAsync(std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerClose,
-                                             shared_from_this(), std::placeholders::_1, consumerIndex, callback));
+                                           shared_from_this(), std::placeholders::_1, consumerIndex,
+                                           callback));
         } else {
             if (++consumerAlreadyClosed == consumers_.size()) {
                 // everything is closed already. so we are good.
@@ -436,8 +439,8 @@ void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
     lock.unlock();
     for (int i = 0; i < consumerList.size(); i++) {
         consumerList[i]->getBrokerConsumerStatsAsync(
-            std::bind(&PartitionedConsumerImpl::handleGetConsumerStats, shared_from_this(), std::placeholders::_1, std::placeholders::_2,
-                        latchPtr, statsPtr, i, callback));
+            std::bind(&PartitionedConsumerImpl::handleGetConsumerStats, shared_from_this(),
+                      std::placeholders::_1, std::placeholders::_2, latchPtr, statsPtr, i, callback));
     }
 }
 

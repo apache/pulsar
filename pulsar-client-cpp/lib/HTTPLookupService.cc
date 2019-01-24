@@ -72,8 +72,8 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::st
     }
 
     executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str(),
-                                                   Lookup));
+                                                 shared_from_this(), promise, completeUrlStream.str(),
+                                                 Lookup));
     return promise.getFuture();
 }
 
@@ -94,8 +94,8 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
     }
 
     executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str(),
-                                                   PartitionMetaData));
+                                                 shared_from_this(), promise, completeUrlStream.str(),
+                                                 PartitionMetaData));
     return promise.getFuture();
 }
 
@@ -113,7 +113,7 @@ Future<Result, NamespaceTopicsPtr> HTTPLookupService::getTopicsOfNamespaceAsync(
     }
 
     executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleNamespaceTopicsHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str()));
+                                                 shared_from_this(), promise, completeUrlStream.str()));
     return promise.getFuture();
 }
 

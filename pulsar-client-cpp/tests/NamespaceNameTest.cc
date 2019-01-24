@@ -33,7 +33,7 @@ TEST(NamespaceNameTest, testNamespaceName) {
 }
 
 TEST(NamespaceNameTest, testNamespaceNameV2) {
-	std::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "namespace");
+    std::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "namespace");
     ASSERT_EQ("property", nn1->getProperty());
     ASSERT_TRUE(nn1->getCluster().empty());
     ASSERT_EQ("namespace", nn1->getLocalName());

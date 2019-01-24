@@ -54,8 +54,8 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(const 
     std::string lookupName = topicName->toString();
     LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, shared_from_this(), lookupName, false,
-                                   std::placeholders::_1, std::placeholders::_2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, shared_from_this(),
+                                 lookupName, false, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -72,8 +72,9 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::getPartitionMetada
     }
     std::string lookupName = topicName->toString();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, shared_from_this(),
-                                   lookupName, std::placeholders::_1, std::placeholders::_2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest,
+                                 shared_from_this(), lookupName, std::placeholders::_1, std::placeholders::_2,
+                                 promise));
     return promise->getFuture();
 }
 
@@ -88,8 +89,9 @@ void BinaryProtoLookupService::sendTopicLookupRequest(const std::string& topicNa
     ClientConnectionPtr conn = clientCnx.lock();
     uint64_t requestId = newRequestId();
     conn->newTopicLookup(topicName, authoritative, requestId, lookupPromise);
-    lookupPromise->getFuture().addListener(
-        std::bind(&BinaryProtoLookupService::handleLookup, shared_from_this(), topicName, std::placeholders::_1, std::placeholders::_2, clientCnx, promise));
+    lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handleLookup,
+                                                     shared_from_this(), topicName, std::placeholders::_1,
+                                                     std::placeholders::_2, clientCnx, promise));
 }
 
 void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result result,
@@ -105,8 +107,9 @@ void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result
                 data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
             Future<Result, ClientConnectionWeakPtr> future =
                 cnxPool_.getConnectionAsync(logicalAddress, physicalAddress);
-            future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, shared_from_this(), topicName,
-                                           data->isAuthoritative(), std::placeholders::_1, std::placeholders::_2, promise));
+            future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest,
+                                         shared_from_this(), topicName, data->isAuthoritative(),
+                                         std::placeholders::_1, std::placeholders::_2, promise));
         } else {
             LOG_DEBUG("Lookup response for " << topicName << ", lookup-broker-url " << data->getBrokerUrl());
             promise->setValue(data);
@@ -129,9 +132,9 @@ void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::str
     ClientConnectionPtr conn = clientCnx.lock();
     uint64_t requestId = newRequestId();
     conn->newPartitionedMetadataLookup(topicName, requestId, lookupPromise);
-    lookupPromise->getFuture().addListener(
-        std::bind(&BinaryProtoLookupService::handlePartitionMetadataLookup, shared_from_this(), topicName, std::placeholders::_1, std::placeholders::_2,
-                    clientCnx, promise));
+    lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handlePartitionMetadataLookup,
+                                                     shared_from_this(), topicName, std::placeholders::_1,
+                                                     std::placeholders::_2, clientCnx, promise));
 }
 
 void BinaryProtoLookupService::handlePartitionMetadataLookup(const std::string& topicName, Result result,
@@ -162,8 +165,9 @@ Future<Result, NamespaceTopicsPtr> BinaryProtoLookupService::getTopicsOfNamespac
     }
     std::string namespaceName = nsName->toString();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, shared_from_this(),
-                                   namespaceName, std::placeholders::_1, std::placeholders::_2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest,
+                                 shared_from_this(), namespaceName, std::placeholders::_1,
+                                 std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -180,8 +184,8 @@ void BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest(const std::string
     LOG_DEBUG("sendGetTopicsOfNamespaceRequest. requestId: " << requestId << " nsName: " << nsName);
 
     conn->newGetTopicsOfNamespace(nsName, requestId)
-        .addListener(
-            std::bind(&BinaryProtoLookupService::getTopicsOfNamespaceListener, shared_from_this(), std::placeholders::_1, std::placeholders::_2, promise));
+        .addListener(std::bind(&BinaryProtoLookupService::getTopicsOfNamespaceListener, shared_from_this(),
+                               std::placeholders::_1, std::placeholders::_2, promise));
 }
 
 void BinaryProtoLookupService::getTopicsOfNamespaceListener(Result result, NamespaceTopicsPtr topicsPtr,

@@ -77,8 +77,9 @@ void PartitionedProducerImpl::start() {
     for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
-        producer->getProducerCreatedFuture().addListener(std::bind(
-            &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), std::placeholders::_1, std::placeholders::_2, i));
+        producer->getProducerCreatedFuture().addListener(
+            std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(),
+                      std::placeholders::_1, std::placeholders::_2, i));
         producers_.push_back(producer);
         LOG_DEBUG("Creating Producer for single Partition - " << topicPartitionName);
     }
@@ -174,7 +175,8 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
         ProducerImplPtr prod = *i;
         if (!prod->isClosed()) {
             prod->closeAsync(std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
-                                         shared_from_this(), std::placeholders::_1, producerIndex, closeCallback));
+                                       shared_from_this(), std::placeholders::_1, producerIndex,
+                                       closeCallback));
         } else {
             producerAlreadyClosed++;
         }

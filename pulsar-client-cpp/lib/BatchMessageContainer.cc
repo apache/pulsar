@@ -106,7 +106,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
 
     // bind keeps a copy of the parameters
     SendCallback callback = std::bind(&BatchMessageContainer::batchMessageCallBack, std::placeholders::_1,
-                                        messagesContainerListPtr_, flushCallback);
+                                      messagesContainerListPtr_, flushCallback);
 
     producer_.sendMessage(msg, callback);
     clear();
