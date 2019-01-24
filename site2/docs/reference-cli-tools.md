@@ -407,7 +407,6 @@ Options
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, or ZLIB.||
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|0|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
@@ -436,7 +435,7 @@ Options
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, or ZLIB.||
+|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB or ZSTD.||
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|0|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
