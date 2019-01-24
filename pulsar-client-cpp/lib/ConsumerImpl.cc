@@ -851,7 +851,9 @@ void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
         LOG_ERROR(getName() << "Failed to close consumer: " << result);
     }
 
-    callback(result);
+    if (callback) {
+    	callback(result);
+    }
 }
 
 const std::string& ConsumerImpl::getName() const { return consumerStr_; }

@@ -516,8 +516,9 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback) {
     } else {
         LOG_ERROR(getName() << "Failed to close producer: " << strResult(result));
     }
-
-    callback(result);
+    if (callback) {
+    	callback(result);
+    }
 }
 
 Future<Result, ProducerImplBaseWeakPtr> ProducerImpl::getProducerCreatedFuture() {
