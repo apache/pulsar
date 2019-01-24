@@ -410,8 +410,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> isSuperUser(String role) {
-            Set<String> superUserRoles = conf.getSuperUserRoles();
+        public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+            Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
             return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
         }
 
