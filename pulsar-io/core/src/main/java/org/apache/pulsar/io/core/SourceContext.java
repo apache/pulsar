@@ -74,35 +74,4 @@ public interface SourceContext {
      * @return the logger object
      */
     Logger getLogger();
-
-    /**
-     * Increment the builtin distributed counter refered by key
-     * @param key The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Updare the state value for the key.
-     *
-     * @param key name of the key
-     * @param value state value of the key
-     */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
 }
