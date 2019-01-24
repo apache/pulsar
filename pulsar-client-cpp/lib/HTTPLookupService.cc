@@ -310,7 +310,7 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
 NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string &json) {
     Json::Value root;
     Json::Reader reader;
-    LOG_INFO("GetNamespaceTopics json = " << json);
+    LOG_DEBUG("GetNamespaceTopics json = " << json);
 
     // passed in json is like: ["topic1", "topic2"...]
     // root will be an array of topics
