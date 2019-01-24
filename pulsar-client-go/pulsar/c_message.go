@@ -71,7 +71,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
 	}
 
-	if message.ID < 0 {
+	if message.ID != 0 {
 		C.pulsar_message_set_sequence_id(cMsg, C.int64_t(message.ID))
 	}
 

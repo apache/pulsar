@@ -318,6 +318,7 @@ func TestConsumerMultiTopics(t *testing.T) {
 
 		if err := producer2.Send(ctx, ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			ID:      0,
 		}); err != nil {
 			t.Fatal(err)
 		}
