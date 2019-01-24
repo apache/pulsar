@@ -118,7 +118,9 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     public void write(Record<T> record) throws Exception {
         int number;
         synchronized (this) {
-            incomingList.add(record);
+            if (null != record) {
+                incomingList.add(record);
+            }
             number = incomingList.size();
         }
 
@@ -142,12 +144,9 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
             for (Record<T> record: toFlushList) {
                 try {
                     bindValue(record, puts);
-                    record.ack();
                 } catch (Exception e) {
                     log.warn("Record flush thread was exception ", e);
-                    if (null != record) {
-                        record.fail();
-                    }
+                    toFlushList.remove(record);
                 }
             }
         }
