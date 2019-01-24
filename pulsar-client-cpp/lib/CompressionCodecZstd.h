@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_COMPRESSIONTYPE_H_
-#define PULSAR_COMPRESSIONTYPE_H_
-#pragma GCC visibility push(default)
-namespace pulsar {
-enum CompressionType
-{
-    CompressionNone = 0,
-    CompressionLZ4 = 1,
-    CompressionZLib = 2,
-    CompressionZSTD = 3,
-};
-}
+#pragma once
 
-#pragma GCC visibility pop
-#endif /* PULSAR_COMPRESSIONTYPE_H_ */
+#include "CompressionCodec.h"
+
+namespace pulsar {
+
+class CompressionCodecZstd : public CompressionCodec {
+   public:
+    SharedBuffer encode(const SharedBuffer& raw);
+
+    bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
+};
+}  // namespace pulsar

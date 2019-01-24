@@ -169,3 +169,33 @@ func TestMessageRouter(t *testing.T) {
 	assertNotNil(t, msg)
 	assertEqual(t, string(msg.Payload()), "hello")
 }
+
+func TestProducerZstd(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assertNil(t, err)
+	defer client.Close()
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic:           "my-topic",
+		CompressionType: ZSTD,
+	})
+
+	assertNil(t, err)
+	defer producer.Close()
+
+	assertEqual(t, producer.Topic(), "persistent://public/default/my-topic")
+	assertEqual(t, producer.Name(), "my-producer-name")
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		if err := producer.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

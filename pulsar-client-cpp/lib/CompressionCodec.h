@@ -38,6 +38,7 @@ class CompressionCodec;
 class CompressionCodecNone;
 class CompressionCodecLZ4;
 class CompressionCodecZLib;
+class CompressionCodecZstd;
 
 class CompressionCodecProvider {
    public:
@@ -50,6 +51,7 @@ class CompressionCodecProvider {
     static CompressionCodecNone compressionCodecNone_;
     static CompressionCodecLZ4 compressionCodecLZ4_;
     static CompressionCodecZLib compressionCodecZLib_;
+    static CompressionCodecZstd compressionCodecZstd_;
 };
 
 class CompressionCodec {

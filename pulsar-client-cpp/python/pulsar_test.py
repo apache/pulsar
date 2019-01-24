@@ -832,6 +832,30 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello')
         client.close()
 
+    def test_producer_consumer_zstd(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-producer-consumer-zstd',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-producer-consumer',
+                                          compression_type=CompressionType.ZSTD)
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    #####
+
     def test_get_topic_name(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('persistent://public/default/topic_name_test',
@@ -864,8 +888,6 @@ class PulsarTest(TestCase):
         msg = consumer.receive(1000)
         self.assertTrue(msg.topic_name() in partitions)
         client.close()
-
-#####
 
     def _check_value_error(self, fun):
         try:
