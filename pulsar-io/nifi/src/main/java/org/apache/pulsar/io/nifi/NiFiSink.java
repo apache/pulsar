@@ -21,6 +21,7 @@ package org.apache.pulsar.io.nifi;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
 import org.apache.nifi.remote.client.SiteToSiteClient;
@@ -76,7 +77,6 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 .buildConfig();
         client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
 
-
         requestBatchCount = niFiConfig.getRequestBatchCount();
         waitTimeMs = niFiConfig.getWaitTimeMs();
         currentList= Lists.newArrayList();
@@ -101,7 +101,9 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
     public void write(Record<NiFiDataPacket> record) {
         int number;
         synchronized (this) {
-            currentList.add(record);
+            if (null != record) {
+                currentList.add(record);
+            }
             number = currentList.size();
         }
 
@@ -111,31 +113,43 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
     }
 
     private void flush() {
-        try {
-            final Transaction transaction = client.createTransaction(TransferDirection.SEND);
-            List<Record<NiFiDataPacket>>  toFlushList;
-            synchronized (this) {
-                if (currentList.isEmpty()) {
-                    return;
-                }
-                toFlushList = currentList;
-                currentList = Lists.newArrayList();
+        List<Record<NiFiDataPacket>>  toFlushList;
+        synchronized (this) {
+            if (currentList.isEmpty()) {
+                return;
             }
+            toFlushList = currentList;
+            currentList = Lists.newArrayList();
+        }
 
-            for (Record<NiFiDataPacket> record : toFlushList) {
-                NiFiDataPacket niFiDataPacket = record.getValue();
-                transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
-            }
-            try {
-                transaction.confirm();
-                transaction.complete();
-                toFlushList.forEach(record -> record.ack());
-            } catch (Exception e) {
-                log.warn("Record flush thread was interrupted", e);
-                toFlushList.forEach(record -> record.fail());
-            }
+        Transaction transaction = null;
+        try {
+            transaction = client.createTransaction(TransferDirection.SEND);
         } catch (final IOException ioe) {
-            log.warn("Failed to receive data from NiFi", ioe);
+            log.warn("Created NiFi transaction Failed", ioe);
+        }
+
+        if (null != transaction) {
+            if (CollectionUtils.isNotEmpty(toFlushList)) {
+                for (Record<NiFiDataPacket> record : toFlushList) {
+                    NiFiDataPacket niFiDataPacket = record.getValue();
+                    try {
+                        transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
+                    } catch (IOException ioe) {
+                        log.warn("Failed to send data to NiFi", ioe);
+                    }
+                }
+
+                try {
+                    toFlushList.forEach(record -> record.ack());
+                    transaction.confirm();
+                    transaction.complete();
+                } catch (Exception e) {
+                    log.warn("Send data to NiFi transfer was Failed", e);
+                    toFlushList.forEach(record -> record.fail());
+                }
+            }
         }
     }
+
 }

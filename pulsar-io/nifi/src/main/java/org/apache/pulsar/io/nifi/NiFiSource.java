@@ -55,6 +55,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
     private volatile boolean isRunning = true;
     private NiFiConfig niFiConfig;
     private SiteToSiteClientConfig clientConfig;
+    private SiteToSiteClient client;
 
     private Thread runnerThread;
 
@@ -72,6 +73,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                 .portName(niFiConfig.getPortName())
                 .requestBatchCount(niFiConfig.getRequestBatchCount())
                 .buildConfig();
+        client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
 
         this.start();
     }
@@ -79,6 +81,10 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
     @Override
     public void close() throws Exception {
         this.isRunning = false;
+        if (null != client) {
+            client.close();
+        }
+
         if (runnerThread != null) {
             runnerThread.interrupt();
             runnerThread.join();
@@ -92,7 +98,6 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
         runnerThread.start();
     }
 
-
     class ReceiveRunnable implements Runnable {
 
         public ReceiveRunnable() {
@@ -101,11 +106,16 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
 
         @Override
         public void run() {
-            try {
-                final SiteToSiteClient client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
+            Transaction transaction = null;
+            while (isRunning) {
                 try {
-                    while (isRunning) {
-                        final Transaction transaction = client.createTransaction(TransferDirection.RECEIVE);
+                    transaction = client.createTransaction(TransferDirection.RECEIVE);
+                } catch (IOException e) {
+                    log.warn("Created NiFi transaction Failed", e);
+                }
+
+                if (null != transaction) {
+                    try {
                         DataPacket dataPacket = transaction.receive();
                         if (dataPacket == null) {
                             // no data available. Wait a bit and try again
@@ -131,26 +141,21 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                             dataPacket = transaction.receive();
                         } while (dataPacket != null);
 
-                        // Confirm transaction to verify the data
-                        transaction.confirm();
-
                         for (NiFiDataPacket dp : dataPackets) {
                             consume(new NiFiRecord(dp, transaction));
                         }
 
+                        // Confirm transaction to verify the data
+                        transaction.confirm();
                         transaction.complete();
-                    }
-                } finally {
-                    try {
-                        client.close();
                     } catch (final IOException ioe) {
-                        log.warn("Failed to close client", ioe);
+                        transaction.error();
+                        log.warn("Failed to receive data from NiFi", ioe);
                     }
                 }
-            } catch (final IOException ioe) {
-                log.warn("Failed to receive data from NiFi", ioe);
             }
         }
+
     }
 
     static private class NiFiRecord implements Record<NiFiDataPacket>{
