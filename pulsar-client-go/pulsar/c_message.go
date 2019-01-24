@@ -27,8 +27,8 @@ import "C"
 import (
 	"reflect"
 	"runtime"
-	"unsafe"
 	"time"
+	"unsafe"
 )
 
 type message struct {
@@ -69,6 +69,10 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 
 	if message.EventTime.UnixNano() != 0 {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
+	}
+
+	if message.ID < 0 {
+		C.pulsar_message_set_sequence_id(cMsg, C.int64_t(message.ID))
 	}
 
 	if message.ReplicationClusters != nil {

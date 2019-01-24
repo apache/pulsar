@@ -310,10 +310,11 @@ func TestConsumerMultiTopics(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		if err := producer1.Send(ctx, ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			ID:      3,
 		}); err != nil {
 			t.Fatal(err)
 		}
-		assertEqual(t, producer1.LastSequenceID(), int64(i))
+		assertEqual(t, producer1.LastSequenceID(), int64(3))
 
 		if err := producer2.Send(ctx, ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),

@@ -161,8 +161,10 @@ func TestMessageRouter(t *testing.T) {
 
 	err = producer.Send(ctx, ProducerMessage{
 		Payload: []byte("hello"),
+		ID:      1234,
 	})
 	assertNil(t, err)
+	assertEqual(t, producer.LastSequenceID(), int64(1234))
 
 	fmt.Println("PUBLISHED")
 
