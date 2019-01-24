@@ -313,14 +313,14 @@ func TestConsumerMultiTopics(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		assertEqual(t, producer1.GetLastSequenceID(), int64(i))
+		assertEqual(t, producer1.LastSequenceID(), int64(i))
 
 		if err := producer2.Send(ctx, ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		}); err != nil {
 			t.Fatal(err)
 		}
-		assertEqual(t, producer2.GetLastSequenceID(), int64(i))
+		assertEqual(t, producer2.LastSequenceID(), int64(i))
 	}
 
 	for i := 0; i < 20; i++ {

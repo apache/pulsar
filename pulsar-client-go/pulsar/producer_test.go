@@ -88,7 +88,7 @@ func TestProducer(t *testing.T) {
 
 	assertEqual(t, producer.Topic(), "persistent://public/default/my-topic")
 	assertEqual(t, producer.Name(), "my-producer-name")
-	assertEqual(t, producer.GetLastSequenceID(), int64(-1))
+	assertEqual(t, producer.LastSequenceID(), int64(-1))
 
 	ctx := context.Background()
 
@@ -98,9 +98,9 @@ func TestProducer(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		assertEqual(t, producer.GetLastSequenceID(), int64(i))
+		assertEqual(t, producer.LastSequenceID(), int64(i))
 	}
-	assertEqual(t, producer.GetLastSequenceID(), int64(9))
+	assertEqual(t, producer.LastSequenceID(), int64(9))
 }
 
 func TestProducerNoTopic(t *testing.T) {
