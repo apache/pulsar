@@ -20,7 +20,6 @@ package org.apache.pulsar.io.core;
 
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
 import java.util.Collection;
 
 public interface SinkContext {
