@@ -34,7 +34,7 @@ class RecordMeta(type):
         if name != 'Record':
             # Do not apply this logic to the base class itself
             dct['_fields'] = RecordMeta._get_fields(dct)
-        return super().__new__(metacls, name, parents, dct)
+        return type.__new__(metacls, name, parents, dct)
 
     @classmethod
     def _get_fields(cls, dct):
