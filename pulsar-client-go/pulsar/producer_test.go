@@ -160,8 +160,8 @@ func TestMessageRouter(t *testing.T) {
 	ctx := context.Background()
 
 	err = producer.Send(ctx, ProducerMessage{
-		Payload: []byte("hello"),
-		ID:      1234,
+		Payload:    []byte("hello"),
+		SequenceID: 1234,
 	})
 	assertNil(t, err)
 	assertEqual(t, producer.LastSequenceID(), int64(1234))

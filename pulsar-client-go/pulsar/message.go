@@ -38,7 +38,7 @@ type ProducerMessage struct {
 	ReplicationClusters []string
 
 	// Set the sequence id to assign to the current message
-	ID int64
+	SequenceID int64
 }
 
 type Message interface {
