@@ -25,6 +25,7 @@
 #include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
+#include "boost/enable_shared_from_this.hpp"
 #include "CustomRoutingPolicy.h"
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
@@ -59,19 +60,41 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& 
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix) {
+static void sendCallBack(Result r, const Message& msg, std::string prefix, int* count) {
+    static boost::mutex sendMutex_;
+    sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + boost::lexical_cast<std::string>(globalTestBatchMessagesCounter++);
+    std::string messageContent = prefix + boost::lexical_cast<std::string>(*count);
     ASSERT_EQ(messageContent, msg.getDataAsString());
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
+    *count += 1;
+    sendMutex_.unlock();
+}
+
+static void receiveCallBack(Result r, const Message& msg, std::string& messageContent, bool checkContent,
+                            bool* isFailed, int* count) {
+    static boost::mutex receiveMutex_;
+    receiveMutex_.lock();
+
+    if (r == ResultOk) {
+        LOG_DEBUG("received msg " << msg.getDataAsString() << " expected: " << messageContent
+                                  << " count =" << *count);
+        if (checkContent) {
+            ASSERT_EQ(messageContent, msg.getDataAsString());
+        }
+        *count += 1;
+    } else {
+        *isFailed = true;
+    }
+    receiveMutex_.unlock();
 }
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix, double percentage,
-                         uint64_t delayInMicros) {
+                         uint64_t delayInMicros, int* count) {
     if ((rand() % 100) <= percentage) {
         usleep(delayInMicros);
     }
-    sendCallBack(r, msg, prefix);
+    sendCallBack(r, msg, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -158,13 +181,14 @@ TEST(BasicEndToEndTest, testBatchMessages) {
 
     // Send Asynchronously
     std::string prefix = "msg-batch-";
+    int msgCount = 0;
     for (int i = 0; i < numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder()
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -172,15 +196,16 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
-                                                       << receivedMsg.getMessageId() << "]");
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+        LOG_INFO("msg-index " << receivedMsg.getProperty("msgIndex") << ", expected "
+                              << boost::lexical_cast<std::string>(i));
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
     // Number of messages produced
-    ASSERT_EQ(globalTestBatchMessagesCounter, numOfMessages);
-    globalTestBatchMessagesCounter = 0;
+    ASSERT_EQ(msgCount, numOfMessages);
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages);
 }
@@ -983,13 +1008,14 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
 
     // Send Asynchronously
     std::string prefix = "msg-stats-";
+    int count = 0;
     for (int i = 0; i < numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder()
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 2 * 1e3));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 2 * 1e3, &count));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -1841,6 +1867,101 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     client.shutdown();
 }
 
+// User adminUrl to create client, to protect http related services
+TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
+    Client client(adminUrl);
+    std::string pattern = "persistent://public/default/patternMultiTopicsHttpConsumer.*";
+
+    std::string subName = "testpatternMultiTopicsHttpConsumer";
+    std::string topicName1 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub3";
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub1/partitions";
+    std::string url2 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub2/partitions";
+    std::string url3 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4");
+
+    int messageNumber = 100;
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 3 topics");
+
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    // verify no more to receive
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
@@ -2004,13 +2125,14 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 
     // Send Asynchronously of half the messages
     std::string prefix = "msg-batch-async";
+    int msgCount = 0;
     for (int i = 0; i < numOfMessages / 2; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder()
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending first half messages in async, should timeout to receive");
@@ -2026,7 +2148,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending the other half messages in async, should able to receive");
@@ -2039,7 +2161,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
     while (consumer.receive(receivedMsg, 1000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
         LOG_INFO("Received Message with [ content - "
-                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]"
+                 << "property = " << receivedMsg.getProperty("msgIndex"));
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -2234,13 +2357,14 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
 
     // Send Asynchronously of half the messages
     std::string prefix = "msg-batch-async";
+    int msgCount = 0;
     for (int i = 0; i < numOfMessages / 2; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder()
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending half of messages in async, should timeout to receive");
@@ -2265,7 +2389,7 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO(
@@ -2383,5 +2507,262 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     ASSERT_EQ(ResultOk, consumer[0].receive(m, 2000));
 
     producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testReceiveAsync) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync";
+    std::string subName = "my-sub-name";
+    Producer producer;
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content = "msg-1-content";
+    int count = 0;
+    int totalMsgs = 5;
+    bool isFailed = false;
+    for (int i = 0; i < totalMsgs; i++) {
+        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, true, &isFailed, &count));
+    }
+    // Send synchronously
+    for (int i = 0; i < totalMsgs; i++) {
+        Message msg = MessageBuilder().setContent(content).build();
+        result = producer.send(msg);
+        ASSERT_EQ(ResultOk, result);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == totalMsgs) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, totalMsgs);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPartitionedReceiveAsync) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-partition";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/receiveAsync-partition/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    int totalMsgs = 10;
+    std::string content;
+    int count = 0;
+    bool isFailed = false;
+    for (int i = 0; i < totalMsgs; i++) {
+        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, false, &isFailed, &count));
+    }
+
+    for (int i = 0; i < totalMsgs; i++) {
+        boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
+        long nanoSeconds = t.time_of_day().total_nanoseconds();
+        std::stringstream ss;
+        ss << nanoSeconds;
+        Message msg = MessageBuilder().setContent(ss.str()).setPartitionKey(ss.str()).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+        LOG_DEBUG("Message Timestamp is " << msg.getPublishTimestamp());
+        LOG_DEBUG("Message is " << msg);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == totalMsgs) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, totalMsgs);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testBatchMessagesReceiveAsync) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-batch";
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    // Enable batching on producer side
+    int batchSize = 2;
+    int numOfMessages = 100;
+
+    ProducerConfiguration conf;
+    conf.setCompressionType(CompressionLZ4);
+    conf.setBatchingMaxMessages(batchSize);
+    conf.setBatchingEnabled(true);
+    conf.setBlockIfQueueFull(true);
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // handling dangling subscriptions
+    consumer.unsubscribe();
+    client.subscribe(topicName, subName, consumer);
+
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content;
+    int count = 0;
+    bool isFailed = false;
+    for (int i = 0; i < numOfMessages; i++) {
+        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, false, &isFailed, &count));
+    }
+
+    // Send Asynchronously
+    std::string prefix = "msg-batch-";
+    int msgCount = 0;
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        LOG_DEBUG("sending message " << messageContent);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == numOfMessages) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, numOfMessages);
+}
+
+TEST(BasicEndToEndTest, testReceiveAsyncFailedConsumer) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-failed";
+    std::string subName = "my-sub-name";
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    bool isFailedOnConsumerClosing = false;
+    std::string content;
+    int closingCunt = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(
+        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosing, &closingCunt));
+
+    // close consumer
+    consumer.close();
+    bool isFailedOnConsumerClosed = false;
+    int count = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(
+        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosed, &count));
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+
+    ASSERT_TRUE(isFailedOnConsumerClosing);
+    ASSERT_TRUE(isFailedOnConsumerClosed);
+    ASSERT_EQ(count, 0);
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-fail-partition";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/receiveAsync-fail-partition/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Consumer consumer;
+    Result result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    bool isFailedOnConsumerClosing = false;
+    std::string content;
+    int closingCunt = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(
+        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosing, &closingCunt));
+    // close consumer
+    consumer.close();
+
+    int count = 0;
+    bool isFailedOnConsumerClosed = false;
+    consumer.receiveAsync(
+        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosed, &count));
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+
+    ASSERT_TRUE(isFailedOnConsumerClosing);
+    ASSERT_TRUE(isFailedOnConsumerClosed);
+    ASSERT_EQ(count, 0);
     client.shutdown();
 }

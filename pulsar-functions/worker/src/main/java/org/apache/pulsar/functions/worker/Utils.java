@@ -185,7 +185,9 @@ public final class Utils {
         }
     }
 
-    public static FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName, FunctionRuntimeInfo functionRuntimeInfo) {
+    public static FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName,
+                                                                               FunctionRuntimeInfo functionRuntimeInfo,
+                                                                               int instanceId) {
         RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
         FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
@@ -194,8 +196,7 @@ public final class Utils {
             if (functionRuntime != null) {
                 try {
 
-                    InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics().get();
-                    int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
+                    InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
                     functionInstanceStats.setInstanceId(instanceId);
 
                     FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData
@@ -228,15 +229,5 @@ public final class Utils {
             }
         }
         return functionInstanceStats;
-    }
-
-    public static FunctionStats getFunctionStats(Map<String, FunctionRuntimeInfo> functionRuntimes) {
-        FunctionStats functionStats = new FunctionStats();
-        for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
-            String fullyQualifiedInstanceName = entry.getKey();
-            FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
-            functionStats.addInstance(Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo));
-        }
-        return functionStats;
     }
 }

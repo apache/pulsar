@@ -24,9 +24,8 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
 import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.functions.utils.WindowConfigUtils;
+import org.apache.pulsar.functions.api.WindowContext;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -51,10 +50,10 @@ public class WindowFunctionExecutorTest {
 
     private static class TestWindowFunctionExecutor extends WindowFunctionExecutor<Long, Long> {
 
-        List<Window<Long>> windows = new ArrayList<>();
+        List<Window<Record<Long>>> windows = new ArrayList<>();
 
         @Override
-        public Long process(Window<Long> inputWindow, WindowContext context) throws Exception {
+        public Long process(Window<Record<Long>> inputWindow, WindowContext context) throws Exception {
             windows.add(inputWindow);
             return null;
         }
@@ -150,22 +149,26 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithTs() throws Exception {
         long[] timestamps = {603, 605, 607, 618, 626, 636};
         for (long ts : timestamps) {
+            Record<?> record = Mockito.mock(Record.class);
+            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            Mockito.doReturn(record).when(context).getCurrentRecord();
+            Mockito.doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
         }
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
         assertEquals(3, testWindowedPulsarFunction.windows.size());
-        Window<Long> first = testWindowedPulsarFunction.windows.get(0);
+        Window<Record<Long>> first = testWindowedPulsarFunction.windows.get(0);
         assertArrayEquals(
                 new long[]{603, 605, 607},
-                new long[]{first.get().get(0), first.get().get(1), first.get().get(2)});
+                new long[]{first.get().get(0).getValue(), first.get().get(1).getValue(), first.get().get(2).getValue()});
 
-        Window<Long> second = testWindowedPulsarFunction.windows.get(1);
+        Window<Record<Long>> second = testWindowedPulsarFunction.windows.get(1);
         assertArrayEquals(
                 new long[]{603, 605, 607, 618},
-                new long[]{second.get().get(0), second.get().get(1), second.get().get(2), second.get().get(3)});
+                new long[]{second.get().get(0).getValue(), second.get().get(1).getValue(), second.get().get(2).getValue(), second.get().get(3).getValue()});
 
-        Window<Long> third = testWindowedPulsarFunction.windows.get(2);
-        assertArrayEquals(new long[]{618, 626}, new long[]{third.get().get(0), third.get().get(1)});
+        Window<Record<Long>> third = testWindowedPulsarFunction.windows.get(2);
+        assertArrayEquals(new long[]{618, 626}, new long[]{third.get().get(0).getValue(), third.get().get(1).getValue()});
     }
 
     @Test
@@ -207,6 +210,10 @@ public class WindowFunctionExecutorTest {
 
         for (long ts : timestamps) {
             events.add(ts);
+            Record<?> record = Mockito.mock(Record.class);
+            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            Mockito.doReturn(record).when(context).getCurrentRecord();
+            Mockito.doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
 
             //Update the watermark to this timestamp

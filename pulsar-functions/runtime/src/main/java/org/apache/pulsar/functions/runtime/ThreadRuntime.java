@@ -124,6 +124,8 @@ class ThreadRuntime implements Runtime {
             } catch (InterruptedException e) {
                 // ignore this
             }
+            // make sure JavaInstanceRunnable is closed
+            this.javaInstanceRunnable.close();
         }
     }
 
@@ -153,7 +155,7 @@ class ThreadRuntime implements Runtime {
     
     
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
     }
 

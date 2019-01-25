@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import net.jodah.typetools.TypeResolver;
@@ -105,6 +106,17 @@ public class InstanceUtils {
             return FUNCTION;
         }
         return SINK;
+    }
+
+    public static String getDefaultSubscriptionName(String tenant, String namespace, String name) {
+        return FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
+    }
+
+    public static String getDefaultSubscriptionName(Function.FunctionDetails functionDetails) {
+        return getDefaultSubscriptionName(
+                functionDetails.getTenant(),
+                functionDetails.getNamespace(),
+                functionDetails.getName());
     }
 
     public static Map<String, String> getProperties(Utils.ComponentType componentType,

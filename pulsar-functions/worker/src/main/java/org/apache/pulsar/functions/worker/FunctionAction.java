@@ -31,7 +31,8 @@ public class FunctionAction {
 
     public enum Action {
         START,
-        STOP
+        STOP,
+        TERMINATE
     }
 
     private Action action;
