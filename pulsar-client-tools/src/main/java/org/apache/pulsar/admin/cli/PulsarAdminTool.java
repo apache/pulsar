@@ -205,10 +205,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = false;
-        if (cmdPos < args.length) {
-            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
-        }
+        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {
