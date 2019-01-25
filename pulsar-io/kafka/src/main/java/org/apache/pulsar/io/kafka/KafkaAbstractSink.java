@@ -30,6 +30,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.utils.Utils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
@@ -88,6 +89,9 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         if (kafkaSinkConfig.getMaxRequestSize() <= 0) {
             throw new IllegalArgumentException("Invalid Kafka Producer maxRequestSize : "
                 + kafkaSinkConfig.getMaxRequestSize());
+        }
+        if (kafkaSinkConfig.getProducerConfigPropertiesFile() != null) {
+            props.putAll(Utils.loadProps(kafkaSinkConfig.getProducerConfigPropertiesFile()));
         }
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSinkConfig.getBootstrapServers());

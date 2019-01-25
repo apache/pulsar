@@ -21,6 +21,7 @@ to a Pulsar topic.
 | heartbeatIntervalMs | `false` | `3000` | The interval between heartbeats to the consumer when using Kafka's group management facilities. |
 | sessionTimeoutMs | `false` | `null` | The timeout used to detect consumer failures when using Kafka's group management facility. |
 | topic | `true` | `null` | Topic name to receive records from Kafka |
+| consumerConfigPropertiesFile | `false` | `null` | The consumer config properties file containing configs to be passed to Consumer. |
 | keySerializerClass | false | org.apache.kafka.common.serialization.StringSerializer | Serializer class for key that implements the org.apache.kafka.common.serialization.Serializer interface. |
 | valueSerializerClass | false | org.apache.kafka.common.serialization.StringSerializer | Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface. |
 
@@ -37,5 +38,6 @@ to a Kafka topic.
 | batchSize | `true` | `null` | The kafka producer batch size. |
 | maxRequestSize | `true` | `null` | The maximum size of a request in bytes. |
 | topic | `true` | `null` | Topic name to receive records from Kafka |
+| producerConfigPropertiesFile | `false` | `null` | The producer config properties file containing configs to be passed to Producer. |
 | keySerializerClass | false | org.apache.kafka.common.serialization.StringSerializer | Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface. |
 | valueSerializerClass | false | org.apache.kafka.common.serialization.StringSerializer | Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface. |

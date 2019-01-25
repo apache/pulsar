@@ -81,6 +81,11 @@ public class KafkaSinkConfig implements Serializable {
             "The serializer class for Kafka producer to serialize values. You typically shouldn't care this. "
           + "Since the serializer will be set by a specific implementation of `KafkaAbstractSink`.")
     private String valueSerializerClass = "org.apache.kafka.common.serialization.ByteArraySerializer";
+    @FieldDoc(
+        defaultValue = "",
+        help =
+            "The producer config properties file containing configs to be passed to Producer.")
+    private String producerConfigPropertiesFile;
 
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
