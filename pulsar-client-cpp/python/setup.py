@@ -65,6 +65,7 @@ class my_build_ext(build_ext.build_ext):
 dependencies = [
     'grpcio', 'protobuf',
     'six',
+    'fastavro',
 
     # functions dependencies
     "prometheus_client",
