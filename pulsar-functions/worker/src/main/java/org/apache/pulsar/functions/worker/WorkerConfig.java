@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.stats.JvmG1GCMetricsLogger;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -94,6 +95,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The port for serving worker https requests"
     )
     private Integer workerPortTls;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+    private String jvmGCMetricsLoggerClassName = JvmG1GCMetricsLogger.class.getName();
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
