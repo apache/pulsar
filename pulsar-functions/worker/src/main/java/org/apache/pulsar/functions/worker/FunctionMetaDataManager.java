@@ -457,6 +457,26 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
+    public boolean canChangeState(FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
+        if (functionMetaData.getInstanceStatesMap() == null) {
+            // This means that all instances of the functions are running
+            return newState == Function.FunctionState.STOPPED;
+        }
+        if (instanceId >= 0) {
+            if (functionMetaData.getInstanceStatesMap().containsKey(instanceId)) {
+                return functionMetaData.getInstanceStatesMap().get(instanceId) != newState;
+            } else {
+                return false;
+            }
+        } else {
+            // want to change state for all instances
+            for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
+                if (state != newState) return true;
+            }
+            return false;
+        }
+    }
+
     private ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
         return new ServiceRequestManager(pulsarClient.newProducer().topic(functionMetadataTopic).create());
     }

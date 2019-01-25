@@ -745,6 +745,11 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
         }
 
+        if (!functionMetaDataManager.canChangeState(functionMetaData, Integer.parseInt(instanceId), start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
+            log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
+            throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
+        }
+
         try {
             functionMetaDataManager.changeFunctionInstanceStatus(tenant, namespace, componentName,
                     Integer.parseInt(instanceId), start);
