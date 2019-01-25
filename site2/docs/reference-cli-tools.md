@@ -407,6 +407,7 @@ Options
 |---|---|---|
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
+|`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
 |`-k`, `--encryption-key-name`|The private key name to decrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
@@ -438,7 +439,7 @@ Options
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, or ZLIB.|NONE|
+|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB or ZSTD.||
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|

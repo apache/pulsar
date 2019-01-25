@@ -28,7 +28,7 @@ RUN apt-get update && \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.10-go zip unzip
+                gnupg2 golang-1.10-go zip unzip libzstd-dev
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
