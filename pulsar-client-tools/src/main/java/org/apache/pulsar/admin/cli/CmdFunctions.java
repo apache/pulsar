@@ -66,6 +66,7 @@ public class CmdFunctions extends CmdBase {
     private final GetFunctionStats functionStats;
     private final RestartFunction restart;
     private final StopFunction stop;
+    private final StartFunction start;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
@@ -673,7 +674,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again")
+    @Parameters(commandDescription = "Stops function instance")
     class StopFunction extends FunctionCommand {
 
         @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
@@ -690,7 +691,28 @@ public class CmdFunctions extends CmdBase {
             } else {
                 admin.functions().stopFunction(tenant, namespace, functionName);
             }
-            System.out.println("Restarted successfully");
+            System.out.println("Stopped successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Starts a stopped function instance")
+    class StartFunction extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (start all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().startFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Started successfully");
         }
     }
 
@@ -882,6 +904,7 @@ public class CmdFunctions extends CmdBase {
         downloader = new DownloadFunction();
         restart = new RestartFunction();
         stop = new StopFunction();
+        start = new StartFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -889,6 +912,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
+        jcommander.addCommand("start", getStarter());
         // TODO depecreate getstatus
         jcommander.addCommand("status", getStatuser(), "getstatus");
         jcommander.addCommand("stats", getFunctionStats());
@@ -960,6 +984,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     StopFunction getStopper() {
         return stop;
+    }
+
+    @VisibleForTesting
+    StartFunction getStarter() {
+        return start;
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
