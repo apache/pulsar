@@ -415,6 +415,8 @@ BSD License
    - jline-2.14.6.jar
  * ParaNamer Core
    - paranamer-2.7.jar
+ * Zstd-jni
+   - zstd-jni-1.3.7-3.jar
 
 MIT License
  * Animal Sniffer Annotations

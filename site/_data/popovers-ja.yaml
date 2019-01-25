@@ -51,8 +51,8 @@ consumer:
 グローバルトピック:
   q: グローバルトピックとは？
   def: グローバルなインスタンス全体のネームスペースに属し、特定のクラスタに紐づいていないトピックです。
-global-zookeeper:
-  q: Global ZooKeeperとは？
+configuration-store:
+  q: Configuration Storeとは？
   def: "Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。"
 インスタンス:
   q: Pulsarインスタンスとは？
@@ -113,4 +113,4 @@ ack未受信:
 zookeeper:
   q: ZooKeeperとは？
   def: |
-    Pulsarが調整タスクに利用するサービスです。<br /><br />Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。
+    Pulsarが調整タスクに利用するサービスです。<br /><br />Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のConfiguration Storeに依存しています。

@@ -119,7 +119,7 @@ $ bin/pulsar standalone
 If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
 
 ```bash
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
+2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
 ```

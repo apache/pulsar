@@ -186,6 +186,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.12.3</opencensus.version>
     <nifi.version>1.8.0</nifi.version>
+    <zstd.version>1.3.7-3</zstd.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
@@ -455,6 +456,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.lz4</groupId>
         <artifactId>lz4-java</artifactId>
         <version>1.5.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd.version}</version>
       </dependency>
 
       <dependency>
