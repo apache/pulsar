@@ -51,7 +51,7 @@ func TestProducerConnectError(t *testing.T) {
 	assertNil(t, producer)
 	assertNotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), ConnectError);
+	assertEqual(t, err.(*Error).Result(), ConnectError)
 }
 
 func TestProducer(t *testing.T) {
@@ -88,6 +88,7 @@ func TestProducer(t *testing.T) {
 
 	assertEqual(t, producer.Topic(), "persistent://public/default/my-topic")
 	assertEqual(t, producer.Name(), "my-producer-name")
+	assertEqual(t, producer.LastSequenceID(), int64(-1))
 
 	ctx := context.Background()
 
@@ -97,7 +98,9 @@ func TestProducer(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
+		assertEqual(t, producer.LastSequenceID(), int64(i))
 	}
+	assertEqual(t, producer.LastSequenceID(), int64(9))
 }
 
 func TestProducerNoTopic(t *testing.T) {
@@ -157,9 +160,11 @@ func TestMessageRouter(t *testing.T) {
 	ctx := context.Background()
 
 	err = producer.Send(ctx, ProducerMessage{
-		Payload: []byte("hello"),
+		Payload:    []byte("hello"),
+		SequenceID: 1234,
 	})
 	assertNil(t, err)
+	assertEqual(t, producer.LastSequenceID(), int64(1234))
 
 	fmt.Println("PUBLISHED")
 
