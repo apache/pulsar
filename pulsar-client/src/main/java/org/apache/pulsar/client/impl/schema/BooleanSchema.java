@@ -47,7 +47,11 @@ public class BooleanSchema implements Schema<Boolean> {
 
     @Override
     public byte[] encode(Boolean message) {
-        return new byte[]{(byte)(message ? 1 : 0)};
+        if (null == message) {
+            return null;
+        } else {
+            return new byte[]{(byte)(message ? 1 : 0)};
+        }
     }
 
     @Override
