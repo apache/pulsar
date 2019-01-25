@@ -121,7 +121,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
      * Setting the timeout to zero, for example <code>setTimeout(0, TimeUnit.SECONDS)</code> will set the timeout
-     * to infinity, which can be useful when using Pulsar's message deduplication feature. 
+     * to infinity, which can be useful when using Pulsar's message deduplication feature.
      *
      * @param sendTimeout
      *            the send timeout
@@ -201,8 +201,10 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * By default, message payloads are not compressed. Supported compression types are:
      * <ul>
-     * <li><code>CompressionType.LZ4</code></li>
-     * <li><code>CompressionType.ZLIB</code></li>
+     * <li>{@link CompressionType.LZ4}</li>
+     * <li>{@link CompressionType.ZLIB}</li>
+     * <li>{@link CompressionType.ZSTD} (Since Pulsar 2.3. Zstd
+     *      cannot be used if consumer applications are not in version >= 2.3 as well)</li>
      * </ul>
      *
      * @param compressionType

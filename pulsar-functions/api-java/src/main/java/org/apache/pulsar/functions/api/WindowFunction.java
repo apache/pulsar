@@ -16,20 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
-
-import lombok.extern.slf4j.Slf4j;
+package org.apache.pulsar.functions.api;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 /**
- * Example Function that acts on a window of tuples at a time rather than per tuple basis.
+ * This is the interface of the windowed function api. The process method is called
+ * for every triggered window.
  */
-@Slf4j
-public class WindowFunction implements Function <Collection<Integer>, Integer> {
-    @Override
-    public Integer apply(Collection<Integer> integers) {
-        return integers.stream().reduce(0, (x, y) -> x + y);
-    }
+@FunctionalInterface
+public interface WindowFunction<I, O> {
+    /**
+     * Process the input.
+     * @return the output
+     */
+    O process(Collection<Record<I>> input, WindowContext context) throws Exception;
 }

@@ -99,7 +99,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
+            log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info: {}", e);
         }

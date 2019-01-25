@@ -163,10 +163,7 @@ public class WorkerService {
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager);
-
-            // initialize function runtime manager
-            this.functionRuntimeManager.initialize();
+                    this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager, functionMetaDataManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
@@ -175,6 +172,9 @@ public class WorkerService {
 
             // initialize function metadata manager
             this.functionMetaDataManager.initialize();
+
+            // initialize function runtime manager
+            this.functionRuntimeManager.initialize();
 
             authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
 

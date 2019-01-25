@@ -62,7 +62,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private final ServiceConfiguration serviceConfig;
-    private ScheduledFuture<?> readOnActiveConsumerTask = null;
+    private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
 
