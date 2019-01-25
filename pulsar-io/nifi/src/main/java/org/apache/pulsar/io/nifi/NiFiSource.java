@@ -117,11 +117,10 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                 }
 
                 if (null == transaction) {
-                    log.warn("A transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
                     try {
                         Thread.sleep(waitTimeMs);
-                    } catch (InterruptedException ignored) {
-
+                    } catch (InterruptedException ioe) {
+                        log.warn("transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
                     }
                     continue;
                 }
@@ -132,16 +131,15 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         // no data available. Wait a bit and try again
                         try {
                             Thread.sleep(waitTimeMs);
-                        } catch (InterruptedException ignored) {
-
+                        } catch (InterruptedException ioe) {
+                            log.warn("dataPacket could not be received, waiting and will try again " + waitTimeMs + " milliseconds.");
                         }
                         continue;
                     }
 
                     final List<NiFiDataPacket> dataPackets = Lists.newArrayList();
                     do {
-                        // Read the data into a byte array and wrap it along with the attributes
-                        // into a NiFiDataPacket.
+                        // Read the data into a byte array and wrap it along with the attributes into a NiFiDataPacket.
                         final InputStream inStream = dataPacket.getData();
                         final byte[] data = new byte[(int) dataPacket.getSize()];
                         StreamUtils.fillBuffer(inStream, data);
@@ -152,13 +150,12 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         dataPacket = transaction.receive();
                     } while (dataPacket != null);
 
-                    // Confirm transaction to verify the data
-                    transaction.confirm();
-
                     for (NiFiDataPacket dp : dataPackets) {
                         consume(new NiFiRecord(dp));
                     }
 
+                    // Confirm transaction to verify the data
+                    transaction.confirm();
                     transaction.complete();
                 } catch (final IOException e) {
                     transaction.error();
