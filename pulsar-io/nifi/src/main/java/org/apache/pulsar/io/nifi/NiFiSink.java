@@ -108,7 +108,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
         }
 
         if (number == requestBatchCount) {
-            flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
+            flushExecutor.submit(() -> flush());
         }
     }
 
@@ -125,7 +125,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
         Transaction transaction = null;
         try {
             transaction = client.createTransaction(TransferDirection.SEND);
-        } catch (final IOException ioe) {
+        } catch (IOException ioe) {
             log.warn("Created NiFi transaction Failed", ioe);
         }
 
@@ -141,11 +141,12 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 }
 
                 try {
-                    toFlushList.forEach(record -> record.ack());
                     transaction.confirm();
                     transaction.complete();
+                    toFlushList.forEach(record -> record.ack());
                 } catch (Exception e) {
                     log.warn("Send data to NiFi transfer was Failed", e);
+                    transaction.error();
                     toFlushList.forEach(record -> record.fail());
                 }
             }

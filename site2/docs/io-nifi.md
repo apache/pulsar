@@ -23,7 +23,6 @@ The NiFi Sink Connector that delivers data to Apache NiFi using the NiFi Site-to
 
 ### Sink Configuration Options
 
-
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
 | url | `true` | `null` | Specifies the URL of the remote NiFi instance. |

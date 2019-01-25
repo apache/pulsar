@@ -20,6 +20,7 @@ package org.apache.pulsar.io.nifi;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 
 /**
@@ -85,7 +87,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
             client.close();
         }
 
-        if (runnerThread != null) {
+        if (null != runnerThread) {
             runnerThread.interrupt();
             runnerThread.join();
             runnerThread = null;
@@ -110,61 +112,69 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
             while (isRunning) {
                 try {
                     transaction = client.createTransaction(TransferDirection.RECEIVE);
-                } catch (IOException e) {
-                    log.warn("Created NiFi transaction Failed", e);
+                } catch (IOException ioe) {
+                    log.warn("Created NiFi transaction Failed", ioe);
                 }
 
-                if (null != transaction) {
+                if (null == transaction) {
+                    log.warn("A transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
                     try {
-                        DataPacket dataPacket = transaction.receive();
-                        if (dataPacket == null) {
-                            // no data available. Wait a bit and try again
-                            try {
-                                Thread.sleep(waitTimeMs);
-                            } catch (InterruptedException e) {
-                                log.warn("Failed to thread sleep milliseconds " + waitTimeMs, e);
-                            }
-                            continue;
-                        }
+                        Thread.sleep(waitTimeMs);
+                    } catch (InterruptedException ignored) {
 
-                        final List<NiFiDataPacket> dataPackets = Lists.newArrayList();
-                        do {
-                            // Read the data into a byte array and wrap it along with the attributes
-                            // into a NiFiDataPacket.
-                            final InputStream inStream = dataPacket.getData();
-                            final byte[] data = new byte[(int) dataPacket.getSize()];
-                            StreamUtils.fillBuffer(inStream, data);
-
-                            final Map<String, String> attributes = dataPacket.getAttributes();
-                            final NiFiDataPacket NiFiDataPacket = new StandardNiFiDataPacket(data, attributes);
-                            dataPackets.add(NiFiDataPacket);
-                            dataPacket = transaction.receive();
-                        } while (dataPacket != null);
-
-                        for (NiFiDataPacket dp : dataPackets) {
-                            consume(new NiFiRecord(dp, transaction));
-                        }
-
-                        // Confirm transaction to verify the data
-                        transaction.confirm();
-                        transaction.complete();
-                    } catch (final IOException ioe) {
-                        transaction.error();
-                        log.warn("Failed to receive data from NiFi", ioe);
                     }
+                    continue;
+                }
+
+                try {
+                    DataPacket dataPacket = transaction.receive();
+                    if (null == dataPacket) {
+                        // no data available. Wait a bit and try again
+                        try {
+                            Thread.sleep(waitTimeMs);
+                        } catch (InterruptedException ignored) {
+
+                        }
+                        continue;
+                    }
+
+                    final List<NiFiDataPacket> dataPackets = Lists.newArrayList();
+                    do {
+                        // Read the data into a byte array and wrap it along with the attributes
+                        // into a NiFiDataPacket.
+                        final InputStream inStream = dataPacket.getData();
+                        final byte[] data = new byte[(int) dataPacket.getSize()];
+                        StreamUtils.fillBuffer(inStream, data);
+
+                        final Map<String, String> attributes = dataPacket.getAttributes();
+                        final NiFiDataPacket NiFiDataPacket = new StandardNiFiDataPacket(data, attributes);
+                        dataPackets.add(NiFiDataPacket);
+                        dataPacket = transaction.receive();
+                    } while (dataPacket != null);
+
+                    // Confirm transaction to verify the data
+                    transaction.confirm();
+
+                    for (NiFiDataPacket dp : dataPackets) {
+                        consume(new NiFiRecord(dp));
+                    }
+
+                    transaction.complete();
+                } catch (final IOException e) {
+                    transaction.error();
+                    log.warn("Failed to receive data from NiFi", e);
                 }
             }
         }
-
     }
 
     static private class NiFiRecord implements Record<NiFiDataPacket>{
         private final NiFiDataPacket value;
-        private final Transaction transaction;
+        @Getter
+        private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public NiFiRecord(NiFiDataPacket value, Transaction transaction) {
+        public NiFiRecord(NiFiDataPacket value) {
             this.value = value;
-            this.transaction = transaction;
         }
 
         @Override
@@ -174,16 +184,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
 
         @Override
         public void ack() {
-            try {
-                transaction.complete();
-            } catch (IOException e) {
-                log.warn("Receive data from NiFi transfer was Failed", e);
-            }
-        }
-
-        @Override
-        public void fail() {
-            transaction.error();
+            completableFuture.complete(null);
         }
     }
 
