@@ -703,7 +703,57 @@ public abstract class ComponentImpl {
                                      final String componentName,
                                      final String instanceId,
                                      final URI uri) {
-        stopFunctionInstance(tenant, namespace, componentName, instanceId, false, uri);
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri);
+    }
+
+    public void startFunctionInstance(final String tenant,
+                                      final String namespace,
+                                      final String componentName,
+                                      final String instanceId,
+                                      final URI uri) {
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, true, uri);
+    }
+
+    public void changeFunctionInstanceStatus(final String tenant,
+                                             final String namespace,
+                                             final String componentName,
+                                             final String instanceId,
+                                             final boolean start,
+                                             final URI uri) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid start/stop {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+
+        try {
+            functionMetaDataManager.changeFunctionInstanceStatus(tenant, namespace, componentName,
+                    Integer.parseInt(instanceId), start);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("Failed to start/stop {}: {}/{}/{}/{}", componentType, tenant, namespace, componentName, instanceId, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     public void restartFunctionInstance(final String tenant,
@@ -711,16 +761,6 @@ public abstract class ComponentImpl {
                                         final String componentName,
                                         final String instanceId,
                                         final URI uri) {
-        stopFunctionInstance(tenant, namespace, componentName, instanceId, true, uri);
-    }
-
-    public void stopFunctionInstance(final String tenant,
-                                     final String namespace,
-                                     final String componentName,
-                                     final String instanceId,
-                                     final boolean restart,
-                                     final URI uri) {
-
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -747,8 +787,8 @@ public abstract class ComponentImpl {
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            functionRuntimeManager.stopFunctionInstance(tenant, namespace, componentName,
-                    Integer.parseInt(instanceId), restart, uri);
+            functionRuntimeManager.restartFunctionInstance(tenant, namespace, componentName,
+                    Integer.parseInt(instanceId), uri);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
@@ -760,20 +800,57 @@ public abstract class ComponentImpl {
     public void stopFunctionInstances(final String tenant,
                                       final String namespace,
                                       final String componentName) {
-        stopFunctionInstances(tenant, namespace, componentName, false);
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, false);
+    }
+
+    public void startFunctionInstances(final String tenant,
+                                       final String namespace,
+                                       final String componentName) {
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, true);
+    }
+
+    public void changeFunctionStatusAllInstances(final String tenant,
+                                                 final String namespace,
+                                                 final String componentName,
+                                                 final boolean start) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid start/stop {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in stopFunctionInstances does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+
+        try {
+            functionMetaDataManager.changeFunctionInstanceStatus(tenant, namespace, componentName, -1, start);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("Failed to start/stop {}: {}/{}/{}", componentType, tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     public void restartFunctionInstances(final String tenant,
                                          final String namespace,
                                          final String componentName) {
-        stopFunctionInstances(tenant, namespace, componentName, true);
-    }
-
-    public void stopFunctionInstances(final String tenant,
-                                      final String namespace,
-                                      final String componentName,
-                                      final boolean restart) {
-
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -800,7 +877,7 @@ public abstract class ComponentImpl {
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            functionRuntimeManager.stopFunctionInstances(tenant, namespace, componentName, restart);
+            functionRuntimeManager.restartFunctionInstances(tenant, namespace, componentName);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {

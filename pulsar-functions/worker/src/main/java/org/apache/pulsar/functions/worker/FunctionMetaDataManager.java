@@ -224,6 +224,42 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
+     * Sends a start/stop function request to the FMT (Function Metadata Topic) for a function
+     * @param tenant the tenant the function that needs to be deregistered belongs to
+     * @param namespace the namespace the function that needs to be deregistered belongs to
+     * @param functionName the name of the function
+     * @param instanceId the instanceId of the function, -1 if for all instances
+     * @param start do we need to start or stop
+     * @return a completable future of when the start/stop has been applied
+     */
+    public synchronized CompletableFuture<RequestResult> changeFunctionInstanceStatus(String tenant, String namespace, String functionName,
+                                                                                      Integer instanceId, boolean start) {
+        FunctionMetaData functionMetaData = this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
+
+        FunctionMetaData.Builder builder = functionMetaData.toBuilder()
+                .setVersion(functionMetaData.getVersion() + 1);
+        if (builder.getInstanceStatesMap() == null || builder.getInstanceStatesMap().isEmpty()) {
+            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
+                builder.putInstanceStates(i, Function.FunctionState.RUNNING);
+            }
+        }
+        Function.FunctionState state = start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED;
+        if (instanceId < 0) {
+            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
+                builder.putInstanceStates(i, state);
+            }
+        } else {
+            builder.putInstanceStates(instanceId, state);
+        }
+        FunctionMetaData newFunctionMetaData = builder.build();
+
+        Request.ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
+                this.workerConfig.getWorkerId(), newFunctionMetaData);
+
+        return submit(updateRequest);
+    }
+
+    /**
      * Processes a request received from the FMT (Function Metadata Topic)
      * @param messageId The message id of the request
      * @param serviceRequest The request
