@@ -90,13 +90,10 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
     @Override
     public void validate() {
         super.validate();
-
         Preconditions.checkNotNull(rowKeyName, "rowKeyName property not set.");
         Preconditions.checkNotNull(familyName, "familyName property not set.");
         Preconditions.checkNotNull(qualifierNames, "qualifierNames property not set.");
-        Preconditions.checkArgument(batchTimeMs > 0,
-                "batchTimeMs must be a positive long.");
-        Preconditions.checkArgument(batchSize > 0,
-                "batchSize must be a positive integer.");
+        Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
+        Preconditions.checkArgument(batchSize > 0, "batchSize must be a positive integer.");
     }
 }
