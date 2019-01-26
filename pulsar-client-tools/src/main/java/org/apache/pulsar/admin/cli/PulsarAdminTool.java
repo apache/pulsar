@@ -205,26 +205,17 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = false;
-        if (cmdPos < args.length) {
-            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
-        }
-
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
-        if (isLocalRun) {
-            // bypass constructing admin client
-            adminFactory = (adminBuilder) -> null;
-        } else {
-            adminFactory = (adminBuilder) -> {
-                try {
-                    return adminBuilder.build();
-                } catch (Exception ex) {
-                    System.err.println(ex.getClass() + ": " + ex.getMessage());
-                    System.exit(1);
-                    return null;
-                }
-            };
-        }
+
+        adminFactory = (adminBuilder) -> {
+            try {
+                return adminBuilder.build();
+            } catch (Exception ex) {
+                System.err.println(ex.getClass() + ": " + ex.getMessage());
+                System.exit(1);
+                return null;
+            }
+        };
 
         if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
             System.exit(0);
