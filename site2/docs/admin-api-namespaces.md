@@ -627,15 +627,22 @@ You can unload a namespace, or a [namespace bundle](reference-terminology.md#nam
 
 #### pulsar-admin
 
-Use the [`unload`](reference-pulsar-admin.md#namespaces-unload) subcommand of the [`namespaces`](reference-pulsar-admin.md#namespaces) command.
+Use the [`unload`](reference-pulsar-admin.md#unload) subcommand of the [`namespaces`](reference-pulsar-admin.md#namespaces) command.
 
-##### Example
+###### CLI
 
 ```shell
 $ pulsar-admin namespaces unload my-tenant/my-ns
 ```
 
-#### REST API
+###### REST
 
-#### Java
+```
+{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/unload|operation/unloadNamespace}
+```
 
+###### Java
+
+```java
+admin.namespaces().unload(namespace)
+```
