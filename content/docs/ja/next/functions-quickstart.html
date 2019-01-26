@@ -279,7 +279,7 @@ zip \\ for building zip archives
 --platform manylinux1_x86_64 \
 --python-version 27 \
 --implementation cp \
---abi cp37m -r requirements.txt -d deps
+--abi cp27m -r requirements.txt -d deps
 </code></pre>
 <p>Sample ouptut</p>
 <pre><code class="hljs">Collecting sh==1.12.14 (from -r requirements.txt (line 1))
@@ -293,7 +293,6 @@ Successfully downloaded sh
 <p>Sample sequence</p>
 <pre><code class="hljs">cp -R deps exclamation/
 cp -R src exclamation/
-cp requirements.txt exclamation/
 
 ls -la exclamation/
 total 7

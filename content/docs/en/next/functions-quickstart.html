@@ -272,7 +272,7 @@ zip <span class="hljs-string">\\</span> <span class="hljs-keyword">for</span> bu
 </span>-<span class="ruby">-platform manylinux1_x86_64 \
 </span>-<span class="ruby">-python-version <span class="hljs-number">27</span> \
 </span>-<span class="ruby">-implementation cp \
-</span>-<span class="ruby">-abi cp37m -r requirements.txt -d deps
+</span>-<span class="ruby">-abi cp27m -r requirements.txt -d deps
 </span>
 </code></pre>
 <p>Sample ouptut</p>
@@ -287,7 +287,6 @@ Successfully downloaded sh
 <p>Sample sequence</p>
 <pre><code class="hljs">cp -R deps exclamation/
 cp -R src exclamation/
-cp requirements.txt exclamation/
 
 ls -la exclamation/
 total <span class="hljs-number">7</span>
