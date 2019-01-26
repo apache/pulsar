@@ -20,8 +20,6 @@
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #include <Future.h>
 #include <Utils.h>
 #include "ConnectionPool.h"

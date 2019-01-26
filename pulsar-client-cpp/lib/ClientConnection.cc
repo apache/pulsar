@@ -20,7 +20,6 @@
 
 #include "PulsarApi.pb.h"
 
-#include <boost/shared_ptr.hpp>
 #include <boost/array.hpp>
 #include <iostream>
 #include <algorithm>
@@ -514,8 +513,8 @@ void ClientConnection::processIncomingBuffer() {
         } else {
             handleIncomingCommand();
         }
-    }
 
+    }
     if (incomingBuffer_.readableBytes() > 0) {
         // We still have 1 to 3 bytes from the next frame
         assert(incomingBuffer_.readableBytes() < sizeof(uint32_t));

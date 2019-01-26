@@ -19,8 +19,7 @@
 #include "ProducerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
-#include <boost/shared_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
+
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/TopicMetadata.h>
@@ -93,7 +92,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     const TopicNamePtr topicName_;
     const std::string topic_;
 
-    boost::scoped_ptr<TopicMetadata> topicMetadata_;
+    std::unique_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 

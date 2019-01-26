@@ -24,9 +24,7 @@
 #include "pulsar/Result.h"
 #include "UnboundedBlockingQueue.h"
 #include "HandlerBase.h"
-#include "boost/enable_shared_from_this.hpp"
 #include "ClientConnection.h"
-#include <boost/shared_ptr.hpp>
 #include "lib/UnAckedMessageTrackerEnabled.h"
 #include "Commands.h"
 #include "ExecutorService.h"

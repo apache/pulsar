@@ -20,10 +20,8 @@
 #define LIB_FUTURE_H_
 
 #include <functional>
-#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
-#include <boost/make_shared.hpp>
 
 #include <list>
 

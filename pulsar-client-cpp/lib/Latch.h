@@ -19,7 +19,7 @@
 #ifndef LIB_LATCH_H_
 #define LIB_LATCH_H_
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 

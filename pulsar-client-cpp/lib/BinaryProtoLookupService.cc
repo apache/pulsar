@@ -19,7 +19,6 @@
 #include "BinaryProtoLookupService.h"
 #include "SharedBuffer.h"
 
-#include <boost/shared_ptr.hpp>
 #include <lib/TopicName.h>
 
 #include <boost/bind.hpp>

@@ -22,7 +22,6 @@
 #include "ServiceUnitId.h"
 
 #include <string>
-#include <boost/shared_ptr.hpp>
 
 #pragma GCC visibility push(default)
 namespace pulsar {

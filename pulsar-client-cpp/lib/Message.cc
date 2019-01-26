@@ -19,9 +19,6 @@
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
 
-#include <boost/make_shared.hpp>
-#include <boost/smart_ptr.hpp>
-
 #include "PulsarApi.pb.h"
 
 #include "MessageImpl.h"
