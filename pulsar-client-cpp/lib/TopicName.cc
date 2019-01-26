@@ -182,17 +182,17 @@ bool TopicName::validate() {
     }
 }
 
-boost::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
-    boost::shared_ptr<TopicName> ptr(new TopicName());
+std::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
+    std::shared_ptr<TopicName> ptr(new TopicName());
     if (!ptr->init(topicName)) {
         LOG_ERROR("Topic name initialization failed");
-        return boost::shared_ptr<TopicName>();
+        return std::shared_ptr<TopicName>();
     }
     if (ptr->validate()) {
         return ptr;
     } else {
         LOG_ERROR("Topic name validation Failed - " << topicName);
-        return boost::shared_ptr<TopicName>();
+        return std::shared_ptr<TopicName>();
     }
 }
 

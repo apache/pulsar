@@ -19,7 +19,7 @@
 #ifndef LIB_UNACKEDMESSAGETRACKERINTERFACE_H_
 #define LIB_UNACKEDMESSAGETRACKERINTERFACE_H_
 #include <string>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <set>
 #include <algorithm>
 #include <utility>
