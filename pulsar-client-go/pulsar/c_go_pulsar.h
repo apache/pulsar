@@ -25,16 +25,6 @@
 
 // Callback proxy functions
 
-void pulsarClientLoggerProxy(pulsar_logger_level_t level, char* file, int line, char* message, void *ctx);
-
-static inline void pulsarClientLoggerConstProxy(pulsar_logger_level_t level, const char* file, int line, const char* message, void *ctx) {
-    pulsarClientLoggerProxy(level, (char*)file, line, (char*)message, ctx);
-}
-
-static inline void _pulsar_client_configuration_set_logger(pulsar_client_configuration_t *conf, void *ctx) {
-    pulsar_client_configuration_set_logger(conf, pulsarClientLoggerConstProxy, ctx);
-}
-
 char* pulsarClientTokenSupplierProxy(void* ctx);
 
 static inline pulsar_authentication_t* _pulsar_authentication_token_create_with_supplier(void *ctx) {

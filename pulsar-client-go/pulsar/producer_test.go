@@ -22,6 +22,7 @@ package pulsar
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -39,7 +40,7 @@ func TestProducerConnectError(t *testing.T) {
 		URL: "pulsar://invalid-hostname:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 
 	defer client.Close()
 
@@ -48,10 +49,10 @@ func TestProducerConnectError(t *testing.T) {
 	})
 
 	// Expect error in creating producer
-	assertNil(t, producer)
-	assertNotNil(t, err)
+	assert.Nil(t, producer)
+	assert.NotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), ConnectError)
+	assert.Equal(t, err.(*Error).Result(), ConnectError)
 }
 
 func TestProducer(t *testing.T) {
@@ -64,7 +65,7 @@ func TestProducer(t *testing.T) {
 		MessageListenerThreads:   5,
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	producer, err := client.CreateProducer(ProducerOptions{
@@ -83,12 +84,12 @@ func TestProducer(t *testing.T) {
 		},
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer.Close()
 
-	assertEqual(t, producer.Topic(), "persistent://public/default/my-topic")
-	assertEqual(t, producer.Name(), "my-producer-name")
-	assertEqual(t, producer.LastSequenceID(), int64(-1))
+	assert.Equal(t, producer.Topic(), "persistent://public/default/my-topic")
+	assert.Equal(t, producer.Name(), "my-producer-name")
+	assert.Equal(t, producer.LastSequenceID(), int64(-1))
 
 	ctx := context.Background()
 
@@ -98,9 +99,9 @@ func TestProducer(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		assertEqual(t, producer.LastSequenceID(), int64(i))
+		assert.Equal(t, producer.LastSequenceID(), int64(i))
 	}
-	assertEqual(t, producer.LastSequenceID(), int64(9))
+	assert.Equal(t, producer.LastSequenceID(), int64(9))
 }
 
 func TestProducerNoTopic(t *testing.T) {
@@ -119,10 +120,10 @@ func TestProducerNoTopic(t *testing.T) {
 	})
 
 	// Expect error in creating producer
-	assertNil(t, producer)
-	assertNotNil(t, err)
+	assert.Nil(t, producer)
+	assert.NotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), InvalidConfiguration)
+	assert.Equal(t, err.(*Error).Result(), InvalidConfiguration)
 }
 
 func TestMessageRouter(t *testing.T) {
@@ -134,7 +135,7 @@ func TestMessageRouter(t *testing.T) {
 		URL: "pulsar://localhost:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	// Only subscribe on the specific partition
@@ -143,7 +144,7 @@ func TestMessageRouter(t *testing.T) {
 		SubscriptionName: "my-sub",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer.Close()
 
 	producer, err := client.CreateProducer(ProducerOptions{
@@ -154,7 +155,7 @@ func TestMessageRouter(t *testing.T) {
 		},
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer.Close()
 
 	ctx := context.Background()
@@ -163,14 +164,14 @@ func TestMessageRouter(t *testing.T) {
 		Payload:    []byte("hello"),
 		SequenceID: 1234,
 	})
-	assertNil(t, err)
-	assertEqual(t, producer.LastSequenceID(), int64(1234))
+	assert.Nil(t, err)
+	assert.Equal(t, producer.LastSequenceID(), int64(1234))
 
 	fmt.Println("PUBLISHED")
 
 	// Verify message was published on partition 2
 	msg, err := consumer.Receive(ctx)
-	assertNil(t, err)
-	assertNotNil(t, msg)
-	assertEqual(t, string(msg.Payload()), "hello")
+	assert.Nil(t, err)
+	assert.NotNil(t, msg)
+	assert.Equal(t, string(msg.Payload()), "hello")
 }

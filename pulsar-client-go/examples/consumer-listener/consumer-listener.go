@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 	"github.com/apache/pulsar/pulsar-client-go/pulsar"
-	"log"
+	log "github.com/pulsar/pulsar-client-go/logutil"
 )
 
 func main() {
