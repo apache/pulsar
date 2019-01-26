@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
 
     // Block if queue is full else we will start seeing errors in sendAsync
     producerConf.setBlockIfQueueFull(true);
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>(args.encKeyValueFile);
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>(args.encKeyValueFile);
     if (!args.encKeyName.empty()) {
         producerConf.addEncryptionKey(args.encKeyName);
         producerConf.setCryptoKeyReader(keyReader);

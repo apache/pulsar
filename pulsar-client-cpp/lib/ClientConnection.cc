@@ -724,7 +724,7 @@ void ClientConnection::handleIncomingCommand() {
                             }
                             lookupDataPromise->setFailed(ResultConnectError);
                         } else {
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
                             lookupResultPtr->setPartitions(partitionMetadataResponse.partitions());
                             lookupDataPromise->setValue(lookupResultPtr);
                         }
@@ -816,7 +816,7 @@ void ClientConnection::handleIncomingCommand() {
                                       << lookupTopicResponse.brokerserviceurltls()
                                       << " authoritative: " << lookupTopicResponse.authoritative()  //
                                       << " redirect: " << lookupTopicResponse.response());
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
 
                             if (tlsSocket_) {
                                 lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurltls());
@@ -1036,7 +1036,7 @@ void ClientConnection::handleIncomingCommand() {
                         }
 
                         NamespaceTopicsPtr topicsPtr =
-                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+                            std::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
 
                         getTopicsPromise.setValue(topicsPtr);
                     } else {
@@ -1087,8 +1087,8 @@ void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,
                                  LookupDataResultPromisePtr promise) {
     Lock lock(mutex_);
-    boost::shared_ptr<LookupDataResultPtr> lookupDataResult;
-    lookupDataResult = boost::make_shared<LookupDataResultPtr>();
+    std::shared_ptr<LookupDataResultPtr> lookupDataResult;
+    lookupDataResult = std::make_shared<LookupDataResultPtr>();
     if (isClosed()) {
         lock.unlock();
         promise->setFailed(ResultNotConnected);

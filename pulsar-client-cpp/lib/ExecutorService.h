@@ -22,17 +22,17 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
-#include <boost/function.hpp>
+#include <functional>
 #include <boost/noncopyable.hpp>
 #include <boost/thread/mutex.hpp>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> > TlsSocketPtr;
-typedef boost::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
-typedef boost::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
+typedef std::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> > TlsSocketPtr;
+typedef std::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
+typedef std::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class ExecutorService : private boost::noncopyable {
     friend class ClientConnection;
 
@@ -44,7 +44,7 @@ class ExecutorService : private boost::noncopyable {
     TlsSocketPtr createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx);
     TcpResolverPtr createTcpResolver();
     DeadlineTimerPtr createDeadlineTimer();
-    void postWork(boost::function<void(void)> task);
+    void postWork(std::function<void(void)> task);
     void close();
 
    private:
@@ -73,7 +73,7 @@ class ExecutorService : private boost::noncopyable {
     boost::asio::detail::thread worker_;
 };
 
-typedef boost::shared_ptr<ExecutorService> ExecutorServicePtr;
+typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;
 
 class ExecutorServiceProvider {
    public:
@@ -91,7 +91,7 @@ class ExecutorServiceProvider {
     typedef boost::unique_lock<boost::mutex> Lock;
 };
 
-typedef boost::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
+typedef std::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
 }  // namespace pulsar
 
 #pragma GCC visibility pop
