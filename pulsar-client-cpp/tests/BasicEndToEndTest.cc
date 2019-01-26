@@ -2233,6 +2233,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
 
         std::stringstream partitionedConsumerId;
         partitionedConsumerId << consumerId << i;
+        client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(), consConfig, consumer[i]);
+        consumer[i].unsubscribe();
         subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
                                            consConfig, consumer[i]);
 
@@ -2349,6 +2351,8 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
     consumerConfig.setProperty("consumer-name", "test-consumer-name");
     consumerConfig.setProperty("consumer-id", "test-consumer-id");
     Promise<Result, Consumer> consumerPromise;
+    client.subscribe(topicName, subName, consumerConfig, consumer);
+    consumer.unsubscribe();
     client.subscribeAsync(topicName, subName, consumerConfig,
                           WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
@@ -2451,7 +2455,9 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
         partitionedConsumerId << consumerId << i;
         subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
                                            consConfig, consumer[i]);
-
+        consumer[i].unsubscribe();
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
         ASSERT_EQ(ResultOk, subscribeResult);
         ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
     }
