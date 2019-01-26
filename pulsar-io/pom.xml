@@ -50,6 +50,7 @@
     <module>canal</module>
     <module>file</module>
     <module>netty</module>
+    <module>flume</module>
   </modules>
 
 </project>
