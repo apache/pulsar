@@ -37,20 +37,4 @@ public interface JvmGCMetricsLogger {
      * It will be triggered by {@link JvmMetrics} periodically to refresh stats at interval (default = 1 min)
      */
     void refresh();
-    
-    public static class NoOpJvmGCMetricsLogger implements JvmGCMetricsLogger {
-
-        public static final NoOpJvmGCMetricsLogger logger = new NoOpJvmGCMetricsLogger();
-        
-        @Override
-        public void logMetrics(Metrics metrics) {
-            // No-op
-        }
-
-        @Override
-        public void refresh() {
-            // No-op
-        }
-        
-    }
 }

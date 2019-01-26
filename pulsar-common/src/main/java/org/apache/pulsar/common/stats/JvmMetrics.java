@@ -20,10 +20,14 @@ package org.apache.pulsar.common.stats;
 
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
@@ -47,6 +52,7 @@ public class JvmMetrics {
     private final JvmGCMetricsLogger gcLogger;
 
     private final String componentName;
+    private final static Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
     static {
         try {
             directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
@@ -54,24 +60,38 @@ public class JvmMetrics {
         } catch (Exception e) {
             log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
         }
+        // GC type and implementation mapping
+        gcLoggerMap.put("-XX:+UseG1GC", JvmG1GCMetricsLogger.class);
     }
 
     public static JvmMetrics create(ScheduledExecutorService executor, String componentName,
             String jvmGCMetricsLoggerClassName) {
+        String gcLoggerImplClassName = StringUtils.isNotBlank(jvmGCMetricsLoggerClassName) ? jvmGCMetricsLoggerClassName
+                : detectGCType();
         JvmGCMetricsLogger gcLoggerImpl = null;
-        if (StringUtils.isNotBlank(jvmGCMetricsLoggerClassName)) {
+        if (StringUtils.isNotBlank(gcLoggerImplClassName)) {
             try {
-                gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(jvmGCMetricsLoggerClassName).newInstance();
+                gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName).newInstance();
             } catch (Exception e) {
                 log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
                         e.getMessage(), e);
             }
         }
-
         return new JvmMetrics(executor, componentName,
-                gcLoggerImpl != null ? gcLoggerImpl : JvmGCMetricsLogger.NoOpJvmGCMetricsLogger.logger);
+                gcLoggerImpl != null ? gcLoggerImpl : new JvmDefaultGCMetricsLogger());
     }
-    
+
+    private static String detectGCType() {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        Set<String> arguments = Sets.newHashSet(runtimeMxBean.getInputArguments());
+        for (Entry<String, Class<? extends JvmGCMetricsLogger>> gc : gcLoggerMap.entrySet()) {
+            if (arguments.contains(gc.getKey())) {
+                return gc.getValue().getName();
+            }
+        }
+        return null;
+    }
+
     public JvmMetrics(ScheduledExecutorService executor, String componentName, JvmGCMetricsLogger gcLogger) {
         this.gcLogger = gcLogger;
         if (executor != null) {

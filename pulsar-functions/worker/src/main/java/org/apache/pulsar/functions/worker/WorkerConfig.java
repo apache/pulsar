@@ -98,7 +98,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_WORKER,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
-    private String jvmGCMetricsLoggerClassName = JvmG1GCMetricsLogger.class.getName();
+    private String jvmGCMetricsLoggerClassName;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"

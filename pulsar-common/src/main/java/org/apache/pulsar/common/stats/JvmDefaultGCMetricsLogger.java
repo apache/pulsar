@@ -77,12 +77,12 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
             if (gcBeans != null) {
                 for (GarbageCollectorMXBean gc : gcBeans) {
                     GCMetrics gcMetric = gcMetricsMap.computeIfAbsent(gc.getName(), gcName -> new GCMetrics());
-                    long newZGcTime = gc.getCollectionTime();
-                    long newZGcCount = gc.getCollectionCount();
-                    gcMetric.currentGcCount = newZGcCount - gcMetric.accumulatedGcCount;
-                    gcMetric.currentGcTime = newZGcTime - gcMetric.accumulatedGcTime;
-                    gcMetric.accumulatedGcCount = newZGcCount;
-                    gcMetric.accumulatedGcTime = newZGcTime;
+                    long newGcTime = gc.getCollectionTime();
+                    long newGcCount = gc.getCollectionCount();
+                    gcMetric.currentGcCount = newGcCount - gcMetric.accumulatedGcCount;
+                    gcMetric.currentGcTime = newGcTime - gcMetric.accumulatedGcTime;
+                    gcMetric.accumulatedGcCount = newGcCount;
+                    gcMetric.accumulatedGcTime = newGcTime;
                 }
             }
 

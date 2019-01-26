@@ -1031,7 +1031,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_METRICS, 
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
-    private String jvmGCMetricsLoggerClassName = JvmG1GCMetricsLogger.class.getName();
+    private String jvmGCMetricsLoggerClassName;
 
     /**** --- Functions --- ****/
     @FieldContext(
