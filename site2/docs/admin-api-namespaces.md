@@ -104,12 +104,6 @@ admin.namespaces().getNamespaces(tenant);
 ```
 
 
-#### Java
-
-```java
-admin.namespaces().getNamespaces(tenant);
-```
-
 ### Delete
 
 You can delete existing namespaces from a tenant.
