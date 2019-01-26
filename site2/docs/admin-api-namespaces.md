@@ -357,7 +357,7 @@ N/A
 ###### REST
 
 ```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/unload|operation/unloadNamespaceBundle}
+{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/unload|operation/unloadNamespaceBundle}
 ```
 
 ###### Java
