@@ -41,7 +41,8 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
       topic_(topicName_->toString()),
       conf_(config),
       state_(Pending),
-      topicMetadata_(new TopicMetadataImpl(numPartitions)) {
+      topicMetadata_(new TopicMetadataImpl(numPartitions)),
+      flushedPartitions_(0) {
     numProducersCreated_ = 0;
     cleanup_ = false;
     routerPolicy_ = getMessageRouter();
