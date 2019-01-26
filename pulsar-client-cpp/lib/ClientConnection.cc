@@ -513,7 +513,6 @@ void ClientConnection::processIncomingBuffer() {
         } else {
             handleIncomingCommand();
         }
-
     }
     if (incomingBuffer_.readableBytes() > 0) {
         // We still have 1 to 3 bytes from the next frame
