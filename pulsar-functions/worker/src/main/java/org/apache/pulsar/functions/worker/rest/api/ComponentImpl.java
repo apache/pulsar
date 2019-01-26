@@ -167,8 +167,7 @@ public abstract class ComponentImpl {
                 FunctionRuntimeInfo functionRuntimeInfo = worker().getFunctionRuntimeManager().getFunctionRuntimeInfo(
                         org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
                 if (functionRuntimeInfo == null) {
-                    log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, name);
-                    throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, name));
+                    return notRunning(assignedWorkerId, "");
                 }
                 RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
@@ -181,7 +180,8 @@ public abstract class ComponentImpl {
                         throw new RuntimeException(e);
                     }
                 } else {
-                    return notRunning(assignedWorkerId, functionRuntimeInfo.getStartupException().getMessage());
+                    String message = functionRuntimeInfo.getStartupException() != null ? functionRuntimeInfo.getStartupException().getMessage() : "";
+                    return notRunning(assignedWorkerId, message);
                 }
             } else {
                 // query other worker
