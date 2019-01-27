@@ -6661,10 +6661,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -6996,19 +6996,19 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -7181,13 +7181,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7895,13 +7895,13 @@
             "type" : "string"
           }
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
