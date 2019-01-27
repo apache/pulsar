@@ -19,8 +19,8 @@
 #ifndef PULSAR_CONSUMERCONFIGURATION_H_
 #define PULSAR_CONSUMERCONFIGURATION_H_
 
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
+#include <functional>
+#include <memory>
 #include <pulsar/Result.h>
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
@@ -35,10 +35,11 @@ class Consumer;
 class PulsarWrapper;
 
 /// Callback definition for non-data operation
-typedef boost::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
-typedef boost::function<void(Consumer consumer, const Message& msg)> MessageListener;
+typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
 
 class ConsumerConfigurationImpl;
 
@@ -215,7 +216,7 @@ class ConsumerConfiguration {
     friend class PulsarWrapper;
 
    private:
-    boost::shared_ptr<ConsumerConfigurationImpl> impl_;
+    std::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 #pragma GCC visibility pop

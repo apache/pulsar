@@ -42,6 +42,7 @@
 #include <lib/BrokerConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsDisabled.h>
+#include <queue>
 
 using namespace pulsar;
 
@@ -50,11 +51,8 @@ class UnAckedMessageTracker;
 class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
-typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef boost::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
-typedef boost::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
+typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
+typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {
@@ -64,7 +62,7 @@ enum ConsumerTopicType
 
 class ConsumerImpl : public ConsumerImplBase,
                      public HandlerBase,
-                     public boost::enable_shared_from_this<ConsumerImpl> {
+                     public std::enable_shared_from_this<ConsumerImpl> {
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscription,
                  const ConsumerConfiguration&,
@@ -92,6 +90,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual const std::string& getTopic() const;
     virtual Result receive(Message& msg);
     virtual Result receive(Message& msg, int timeout);
+    virtual void receiveAsync(ReceiveCallback& callback);
     Result fetchSingleMessageFromBroker(Message& msg);
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
@@ -140,6 +139,8 @@ class ConsumerImpl : public ConsumerImplBase,
     Result receiveHelper(Message& msg);
     Result receiveHelper(Message& msg, int timeout);
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
+    void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
+    void failPendingReceiveCallback();
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -156,6 +157,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
+    std::queue<ReceiveCallback> pendingReceives_;
     int availablePermits_;
     uint64_t consumerId_;
     std::string consumerName_;

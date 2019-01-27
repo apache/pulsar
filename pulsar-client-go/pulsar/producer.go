@@ -20,8 +20,8 @@
 package pulsar
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 type MessageRoutingMode int
@@ -51,6 +51,7 @@ const (
 	NoCompression CompressionType = 0
 	LZ4           CompressionType = 1
 	ZLib          CompressionType = 2
+	ZSTD          CompressionType = 3
 )
 
 type TopicMetadata interface {
@@ -118,6 +119,10 @@ type ProducerOptions struct {
 	// By default, message payloads are not compressed. Supported compression types are:
 	//  - LZ4
 	//  - ZLIB
+	//  - ZSTD
+	//
+	// Note: ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+	// release in order to be able to receive messages compressed with ZSTD.
 	CompressionType
 
 	// Set a custom message routing policy by passing an implementation of MessageRouter
@@ -162,6 +167,14 @@ type Producer interface {
 	// The callback will report back the message being published and
 	// the eventual error in publishing
 	SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))
+
+	// Get the last sequence id that was published by this producer.
+	// This represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that
+	// was published and acknowledged by the broker.
+	// After recreating a producer with the same producer name, this will return the last message that was
+	// published in the previous producer session, or -1 if there no message was ever published.
+	// return the last sequence id published by this producer.
+	LastSequenceID() int64
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case

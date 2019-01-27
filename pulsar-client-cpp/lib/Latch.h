@@ -47,9 +47,9 @@ class Latch {
     };
 
     typedef boost::unique_lock<boost::mutex> Lock;
-    boost::shared_ptr<InternalState> state_;
+    std::shared_ptr<InternalState> state_;
 };
-typedef boost::shared_ptr<Latch> LatchPtr;
+typedef std::shared_ptr<Latch> LatchPtr;
 } /* namespace pulsar */
 
 #pragma GCC visibility pop

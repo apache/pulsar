@@ -24,7 +24,8 @@ enum CompressionType
 {
     CompressionNone = 0,
     CompressionLZ4 = 1,
-    CompressionZLib = 2
+    CompressionZLib = 2,
+    CompressionZSTD = 3,
 };
 }
 
