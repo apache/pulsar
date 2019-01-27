@@ -343,6 +343,16 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
             lock.unlock();
             callback(ResultInvalidConfiguration, Consumer());
             return;
+        } else if (conf.getConsumerType() == ConsumerShared) {
+            ConsumersList consumers(consumers_);
+            for (ConsumersList::iterator it = consumers.begin(); it != consumers.end(); ++it) {
+                ConsumerImplBasePtr consumer = it->lock();
+                if (consumer && consumer->getSubscriptionName() == consumerName && !consumer->isClosed()) {
+                    lock.unlock();
+                    callback(ResultOk, Consumer(consumer));
+                    return;
+                }
+            }
         }
     }
 
