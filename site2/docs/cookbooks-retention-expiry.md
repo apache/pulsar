@@ -279,6 +279,6 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 #### Java
 
 ```java
-admin.namespaces().get
+admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
