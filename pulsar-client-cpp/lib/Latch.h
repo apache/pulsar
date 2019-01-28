@@ -19,7 +19,7 @@
 #ifndef LIB_LATCH_H_
 #define LIB_LATCH_H_
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 
@@ -47,9 +47,9 @@ class Latch {
     };
 
     typedef boost::unique_lock<boost::mutex> Lock;
-    boost::shared_ptr<InternalState> state_;
+    std::shared_ptr<InternalState> state_;
 };
-typedef boost::shared_ptr<Latch> LatchPtr;
+typedef std::shared_ptr<Latch> LatchPtr;
 } /* namespace pulsar */
 
 #pragma GCC visibility pop

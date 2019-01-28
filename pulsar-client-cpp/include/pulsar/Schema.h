@@ -21,7 +21,7 @@
 #include <map>
 
 #include <iosfwd>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #pragma GCC visibility push(default)
 
@@ -149,7 +149,7 @@ class SchemaInfo {
     const StringMap &getProperties() const;
 
    private:
-    typedef boost::shared_ptr<SchemaInfoImpl> SchemaInfoImplPtr;
+    typedef std::shared_ptr<SchemaInfoImpl> SchemaInfoImplPtr;
     SchemaInfoImplPtr impl_;
 };
 
