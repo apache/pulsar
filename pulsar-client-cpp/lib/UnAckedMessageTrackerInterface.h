@@ -24,15 +24,12 @@
 #include <algorithm>
 #include <utility>
 #include "pulsar/MessageId.h"
-#include <boost/thread/locks.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include "lib/ClientImpl.h"
 #include "lib/ConsumerImplBase.h"
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <lib/LogUtils.h>
 #include "lib/PulsarApi.pb.h"
-#include <boost/thread/recursive_mutex.hpp>
 #include <boost/asio/error.hpp>
 namespace pulsar {
 

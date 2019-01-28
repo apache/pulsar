@@ -24,7 +24,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/any.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <functional>
 #include <string>
 #include <vector>
@@ -288,8 +288,8 @@ class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;
     PendingGetNamespaceTopicsMap pendingGetNamespaceTopicsRequests_;
 
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 
     // Pending buffers to write on the socket
     std::deque<boost::any> pendingWriteBuffers_;

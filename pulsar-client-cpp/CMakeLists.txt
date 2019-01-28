@@ -106,7 +106,7 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
+find_package(Boost REQUIRED COMPONENTS program_options filesystem regex system)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)

@@ -90,12 +90,12 @@ class HandlerBase {
     ClientImplWeakPtr client_;
     const std::string topic_;
     ClientConnectionWeakPtr connection_;
-    boost::mutex mutex_;
-    boost::mutex pendingReceiveMutex_;
+    std::mutex mutex_;
+    std::mutex pendingReceiveMutex_;
     ptime creationTimestamp_;
 
     const TimeDuration operationTimeut_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
 
     enum State
     {

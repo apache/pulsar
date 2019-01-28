@@ -19,8 +19,8 @@
 #ifndef LIB_UNBOUNDEDBLOCKINGQUEUE_H_
 #define LIB_UNBOUNDEDBLOCKINGQUEUE_H_
 
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition.hpp>
+#include <mutex>
+#include <condition_variable>
 #include <boost/circular_buffer.hpp>
 // For struct QueueNotEmpty
 #include "BlockingQueue.h"
@@ -72,10 +72,10 @@ class UnboundedBlockingQueue {
         lock.unlock();
     }
 
-    bool pop(T& value, const boost::posix_time::time_duration& timeout) {
+    template <typename Duration>
+    bool pop(T& value, const Duration& timeout) {
         Lock lock(mutex_);
-        if (!queueEmptyCondition_.timed_wait(lock, timeout,
-                                             QueueNotEmpty<UnboundedBlockingQueue<T> >(*this))) {
+        if (!queueEmptyCondition_.wait_for(lock, timeout, QueueNotEmpty<UnboundedBlockingQueue<T> >(*this))) {
             return false;
         }
 
@@ -136,11 +136,11 @@ class UnboundedBlockingQueue {
    private:
     bool isEmptyNoMutex() const { return queue_.empty(); }
 
-    mutable boost::mutex mutex_;
-    boost::condition_variable queueEmptyCondition_;
+    mutable std::mutex mutex_;
+    std::condition_variable queueEmptyCondition_;
     Container queue_;
 
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
     friend struct QueueNotEmpty<UnboundedBlockingQueue<T> >;
 };
 

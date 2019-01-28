@@ -22,6 +22,8 @@
 #include <lib/Future.h>
 #include <pulsar/Result.h>
 
+#include <iostream>
+
 namespace pulsar {
 class LookupDataResult;
 typedef std::shared_ptr<LookupDataResult> LookupDataResultPtr;

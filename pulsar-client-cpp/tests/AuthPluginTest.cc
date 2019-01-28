@@ -21,7 +21,7 @@
 #include <pulsar/Client.h>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <thread>
 #include <lib/LogUtils.h>
 
 #include "lib/Future.h"
@@ -196,7 +196,7 @@ void mockZTS(int port) {
 }  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
-    boost::thread zts(boost::bind(&testAthenz::mockZTS, 9999));
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9999));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test.tenant",
@@ -266,7 +266,7 @@ TEST(AuthPluginTest, testAuthFactoryTls) {
 }
 
 TEST(AuthPluginTest, testAuthFactoryAthenz) {
-    boost::thread zts(boost::bind(&testAthenz::mockZTS, 9998));
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9998));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test2.tenant",

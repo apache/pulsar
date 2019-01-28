@@ -40,7 +40,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
 }
 
 void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     LOG_DEBUG("UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ "
               << consumerReference_.getName().c_str());
     if (!oldSet_.empty()) {
@@ -62,28 +62,28 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, const
 }
 
 bool UnAckedMessageTrackerEnabled::add(const MessageId& m) {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     oldSet_.erase(m);
     return currentSet_.insert(m).second;
 }
 
 bool UnAckedMessageTrackerEnabled::isEmpty() {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     return oldSet_.empty() && currentSet_.empty();
 }
 
 bool UnAckedMessageTrackerEnabled::remove(const MessageId& m) {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     return oldSet_.erase(m) || currentSet_.erase(m);
 }
 
 long UnAckedMessageTrackerEnabled::size() {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     return oldSet_.size() + currentSet_.size();
 }
 
 void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
-    boost::unique_lock<boost::mutex> acquire(lock_);
+    std::lock_guard<std::mutex> acquire(lock_);
     for (std::set<MessageId>::iterator it = oldSet_.begin(); it != oldSet_.end();) {
         if (*it < msgId && it->partition() == msgId.partition()) {
             oldSet_.erase(it++);
