@@ -21,7 +21,7 @@
 #include "LogUtils.h"
 
 #include <boost/algorithm/string.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <vector>
 #include <iostream>
 #include <sstream>

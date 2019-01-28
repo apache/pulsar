@@ -21,7 +21,7 @@
 #include "Backoff.h"
 #include "ClientImpl.h"
 #include "ClientConnection.h"
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/asio.hpp>
 #include <string>
 #include <boost/date_time/local_time/local_time.hpp>

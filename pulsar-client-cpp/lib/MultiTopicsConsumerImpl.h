@@ -23,9 +23,8 @@
 #include "BlockingQueue.h"
 #include <vector>
 #include <queue>
-#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include "boost/enable_shared_from_this.hpp"
+
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>

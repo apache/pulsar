@@ -18,8 +18,6 @@
  */
 #include "Latch.h"
 
-#include <boost/make_shared.hpp>
-
 namespace pulsar {
 
 struct CountIsZero {

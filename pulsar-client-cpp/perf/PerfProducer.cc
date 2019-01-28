@@ -22,8 +22,7 @@ DECLARE_LOG_OBJECT()
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/scoped_array.hpp>
-#include <boost/make_shared.hpp>
+
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -40,7 +39,7 @@ namespace po = boost::program_options;
 #include "RateLimiter.h"
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/Authentication.h>
-typedef boost::shared_ptr<pulsar::RateLimiter> RateLimiterPtr;
+typedef std::shared_ptr<pulsar::RateLimiter> RateLimiterPtr;
 
 struct Arguments {
     std::string authParams;
@@ -162,7 +161,7 @@ void runProducer(const Arguments& args, std::string topicName, int threadIndex,
 void startPerfProducer(const Arguments& args, pulsar::ProducerConfiguration &producerConf, pulsar::Client &client) {
     RateLimiterPtr limiter;
     if (args.rate != -1) {
-        limiter = boost::make_shared<pulsar::RateLimiter>(args.rate);
+        limiter = std::make_shared<pulsar::RateLimiter>(args.rate);
     }
 
     producerList.resize(args.numTopics * args.numProducers);
