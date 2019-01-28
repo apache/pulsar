@@ -79,7 +79,6 @@ import org.slf4j.LoggerFactory;
 public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
-    private static final String errMessage = "Creation of new non-partition topic not allowed because of client configuration.";
 
     private final ClientConfigurationData conf;
     private LookupService lookup;
@@ -227,10 +226,8 @@ public class PulsarClientImpl implements PulsarClient {
             if (metadata.partitions > 1) {
                 producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture, schema, interceptors);
-            } else if (getConfiguration().getAllowAutoTopicCreation()) {
-                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1, schema, interceptors);
             } else {
-            	throw new PulsarClientException.InvalidConfigurationException(errMessage);
+                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1, schema, interceptors);
             }
 
             synchronized (producers) {
@@ -334,11 +331,9 @@ public class PulsarClientImpl implements PulsarClient {
             if (metadata.partitions > 1) {
                 consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
                     listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
-            } else if (getConfiguration().getAllowAutoTopicCreation()) {
+            } else {
                 consumer = new ConsumerImpl<>(PulsarClientImpl.this, topic, conf, listenerThread, -1,
                         consumerSubscribedFuture, schema, interceptors);
-            } else {
-                throw new PulsarClientException.InvalidConfigurationException(errMessage);
             }
 
             synchronized (consumers) {
