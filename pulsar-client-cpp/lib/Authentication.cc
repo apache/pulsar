@@ -29,6 +29,7 @@
 #include <iostream>
 #include <dlfcn.h>
 #include <cstdlib>
+#include <mutex>
 #include <boost/algorithm/string.hpp>
 
 DECLARE_LOG_OBJECT()
