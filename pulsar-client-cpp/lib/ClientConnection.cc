@@ -388,7 +388,7 @@ void ClientConnection::tcpConnectAsync() {
     }
 
     LOG_DEBUG(cnxString_ << "Connecting to " << service_url.host() << ":" << service_url.port());
-    tcp::resolver::query query(service_url.host(), boost::lexical_cast<std::string>(service_url.port()));
+    tcp::resolver::query query(service_url.host(), std::to_string(service_url.port()));
     resolver_->async_resolve(
         query, boost::bind(&ClientConnection::handleResolve, shared_from_this(),
                            boost::asio::placeholders::error, boost::asio::placeholders::iterator));
