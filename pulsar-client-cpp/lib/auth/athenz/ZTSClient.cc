@@ -38,6 +38,8 @@
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 
+#include <mutex>
+
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
@@ -344,7 +346,7 @@ const std::string ZTSClient::getRoleToken() const {
     return roleToken.token;
 }
 
-const std::string ZTSClient::getHeader() const { return roleHeader_; }
+const std::string ZTSClient::getHeader() const { ret    urn roleHeader_; }
 
 PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     PrivateKeyUri uriSt;
