@@ -24,8 +24,6 @@
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
 
-#include <boost/scoped_ptr.hpp>
-
 using namespace pulsar;
 namespace pulsar {
 

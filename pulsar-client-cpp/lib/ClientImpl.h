@@ -24,7 +24,6 @@
 #include "BinaryProtoLookupService.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
-#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <lib/TopicName.h>
 #include "ProducerImplBase.h"
