@@ -22,9 +22,8 @@
 #include "ClientImpl.h"
 #include <vector>
 #include <queue>
-#include <boost/shared_ptr.hpp>
+
 #include <boost/thread/mutex.hpp>
-#include "boost/enable_shared_from_this.hpp"
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>
@@ -34,7 +33,7 @@
 namespace pulsar {
 class PartitionedConsumerImpl;
 class PartitionedConsumerImpl : public ConsumerImplBase,
-                                public boost::enable_shared_from_this<PartitionedConsumerImpl> {
+                                public std::enable_shared_from_this<PartitionedConsumerImpl> {
    public:
     enum PartitionedConsumerState
     {
@@ -107,7 +106,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     std::queue<ReceiveCallback> pendingReceives_;
 };
-typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
-typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
+typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
+typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
 }  // namespace pulsar
 #endif  // PULSAR_PARTITIONED_CONSUMER_HEADER

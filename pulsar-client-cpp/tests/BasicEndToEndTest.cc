@@ -713,7 +713,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
 }
 
 TEST(BasicEndToEndTest, testNamespaceName) {
-    boost::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
+    std::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
     ASSERT_STREQ(nameSpaceName->getCluster().c_str(), "bf1");
     ASSERT_STREQ(nameSpaceName->getLocalName().c_str(), "nameSpace");
     ASSERT_STREQ(nameSpaceName->getProperty().c_str(), "property");
@@ -748,7 +748,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::CustomPartition);
-    producerConfiguration.setMessageRouter(boost::make_shared<CustomRoutingPolicy>());
+    producerConfiguration.setMessageRouter(std::make_shared<CustomRoutingPolicy>());
 
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -1215,7 +1215,7 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.addEncryptionKey("client-rsa.pem");
@@ -1273,7 +1273,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
 
     ConsumerConfiguration consConfig;
 
@@ -1867,6 +1867,101 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     client.shutdown();
 }
 
+// User adminUrl to create client, to protect http related services
+TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
+    Client client(adminUrl);
+    std::string pattern = "persistent://public/default/patternMultiTopicsHttpConsumer.*";
+
+    std::string subName = "testpatternMultiTopicsHttpConsumer";
+    std::string topicName1 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub3";
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub1/partitions";
+    std::string url2 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub2/partitions";
+    std::string url3 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4");
+
+    int messageNumber = 100;
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 3 topics");
+
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    // verify no more to receive
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
@@ -2138,6 +2233,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
 
         std::stringstream partitionedConsumerId;
         partitionedConsumerId << consumerId << i;
+        client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(), consConfig, consumer[i]);
+        consumer[i].unsubscribe();
         subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
                                            consConfig, consumer[i]);
 
@@ -2254,6 +2351,8 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
     consumerConfig.setProperty("consumer-name", "test-consumer-name");
     consumerConfig.setProperty("consumer-id", "test-consumer-id");
     Promise<Result, Consumer> consumerPromise;
+    client.subscribe(topicName, subName, consumerConfig, consumer);
+    consumer.unsubscribe();
     client.subscribeAsync(topicName, subName, consumerConfig,
                           WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
@@ -2356,7 +2455,9 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
         partitionedConsumerId << consumerId << i;
         subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
                                            consConfig, consumer[i]);
-
+        consumer[i].unsubscribe();
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
         ASSERT_EQ(ResultOk, subscribeResult);
         ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
     }
@@ -2670,4 +2771,51 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
     ASSERT_TRUE(isFailedOnConsumerClosed);
     ASSERT_EQ(count, 0);
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName = "persistent://public/default/test-prevent-dup-consumers";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    // Since this is a shared consumer over same client cnx
+    // closing consumerA should result in consumerB also being closed.
+    ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
+}
+
+TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName = "persistent://public/default/test-prevent-dup-consumers";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    ASSERT_EQ(ResultOk, consumerA.unsubscribe());
+    // If dup consumers are allowed BrokerMetadataError will be the result of close()
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
 }

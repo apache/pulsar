@@ -24,9 +24,9 @@
 
 namespace pulsar {
 class LookupDataResult;
-typedef boost::shared_ptr<LookupDataResult> LookupDataResultPtr;
+typedef std::shared_ptr<LookupDataResult> LookupDataResultPtr;
 typedef Promise<Result, LookupDataResultPtr> LookupDataResultPromise;
-typedef boost::shared_ptr<LookupDataResultPromise> LookupDataResultPromisePtr;
+typedef std::shared_ptr<LookupDataResultPromise> LookupDataResultPromisePtr;
 
 class LookupDataResult {
    public:

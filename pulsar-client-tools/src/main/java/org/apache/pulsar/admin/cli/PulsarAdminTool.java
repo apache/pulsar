@@ -205,8 +205,8 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
 
+        Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         adminFactory = (adminBuilder) -> {
             try {
                 return adminBuilder.build();
