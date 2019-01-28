@@ -18,25 +18,24 @@
  */
 #include "UnAckedMessageTrackerEnabled.h"
 
+#include <functional>
+
 DECLARE_LOG_OBJECT();
 
 namespace pulsar {
-
-void UnAckedMessageTrackerEnabled::timeoutHandler(const boost::system::error_code& ec) {
-    if (ec) {
-        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
-    } else {
-        timeoutHandler();
-    }
-}
 
 void UnAckedMessageTrackerEnabled::timeoutHandler() {
     timeoutHandlerHelper();
     ExecutorServicePtr executorService = client_->getIOExecutorProvider()->get();
     timer_ = executorService->createDeadlineTimer();
     timer_->expires_from_now(boost::posix_time::milliseconds(timeoutMs_));
-    timer_->async_wait(boost::bind(&pulsar::UnAckedMessageTrackerEnabled::timeoutHandler, this,
-                                   boost::asio::placeholders::error));
+    timer_->async_wait([&](const boost::system::error_code& ec) {
+        if (ec) {
+            LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
+        } else {
+            timeoutHandler();
+        }
+    });
 }
 
 void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {

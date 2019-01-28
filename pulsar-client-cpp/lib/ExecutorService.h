@@ -23,6 +23,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <functional>
+#include <thread>
 #include <boost/noncopyable.hpp>
 #include <mutex>
 
@@ -70,7 +71,7 @@ class ExecutorService : private boost::noncopyable {
      * background invoking async handlers as they are finished and result is available from
      * io_service
      */
-    boost::asio::detail::thread worker_;
+    std::thread worker_;
 };
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;
