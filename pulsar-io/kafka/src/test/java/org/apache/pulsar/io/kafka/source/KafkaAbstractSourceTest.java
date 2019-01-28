@@ -23,6 +23,7 @@ package org.apache.pulsar.io.kafka.source;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
+import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -80,6 +81,31 @@ public class KafkaAbstractSourceTest {
             @Override
             public void recordMetric(String metricName, double value) {
 
+            }
+
+            @Override
+            public String getOutputTopic() {
+                return null;
+            }
+
+            @Override
+            public String getTenant() {
+                return null;
+            }
+
+            @Override
+            public String getNamespace() {
+                return null;
+            }
+
+            @Override
+            public String getSourceName() {
+                return null;
+            }
+
+            @Override
+            public Logger getLogger() {
+                return null;
             }
         };
         Map<String, Object> config = new HashMap<>();

@@ -193,6 +193,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public String getSinkName() {
+        return config.getFunctionDetails().getName();
+    }
+
+    @Override
+    public String getSourceName() {
+        return config.getFunctionDetails().getName();
+    }
+
+    @Override
     public String getFunctionName() {
         return config.getFunctionDetails().getName();
     }
