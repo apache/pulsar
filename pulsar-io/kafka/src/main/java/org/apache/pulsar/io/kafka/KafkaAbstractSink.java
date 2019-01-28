@@ -90,8 +90,17 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
             throw new IllegalArgumentException("Invalid Kafka Producer maxRequestSize : "
                 + kafkaSinkConfig.getMaxRequestSize());
         }
-        if (kafkaSinkConfig.getProducerConfigPropertiesFile() != null) {
-            props.putAll(Utils.loadProps(kafkaSinkConfig.getProducerConfigPropertiesFile()));
+        if (kafkaSinkConfig.getProducerConfigProperties() != null) {
+            String[] params = kafkaSinkConfig.getProducerConfigProperties().split(",");
+            for (String p : params) {
+                String[] kv = p.split(":");
+                if (kv.length == 2) {
+                    props.put(kv[0], kv[1]);
+                } else {
+                    throw new IllegalArgumentException("Invalid Kafka Producer producerConfigProperties : "
+                        + kafkaSinkConfig.getProducerConfigProperties());
+                }
+            }
         }
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSinkConfig.getBootstrapServers());

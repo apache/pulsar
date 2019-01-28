@@ -76,8 +76,17 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         Properties props = new Properties();
-        if (kafkaSourceConfig.getConsumerConfigPropertiesFile() != null) {
-            props.putAll(Utils.loadProps(kafkaSourceConfig.getConsumerConfigPropertiesFile()));
+        if (kafkaSourceConfig.getConsumerConfigProperties() != null) {
+            String[] params = kafkaSourceConfig.getConsumerConfigProperties().split(",");
+            for (String p : params) {
+                String[] kv = p.split(":");
+                if (kv.length == 2) {
+                    props.put(kv[0], kv[1]);
+                } else {
+                    throw new IllegalArgumentException("Invalid Kafka Consumer consumerConfigProperties : "
+                        + kafkaSourceConfig.getConsumerConfigProperties());
+                }
+            }
         }
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());

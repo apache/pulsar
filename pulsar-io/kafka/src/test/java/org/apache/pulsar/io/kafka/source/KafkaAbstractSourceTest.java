@@ -136,6 +136,9 @@ public class KafkaAbstractSourceTest {
         config.put("heartbeatIntervalMs", -100);
         expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer heartbeatIntervalMs : -100", openAndClose);
         config.put("heartbeatIntervalMs", 20000);
+        config.put("consumerConfigProperties", "client.id:test,security.protocol:");
+        expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer consumerConfigProperties : client.id:test,security.protocol:", openAndClose);
+        config.put("consumerConfigProperties", "client.id:test,security.protocol:SASL_PLAINTEXT");
         expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
         config.put("heartbeatIntervalMs", 5000);
         source.open(config, ctx);
