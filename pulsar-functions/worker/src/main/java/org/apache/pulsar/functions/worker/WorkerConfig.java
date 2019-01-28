@@ -95,6 +95,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Integer workerPortTls;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Number of threads to use for HTTP requests processing"
+        )
+    private int numHttpServerThreads = 8;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
