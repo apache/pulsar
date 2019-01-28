@@ -19,7 +19,11 @@
 
 package pulsar
 
-import "time"
+import (
+	"time"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
+)
 
 func NewClient(options ClientOptions) (Client, error) {
 	return newClient(options)
@@ -69,6 +73,12 @@ type ClientOptions struct {
 	// (default: 5000) It should be configured with higher value only in case of it requires to produce/subscribe
 	// on thousands of topic using created Pulsar Client
 	ConcurrentLookupRequests int
+
+	// Provide a custom logger implementation where all Pulsar library info/warn/error messages will be routed
+	// By default, log messages will be printed on standard output. By passing a logger function, application
+	// can determine how to print logs. This function will be called each time the Pulsar client library wants
+	// to write any logs.
+	Logger func(level log.LoggerLevel, file string, line int, message string)
 
 	// Set the path to the trusted TLS certificate file
 	TLSTrustCertsFilePath string

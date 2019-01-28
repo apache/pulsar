@@ -28,7 +28,16 @@ import (
 	"runtime"
 	"strings"
 	"unsafe"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
 )
+
+//export pulsarClientLoggerProxy
+func pulsarClientLoggerProxy(level C.pulsar_logger_level_t, file *C.char, line C.int, message *C.char, ctx unsafe.Pointer) {
+	logger := restorePointerNoDelete(ctx).(func(log.LoggerLevel, string, int, string))
+
+	logger(log.LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
+}
 
 func newClient(options ClientOptions) (Client, error) {
 	if options.URL == "" {
@@ -52,6 +61,15 @@ func newClient(options ClientOptions) (Client, error) {
 	if options.ConcurrentLookupRequests != 0 {
 		C.pulsar_client_configuration_set_concurrent_lookup_request(conf, C.int(options.ConcurrentLookupRequests))
 	}
+
+	if options.Logger == nil {
+		// Configure a default logger with same date format as Go logs
+		options.Logger = func(level log.LoggerLevel, file string, line int, message string) {
+			log.Infof("%-5s | %s:%d | %s", level, file, line, message)
+		}
+	}
+
+	C._pulsar_client_configuration_set_logger(conf, savePointer(options.Logger))
 
 	// If service url is on encrypted protocol, enable TLS
 	if strings.HasPrefix(options.URL, "pulsar+ssl://") || strings.HasPrefix(options.URL, "https://") {

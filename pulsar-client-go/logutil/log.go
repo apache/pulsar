@@ -31,6 +31,31 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+type LoggerLevel int
+
+const (
+	DEBUG LoggerLevel = iota
+	INFO
+	WARN
+	ERROR
+)
+
+func (l LoggerLevel) String() string {
+	switch l {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARN:
+		return "WARN"
+	case ERROR:
+		return "ERROR"
+
+	default:
+		return fmt.Sprintf("UNKNOWN: %d", l)
+	}
+}
+
 const (
 	defaultLogLevel      = log.InfoLevel
 	defaultLogTimeFormat = "2006/01/02 15:04:05.000"

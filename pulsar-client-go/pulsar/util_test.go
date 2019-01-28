@@ -22,7 +22,7 @@ package pulsar
 import (
 	"bytes"
 	"encoding/json"
-	log "github.com/pulsar/pulsar-client-go/logutil"
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
 	"net/http"
 )
 
