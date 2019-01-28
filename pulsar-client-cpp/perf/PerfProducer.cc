@@ -168,7 +168,7 @@ void startPerfProducer(const Arguments& args, pulsar::ProducerConfiguration &pro
     for (int i = 0; i < args.numTopics; i++) {
         std::string topic =
                 (args.numTopics == 1) ?
-                        args.topic : args.topic + "-" + boost::lexical_cast<std::string>(i);
+                        args.topic : args.topic + "-" + std::to_string(i);
         LOG_INFO("Adding " << args.numProducers << " producers on topic " << topic);
 
         for (int j = 0; j < args.numProducers; j++) {
