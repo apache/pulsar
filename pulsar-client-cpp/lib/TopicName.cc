@@ -19,12 +19,12 @@
 #include "NamedEntity.h"
 #include "LogUtils.h"
 #include "PartitionedProducerImpl.h"
+#include "TopicName.h"
 
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/find.hpp>
-#include <boost/make_shared.hpp>
-#include <lib/TopicName.h>
+#include <memory>
 #include <vector>
 #include <iostream>
 #include <sstream>

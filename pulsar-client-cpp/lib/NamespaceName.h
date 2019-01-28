@@ -21,6 +21,7 @@
 
 #include "ServiceUnitId.h"
 
+#include <memory>
 #include <string>
 
 #pragma GCC visibility push(default)
