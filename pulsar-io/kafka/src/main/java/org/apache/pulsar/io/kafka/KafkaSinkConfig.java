@@ -84,9 +84,9 @@ public class KafkaSinkConfig implements Serializable {
     @FieldDoc(
         defaultValue = "",
         help =
-            "The producer config properties in the form \"key1:val1,key2:val2\" to be passed to Producer. "
-                + "Note that other properties specified in the connector config file take precedence over this config.")
-    private String producerConfigProperties;
+            "The producer config properties to be passed to Producer. Note that other properties specified "
+          + "in the connector config file take precedence over this config.")
+    private Map<String, Object> producerConfigProperties;
 
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

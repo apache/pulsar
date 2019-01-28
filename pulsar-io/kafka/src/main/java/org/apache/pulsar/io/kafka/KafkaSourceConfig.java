@@ -100,9 +100,9 @@ public class KafkaSourceConfig implements Serializable {
     @FieldDoc(
         defaultValue = "",
         help =
-            "The consumer config properties in the form \"key1:val1,key2:val2\" to be passed to Consumer. "
-                + "Note that other properties specified in the connector config file take precedence over this config.")
-    private String consumerConfigProperties;
+            "The consumer config properties to be passed to Consumer. Note that other properties specified "
+                + "in the connector config file take precedence over this config.")
+    private Map<String, Object> consumerConfigProperties;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
