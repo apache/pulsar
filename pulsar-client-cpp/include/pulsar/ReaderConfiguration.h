@@ -19,8 +19,8 @@
 #ifndef PULSAR_READER_CONFIGURATION_H_
 #define PULSAR_READER_CONFIGURATION_H_
 
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
+#include <functional>
+#include <memory>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
@@ -32,10 +32,10 @@ class Reader;
 class PulsarWrapper;
 
 /// Callback definition for non-data operation
-typedef boost::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result result)> ResultCallback;
 
 /// Callback definition for MessageListener
-typedef boost::function<void(Reader reader, const Message& msg)> ReaderListener;
+typedef std::function<void(Reader reader, const Message& msg)> ReaderListener;
 
 class ReaderConfigurationImpl;
 
@@ -106,7 +106,7 @@ class ReaderConfiguration {
     bool isReadCompacted() const;
 
    private:
-    boost::shared_ptr<ReaderConfigurationImpl> impl_;
+    std::shared_ptr<ReaderConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 #pragma GCC visibility pop

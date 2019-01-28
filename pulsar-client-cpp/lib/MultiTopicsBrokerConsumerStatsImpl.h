@@ -23,11 +23,10 @@
 #include <iostream>
 #include <vector>
 #include <pulsar/Result.h>
-#include <boost/function.hpp>
+#include <functional>
 #include <boost/date_time/microsec_time_clock.hpp>
 #include <lib/BrokerConsumerStatsImpl.h>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+
 #pragma GCC visibility push(default)
 namespace pulsar {
 class MultiTopicsBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
@@ -86,7 +85,7 @@ class MultiTopicsBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 
     friend std::ostream &operator<<(std::ostream &os, const MultiTopicsBrokerConsumerStatsImpl &obj);
 };
-typedef boost::shared_ptr<MultiTopicsBrokerConsumerStatsImpl> MultiTopicsBrokerConsumerStatsPtr;
+typedef std::shared_ptr<MultiTopicsBrokerConsumerStatsImpl> MultiTopicsBrokerConsumerStatsPtr;
 }  // namespace pulsar
 #pragma GCC visibility pop
 #endif  // PULSAR_CPP_MULTITOPICSBROKERCONSUMERSTATSIMPL_H

@@ -18,8 +18,6 @@
  */
 #include "Latch.h"
 
-#include <boost/make_shared.hpp>
-
 namespace pulsar {
 
 struct CountIsZero {
@@ -30,7 +28,7 @@ struct CountIsZero {
     bool operator()() const { return count_ == 0; }
 };
 
-Latch::Latch(int count) : state_(boost::make_shared<InternalState>()) { state_->count = count; }
+Latch::Latch(int count) : state_(std::make_shared<InternalState>()) { state_->count = count; }
 
 void Latch::countdown() {
     Lock lock(state_->mutex);
