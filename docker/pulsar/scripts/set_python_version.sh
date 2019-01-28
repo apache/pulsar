@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,14 +18,15 @@
 # under the License.
 #
 
-bin/set_python_version.sh
+set -x
 
-bin/apply-config-from-env.py conf/presto/catalog/pulsar.properties && \
-    bin/apply-config-from-env.py conf/pulsar_env.sh
+# CHECK PYTHON 3 FLAG and execute update alternatives
 
-if [ -z "$NO_AUTOSTART" ]; then
-    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/presto_worker.conf
+FLAG=$(echo $SET_PYTHON_3_DEFAULT | tr '[:upper:]' '[:lower:]')
+
+if [ "$FLAG" = "true" ] ; then
+  update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 fi
 
-bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w
-exec /usr/bin/supervisord -c /etc/supervisord.conf
+echo "Python Version ..."
+python -V

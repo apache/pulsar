@@ -309,16 +309,20 @@ func TestConsumerMultiTopics(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		if err := producer1.Send(ctx, ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			Payload:    []byte(fmt.Sprintf("hello-%d", i)),
+			SequenceID: 3,
 		}); err != nil {
 			t.Fatal(err)
 		}
+		assertEqual(t, producer1.LastSequenceID(), int64(3))
 
 		if err := producer2.Send(ctx, ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			Payload:    []byte(fmt.Sprintf("hello-%d", i)),
+			SequenceID: 0,
 		}); err != nil {
 			t.Fatal(err)
 		}
+		assertEqual(t, producer2.LastSequenceID(), int64(i))
 	}
 
 	for i := 0; i < 20; i++ {
@@ -331,7 +335,6 @@ func TestConsumerMultiTopics(t *testing.T) {
 
 	consumer.Unsubscribe()
 }
-
 
 func TestConsumerRegex(t *testing.T) {
 	client, err := NewClient(ClientOptions{
@@ -356,7 +359,7 @@ func TestConsumerRegex(t *testing.T) {
 	defer producer2.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
-		TopicsPattern: "topic-\\d+",
+		TopicsPattern:    "topic-\\d+",
 		SubscriptionName: "my-sub",
 	})
 
