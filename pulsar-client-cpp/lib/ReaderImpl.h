@@ -22,8 +22,6 @@
 
 #include "ConsumerImpl.h"
 
-#include <boost/shared_ptr.hpp>
-
 namespace pulsar {
 
 class ReaderImpl;

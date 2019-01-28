@@ -19,8 +19,6 @@
 #ifndef LIB_COMPRESSIONCODEC_H_
 #define LIB_COMPRESSIONCODEC_H_
 
-#include <boost/smart_ptr.hpp>
-
 #include <pulsar/Producer.h>
 
 #include "SharedBuffer.h"

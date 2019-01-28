@@ -19,7 +19,7 @@
 #ifndef _PULSAR_EXECUTOR_SERVICE_HEADER_
 #define _PULSAR_EXECUTOR_SERVICE_HEADER_
 
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <functional>
@@ -63,7 +63,7 @@ class ExecutorService : private boost::noncopyable {
      * it will keep it running in the background so we don't have to take care of it
      */
     typedef boost::asio::io_service::work BackgroundWork;
-    boost::scoped_ptr<BackgroundWork> work_;
+    std::unique_ptr<BackgroundWork> work_;
 
     /*
      * worker thread which runs until work object is destroyed, it's running io_service::run in
