@@ -301,12 +301,12 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         otherSpout.open(Maps.newHashMap(), context, collector);
 
         topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 2);
+        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
 
         otherSpout.close();
 
         topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 0);
     }
 
     @Test

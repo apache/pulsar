@@ -120,7 +120,7 @@ class MessageBuilder {
    private:
     MessageBuilder(const MessageBuilder&);
     void checkMetadata();
-    static boost::shared_ptr<MessageImpl> createMessageImpl();
+    static std::shared_ptr<MessageImpl> createMessageImpl();
     Message::MessageImplPtr impl_;
 
     friend class PulsarWrapper;

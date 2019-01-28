@@ -20,12 +20,4 @@
 
 bin/set_python_version.sh
 
-bin/apply-config-from-env.py conf/presto/catalog/pulsar.properties && \
-    bin/apply-config-from-env.py conf/pulsar_env.sh
-
-if [ -z "$NO_AUTOSTART" ]; then
-    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/presto_worker.conf
-fi
-
-bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w
-exec /usr/bin/supervisord -c /etc/supervisord.conf
+bin/pulsar standalone
