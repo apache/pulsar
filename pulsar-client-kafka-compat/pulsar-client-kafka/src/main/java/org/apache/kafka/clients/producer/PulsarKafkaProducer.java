@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.Metric;
@@ -65,9 +66,6 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private final Partitioner partitioner;
     private volatile Cluster cluster = Cluster.empty();
-
-    /** Map that contains the last future for each producer */
-    private final ConcurrentMap<String, CompletableFuture<MessageId>> lastSendFuture = new ConcurrentHashMap<>();
 
     public PulsarKafkaProducer(Map<String, Object> configs) {
         this(configs, null, null);
@@ -174,10 +172,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         int messageSize = buildMessage(messageBuilder, record);;
 
         CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
-        CompletableFuture<MessageId> sendFuture = messageBuilder.sendAsync();
-        lastSendFuture.put(record.topic(), sendFuture);
-
-        sendFuture.thenAccept((messageId) -> {
+        messageBuilder.sendAsync().thenAccept((messageId) -> {
             future.complete(getRecordMetadata(record.topic(), messageBuilder, messageId, messageSize));
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
@@ -197,16 +192,10 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     @Override
     public void flush() {
-        lastSendFuture.forEach((topic, future) -> {
-            try {
-                future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-
-            // Remove the futures to remove eventually failed operations in order to trigger errors only once
-            lastSendFuture.remove(topic, future);
-        });
+        producers.values().stream()
+                .map(p -> p.flushAsync())
+                .collect(Collectors.toList())
+                .forEach(CompletableFuture::join);
     }
 
     @Override
