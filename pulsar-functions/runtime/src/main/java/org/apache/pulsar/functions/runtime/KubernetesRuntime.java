@@ -546,6 +546,7 @@ class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
+        labels.put("component", "function");
         labels.put("namespace", functionDetails.getNamespace());
         labels.put("tenant", functionDetails.getTenant());
         labels.put("name", functionDetails.getName());
