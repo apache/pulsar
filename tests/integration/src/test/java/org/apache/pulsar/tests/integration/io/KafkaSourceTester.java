@@ -51,12 +51,12 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    public KafkaSourceTester() {
+    public KafkaSourceTester(String containerName) {
         super(SOURCE_TYPE);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_source_topic_" + suffix;
 
-        sourceConfig.put("bootstrapServers", KafkaSinkTester.CONTAINER_NAME + ":9092");
+        sourceConfig.put("bootstrapServers", containerName + ":9092");
         sourceConfig.put("groupId", "test-source-group");
         sourceConfig.put("fetchMinBytes", 1L);
         sourceConfig.put("autoCommitIntervalMs", 10L);

@@ -46,10 +46,11 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
     private final String kafkaTopicName;
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    static String CONTAINER_NAME = "kafka-" + randomName(8);
+    private final String containerName;
 
-    public KafkaSinkTester() {
-        super(CONTAINER_NAME, SinkType.KAFKA);
+      public KafkaSinkTester(String containerName) {
+        super(containerName, SinkType.KAFKA);
+        this.containerName = containerName;
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_sink_topic_" + suffix;
 
@@ -62,13 +63,12 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
 
     @Override
     protected KafkaContainer createSinkService(PulsarCluster cluster) {
-        final String kafkaServiceName = networkAlias;
         return new KafkaContainer()
                 .withEmbeddedZookeeper()
-                .withNetworkAliases(kafkaServiceName)
+                .withNetworkAliases(containerName)
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                    .withName(kafkaServiceName)
-                    .withHostName(cluster.getClusterName() + "-" + kafkaServiceName));
+                    .withName(containerName)
+                    .withHostName(cluster.getClusterName() + "-" + containerName));
     }
 
     @Override
