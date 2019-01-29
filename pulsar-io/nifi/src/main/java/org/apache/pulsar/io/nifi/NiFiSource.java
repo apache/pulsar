@@ -178,7 +178,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
         @Override
         public void ack() {
             try {
-                transaction.confirm();
+                transaction.complete();
             } catch (IOException e) {
                 log.warn("Ack data from NiFi transfer was Failed", e);
             }
