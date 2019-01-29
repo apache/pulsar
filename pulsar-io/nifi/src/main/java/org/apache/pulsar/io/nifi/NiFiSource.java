@@ -146,12 +146,14 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         final NiFiDataPacket NiFiDataPacket = new StandardNiFiDataPacket(data, attributes);
                         dataPackets.add(NiFiDataPacket);
                         dataPacket = transaction.receive();
-                        transaction.confirm();
                     } while (dataPacket != null);
 
                     for (NiFiDataPacket dp : dataPackets) {
                         consume(new NiFiRecord(dp, transaction));
                     }
+
+                    //this method dictates that all data from the remote instance has been consumed in this transaction.
+                    transaction.confirm();
                 } catch (final IOException e) {
                     log.warn("Failed to receive data from NiFi", e);
                 }
@@ -178,13 +180,17 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
             try {
                 transaction.complete();
             } catch (IOException e) {
-                log.warn("Ack data from NiFi transfer was Failed", e);
+                log.warn("Record ack from NiFi transfer was Failed", e);
             }
         }
 
         @Override
         public void fail() {
-            transaction.error();
+            try {
+                transaction.cancel("Pulsar record was Failed");
+            } catch (IOException e) {
+                log.warn("Record fail from NiFi transfer was Failed", e);
+            }
         }
     }
 
