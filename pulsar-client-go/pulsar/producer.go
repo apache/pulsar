@@ -176,6 +176,10 @@ type Producer interface {
 	// return the last sequence id published by this producer.
 	LastSequenceID() int64
 
+	// Flush all the messages buffered in the client and wait until all messages have been successfully
+	// persisted.
+	Flush() error
+
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
 	// of errors, pending writes will not be retried.
