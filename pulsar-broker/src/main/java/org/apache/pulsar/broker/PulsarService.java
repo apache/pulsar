@@ -49,6 +49,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
@@ -597,7 +598,7 @@ public class PulsarService implements AutoCloseable {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
-                        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
+                        CompletableFuture<Topic> future = getOrCreateTopic(topic, topicName);
                         if (future != null) {
                             persistentTopics.add(future);
                         }
@@ -618,7 +619,12 @@ public class PulsarService implements AutoCloseable {
             return null;
         });
     }
-
+    
+    private CompletableFuture<Topic> getOrCreateTopic(String topic, TopicName topicName) {
+    	final CompletableFuture<ManagedLedgerConfig> configFuture = brokerService.getManagedLedgerConfig(topicName);
+    	return configFuture.thenApplyAsync(config -> brokerService.getOrCreateTopic(topic, config.allowAutoTopicCreation()).get());
+    }
+    
     // No need to synchronize since config is only init once
     // We only read this from memory later
     public String getStatusFilePath() {
