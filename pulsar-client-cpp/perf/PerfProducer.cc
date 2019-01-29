@@ -33,6 +33,7 @@ DECLARE_LOG_OBJECT()
 #include <thread>
 namespace po = boost::program_options;
 
+#include <atomic>
 #include <iostream>
 #include <fstream>
 #include <vector>
