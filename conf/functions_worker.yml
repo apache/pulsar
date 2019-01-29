@@ -53,6 +53,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Number of threads to use for HTTP requests processing. Default is set to 8
+numHttpServerThreads: 8
 
 # function assignment and scheduler
 
