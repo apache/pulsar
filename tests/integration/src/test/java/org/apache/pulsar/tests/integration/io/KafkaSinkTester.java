@@ -46,12 +46,10 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
     private final String kafkaTopicName;
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    private static String getKafkaHostname() {
-        return "kafka-" + randomName(8);
-    }
+    static String CONTAINER_NAME = "kafka-" + randomName(8);
 
     public KafkaSinkTester() {
-        super(getKafkaHostname(), SinkType.KAFKA);
+        super(CONTAINER_NAME, SinkType.KAFKA);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_sink_topic_" + suffix;
 
