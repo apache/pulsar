@@ -165,7 +165,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
         }
     }
 
-    static private class NiFiRecord implements Record<NiFiDataPacket>{
+    static private class NiFiRecord implements Record<NiFiDataPacket> {
         private final NiFiDataPacket value;
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
