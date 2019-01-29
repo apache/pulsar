@@ -151,7 +151,7 @@ class ClientConfiguration {
 
    private:
     const AuthenticationPtr& getAuthPtr() const;
-    boost::shared_ptr<ClientConfigurationImpl> impl_;
+    std::shared_ptr<ClientConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 

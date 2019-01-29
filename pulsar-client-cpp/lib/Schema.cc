@@ -20,8 +20,7 @@
 
 #include <iostream>
 #include <map>
-#include <boost/make_shared.hpp>
-#include <include/pulsar/Schema.h>
+#include <memory>
 
 #pragma GCC visibility push(default)
 
@@ -84,11 +83,11 @@ class SchemaInfoImpl {
         : type_(schemaType), name_(name), schema_(schema), properties_(properties) {}
 };
 
-SchemaInfo::SchemaInfo() : impl_(boost::make_shared<SchemaInfoImpl>()) {}
+SchemaInfo::SchemaInfo() : impl_(std::make_shared<SchemaInfoImpl>()) {}
 
 SchemaInfo::SchemaInfo(SchemaType schemaType, const std::string &name, const std::string &schema,
                        const StringMap &properties)
-    : impl_(boost::make_shared<SchemaInfoImpl>(schemaType, name, schema, properties)) {}
+    : impl_(std::make_shared<SchemaInfoImpl>(schemaType, name, schema, properties)) {}
 
 SchemaType SchemaInfo::getSchemaType() const { return impl_->type_; }
 

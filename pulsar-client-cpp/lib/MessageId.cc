@@ -26,12 +26,12 @@
 #include <limits>
 #include <tuple>
 #include <math.h>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 namespace pulsar {
 
 MessageId::MessageId() {
-    static const MessageIdImplPtr emptyMessageId = boost::make_shared<MessageIdImpl>();
+    static const MessageIdImplPtr emptyMessageId = std::make_shared<MessageIdImpl>();
     impl_ = emptyMessageId;
 }
 
@@ -41,7 +41,7 @@ MessageId& MessageId::operator=(const MessageId& m) {
 }
 
 MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)
-    : impl_(boost::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
+    : impl_(std::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
 
 const MessageId& MessageId::earliest() {
     static const MessageId _earliest(-1, -1, -1, -1);

@@ -23,9 +23,8 @@
 #include "BlockingQueue.h"
 #include <vector>
 #include <queue>
-#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include "boost/enable_shared_from_this.hpp"
+
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>
@@ -34,12 +33,11 @@
 #include <lib/NamespaceName.h>
 
 namespace pulsar {
-typedef boost::shared_ptr<Promise<Result, Consumer>> ConsumerSubResultPromisePtr;
-typedef boost::function<void(Result result)> ResultCallback;
+typedef std::shared_ptr<Promise<Result, Consumer>> ConsumerSubResultPromisePtr;
 
 class MultiTopicsConsumerImpl;
 class MultiTopicsConsumerImpl : public ConsumerImplBase,
-                                public boost::enable_shared_from_this<MultiTopicsConsumerImpl> {
+                                public std::enable_shared_from_this<MultiTopicsConsumerImpl> {
    public:
     enum MultiTopicsConsumerState
     {
@@ -76,7 +74,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
     // return first topic name when all topics name valid, or return null pointer
-    static boost::shared_ptr<TopicName> topicNamesValid(const std::vector<std::string>& topics);
+    static std::shared_ptr<TopicName> topicNamesValid(const std::vector<std::string>& topics);
     void unsubscribeOneTopicAsync(const std::string& topic, ResultCallback callback);
     Future<Result, Consumer> subscribeOneTopicAsync(const std::string& topic);
     // not supported
@@ -95,7 +93,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     boost::mutex mutex_;
     boost::mutex pendingReceiveMutex_;
     MultiTopicsConsumerState state_;
-    boost::shared_ptr<std::atomic<int>> numberTopicPartitions_;
+    std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     LookupServicePtr lookupServicePtr_;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
@@ -119,17 +117,17 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void failPendingReceiveCallback();
 
     void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
-                                  boost::shared_ptr<std::atomic<int>> topicsNeedCreate);
+                                  std::shared_ptr<std::atomic<int>> topicsNeedCreate);
     void subscribeTopicPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
                                   TopicNamePtr topicName, const std::string& consumerName,
                                   ConsumerConfiguration conf,
                                   ConsumerSubResultPromisePtr topicSubResultPromise);
     void handleSingleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
-                                     boost::shared_ptr<std::atomic<int>> partitionsNeedCreate,
+                                     std::shared_ptr<std::atomic<int>> partitionsNeedCreate,
                                      ConsumerSubResultPromisePtr topicSubResultPromise);
-    void handleUnsubscribedAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
+    void handleUnsubscribedAsync(Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                  ResultCallback callback);
-    void handleOneTopicUnsubscribedAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
+    void handleOneTopicUnsubscribedAsync(Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                          int numberPartitions, TopicNamePtr topicNamePtr,
                                          std::string& topicPartitionName, ResultCallback callback);
 };
