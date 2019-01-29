@@ -136,7 +136,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                     try {
                         transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
                     } catch (IOException ioe) {
-                        log.warn("Failed to send record " +record+ " to NiFi", ioe);
+                        log.warn("Failed to send record " + record + " to NiFi", ioe);
                     }
                 }
 

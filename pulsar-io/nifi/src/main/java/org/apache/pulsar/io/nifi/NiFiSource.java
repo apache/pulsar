@@ -20,7 +20,6 @@ package org.apache.pulsar.io.nifi;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
@@ -38,7 +37,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 
 /**
