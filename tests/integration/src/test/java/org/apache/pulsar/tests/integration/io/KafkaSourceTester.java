@@ -42,22 +42,21 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
  */
 @Slf4j
 public class KafkaSourceTester extends SourceTester<KafkaContainer> {
+
+    private static final String NAME = "kafka";
+
     private final String kafkaTopicName;
 
     private KafkaContainer kafkaContainer;
 
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    private static String getKafkaHostname() {
-        return "kafka-" + randomName(8);
-    }
-
     public KafkaSourceTester() {
-        super(getKafkaHostname());
+        super(NAME);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_source_topic_" + suffix;
 
-        sourceConfig.put("bootstrapServers", sourceType + ":9092");
+        sourceConfig.put("bootstrapServers", NAME + ":9092");
         sourceConfig.put("groupId", "test-source-group");
         sourceConfig.put("fetchMinBytes", 1L);
         sourceConfig.put("autoCommitIntervalMs", 10L);
