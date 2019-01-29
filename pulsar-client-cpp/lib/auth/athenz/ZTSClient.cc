@@ -346,7 +346,7 @@ const std::string ZTSClient::getRoleToken() const {
     return roleToken.token;
 }
 
-const std::string ZTSClient::getHeader() const { ret    urn roleHeader_; }
+const std::string ZTSClient::getHeader() const { return roleHeader_; }
 
 PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     PrivateKeyUri uriSt;
