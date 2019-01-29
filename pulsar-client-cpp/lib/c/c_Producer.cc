@@ -62,7 +62,7 @@ void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callb
 }
 
 pulsar_result pulsar_producer_flush(pulsar_producer_t *producer) {
-    return (pulsar_result) producer->producer.flush();
+    return (pulsar_result)producer->producer.flush();
 }
 
 void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
