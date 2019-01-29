@@ -145,8 +145,9 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
                 try {
                     bindValue(record, puts);
                 } catch (Exception e) {
-                    log.warn("Record flush thread was exception ", e);
+                    record.fail();
                     toFlushList.remove(record);
+                    log.warn("Record flush thread was exception ", e);
                 }
             }
         }
@@ -154,17 +155,15 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         try {
             if (CollectionUtils.isNotEmpty(puts)) {
                 table.put(puts);
+                admin.flush(tableName);
             }
-            admin.flush(tableName);
-            toFlushList.forEach(tRecord -> tRecord.ack());
 
+            toFlushList.forEach(tRecord -> tRecord.ack());
             puts.clear();
             toFlushList.clear();
         } catch (Exception e) {
+            toFlushList.forEach(tRecord -> tRecord.fail());
             log.error("Hbase table put data exception ", e);
-            if (CollectionUtils.isNotEmpty(toFlushList)) {
-                toFlushList.forEach(tRecord -> tRecord.fail());
-            }
         }
     }
 
