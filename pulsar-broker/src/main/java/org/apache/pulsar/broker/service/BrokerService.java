@@ -459,11 +459,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Optional<Topic>> getTopicIfExists(final String topic) {
-        return getTopic(topic, false /* createIfMissing */);
+        return getTopic(topic, false /* allowAutoTopicCreation */);
     }
 
-    public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, true /* createIfMissing */).thenApply(Optional::get);
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic, boolean allowAutoTopicCreation) {
+        return getTopic(topic, allowAutoTopicCreation).thenApply(Optional::get);
     }
 
     private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
