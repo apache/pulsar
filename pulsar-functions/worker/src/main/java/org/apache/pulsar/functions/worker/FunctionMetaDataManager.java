@@ -458,7 +458,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     public boolean canChangeState(FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
-        if (functionMetaData.getInstanceStatesMap() == null) {
+        if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
+            return false;
+        }
+        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
             // This means that all instances of the functions are running
             return newState == Function.FunctionState.STOPPED;
         }

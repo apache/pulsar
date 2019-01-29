@@ -816,7 +816,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private boolean needsStart(Assignment assignment) {
         boolean toStart = false;
         Function.FunctionMetaData functionMetaData = assignment.getInstance().getFunctionMetaData();
-        if (functionMetaData.getInstanceStatesMap() == null) {
+        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
             toStart = true;
         } else {
             if (assignment.getInstance().getInstanceId() < 0) {
