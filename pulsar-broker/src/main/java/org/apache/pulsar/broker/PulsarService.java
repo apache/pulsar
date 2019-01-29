@@ -621,10 +621,19 @@ public class PulsarService implements AutoCloseable {
     }
     
     public static CompletableFuture<Topic> getOrCreateTopic(BrokerService brokerService, 
+                                                            String topic, 
+                                                            TopicName topicName) {
+        return getOrCreateTopic(brokerService, topic, topicName, true);
+    }
+    
+    public static CompletableFuture<Topic> getOrCreateTopic(BrokerService brokerService, 
     														String topic, 
-    														TopicName topicName) {
+    														TopicName topicName,
+    														boolean defaultConfig) {
     	final CompletableFuture<ManagedLedgerConfig> configFuture = brokerService.getManagedLedgerConfig(topicName);
-    	return configFuture.thenApplyAsync(config -> brokerService.getOrCreateTopic(topic, config.allowAutoTopicCreation()).get());
+    	return configFuture.thenApplyAsync(
+    			config -> brokerService.getOrCreateTopic(topic,defaultConfig ? config.allowAutoTopicCreation() 
+                                                                             : config.isCreateIfMissing()).get());
     }
     
     // No need to synchronize since config is only init once
