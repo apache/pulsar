@@ -598,7 +598,7 @@ public class PulsarService implements AutoCloseable {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
-                        CompletableFuture<Topic> future = getOrCreateTopic(topic, topicName);
+                        CompletableFuture<Topic> future = getOrCreateTopic(brokerService, topic, topicName);
                         if (future != null) {
                             persistentTopics.add(future);
                         }
@@ -620,7 +620,9 @@ public class PulsarService implements AutoCloseable {
         });
     }
     
-    private CompletableFuture<Topic> getOrCreateTopic(String topic, TopicName topicName) {
+    public static CompletableFuture<Topic> getOrCreateTopic(BrokerService brokerService, 
+    														String topic, 
+    														TopicName topicName) {
     	final CompletableFuture<ManagedLedgerConfig> configFuture = brokerService.getManagedLedgerConfig(topicName);
     	return configFuture.thenApplyAsync(config -> brokerService.getOrCreateTopic(topic, config.allowAutoTopicCreation()).get());
     }
