@@ -35,15 +35,15 @@ type SubscriptionType int
 
 const (
 	// There can be only 1 consumer on the same topic with the same subscription name
-	Exclusive SubscriptionType = 0
+	Exclusive SubscriptionType = iota
 
 	// Multiple consumer will be able to use the same subscription name and the messages will be dispatched according to
 	// a round-robin rotation between the connected consumers
-	Shared SubscriptionType = 1
+	Shared
 
 	// Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
 	// If that consumer disconnects, one of the other connected consumers will start receiving messages.
-	Failover SubscriptionType = 2
+	Failover
 )
 
 // ConsumerBuilder is used to configure and create instances of Consumer
