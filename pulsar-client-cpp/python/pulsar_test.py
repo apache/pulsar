@@ -837,7 +837,7 @@ class PulsarTest(TestCase):
         consumer = client.subscribe('my-python-topic-producer-consumer-zstd',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer',
+        producer = client.create_producer('my-python-topic-producer-consumer-zstd',
                                           compression_type=CompressionType.ZSTD)
         producer.send(b'hello')
 
