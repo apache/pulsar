@@ -28,30 +28,30 @@ type MessageRoutingMode int
 
 const (
 	// Publish messages across all partitions in round-robin.
-	RoundRobinDistribution MessageRoutingMode = 0
+	RoundRobinDistribution MessageRoutingMode = iota
 
 	// The producer will chose one single partition and publish all the messages into that partition
-	UseSinglePartition MessageRoutingMode = 1
+	UseSinglePartition
 
 	// Use custom message router implementation that will be called to determine the partition for a particular message.
-	CustomPartition MessageRoutingMode = 2
+	CustomPartition
 )
 
 type HashingScheme int
 
 const (
-	JavaStringHash HashingScheme = 0 // Java String.hashCode() equivalent
-	Murmur3_32Hash HashingScheme = 1 // Use Murmur3 hashing function
-	BoostHash      HashingScheme = 2 // C++ based boost::hash
+	JavaStringHash HashingScheme = iota // Java String.hashCode() equivalent
+	Murmur3_32Hash                      // Use Murmur3 hashing function
+	BoostHash                           // C++ based boost::hash
 )
 
 type CompressionType int
 
 const (
-	NoCompression CompressionType = 0
-	LZ4           CompressionType = 1
-	ZLib          CompressionType = 2
-	ZSTD          CompressionType = 3
+	NoCompression CompressionType = iota
+	LZ4
+	ZLib
+	ZSTD
 )
 
 type TopicMetadata interface {
