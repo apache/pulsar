@@ -33,7 +33,7 @@ public class FlumeConfig {
     private String confFile;
     @FieldDoc(
             required = false,
-            defaultValue = "",
+            defaultValue = "false",
             help = "do not reload config file if changed")
     private Boolean noReloadConf;
     @FieldDoc(

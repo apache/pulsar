@@ -1,0 +1,6 @@
+configs:
+  name: a1
+  confFile: flume.conf
+  noReloadConf: false
+  zkConnString: ""
+  zkBasePath: ""

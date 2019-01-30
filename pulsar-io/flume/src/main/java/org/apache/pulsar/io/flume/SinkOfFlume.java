@@ -45,6 +45,8 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
         Event event = null;
 
         try {
+            transaction = channel.getTransaction();
+            transaction.begin();
             long processedEvents = 0;
             for (; processedEvents < batchSize; processedEvents += 1) {
                 event = channel.take();
