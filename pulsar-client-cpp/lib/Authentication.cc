@@ -29,7 +29,6 @@
 #include <iostream>
 #include <dlfcn.h>
 #include <cstdlib>
-#include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
 #include <boost/algorithm/string.hpp>
 

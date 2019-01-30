@@ -22,7 +22,7 @@
 #include <map>
 #include <string>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include "MessageId.h"
 
@@ -128,7 +128,7 @@ class Message {
     const std::string& getTopicName() const;
 
    private:
-    typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
+    typedef std::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);

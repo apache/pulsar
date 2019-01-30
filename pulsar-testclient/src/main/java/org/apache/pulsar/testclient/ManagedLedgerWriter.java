@@ -51,7 +51,6 @@ import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -161,7 +160,6 @@ public class ManagedLedgerWriter {
 
         ClientConfiguration bkConf = new ClientConfiguration();
         bkConf.setUseV2WireProtocol(true);
-        bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setAddEntryTimeout(30);
         bkConf.setReadEntryTimeout(30);
         bkConf.setThrottleValue(0);

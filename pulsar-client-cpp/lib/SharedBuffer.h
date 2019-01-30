@@ -21,8 +21,6 @@
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
 
 #include <vector>
 
@@ -188,7 +186,7 @@ class SharedBuffer {
     }
 
    private:
-    typedef boost::shared_ptr<detail::SharedBufferInternal> BufferPtr;
+    typedef std::shared_ptr<detail::SharedBufferInternal> BufferPtr;
 
     BufferPtr data_;
     char* ptr_;
@@ -200,7 +198,7 @@ class SharedBuffer {
         : data_(), ptr_(ptr), readIdx_(0), writeIdx_(size), capacity_(size) {}
 
     explicit SharedBuffer(size_t size)
-        : data_(boost::make_shared<detail::SharedBufferInternal>(size)),
+        : data_(std::make_shared<detail::SharedBufferInternal>(size)),
           ptr_(data_->ptr()),
           readIdx_(0),
           writeIdx_(0),
