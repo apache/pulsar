@@ -46,7 +46,7 @@ func TestReaderConnectError(t *testing.T) {
 	assert.Nil(t, reader)
 	assert.NotNil(t, err)
 
-	assert.Equal(t, err.(*Error).Result(), ConnectError);
+	assert.Equal(t, err.(*Error).Result(), ConnectError)
 }
 
 func TestReader(t *testing.T) {
