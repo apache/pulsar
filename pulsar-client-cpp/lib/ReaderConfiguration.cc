@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-ReaderConfiguration::ReaderConfiguration() : impl_(boost::make_shared<ReaderConfigurationImpl>()) {}
+ReaderConfiguration::ReaderConfiguration() : impl_(std::make_shared<ReaderConfigurationImpl>()) {}
 
 ReaderConfiguration::~ReaderConfiguration() {}
 

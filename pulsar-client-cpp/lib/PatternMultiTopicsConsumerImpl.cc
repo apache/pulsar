@@ -83,7 +83,7 @@ void PatternMultiTopicsConsumerImpl::timerGetTopicsOfNamespace(const Result resu
 
     NamespaceTopicsPtr newTopics = PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern_);
     // get old topics in consumer:
-    NamespaceTopicsPtr oldTopics = boost::make_shared<std::vector<std::string>>();
+    NamespaceTopicsPtr oldTopics = std::make_shared<std::vector<std::string>>();
     for (std::map<std::string, int>::iterator it = topicsPartitions_.begin(); it != topicsPartitions_.end();
          it++) {
         oldTopics->push_back(it->first);
@@ -123,7 +123,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopic
     }
     int topicsNumber = addedTopics->size();
 
-    boost::shared_ptr<std::atomic<int>> topicsNeedCreate = boost::make_shared<std::atomic<int>>(topicsNumber);
+    std::shared_ptr<std::atomic<int>> topicsNeedCreate = std::make_shared<std::atomic<int>>(topicsNumber);
     // subscribe for each passed in topic
     for (std::vector<std::string>::const_iterator itr = addedTopics->begin(); itr != addedTopics->end();
          itr++) {
@@ -134,7 +134,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopic
 }
 
 void PatternMultiTopicsConsumerImpl::handleOneTopicAdded(const Result result, const std::string& topic,
-                                                         boost::shared_ptr<std::atomic<int>> topicsNeedCreate,
+                                                         std::shared_ptr<std::atomic<int>> topicsNeedCreate,
                                                          ResultCallback callback) {
     int previous = topicsNeedCreate->fetch_sub(1);
     assert(previous > 0);
@@ -161,7 +161,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
     }
     int topicsNumber = removedTopics->size();
 
-    boost::shared_ptr<std::atomic<int>> topicsNeedUnsub = boost::make_shared<std::atomic<int>>(topicsNumber);
+    std::shared_ptr<std::atomic<int>> topicsNeedUnsub = std::make_shared<std::atomic<int>>(topicsNumber);
     ResultCallback oneTopicUnsubscribedCallback = [this, topicsNeedUnsub, callback](Result result) {
         int previous = topicsNeedUnsub->fetch_sub(1);
         assert(previous > 0);
@@ -187,7 +187,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
 
 NamespaceTopicsPtr PatternMultiTopicsConsumerImpl::topicsPatternFilter(const std::vector<std::string>& topics,
                                                                        const std::regex& pattern) {
-    NamespaceTopicsPtr topicsResultPtr = boost::make_shared<std::vector<std::string>>();
+    NamespaceTopicsPtr topicsResultPtr = std::make_shared<std::vector<std::string>>();
 
     for (std::vector<std::string>::const_iterator itr = topics.begin(); itr != topics.end(); itr++) {
         if (std::regex_match(*itr, pattern)) {
@@ -199,7 +199,7 @@ NamespaceTopicsPtr PatternMultiTopicsConsumerImpl::topicsPatternFilter(const std
 
 NamespaceTopicsPtr PatternMultiTopicsConsumerImpl::topicsListsMinus(std::vector<std::string>& list1,
                                                                     std::vector<std::string>& list2) {
-    NamespaceTopicsPtr topicsResultPtr = boost::make_shared<std::vector<std::string>>();
+    NamespaceTopicsPtr topicsResultPtr = std::make_shared<std::vector<std::string>>();
     std::remove_copy_if(list1.begin(), list1.end(), std::back_inserter(*topicsResultPtr),
                         [&list2](const std::string& arg) {
                             return (std::find(list2.begin(), list2.end(), arg) != list2.end());

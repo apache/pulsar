@@ -22,8 +22,7 @@
 #include <algorithm>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/thread/tss.hpp>
 
 namespace pulsar {
@@ -206,14 +205,14 @@ int Allocator<Type, MaxSize>::Impl::globalNodeCount_;
 
 template <typename Type, int MaxSize>
 class ObjectPool {
-    typedef boost::shared_ptr<Type> TypeSharedPtr;
+    typedef std::shared_ptr<Type> TypeSharedPtr;
 
     Allocator<Type, MaxSize> allocator_;
 
    public:
     ObjectPool() {}
 
-    TypeSharedPtr create() { return boost::allocate_shared<Type>(allocator_); }
+    TypeSharedPtr create() { return std::allocate_shared<Type>(allocator_); }
 
     ~ObjectPool() {
         struct Allocator<Type, MaxSize>::Impl::GlobalPool* poolEntry =

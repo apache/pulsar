@@ -20,7 +20,7 @@
 #define PRODUCER_HPP_
 
 #include <pulsar/ProducerConfiguration.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <stdint.h>
 
 #pragma GCC visibility push(default)
@@ -30,7 +30,8 @@ class ProducerImplBase;
 class PulsarWrapper;
 class PulsarFriend;
 
-typedef boost::function<void(Result)> FlushCallback;
+typedef std::function<void(Result)> FlushCallback;
+typedef std::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
 
 class Producer {
    public:
@@ -140,7 +141,6 @@ class Producer {
     void closeAsync(CloseCallback callback);
 
    private:
-    typedef boost::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
     explicit Producer(ProducerImplBasePtr);
 
     friend class ClientImpl;

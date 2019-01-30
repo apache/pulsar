@@ -22,7 +22,7 @@
 #include <pulsar/DeprecatedException.h>
 #include <pulsar/Message.h>
 #include <pulsar/TopicMetadata.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #pragma GCC visibility push(default)
 
@@ -50,7 +50,7 @@ class MessageRoutingPolicy {
     }
 };
 
-typedef boost::shared_ptr<MessageRoutingPolicy> MessageRoutingPolicyPtr;
+typedef std::shared_ptr<MessageRoutingPolicy> MessageRoutingPolicyPtr;
 }  // namespace pulsar
 
 #pragma GCC visibility pop
