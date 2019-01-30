@@ -24,8 +24,7 @@
 namespace pulsar {
 class ProducerImplBase;
 
-typedef boost::weak_ptr<ProducerImplBase> ProducerImplBaseWeakPtr;
-typedef boost::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
+typedef std::weak_ptr<ProducerImplBase> ProducerImplBaseWeakPtr;
 
 class ProducerImplBase {
    public:
@@ -34,6 +33,7 @@ class ProducerImplBase {
     virtual const std::string& getProducerName() const = 0;
 
     virtual int64_t getLastSequenceId() const = 0;
+    virtual const std::string& getSchemaVersion() const = 0;
 
     virtual void sendAsync(const Message& msg, SendCallback callback) = 0;
     virtual void closeAsync(CloseCallback callback) = 0;

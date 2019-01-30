@@ -22,6 +22,7 @@ package pulsar
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -34,7 +35,7 @@ func TestConsumerConnectError(t *testing.T) {
 		URL: "pulsar://invalid-hostname:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 
 	defer client.Close()
 
@@ -44,10 +45,10 @@ func TestConsumerConnectError(t *testing.T) {
 	})
 
 	// Expect error in creating consumer
-	assertNil(t, consumer)
-	assertNotNil(t, err)
+	assert.Nil(t, consumer)
+	assert.NotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), ConnectError);
+	assert.Equal(t, err.(*Error).Result(), ConnectError);
 }
 
 func TestConsumer(t *testing.T) {
@@ -55,14 +56,14 @@ func TestConsumer(t *testing.T) {
 		URL: "pulsar://localhost:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: "my-topic",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
@@ -75,11 +76,11 @@ func TestConsumer(t *testing.T) {
 		Type:                                      Shared,
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer.Close()
 
-	assertEqual(t, consumer.Topic(), "persistent://public/default/my-topic")
-	assertEqual(t, consumer.Subscription(), "my-sub")
+	assert.Equal(t, consumer.Topic(), "persistent://public/default/my-topic")
+	assert.Equal(t, consumer.Subscription(), "my-sub")
 
 	ctx := context.Background()
 
@@ -91,10 +92,11 @@ func TestConsumer(t *testing.T) {
 		}
 
 		msg, err := consumer.Receive(ctx)
-		assertNil(t, err)
-		assertNotNil(t, msg)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
 
-		assertEqual(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+		assert.Equal(t, string(msg.Topic()), "persistent://public/default/my-topic")
 
 		consumer.Ack(msg)
 	}
@@ -107,7 +109,7 @@ func TestConsumerCompaction(t *testing.T) {
 		URL: "pulsar://localhost:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	topic := fmt.Sprintf("my-compaction-topic-%d", time.Now().Unix())
@@ -116,7 +118,7 @@ func TestConsumerCompaction(t *testing.T) {
 		Topic: topic,
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer.Close()
 
 	// Pre-create both subscriptions to retain published messages
@@ -125,7 +127,7 @@ func TestConsumerCompaction(t *testing.T) {
 		SubscriptionName: "my-sub-1",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	consumer1.Close()
 
 	consumer2, err := client.Subscribe(ConsumerOptions{
@@ -134,7 +136,7 @@ func TestConsumerCompaction(t *testing.T) {
 		ReadCompacted:    true,
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	consumer2.Close()
 
 	ctx := context.Background()
@@ -158,7 +160,7 @@ func TestConsumerCompaction(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		} else {
-			assertEqual(t, strings.Contains(res, "SUCCESS"), true)
+			assert.Equal(t, strings.Contains(res, "SUCCESS"), true)
 			fmt.Println("Compaction is done")
 			break
 		}
@@ -171,7 +173,7 @@ func TestConsumerCompaction(t *testing.T) {
 		SubscriptionName: "my-sub-1",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer1.Close()
 
 	consumer2, err = client.Subscribe(ConsumerOptions{
@@ -180,31 +182,31 @@ func TestConsumerCompaction(t *testing.T) {
 		ReadCompacted:    true,
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer2.Close()
 
 	// Consumer-1 will receive all messages
 	for i := 0; i < 10; i++ {
 		msg, err := consumer1.Receive(context.Background())
-		assertNil(t, err)
-		assertNotNil(t, msg)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
 
-		assertEqual(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
 	}
 
 	// Consumer-2 will only receive the last message
 	msg, err := consumer2.Receive(context.Background())
-	assertNil(t, err)
-	assertNotNil(t, msg)
-	assertEqual(t, string(msg.Payload()), fmt.Sprintf("hello-9"))
+	assert.Nil(t, err)
+	assert.NotNil(t, msg)
+	assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-9"))
 
 	// No more messages on consumer-2
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
 	msg, err = consumer2.Receive(ctx)
-	assertNil(t, msg)
-	assertNotNil(t, err)
+	assert.Nil(t, msg)
+	assert.NotNil(t, err)
 }
 
 func TestConsumerWithInvalidConf(t *testing.T) {
@@ -224,20 +226,20 @@ func TestConsumerWithInvalidConf(t *testing.T) {
 	})
 
 	// Expect error in creating cosnumer
-	assertNil(t, consumer)
-	assertNotNil(t, err)
+	assert.Nil(t, consumer)
+	assert.NotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), InvalidConfiguration)
+	assert.Equal(t, err.(*Error).Result(), InvalidConfiguration)
 
 	consumer, err = client.Subscribe(ConsumerOptions{
 		SubscriptionName: "my-subscription",
 	})
 
 	// Expect error in creating consumer
-	assertNil(t, consumer)
-	assertNotNil(t, err)
+	assert.Nil(t, consumer)
+	assert.NotNil(t, err)
 
-	assertEqual(t, err.(*Error).Result(), InvalidConfiguration)
+	assert.Equal(t, err.(*Error).Result(), InvalidConfiguration)
 }
 
 func makeHttpPutCall(t *testing.T, url string) string {
@@ -277,20 +279,20 @@ func TestConsumerMultiTopics(t *testing.T) {
 		URL: "pulsar://localhost:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	producer1, err := client.CreateProducer(ProducerOptions{
 		Topic: "multi-topic-1",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 
 	producer2, err := client.CreateProducer(ProducerOptions{
 		Topic: "multi-topic-2",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer1.Close()
 	defer producer2.Close()
 
@@ -299,31 +301,35 @@ func TestConsumerMultiTopics(t *testing.T) {
 		SubscriptionName: "my-sub",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer.Close()
 
-	assertEqual(t, consumer.Subscription(), "my-sub")
+	assert.Equal(t, consumer.Subscription(), "my-sub")
 
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
 		if err := producer1.Send(ctx, ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			Payload:    []byte(fmt.Sprintf("hello-%d", i)),
+			SequenceID: 3,
 		}); err != nil {
 			t.Fatal(err)
 		}
+		assert.Equal(t, producer1.LastSequenceID(), int64(3))
 
 		if err := producer2.Send(ctx, ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			Payload:    []byte(fmt.Sprintf("hello-%d", i)),
+			SequenceID: 0,
 		}); err != nil {
 			t.Fatal(err)
 		}
+		assert.Equal(t, producer2.LastSequenceID(), int64(i))
 	}
 
 	for i := 0; i < 20; i++ {
 		msg, err := consumer.Receive(ctx)
-		assertNil(t, err)
-		assertNotNil(t, msg)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
 
 		consumer.Ack(msg)
 	}
@@ -331,38 +337,37 @@ func TestConsumerMultiTopics(t *testing.T) {
 	consumer.Unsubscribe()
 }
 
-
 func TestConsumerRegex(t *testing.T) {
 	client, err := NewClient(ClientOptions{
 		URL: "pulsar://localhost:6650",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer client.Close()
 
 	producer1, err := client.CreateProducer(ProducerOptions{
 		Topic: "topic-1",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 
 	producer2, err := client.CreateProducer(ProducerOptions{
 		Topic: "topic-2",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer producer1.Close()
 	defer producer2.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
-		TopicsPattern: "topic-\\d+",
+		TopicsPattern:    "topic-\\d+",
 		SubscriptionName: "my-sub",
 	})
 
-	assertNil(t, err)
+	assert.Nil(t, err)
 	defer consumer.Close()
 
-	assertEqual(t, consumer.Subscription(), "my-sub")
+	assert.Equal(t, consumer.Subscription(), "my-sub")
 
 	ctx := context.Background()
 
@@ -382,8 +387,8 @@ func TestConsumerRegex(t *testing.T) {
 
 	for i := 0; i < 20; i++ {
 		msg, err := consumer.Receive(ctx)
-		assertNil(t, err)
-		assertNotNil(t, msg)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
 
 		consumer.Ack(msg)
 	}

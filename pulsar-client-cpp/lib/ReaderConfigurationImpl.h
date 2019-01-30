@@ -20,10 +20,10 @@
 #define LIB_READERCONFIGURATIONIMPL_H_
 
 #include <pulsar/ReaderConfiguration.h>
-#include <boost/make_shared.hpp>
 
 namespace pulsar {
 struct ReaderConfigurationImpl {
+    SchemaInfo schemaInfo;
     ReaderListener readerListener;
     bool hasReaderListener;
     int receiverQueueSize;
@@ -31,7 +31,8 @@ struct ReaderConfigurationImpl {
     std::string subscriptionRolePrefix;
     bool readCompacted;
     ReaderConfigurationImpl()
-        : hasReaderListener(false),
+        : schemaInfo(),
+          hasReaderListener(false),
           receiverQueueSize(1000),
           readerName(),
           subscriptionRolePrefix(),

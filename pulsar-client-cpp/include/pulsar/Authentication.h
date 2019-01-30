@@ -22,10 +22,9 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <pulsar/Result.h>
-#include <boost/make_shared.hpp>
-#include <boost/function.hpp>
+#include <functional>
 
 #pragma GCC visibility push(default)
 
@@ -50,8 +49,8 @@ class AuthenticationDataProvider {
     AuthenticationDataProvider();
 };
 
-typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
-typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+typedef std::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+typedef std::shared_ptr<Authentication> AuthenticationPtr;
 typedef std::map<std::string, std::string> ParamMap;
 
 class Authentication {
@@ -115,7 +114,7 @@ class AuthTls : public Authentication {
     AuthenticationDataPtr authDataTls_;
 };
 
-typedef boost::function<std::string()> TokenSupplier;
+typedef std::function<std::string()> TokenSupplier;
 
 /**
  * Token based implementation of Pulsar client authentication

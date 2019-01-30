@@ -20,13 +20,14 @@
 #define LIB_PRODUCERCONFIGURATIONIMPL_H_
 
 #include <pulsar/ProducerConfiguration.h>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include "Utils.h"
 
 namespace pulsar {
 
 struct ProducerConfigurationImpl {
+    SchemaInfo schemaInfo;
     Optional<std::string> producerName;
     Optional<int64_t> initialSequenceId;
     int sendTimeoutMs;
@@ -46,7 +47,8 @@ struct ProducerConfigurationImpl {
     ProducerCryptoFailureAction cryptoFailureAction;
     std::map<std::string, std::string> properties;
     ProducerConfigurationImpl()
-        : sendTimeoutMs(30000),
+        : schemaInfo(),
+          sendTimeoutMs(30000),
           compressionType(CompressionNone),
           maxPendingMessages(1000),
           maxPendingMessagesAcrossPartitions(50000),

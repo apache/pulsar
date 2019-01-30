@@ -20,7 +20,7 @@
 tenant: "test"
 namespace: "test-namespace"
 name: "example"
-className: "org.apache.pulsar.functions.api.examples.WindowFunction"
+className: "org.apache.pulsar.functions.api.examples.AddWindowFunction"
 inputs: ["test_src"]
 userConfig:
   "PublishTopic": "test_result"

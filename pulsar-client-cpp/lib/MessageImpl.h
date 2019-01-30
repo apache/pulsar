@@ -24,8 +24,6 @@
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
 
-#include <boost/scoped_ptr.hpp>
-
 using namespace pulsar;
 namespace pulsar {
 
@@ -52,7 +50,7 @@ class MessageImpl {
     uint64_t getEventTimestamp() const;
 
     /**
-     * Get a valid topicName
+     * Get the topic Name from which this message originated from
      */
     const std::string& getTopicName();
 

@@ -43,7 +43,7 @@ public class LookupResult {
     }
 
     public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
-        this.type = Type.RedirectUrl; // type = reidrect => as current broker is
+        this.type = Type.RedirectUrl; // type = redirect => as current broker is
                                       // not owner and prepares LookupResult
                                       // with other broker's urls
         this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);

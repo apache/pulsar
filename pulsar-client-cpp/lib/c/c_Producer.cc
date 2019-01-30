@@ -60,3 +60,11 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer) {
 void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
     producer->producer.closeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
 }
+
+pulsar_result pulsar_producer_flush(pulsar_producer_t *producer) {
+    return (pulsar_result)producer->producer.flush();
+}
+
+void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
+    producer->producer.flushAsync(boost::bind(handle_result_callback, _1, callback, ctx));
+}

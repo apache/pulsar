@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
@@ -50,7 +51,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -71,22 +71,27 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
-    private final ExecutorThreadPool webServiceExecutor;
+    private final WebExecutorThreadPool webServiceExecutor;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
         this.pulsar = pulsar;
-        this.webServiceExecutor = new ExecutorThreadPool();
-        this.webServiceExecutor.setName("pulsar-web");
+        this.webServiceExecutor = new WebExecutorThreadPool(
+                pulsar.getConfiguration().getNumHttpServerThreads(),
+                "pulsar-web");
         this.server = new Server(webServiceExecutor);
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new PulsarServerConnector(server, 1, 1);
-        connector.setPort(pulsar.getConfiguration().getWebServicePort());
-        connector.setHost(pulsar.getBindAddress());
-        connectors.add(connector);
+        Optional<Integer> port = pulsar.getConfiguration().getWebServicePort();
+        if (port.isPresent()) {
+            ServerConnector connector = new PulsarServerConnector(server, 1, 1);
+            connector.setPort(port.get());
+            connector.setHost(pulsar.getBindAddress());
+            connectors.add(connector);
+        }
 
-        if (pulsar.getConfiguration().isTlsEnabled()) {
+        Optional<Integer> tlsPort = pulsar.getConfiguration().getWebServicePortTls();
+        if (tlsPort.isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         pulsar.getConfiguration().isTlsAllowInsecureConnection(),
@@ -95,7 +100,7 @@ public class WebService implements AutoCloseable {
                         pulsar.getConfiguration().getTlsKeyFilePath(),
                         pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
+                tlsConnector.setPort(tlsPort.get());
                 tlsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
@@ -192,7 +197,7 @@ public class WebService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             server.stop();
-            webServiceExecutor.stop();
+            webServiceExecutor.join();
             log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);

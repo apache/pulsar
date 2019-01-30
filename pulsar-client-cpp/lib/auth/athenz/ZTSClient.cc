@@ -34,7 +34,6 @@
 #include <json/reader.h>
 
 #include <boost/regex.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
@@ -84,7 +83,7 @@ ZTSClient::ZTSClient(std::map<std::string, std::string> &params) {
     roleHeader_ = params.find("roleHeader") == params.end() ? DEFAULT_ROLE_HEADER : params["roleHeader"];
     tokenExpirationTime_ = DEFAULT_TOKEN_EXPIRATION_TIME_SEC;
     if (params.find("tokenExpirationTime") != params.end()) {
-        tokenExpirationTime_ = boost::lexical_cast<int>(params["tokenExpirationTime"]);
+        tokenExpirationTime_ = std::stoi(params["tokenExpirationTime"]);
         if (tokenExpirationTime_ < MIN_TOKEN_EXPIRATION_TIME_SEC) {
             LOG_WARN(tokenExpirationTime_ << " is too small as a token expiration time. "
                                           << MIN_TOKEN_EXPIRATION_TIME_SEC << " is set instead of it.");
@@ -181,8 +180,8 @@ const std::string ZTSClient::getPrincipalToken() const {
     unsignedTokenString += ";n=" + tenantService_;
     unsignedTokenString += ";h=" + std::string(host);
     unsignedTokenString += ";a=" + getSalt();
-    unsignedTokenString += ";t=" + boost::lexical_cast<std::string>(t);
-    unsignedTokenString += ";e=" + boost::lexical_cast<std::string>(t + tokenExpirationTime_);
+    unsignedTokenString += ";t=" + std::to_string(t);
+    unsignedTokenString += ";e=" + std::to_string(t + tokenExpirationTime_);
     unsignedTokenString += ";k=" + keyId_;
 
     LOG_DEBUG("Created unsigned principal token: " << unsignedTokenString);

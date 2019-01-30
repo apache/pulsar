@@ -179,6 +179,12 @@ class Message:
         """
         return self._message.message_id()
 
+    def topic_name(self):
+        """
+        Get the topic Name from which this message originated from
+        """
+        return self._message.topic_name()
+
 
 class Authentication:
     """
@@ -379,7 +385,9 @@ class Client:
         * `compression_type`:
           Set the compression type for the producer. By default, message
           payloads are not compressed. Supported compression types are
-          `CompressionType.LZ4` and `CompressionType.ZLib`.
+          `CompressionType.LZ4`, `CompressionType.ZLib` and `CompressionType.ZSTD`.
+          ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with ZSTD.
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.

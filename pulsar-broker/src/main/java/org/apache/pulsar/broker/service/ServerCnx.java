@@ -97,7 +97,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -599,7 +599,7 @@ public class ServerCnx extends PulsarHandler {
                                                                 readCompacted, initialPosition);
                                                     } else {
                                                         return FutureUtil.failedFuture(
-                                                                new BrokerServiceException(
+                                                                new IncompatibleSchemaException(
                                                                         "Trying to subscribe with incompatible schema"
                                                         ));
                                                     }
@@ -845,7 +845,9 @@ public class ServerCnx extends PulsarHandler {
                             }
 
                             schemaVersionFuture.exceptionally(exception -> {
-                                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, exception.getMessage()));
+                                ctx.writeAndFlush(Commands.newError(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                        exception.getMessage()));
                                 producers.remove(producerId, producerFuture);
                                 return null;
                             });
@@ -1248,7 +1250,7 @@ public class ServerCnx extends PulsarHandler {
                         "Topic not found or no-schema"));
             } else {
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
-                        new SchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
         }).exceptionally(ex -> {
             ctx.writeAndFlush(

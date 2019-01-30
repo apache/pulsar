@@ -113,7 +113,7 @@ public class TestCompaction extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
                 "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
 
-        try (PulsarClient client = PulsarClient.create(serviceUrl)) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
             try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {

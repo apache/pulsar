@@ -38,8 +38,8 @@ typedef bool bool_type;
 
 class BatchMessageContainer;
 
-typedef boost::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
-typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
+typedef std::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
+typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
 
@@ -56,7 +56,7 @@ struct OpSendMsg {
 };
 
 class ProducerImpl : public HandlerBase,
-                     public boost::enable_shared_from_this<ProducerImpl>,
+                     public std::enable_shared_from_this<ProducerImpl>,
                      public ProducerImplBase {
    public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,
@@ -80,6 +80,8 @@ class ProducerImpl : public HandlerBase,
     const std::string& getProducerName() const;
 
     int64_t getLastSequenceId() const;
+
+    const std::string& getSchemaVersion() const;
 
     uint64_t getProducerId() const;
 
@@ -147,8 +149,9 @@ class ProducerImpl : public HandlerBase,
     BatchMessageContainerPtr batchMessageContainer;
 
     volatile int64_t lastSequenceIdPublished_;
+    std::string schemaVersion_;
 
-    typedef boost::shared_ptr<boost::asio::deadline_timer> TimerPtr;
+    typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr sendTimer_;
     void handleSendTimeout(const boost::system::error_code& err);
 
@@ -159,7 +162,7 @@ class ProducerImpl : public HandlerBase,
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;
     uint32_t dataKeyGenIntervalSec_;
-    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
+    std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 struct ProducerImplCmp {

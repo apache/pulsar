@@ -28,9 +28,9 @@ public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     private static final long serialVersionUID = 2997027580167793000L;
 
-    public PulsarOutputFormat(String serviceUrl, String topicName, SerializationSchema<T> serializationSchema) {
+    public PulsarOutputFormat(String serviceUrl, String topicName, final SerializationSchema<T> serializationSchema) {
         super(serviceUrl, topicName);
-        Preconditions.checkNotNull(serializationSchema,  "serializationSchema cannot be null.");
+        Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
         this.serializationSchema = serializationSchema;
     }
 

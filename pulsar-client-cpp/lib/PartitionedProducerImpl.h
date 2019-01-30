@@ -19,8 +19,7 @@
 #include "ProducerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
-#include <boost/shared_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
+
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/TopicMetadata.h>
@@ -29,7 +28,7 @@
 namespace pulsar {
 
 class PartitionedProducerImpl : public ProducerImplBase,
-                                public boost::enable_shared_from_this<PartitionedProducerImpl> {
+                                public std::enable_shared_from_this<PartitionedProducerImpl> {
    public:
     enum PartitionedProducerState
     {
@@ -58,6 +57,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
     virtual const std::string& getProducerName() const;
 
     virtual int64_t getLastSequenceId() const;
+
+    virtual const std::string& getSchemaVersion() const;
 
     virtual void start();
 
@@ -91,7 +92,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     const TopicNamePtr topicName_;
     const std::string topic_;
 
-    boost::scoped_ptr<TopicMetadata> topicMetadata_;
+    std::unique_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 
@@ -119,7 +120,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr getMessageRouter();
 
     std::atomic<int> flushedPartitions_;
-    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
+    std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 }  // namespace pulsar

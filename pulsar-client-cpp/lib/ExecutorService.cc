@@ -21,8 +21,8 @@
 #include <boost/ref.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
 namespace pulsar {
 
@@ -38,11 +38,11 @@ ExecutorService::~ExecutorService() { close(); }
  *  @ returns shared_ptr to this socket
  */
 SocketPtr ExecutorService::createSocket() {
-    return boost::make_shared<boost::asio::ip::tcp::socket>(boost::ref(io_service_));
+    return std::make_shared<boost::asio::ip::tcp::socket>(boost::ref(io_service_));
 }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
-    return boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
+    return std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
         new boost::asio::ssl::stream<boost::asio::ip::tcp::socket &>(*socket, ctx));
 }
 
@@ -51,11 +51,11 @@ TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ss
  *  @returns shraed_ptr to resolver object
  */
 TcpResolverPtr ExecutorService::createTcpResolver() {
-    return boost::make_shared<boost::asio::ip::tcp::resolver>(boost::ref(io_service_));
+    return std::make_shared<boost::asio::ip::tcp::resolver>(boost::ref(io_service_));
 }
 
 DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
-    return boost::make_shared<boost::asio::deadline_timer>(boost::ref(io_service_));
+    return std::make_shared<boost::asio::deadline_timer>(boost::ref(io_service_));
 }
 
 void ExecutorService::close() {
@@ -64,7 +64,7 @@ void ExecutorService::close() {
     worker_.join();
 }
 
-void ExecutorService::postWork(boost::function<void(void)> task) { io_service_.post(task); }
+void ExecutorService::postWork(std::function<void(void)> task) { io_service_.post(task); }
 
 /////////////////////
 
@@ -76,7 +76,7 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
 
     int idx = executorIdx_++ % executors_.size();
     if (!executors_[idx]) {
-        executors_[idx] = boost::make_shared<ExecutorService>();
+        executors_[idx] = std::make_shared<ExecutorService>();
     }
 
     return executors_[idx];

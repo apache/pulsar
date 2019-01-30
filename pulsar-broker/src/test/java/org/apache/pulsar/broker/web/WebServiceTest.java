@@ -243,13 +243,14 @@ public class WebServiceTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
-        config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        if (enableTls) {
+            config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        }
         config.setClientLibraryVersionCheckEnabled(enableFilter);
         config.setAuthenticationEnabled(enableAuth);
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
         config.setSuperUserRoles(roles);
-        config.setTlsEnabled(enableTls);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(allowInsecure);

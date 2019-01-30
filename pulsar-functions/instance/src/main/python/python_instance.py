@@ -42,7 +42,6 @@ import InstanceCommunication_pb2
 
 from functools import partial
 from collections import namedtuple
-from threading import Timer
 from function_stats import Stats
 
 Log = log.Log
@@ -111,8 +110,6 @@ class PythonInstance(object):
       os.kill(os.getpid(), signal.SIGKILL)
       sys.exit(1)
 
-    Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
-
   def run(self):
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
@@ -122,6 +119,13 @@ class PythonInstance(object):
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)
+
+    properties = util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
+
     for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
       if not serde:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
@@ -133,7 +137,8 @@ class PythonInstance(object):
         str(topic), subscription_name,
         consumer_type=mode,
         message_listener=partial(self.message_listener, self.input_serdes[topic]),
-        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+        properties=properties
       )
 
     for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
@@ -148,14 +153,16 @@ class PythonInstance(object):
           re.compile(str(topic)), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          properties=properties
         )
       else:
         self.consumers[topic] = self.pulsar_client.subscribe(
           str(topic), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          properties=properties
         )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
@@ -177,7 +184,8 @@ class PythonInstance(object):
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
     if self.expected_healthcheck_interval > 0:
-      Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
+      timer = util.FixedTimer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer, name="health-check-timer")
+      timer.start()
 
   def actual_execution(self):
     Log.debug("Started Thread for executing the function")
@@ -262,17 +270,27 @@ class PythonInstance(object):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
-        max_pending_messages=100000)
+        # set send timeout to be infinity to prevent potential deadlock with consumer
+        # that might happen when consumer is blocked due to unacked messages
+        send_timeout_millis=0,
+        max_pending_messages=100000,
+        properties=util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
+      )
 
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, consumer.topic(), serde, consumer)
+    item = InternalMessage(message, message.topic_name(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
@@ -364,3 +382,19 @@ class PythonInstance(object):
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
     self.execution_thread.join()
+    self.close()
+
+  def close(self):
+    Log.info("Closing python instance...")
+    if self.producer:
+      self.producer.close()
+
+    if self.consumers:
+      for consumer in self.consumers.values():
+        try:
+          consumer.close()
+        except:
+          pass
+
+    if self.pulsar_client:
+      self.pulsar_client.close()

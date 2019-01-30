@@ -21,6 +21,8 @@ package org.apache.pulsar.compaction;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -49,7 +51,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -60,9 +61,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
-
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -614,41 +612,50 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                  .create()) {
 
             // key0 persists through it all
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key0")
-                                     .setContent("my-message-0".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key0")
+                    .value("my-message-0".getBytes())
+                    .send();
 
             // key1 is added but then deleted
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1")
-                                     .setContent("my-message-1".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .send();
 
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1").build()).get();
+            producerNormal.newMessage()
+                    .key("key1")
+                    .send();
 
             // key2 is added but deleted in same batch
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2")
-                                    .setContent("my-message-2".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key3")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2").build()).get();
+            producerBatch.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producerBatch.newMessage()
+                    .key("key3")
+                    .value("my-message-3".getBytes())
+                    .sendAsync();
+            producerBatch.newMessage()
+                    .key("key2").send();
 
             // key3 is added in previous batch, deleted in this batch
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key3").build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key4")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key4").build()).get();
+            producerBatch.newMessage()
+                                    .key("key3")
+                                    .sendAsync();
+            producerBatch.newMessage()
+                    .key("key4")
+                    .value("my-message-3".getBytes())
+                    .sendAsync();
+            producerBatch.newMessage()
+                                    .key("key4")
+                                    .send();
 
             // key4 is added, deleted, then resurrected
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key4")
-                                     .setContent("my-message-4".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key4")
+                    .value("my-message-4".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -690,41 +697,45 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                  .create()) {
 
             // key0 persists through it all
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key0")
-                                     .setContent("my-message-0".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key0")
+                    .value("my-message-0".getBytes()).send();
 
             // key1 is added but then deleted
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1")
-                                     .setContent("my-message-1".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes()).send();
 
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1").build()).get();
+            producerNormal.newMessage()
+                    .key("key1").send();
 
             // key2 is added but deleted in same batch
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2")
-                                    .setContent("my-message-2".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key3")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2").build()).get();
+            producerBatch.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes()).sendAsync();
+            producerBatch.newMessage()
+                    .key("key3")
+                    .value("my-message-3".getBytes()).sendAsync();
+            producerBatch.newMessage()
+                    .key("key2").send();
 
             // key3 is added in previous batch, deleted in this batch
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key3").build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key4")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key4").build()).get();
+            producerBatch.newMessage()
+                    .key("key3")
+                    .sendAsync();
+            producerBatch.newMessage()
+                    .key("key4")
+                    .value("my-message-3".getBytes())
+                    .sendAsync();
+            producerBatch.newMessage()
+                    .key("key4")
+                    .send();
 
             // key4 is added, deleted, then resurrected
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key4")
-                                     .setContent("my-message-4".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key4")
+                    .value("my-message-4".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -767,9 +778,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // create the topic on the broker
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
-            producerNormal.send(MessageBuilder.create()
-                                .setKey("key0")
-                                .setContent("my-message-0".getBytes()).build());
+            producerNormal.newMessage()
+                    .key("key0")
+                    .value("my-message-0".getBytes())
+                    .send();
         }
 
         // force ledger roll
@@ -777,9 +789,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
-            producerNormal.send(MessageBuilder.create()
-                                .setKey("key1")
-                                .setContent("my-message-1".getBytes()).build());
+            producerNormal.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .send();
         }
 
         // verify second ledger created
@@ -803,9 +816,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
-            producerNormal.send(MessageBuilder.create()
-                                .setKey("key2")
-                                .setContent("my-message-2".getBytes()).build());
+            producerNormal.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .send();
         }
 
         info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
@@ -853,15 +867,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .compressionType(CompressionType.LZ4).enableBatching(false).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -894,15 +911,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(true)
                 .batchingMaxMessages(3)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -968,15 +988,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .addEncryptionKey("client-ecdsa.pem").cryptoKeyReader(new EncKeyReader())
                 .enableBatching(false).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -1011,15 +1034,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(true)
                 .batchingMaxMessages(3)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -1057,15 +1083,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .addEncryptionKey("client-ecdsa.pem").cryptoKeyReader(new EncKeyReader())
                 .compressionType(CompressionType.LZ4)
                 .enableBatching(false).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -1101,15 +1130,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(true)
                 .batchingMaxMessages(3)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes())
+                    .sendAsync();
+            producer.newMessage()
+                    .key("key2")
+                    .value("my-message-3".getBytes())
+                    .send();
         }
 
         // compact the topic
@@ -1158,32 +1190,33 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                  .create()) {
 
             // key0 persists through it all
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key0")
-                                     .setContent("my-message-0".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key0")
+                    .value("my-message-0".getBytes()).send();
 
             // key1 is added but then deleted
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1")
-                                     .setContent("my-message-1".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key1")
+                    .value("my-message-1".getBytes()).send();
 
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1").build()).get();
+            producerNormal.newMessage()
+                    .key("key1")
+                    .send();
 
             // key2 is added but deleted in same batch
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2")
-                                    .setContent("my-message-2".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key3")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2").build()).get();
+            producerBatch.newMessage()
+                    .key("key2")
+                    .value("my-message-2".getBytes()).sendAsync();
+            producerBatch.newMessage()
+                    .key("key3")
+                    .value("my-message-3".getBytes()).sendAsync();
+            producerBatch.newMessage()
+                    .key("key2").send();
 
             // key4 is added, deleted, then resurrected
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key4")
-                                     .setContent("my-message-4".getBytes()).build()).get();
+            producerNormal.newMessage()
+                    .key("key4")
+                    .value("my-message-4".getBytes()).send();
         }
 
         // compact the topic
@@ -1215,7 +1248,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(new String(message5.getData()), "my-message-4");
         }
     }
-    
+
     @Test(timeOut = 20000)
     public void testCompactionWithLastDeletedKey() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
@@ -1242,7 +1275,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertTrue(expected.remove(m.getKey()));
         }
     }
-    
+
     @Test(timeOut = 20000)
     public void testEmptyCompactionLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";

@@ -272,8 +272,16 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
-            workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+            boolean useTls = workerConfig.isUseTls();
+            String localhost = "127.0.0.1";
+            String pulsarServiceUrl = useTls
+                    ? PulsarService.brokerUrlTls(localhost, config.getBrokerServicePortTls().get())
+                    : PulsarService.brokerUrl(localhost, config.getBrokerServicePort().get());
+            String webServiceUrl = useTls
+                    ? PulsarService.webAddressTls(localhost, config.getWebServicePortTls().get())
+                    : PulsarService.webAddress(localhost, config.getWebServicePort().get());
+            workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
+            workerConfig.setPulsarWebServiceUrl(webServiceUrl);
             if (!this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
                 workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
@@ -281,7 +289,7 @@ public class PulsarStandalone implements AutoCloseable {
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());
             workerConfig.setWorkerHostname(hostname);
-            workerConfig.setWorkerPort(config.getWebServicePort());
+            workerConfig.setWorkerPort(config.getWebServicePort().get());
             workerConfig.setWorkerId(
                 "c-" + config.getClusterName()
                     + "-fw-" + hostname
@@ -294,9 +302,9 @@ public class PulsarStandalone implements AutoCloseable {
         broker.start();
 
         URL webServiceUrl = new URL(
-                String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
+                String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort().get()));
         final String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
-                config.getBrokerServicePort());
+                config.getBrokerServicePort().get());
         admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrl.toString()).authentication(
                 config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters()).build();
 

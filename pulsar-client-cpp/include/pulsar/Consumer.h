@@ -19,7 +19,6 @@
 #ifndef CONSUMER_HPP_
 #define CONSUMER_HPP_
 
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <iostream>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
@@ -29,6 +28,7 @@ namespace pulsar {
 class PulsarWrapper;
 class ConsumerImplBase;
 class PulsarFriend;
+typedef std::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
 /**
  *
  */
@@ -98,6 +98,19 @@ class Consumer {
      * @return ResultInvalidConfiguration if a message listener had been set in the configuration
      */
     Result receive(Message& msg, int timeoutMs);
+
+    /**
+     * Receive a single message
+     * <p>
+     * Retrieves a message when it will be available and completes callback with received message.
+     * </p>
+     * <p>
+     * receiveAsync() should be called subsequently once callback gets completed with received message.
+     * Else it creates <i> backlog of receive requests </i> in the application.
+     * </p>
+     * @param ReceiveCallback will be completed when message is available
+     */
+    void receiveAsync(ReceiveCallback callback);
 
     /**
      * Acknowledge the reception of a single message.
@@ -236,7 +249,6 @@ class Consumer {
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
    private:
-    typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
 

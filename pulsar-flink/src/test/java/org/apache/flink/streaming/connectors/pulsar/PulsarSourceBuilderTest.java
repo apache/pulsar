@@ -26,6 +26,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /**
  * Tests for PulsarSourceBuilder
@@ -49,7 +51,7 @@ public class PulsarSourceBuilderTest {
         Assert.assertNotNull(sourceFunction);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testBuildWithoutSettingRequiredProperties() {
         pulsarSourceBuilder.build();
     }
@@ -72,6 +74,32 @@ public class PulsarSourceBuilderTest {
     @Test(expected = IllegalArgumentException.class)
     public void testTopicWithBlank() {
         pulsarSourceBuilder.topic(" ");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicsWithNull() {
+        pulsarSourceBuilder.topics(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicsWithBlank() {
+        pulsarSourceBuilder.topics(Arrays.asList(" ", " "));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicPatternWithNull() {
+        pulsarSourceBuilder.topicsPattern(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicPatternAlreadySet() {
+        pulsarSourceBuilder.topicsPattern(Pattern.compile("persistent://tenants/ns/topic-*"));
+        pulsarSourceBuilder.topicsPattern(Pattern.compile("persistent://tenants/ns/topic-my-*"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicPattenStringWithNull() {
+        pulsarSourceBuilder.topicsPatternString(null);
     }
 
     @Test(expected = IllegalArgumentException.class)
