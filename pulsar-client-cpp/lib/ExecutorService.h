@@ -24,7 +24,7 @@
 #include <boost/asio/ssl.hpp>
 #include <functional>
 #include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
 #pragma GCC visibility push(default)
 
@@ -87,8 +87,8 @@ class ExecutorServiceProvider {
     typedef std::vector<ExecutorServicePtr> ExecutorList;
     ExecutorList executors_;
     int executorIdx_;
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 };
 
 typedef std::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;

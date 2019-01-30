@@ -20,9 +20,7 @@
 #include <pulsar/Client.h>
 #include <lib/LogUtils.h>
 #include <lib/Commands.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "PulsarFriend.h"
@@ -306,5 +304,5 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
 
     // Wait for ten seconds only
-    ASSERT_TRUE(latch.wait(milliseconds(10 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(10)));
 }

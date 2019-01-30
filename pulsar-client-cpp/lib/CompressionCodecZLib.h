@@ -21,7 +21,6 @@
 
 #include "CompressionCodec.h"
 #include <zlib.h>
-#include <boost/thread/mutex.hpp>
 
 // Make symbol visible to unit tests
 #pragma GCC visibility push(default)

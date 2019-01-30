@@ -23,10 +23,11 @@ DECLARE_LOG_OBJECT()
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <mutex>
 
 using namespace std::chrono;
 
-#include <boost/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -130,8 +131,8 @@ void handleAckComplete(Result) {
 }
 
 
-boost::mutex mutex;
-typedef boost::unique_lock<boost::mutex> Lock;
+std::mutex mutex;
+typedef std::unique_lock<std::mutex> Lock;
 typedef accumulator_set<uint64_t, stats<tag::mean, tag::p_square_quantile> > LatencyAccumulator;
 LatencyAccumulator e2eLatencyAccumulator(quantile_probability = 0.99);
 
