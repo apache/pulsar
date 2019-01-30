@@ -24,10 +24,8 @@
 #include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
 #include "HttpHelper.h"
@@ -41,7 +39,7 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-boost::mutex mutex_;
+std::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
@@ -60,7 +58,7 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& 
 }
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix, int* count) {
-    static boost::mutex sendMutex_;
+    static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
     std::string messageContent = prefix + std::to_string(*count);
@@ -72,7 +70,7 @@ static void sendCallBack(Result r, const Message& msg, std::string prefix, int* 
 
 static void receiveCallBack(Result r, const Message& msg, std::string& messageContent, bool checkContent,
                             bool* isFailed, int* count) {
-    static boost::mutex receiveMutex_;
+    static std::mutex receiveMutex_;
     receiveMutex_.lock();
 
     if (r == ResultOk) {
@@ -1525,7 +1523,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
 
-    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
     ASSERT_GE(globalCount, 2);
 
     consumer.unsubscribe();

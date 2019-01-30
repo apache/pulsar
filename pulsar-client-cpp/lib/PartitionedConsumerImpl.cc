@@ -88,7 +88,7 @@ Result PartitionedConsumerImpl::receive(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
-    if (messages_.pop(msg, milliseconds(timeout))) {
+    if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
@@ -108,7 +108,7 @@ void PartitionedConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
-    if (messages_.pop(msg, milliseconds(0))) {
+    if (messages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         callback(ResultOk, msg);

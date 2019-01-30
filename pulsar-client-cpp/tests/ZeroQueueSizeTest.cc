@@ -105,7 +105,7 @@ TEST(ZeroQueueSizeTest, testMessageListener) {
         ASSERT_EQ(ResultOk, result);
     }
 
-    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
     ASSERT_EQ(globalCount, totalMessages);
 
     consumer.unsubscribe();
