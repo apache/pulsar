@@ -28,6 +28,8 @@ from pulsar import Client, MessageId, \
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
+from schema_test import *
+
 try:
     # For Python 3.0 and later
     from urllib.request import urlopen, Request

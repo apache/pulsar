@@ -25,7 +25,6 @@
 #include <string>
 #include <curl/curl.h>
 #include <boost/thread/mutex.hpp>
-#include <boost/shared_ptr.hpp>
 
 #pragma GCC visibility push(default)
 
@@ -39,7 +38,7 @@ class TopicName : public ServiceUnitId {
     std::string namespacePortion_;
     std::string localName_;
     bool isV2Topic_;
-    boost::shared_ptr<NamespaceName> namespaceName_;
+    std::shared_ptr<NamespaceName> namespaceName_;
 
    public:
     bool isV2Topic();
@@ -52,7 +51,7 @@ class TopicName : public ServiceUnitId {
     std::string getEncodedLocalName();
     std::string toString();
     NamespaceNamePtr getNamespaceName();
-    static boost::shared_ptr<TopicName> get(const std::string& topicName);
+    static std::shared_ptr<TopicName> get(const std::string& topicName);
     bool operator==(const TopicName& other);
     static std::string getEncodedName(const std::string& nameBeforeEncoding);
     const std::string getTopicPartitionName(unsigned int partition);
@@ -67,7 +66,7 @@ class TopicName : public ServiceUnitId {
     bool validate();
     bool init(const std::string& topicName);
 };
-typedef boost::shared_ptr<TopicName> TopicNamePtr;
+typedef std::shared_ptr<TopicName> TopicNamePtr;
 }  // namespace pulsar
 // end of namespace pulsar
 

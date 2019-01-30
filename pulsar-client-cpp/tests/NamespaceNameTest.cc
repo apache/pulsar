@@ -22,23 +22,23 @@
 using namespace pulsar;
 
 TEST(NamespaceNameTest, testNamespaceName) {
-    boost::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "cluster", "namespace");
+    std::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "cluster", "namespace");
     ASSERT_EQ("property", nn1->getProperty());
     ASSERT_EQ("cluster", nn1->getCluster());
     ASSERT_EQ("namespace", nn1->getLocalName());
     ASSERT_FALSE(nn1->isV2());
 
-    boost::shared_ptr<NamespaceName> nn2 = NamespaceName::get("property", "cluster", "namespace");
+    std::shared_ptr<NamespaceName> nn2 = NamespaceName::get("property", "cluster", "namespace");
     ASSERT_TRUE(*nn1 == *nn2);
 }
 
 TEST(NamespaceNameTest, testNamespaceNameV2) {
-    boost::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "namespace");
+    std::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "namespace");
     ASSERT_EQ("property", nn1->getProperty());
     ASSERT_TRUE(nn1->getCluster().empty());
     ASSERT_EQ("namespace", nn1->getLocalName());
     ASSERT_TRUE(nn1->isV2());
 
-    boost::shared_ptr<NamespaceName> nn2 = NamespaceName::get("property", "namespace");
+    std::shared_ptr<NamespaceName> nn2 = NamespaceName::get("property", "namespace");
     ASSERT_TRUE(*nn1 == *nn2);
 }

@@ -49,7 +49,7 @@ public class CmdProduce {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
 
-    @Parameter(names = { "-m", "--messages" }, description = "Comma separted string messages to send, "
+    @Parameter(names = { "-m", "--messages" }, description = "Comma separated string messages to send, "
             + "either -m or -f must be specified.")
     private List<String> messages = Lists.newArrayList();
 
