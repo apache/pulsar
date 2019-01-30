@@ -1307,8 +1307,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-    	final BrokerService service = pulsar().getBrokerService();
-        return PulsarService.getOrCreateTopic(service, topicName.toString(), topicName, false).join();
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
     }
 
     /**
