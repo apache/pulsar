@@ -150,6 +150,13 @@ type Consumer interface {
 	// Close the consumer and stop the broker to push more messages
 	Close() error
 
+	// Reset the subscription associated with this consumer to a specific message id.
+	// The message id can either be a specific message or represent the first or last messages in the topic.
+	//
+	// Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+	//       seek() on the individual partitions.
+	Seek(msgID MessageID) error
+
 	// Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
 	// active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
 	// the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection

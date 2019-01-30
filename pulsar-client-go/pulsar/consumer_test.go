@@ -101,6 +101,9 @@ func TestConsumer(t *testing.T) {
 		consumer.Ack(msg)
 	}
 
+	err = consumer.Seek(EarliestMessage)
+	assert.Nil(t, err)
+
 	consumer.Unsubscribe()
 }
 

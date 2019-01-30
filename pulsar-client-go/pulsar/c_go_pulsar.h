@@ -112,6 +112,12 @@ static inline void _pulsar_consumer_close_async(pulsar_consumer_t *consumer, voi
     pulsar_consumer_close_async(consumer, pulsarConsumerCloseCallbackProxy, ctx);
 }
 
+void pulsarConsumerSeekCallbackProxy(pulsar_result result, void *ctx);
+
+static inline void _pulsar_consumer_seek_async(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId,void *ctx) {
+    pulsar_consumer_seek_async(consumer, messageId,pulsarConsumerSeekCallbackProxy, ctx);
+}
+
 //// Reader callbacks
 
 void pulsarCreateReaderCallbackProxy(pulsar_result result, pulsar_reader_t *reader, void *ctx);
