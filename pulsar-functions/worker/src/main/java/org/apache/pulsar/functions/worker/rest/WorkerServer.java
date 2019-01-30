@@ -76,7 +76,7 @@ public class WorkerServer {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
-        this.webServerExecutor = new WebExecutorThreadPool(8, "function-web");
+        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web");
         init();
     }
 
