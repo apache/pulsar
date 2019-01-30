@@ -36,6 +36,9 @@ type ProducerMessage struct {
 
 	// Override the replication clusters for this message.
 	ReplicationClusters []string
+
+	// Set the sequence id to assign to the current message
+	SequenceID int64
 }
 
 type Message interface {

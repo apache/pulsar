@@ -22,8 +22,7 @@ DECLARE_LOG_OBJECT()
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/scoped_array.hpp>
-#include <boost/make_shared.hpp>
+
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -40,7 +39,7 @@ namespace po = boost::program_options;
 #include "RateLimiter.h"
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/Authentication.h>
-typedef boost::shared_ptr<pulsar::RateLimiter> RateLimiterPtr;
+typedef std::shared_ptr<pulsar::RateLimiter> RateLimiterPtr;
 
 struct Arguments {
     std::string authParams;
@@ -162,14 +161,14 @@ void runProducer(const Arguments& args, std::string topicName, int threadIndex,
 void startPerfProducer(const Arguments& args, pulsar::ProducerConfiguration &producerConf, pulsar::Client &client) {
     RateLimiterPtr limiter;
     if (args.rate != -1) {
-        limiter = boost::make_shared<pulsar::RateLimiter>(args.rate);
+        limiter = std::make_shared<pulsar::RateLimiter>(args.rate);
     }
 
     producerList.resize(args.numTopics * args.numProducers);
     for (int i = 0; i < args.numTopics; i++) {
         std::string topic =
                 (args.numTopics == 1) ?
-                        args.topic : args.topic + "-" + boost::lexical_cast<std::string>(i);
+                        args.topic : args.topic + "-" + std::to_string(i);
         LOG_INFO("Adding " << args.numProducers << " producers on topic " << topic);
 
         for (int j = 0; j < args.numProducers; j++) {
@@ -344,7 +343,7 @@ int main(int argc, char** argv) {
 
     // Block if queue is full else we will start seeing errors in sendAsync
     producerConf.setBlockIfQueueFull(true);
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>(args.encKeyValueFile);
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>(args.encKeyValueFile);
     if (!args.encKeyName.empty()) {
         producerConf.addEncryptionKey(args.encKeyName);
         producerConf.setCryptoKeyReader(keyReader);
