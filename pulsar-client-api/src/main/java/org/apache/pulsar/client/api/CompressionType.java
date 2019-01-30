@@ -26,5 +26,8 @@ public enum CompressionType {
     LZ4,
 
     /** Compress with ZLib */
-    ZLIB
+    ZLIB,
+
+    /** Compress with Zstandard codec */
+    ZSTD,
 }

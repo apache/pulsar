@@ -52,7 +52,7 @@ class BatchMessageContainer {
         SendCallback sendCallback_;
     };
     typedef std::vector<MessageContainer> MessageContainerList;
-    typedef boost::shared_ptr<MessageContainerList> MessageContainerListPtr;
+    typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;
 
     BatchMessageContainer(ProducerImpl& producer);
 

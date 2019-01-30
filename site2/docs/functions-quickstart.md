@@ -294,7 +294,7 @@ pip download \
 --platform manylinux1_x86_64 \
 --python-version 27 \
 --implementation cp \
---abi cp37m -r requirements.txt -d deps
+--abi cp27m -r requirements.txt -d deps
 
 ```
 
@@ -318,7 +318,6 @@ Sample sequence
 ```
 cp -R deps exclamation/
 cp -R src exclamation/
-cp requirements.txt exclamation/
 
 ls -la exclamation/
 total 7

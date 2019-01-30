@@ -49,6 +49,12 @@ static inline void _pulsar_client_create_producer_async(pulsar_client_t *client,
     pulsar_client_create_producer_async(client, topic, conf, pulsarCreateProducerCallbackProxy, ctx);
 }
 
+void pulsarProducerFlushCallbackProxy(pulsar_result result, void *ctx);
+
+static inline void _pulsar_producer_flush_async(pulsar_producer_t *producer, void *ctx){
+    pulsar_producer_flush_async(producer, pulsarProducerFlushCallbackProxy, ctx);
+}
+
 void pulsarProducerCloseCallbackProxy(pulsar_result result, void *ctx);
 
 static inline void _pulsar_producer_close_async(pulsar_producer_t *producer, void *ctx) {
