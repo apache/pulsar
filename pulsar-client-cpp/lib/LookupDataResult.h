@@ -23,6 +23,7 @@
 #include <pulsar/Result.h>
 
 #include <iostream>
+#include <memory>
 
 namespace pulsar {
 class LookupDataResult;

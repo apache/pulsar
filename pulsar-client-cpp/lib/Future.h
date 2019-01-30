@@ -21,6 +21,7 @@
 
 #include <functional>
 #include <mutex>
+#include <memory>
 #include <condition_variable>
 
 #include <list>
