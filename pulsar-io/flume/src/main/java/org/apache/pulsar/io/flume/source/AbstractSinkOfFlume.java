@@ -1,7 +1,6 @@
-package org.apache.pulsar.io.flume;
+package org.apache.pulsar.io.flume.source;
 
 import org.apache.flume.sink.AbstractSink;
-import org.apache.flume.source.AbstractPollableSource;
 
 import java.util.List;
 import java.util.Map;

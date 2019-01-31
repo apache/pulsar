@@ -1,22 +1,10 @@
-package org.apache.pulsar.io.flume;
+package org.apache.pulsar.io.flume.source;
 
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-import com.google.common.eventbus.EventBus;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.cli.ParseException;
-import org.apache.flume.*;
-import org.apache.flume.instrumentation.MonitorService;
-import org.apache.flume.instrumentation.MonitoringType;
-import org.apache.flume.lifecycle.LifecycleAware;
-import org.apache.flume.lifecycle.LifecycleState;
-import org.apache.flume.lifecycle.LifecycleSupervisor;
-import org.apache.flume.lifecycle.LifecycleSupervisor.SupervisorPolicy;
-import org.apache.flume.sink.AbstractSink;
-import org.apache.flume.util.SSLUtil;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.flume.node.*;
+import org.apache.pulsar.io.flume.FlumeConfig;
+import org.apache.pulsar.io.flume.FlumeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,17 +12,14 @@ import java.io.*;
 
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
-import org.slf4j.MDC;
 
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.locks.ReentrantLock;
 
-public abstract class FlumeAbstractSource<V> extends PushSource<V> {
+public abstract class AbstractSource<V> extends PushSource<V> {
 
     private static final Logger log = LoggerFactory
-            .getLogger(FlumeAbstractSource.class);
+            .getLogger(AbstractSource.class);
 
     protected Thread thread = null;
 
@@ -57,7 +42,6 @@ public abstract class FlumeAbstractSource<V> extends PushSource<V> {
         flumeConnector.StartConnector(flumeConfig);
 
         this.start();
-
 
     }
 

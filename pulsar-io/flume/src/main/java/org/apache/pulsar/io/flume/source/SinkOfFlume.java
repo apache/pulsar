@@ -1,20 +1,15 @@
-package org.apache.pulsar.io.flume;
+package org.apache.pulsar.io.flume.source;
 
 import org.apache.flume.*;
 import org.apache.flume.conf.BatchSizeSupported;
 import org.apache.flume.conf.Configurable;
-import org.apache.flume.formatter.output.BucketPath;
 import org.apache.flume.instrumentation.SinkCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flume.source.SpoolDirectorySourceConfigurationConstants.BATCH_SIZE;
 
@@ -22,13 +17,13 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
 
     private static final Logger LOG = LoggerFactory.getLogger(SinkOfFlume.class);
 
-    private int batchSize;
+    private long batchSize;
 
     private SinkCounter counter = null;
 
     @Override
     public void configure(Context context) {
-        batchSize = context.getInteger(BATCH_SIZE, 1024);
+        batchSize = context.getInteger(BATCH_SIZE, 1000);
     }
 
     @Override
