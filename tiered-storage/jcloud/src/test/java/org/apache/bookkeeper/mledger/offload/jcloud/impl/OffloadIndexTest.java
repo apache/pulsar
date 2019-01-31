@@ -33,7 +33,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -62,24 +63,6 @@ public class OffloadIndexTest {
         assertEquals(entry2.getDataOffset(), 1254L);
     }
 
-
-    // use mock to setLastEntryId
-    public static class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
-        long lastId = 0;
-        public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize, org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String, byte[]> customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
-            super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata, storeSystemtimeAsLedgerCreationTime);
-        }
-
-        @Override
-        public long getLastEntryId(){
-            return  lastId;
-        }
-
-        public void setLastEntryId(long lastId) {
-            this.lastId = lastId;
-        }
-    }
-
     private LedgerMetadata createLedgerMetadata() throws Exception {
 
         Map<String, byte[]> metadataCustom = Maps.newHashMap();
@@ -94,12 +77,10 @@ public class OffloadIndexTest {
         bookies.add(1, BOOKIE2);
         bookies.add(2, BOOKIE3);
 
-        LedgerMetadataMock metadata = new LedgerMetadataMock(3, 3, 2,
-            DigestType.CRC32C, "password".getBytes(UTF_8), metadataCustom, false);
-
-        metadata.addEnsemble(0, bookies);
-        metadata.setLastEntryId(5000);
-        return metadata;
+        return LedgerMetadataBuilder.create().withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
+            .withDigestType(DigestType.CRC32C).withPassword("password".getBytes(UTF_8))
+            .withCustomMetadata(metadataCustom).withClosedState().withLastEntryId(5000).withLength(100)
+            .newEnsembleEntry(0L, bookies).build();
     }
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl

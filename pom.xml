@@ -142,7 +142,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.3</bookkeeper.version>
+    <bookkeeper.version>4.9.0</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -1491,6 +1491,12 @@ flexible messaging model and an intuitive client API.</description>
       <layout>default</layout>
       <url>https://repo1.maven.org/maven2</url>
     </repository>
+    <repository>
+      <id>bkrc</id>
+      <layout>default</layout>
+      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1038/</url>
+    </repository>
+
     <repository>
       <snapshots>
         <enabled>false</enabled>
