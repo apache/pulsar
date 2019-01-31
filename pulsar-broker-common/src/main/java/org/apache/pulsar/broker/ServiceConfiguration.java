@@ -458,6 +458,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
+            category = CATEGORY_AUTHENTICATION, 
+            doc = "Allow insecured tls connection for outgoing connection to a server (broker) (eg: to avoid hostname-verification)")
+    private boolean brokerClientTlsAllowInsecureConnection = false;
+    @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLSv1.2, TLSv1.1, TLSv1]"
@@ -540,7 +544,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_AUTHENTICATION,
         doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath = "";
-
+    
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"

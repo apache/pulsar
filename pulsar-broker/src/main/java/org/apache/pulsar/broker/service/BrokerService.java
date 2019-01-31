@@ -563,7 +563,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     : data.getServiceUrlTls())
                             .enableTls(true)
                             .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
-                            .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                            .allowTlsInsecureConnection(pulsar.getConfiguration().isBrokerClientTlsAllowInsecureConnection());
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
