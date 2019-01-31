@@ -459,27 +459,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Optional<Topic>> getTopicIfExists(final String topic) {
-        return getTopic(topic, false /* allowAutoTopicCreation */);
+        return getTopic(topic, false /* allowAutoTopicCreation */, false);
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-    	return getOrCreateTopic(topic, TopicName.get(topic), false);
+    	return getOrCreateTopic(topic, false);
     }
     
-    public CompletableFuture<Topic> getOrCreateTopic(String topic, TopicName topicName, boolean defaultConfig) {
-    	final CompletableFuture<ManagedLedgerConfig> configFuture = getManagedLedgerConfig(topicName);
-    	try { 
-    		configFuture.thenApplyAsync(
-    		    future -> getTopic(topic, defaultConfig ? future.allowAutoTopicCreation() 
-                                   : true).thenApply(Optional::get)
-    							   .get());
-    	} catch (InterruptedException exc) {
-    		log.warn("[{}] Unexpected exception when loading topic: {}", topic, exc);
-    		return failedFuture(exc);
-    	}
+    public CompletableFuture<Topic> getOrCreateTopic(String topic, boolean defaultConfig) {
+    	return getTopic(topic, true, defaultConfig).thenApply(Optional::get);
     }
 
-    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing, boolean defaultConfig) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -493,7 +484,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
             return topics.computeIfAbsent(topic, (topicName) -> {
-                    return isPersistentTopic ? this.loadOrCreatePersistentTopic(topicName, createIfMissing)
+                    return isPersistentTopic ? this.loadOrCreatePersistentTopic(topicName, createIfMissing, defaultConfig)
                         : createNonPersistentTopic(topicName);
             });
         } catch (IllegalArgumentException e) {
@@ -600,7 +591,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @throws RuntimeException
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
-            boolean createIfMissing) throws RuntimeException {
+            boolean createIfMissing, boolean useDefaultConfig) throws RuntimeException {
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
@@ -615,7 +606,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
         if (topicLoadSemaphore.tryAcquire()) {
-            createPersistentTopic(topic, createIfMissing, topicFuture);
+            createPersistentTopic(topic, createIfMissing, useDefaultConfig, topicFuture);
             topicFuture.handle((persistentTopic, ex) -> {
                 // release permit and process pending topic
                 topicLoadSemaphore.release();
@@ -631,7 +622,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return topicFuture;
     }
 
-    private void createPersistentTopic(final String topic, boolean createIfMissing, CompletableFuture<Optional<Topic>> topicFuture) {
+    private void createPersistentTopic(final String topic, boolean createIfMissing, boolean useDefaultConfig, 
+    		CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
@@ -645,7 +637,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
-            managedLedgerConfig.setCreateIfMissing(createIfMissing);
+            managedLedgerConfig.setCreateIfMissing(useDefaultConfig ? 
+            		                               managedLedgerConfig.allowAutoTopicCreation() : createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
@@ -1397,7 +1390,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            createPersistentTopic(topic, true, pendingFuture);
+            createPersistentTopic(topic, true, false, pendingFuture);
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {

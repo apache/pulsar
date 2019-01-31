@@ -598,7 +598,7 @@ public class PulsarService implements AutoCloseable {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
-                        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic, topicName, false);
+                        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic, false);
                         if (future != null) {
                             persistentTopics.add(future);
                         }
