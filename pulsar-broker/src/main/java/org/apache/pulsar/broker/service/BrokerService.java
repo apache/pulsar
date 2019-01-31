@@ -467,10 +467,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     
     public CompletableFuture<Topic> getOrCreateTopic(String topic, TopicName topicName, boolean defaultConfig) {
-    		final CompletableFuture<ManagedLedgerConfig> configFuture = getManagedLedgerConfig(topicName);
-    		return configFuture.thenApplyAsync(
-    			   config -> getTopic(topic, defaultConfig ? config.allowAutoTopicCreation() 
-                                             : config.isCreateIfMissing()).thenApply(Optional::get).get());
+    	final CompletableFuture<ManagedLedgerConfig> configFuture = getManagedLedgerConfig(topicName);
+    	try { 
+    		configFuture.thenApplyAsync(
+    		    future -> getTopic(topic, defaultConfig ? future.allowAutoTopicCreation() 
+                                   : true).thenApply(Optional::get)
+    							   .get());
+    	} catch (InterruptedException exc) {
+    		log.warn("[{}] Unexpected exception when loading topic: {}", topic, exc);
+    		return failedFuture(exc);
+    	}
     }
 
     private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
