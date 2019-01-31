@@ -67,13 +67,13 @@ func TestConsumer(t *testing.T) {
 	defer producer.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:                                     "my-topic",
-		SubscriptionName:                          "my-sub",
-		AckTimeout:                                1 * time.Minute,
-		Name:                                      "my-consumer-name",
-		ReceiverQueueSize:                         100,
+		Topic:             "my-topic",
+		SubscriptionName:  "my-sub",
+		AckTimeout:        1 * time.Minute,
+		Name:              "my-consumer-name",
+		ReceiverQueueSize: 100,
 		MaxTotalReceiverQueueSizeAcrossPartitions: 10000,
-		Type:                                      Shared,
+		Type: Shared,
 	})
 
 	assert.Nil(t, err)
@@ -395,6 +395,66 @@ func TestConsumerRegex(t *testing.T) {
 
 		consumer.Ack(msg)
 	}
+
+	consumer.Unsubscribe()
+}
+
+func TestConsumer_Seek(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "persistent://public/default/testSeek"
+	subName := "sub-testSeek"
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, producer.Topic(), topicName)
+	defer producer.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topicName,
+		SubscriptionName: subName,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, consumer.Topic(), topicName)
+	assert.Equal(t, consumer.Subscription(), subName)
+	defer consumer.Close()
+
+	ctx := context.Background()
+
+	// Send 10 messages synchronously
+	t.Log("Publishing 10 messages synchronously")
+	for msgNum := 0; msgNum < 10; msgNum++ {
+		if err := producer.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("msg-content-%d", msgNum)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Log("Trying to receive 10 messages")
+	for msgNum := 0; msgNum < 10; msgNum++ {
+		_, err := consumer.Receive(ctx)
+		assert.Nil(t, err)
+	}
+
+	// seek to earliest, expected receive first message.
+	err = consumer.Seek(EarliestMessage)
+	assert.Nil(t, err)
+
+	// Sleeping for 500ms to wait for consumer re-connect
+	time.Sleep(500 * time.Millisecond)
+
+	msg, err := consumer.Receive(ctx)
+	assert.Nil(t, err)
+	t.Logf("again received message:%+v", msg.ID())
+	assert.Equal(t,string(msg.Payload()),"msg-content-0")
 
 	consumer.Unsubscribe()
 }
