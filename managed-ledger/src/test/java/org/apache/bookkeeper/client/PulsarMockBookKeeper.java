@@ -250,11 +250,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     synchronized boolean checkReturnEmptyLedger() {
-        if (emptyLedgerAfter-- == 0) {
-            return true;
-        } else {
-            return false;
-        }
+        boolean shouldFailNow = (emptyLedgerAfter == 0);
+        --emptyLedgerAfter;
+        return shouldFailNow;
     }
 
     synchronized CompletableFuture<Void> getProgrammedFailure() {
