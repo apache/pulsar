@@ -24,9 +24,8 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/any.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/function.hpp>
+#include <mutex>
+#include <functional>
 #include <string>
 #include <vector>
 #include <deque>
@@ -53,16 +52,16 @@ class PulsarFriend;
 class ExecutorService;
 
 class ClientConnection;
-typedef boost::shared_ptr<ClientConnection> ClientConnectionPtr;
-typedef boost::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
+typedef std::shared_ptr<ClientConnection> ClientConnectionPtr;
+typedef std::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
 
 class ProducerImpl;
-typedef boost::shared_ptr<ProducerImpl> ProducerImplPtr;
-typedef boost::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
+typedef std::shared_ptr<ProducerImpl> ProducerImplPtr;
+typedef std::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
 
 class ConsumerImpl;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
+typedef std::shared_ptr<ConsumerImpl> ConsumerImplPtr;
+typedef std::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
 
 class LookupDataResult;
 
@@ -75,9 +74,9 @@ struct ResponseData {
     std::string schemaVersion;
 };
 
-typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
-class ClientConnection : public boost::enable_shared_from_this<ClientConnection> {
+class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     enum State
     {
         Pending,
@@ -87,10 +86,10 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     };
 
    public:
-    typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
-    typedef boost::shared_ptr<ClientConnection> ConnectionPtr;
-    typedef boost::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
+    typedef std::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+    typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
+    typedef std::shared_ptr<ClientConnection> ConnectionPtr;
+    typedef std::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
 
     /*
@@ -289,8 +288,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;
     PendingGetNamespaceTopicsMap pendingGetNamespaceTopicsRequests_;
 
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 
     // Pending buffers to write on the socket
     std::deque<boost::any> pendingWriteBuffers_;

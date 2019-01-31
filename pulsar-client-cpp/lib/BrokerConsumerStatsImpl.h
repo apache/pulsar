@@ -22,7 +22,7 @@
 #include <string.h>
 #include <iostream>
 #include <pulsar/Result.h>
-#include <boost/function.hpp>
+#include <functional>
 #include <boost/date_time/microsec_time_clock.hpp>
 #include <pulsar/BrokerConsumerStats.h>
 #include <lib/BrokerConsumerStatsImplBase.h>

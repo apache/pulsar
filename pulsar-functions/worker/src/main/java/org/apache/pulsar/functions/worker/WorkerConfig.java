@@ -96,9 +96,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Integer workerPortTls;
     @FieldContext(
-            category = CATEGORY_WORKER,
-            doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+        category = CATEGORY_WORKER,
+        doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "Number of threads to use for HTTP requests processing"
+    )
+    private int numHttpServerThreads = 8;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -268,14 +273,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
-    
+
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
-    
-    
+
+
     @Data
     @Setter
     @Getter
@@ -465,7 +470,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
     }
-  
+
     @Override
     public void setProperties(Properties properties) {
         this.properties = properties;

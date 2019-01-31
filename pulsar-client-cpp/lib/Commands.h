@@ -31,7 +31,7 @@ using namespace pulsar;
 
 namespace pulsar {
 
-typedef boost::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
+typedef std::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
 
 /**
  * Construct buffers ready to send for Pulsar client commands.

@@ -29,7 +29,7 @@
 #include <lib/Version.h>
 
 namespace pulsar {
-class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
+class HTTPLookupService : public LookupService, public std::enable_shared_from_this<HTTPLookupService> {
     class CurlInitializer {
        public:
         CurlInitializer() {

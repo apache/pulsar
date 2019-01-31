@@ -39,7 +39,7 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
 
     std::string consumerStr_;
     DeadlineTimerPtr timer_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
 
     friend std::ostream& operator<<(std::ostream&, const ConsumerStatsImpl&);
@@ -74,7 +74,7 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
         return totalReceivedMsgMap_;
     }
 };
-typedef boost::shared_ptr<ConsumerStatsImpl> ConsumerStatsImplPtr;
+typedef std::shared_ptr<ConsumerStatsImpl> ConsumerStatsImplPtr;
 } /* namespace pulsar */
 
 #endif /* PULSAR_CONSUMER_STATS_IMPL_H_ */

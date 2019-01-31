@@ -24,6 +24,8 @@
 #include "ConnectionPool.h"
 #include "Backoff.h"
 #include <lib/LookupService.h>
+#include <mutex>
+
 #pragma GCC visibility push(default)
 
 namespace pulsar {
@@ -43,7 +45,7 @@ class BinaryProtoLookupService : public LookupService {
     Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
 
    private:
-    boost::mutex mutex_;
+    std::mutex mutex_;
     uint64_t requestIdGenerator_;
 
     std::string serviceUrl_;
@@ -72,7 +74,7 @@ class BinaryProtoLookupService : public LookupService {
 
     uint64_t newRequestId();
 };
-typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
+typedef std::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }  // namespace pulsar
 
 #pragma GCC visibility pop

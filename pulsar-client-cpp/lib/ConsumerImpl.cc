@@ -78,16 +78,16 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
 
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
-        consumerStatsBasePtr_ = boost::make_shared<ConsumerStatsImpl>(
+        consumerStatsBasePtr_ = std::make_shared<ConsumerStatsImpl>(
             consumerStr_, client->getIOExecutorProvider()->get()->createDeadlineTimer(),
             statsIntervalInSeconds);
     } else {
-        consumerStatsBasePtr_ = boost::make_shared<ConsumerStatsDisabled>();
+        consumerStatsBasePtr_ = std::make_shared<ConsumerStatsDisabled>();
     }
 
     // Create msgCrypto
     if (conf.isEncryptionEnabled()) {
-        msgCrypto_ = boost::make_shared<MessageCrypto>(consumerStr_, false);
+        msgCrypto_ = std::make_shared<MessageCrypto>(consumerStr_, false);
     }
 }
 
@@ -142,7 +142,8 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
                                               consumerName_, subscriptionMode_, startMessageId_,
                                               readCompacted_, config_.getProperties(), config_.getSchema());
     cnx->sendRequestWithId(cmd, requestId)
-        .addListener(boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
+        .addListener(
+            std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
 }
 
 void ConsumerImpl::connectionFailed(Result result) {
@@ -237,7 +238,8 @@ void ConsumerImpl::unsubscribeAsync(ResultCallback callback) {
         int requestId = client->newRequestId();
         SharedBuffer cmd = Commands::newUnsubscribe(consumerId_, requestId);
         cnx->sendRequestWithId(cmd, requestId)
-            .addListener(boost::bind(&ConsumerImpl::handleUnsubscribe, shared_from_this(), _1, callback));
+            .addListener(std::bind(&ConsumerImpl::handleUnsubscribe, shared_from_this(),
+                                   std::placeholders::_1, callback));
     } else {
         Result result = ResultNotConnected;
         lock.unlock();
@@ -328,7 +330,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         lock.unlock();
         // Trigger message listener callback in a separate thread
         while (numOfMessageReceived--) {
-            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::internalListener, shared_from_this()));
+            listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
         }
     }
 }
@@ -495,7 +497,7 @@ void ConsumerImpl::internalListener() {
     }
     lock.unlock();
     Message msg;
-    if (!incomingMessages_.pop(msg, boost::posix_time::milliseconds(0))) {
+    if (!incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
@@ -570,7 +572,7 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
-    if (incomingMessages_.pop(msg, milliseconds(0))) {
+    if (incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         messageProcessed(msg);
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
@@ -635,7 +637,7 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
-    if (incomingMessages_.pop(msg, milliseconds(timeout))) {
+    if (incomingMessages_.pop(msg, std::chrono::milliseconds(timeout))) {
         messageProcessed(msg);
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
@@ -727,8 +729,8 @@ void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::Com
 }
 
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb =
-        boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Individual);
+    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Individual);
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Individual)) {
         cb(ResultOk);
@@ -738,8 +740,8 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
 }
 
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb =
-        boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Cumulative);
+    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Cumulative);
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
         MessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
@@ -792,7 +794,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     Lock lock(mutex_);
     if (state_ != Ready) {
         lock.unlock();
-        if (!callback.empty()) {
+        if (callback) {
             callback(ResultAlreadyClosed);
         }
         return;
@@ -802,7 +804,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     if (!cnx) {
         lock.unlock();
         // If connection is gone, also the consumer is closed on the broker side
-        if (!callback.empty()) {
+        if (callback) {
             callback(ResultOk);
         }
         return;
@@ -813,7 +815,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     if (!client) {
         lock.unlock();
         // Client was already destroyed
-        if (!callback.empty()) {
+        if (callback) {
             callback(ResultOk);
         }
         return;
@@ -824,8 +826,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     int requestId = client->newRequestId();
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
-    if (!callback.empty()) {
-        future.addListener(boost::bind(&ConsumerImpl::handleClose, shared_from_this(), _1, callback));
+    if (callback) {
+        future.addListener(
+            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
     }
 
     // fail pendingReceive callback
@@ -848,7 +851,9 @@ void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
         LOG_ERROR(getName() << "Failed to close consumer: " << result);
     }
 
-    callback(result);
+    if (callback) {
+        callback(result);
+    }
 }
 
 const std::string& ConsumerImpl::getName() const { return consumerStr_; }
@@ -896,7 +901,7 @@ Result ConsumerImpl::resumeMessageListener() {
 
     for (size_t i = 0; i < count; i++) {
         // Trigger message listener callback in a separate thread
-        listenerExecutor_->postWork(boost::bind(&ConsumerImpl::internalListener, shared_from_this()));
+        listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
     }
     return ResultOk;
 }
@@ -932,7 +937,7 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
         BrokerConsumerStatsImpl brokerConsumerStats = brokerConsumerStats_;
         lock.unlock();
         callback(ResultOk,
-                 BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats_)));
+                 BrokerConsumerStats(std::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats_)));
         return;
     }
     lock.unlock();
@@ -946,8 +951,8 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
                                 << ", requestId - " << requestId);
 
             cnx->newConsumerStats(consumerId_, requestId)
-                .addListener(boost::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(), _1,
-                                         _2, callback));
+                .addListener(std::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(),
+                                       std::placeholders::_1, std::placeholders::_2, callback));
             return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
@@ -968,8 +973,8 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
         brokerConsumerStats_ = brokerConsumerStats;
     }
 
-    if (!callback.empty()) {
-        callback(res, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats)));
+    if (callback) {
+        callback(res, BrokerConsumerStats(std::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats)));
     }
 }
 
@@ -987,7 +992,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     if (state_ == Closed || state_ == Closing) {
         lock.unlock();
         LOG_ERROR(getName() << "Client connection already closed.");
-        if (!callback.empty()) {
+        if (callback) {
             callback(ResultAlreadyClosed);
         }
         return;
@@ -1003,8 +1008,9 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         Future<Result, ResponseData> future =
             cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
-        if (!callback.empty()) {
-            future.addListener(boost::bind(&ConsumerImpl::handleSeek, shared_from_this(), _1, callback));
+        if (callback) {
+            future.addListener(
+                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
         }
         return;
     }
@@ -1057,7 +1063,7 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
     if (state_ == Closed || state_ == Closing) {
         lock.unlock();
         LOG_ERROR(getName() << "Client connection already closed.");
-        if (!callback.empty()) {
+        if (callback) {
             callback(ResultAlreadyClosed, MessageId());
         }
         return;
@@ -1073,8 +1079,8 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
                                 << ", requestId - " << requestId);
 
             cnx->newGetLastMessageId(consumerId_, requestId)
-                .addListener(boost::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
-                                         _1, _2, callback));
+                .addListener(std::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
+                                       std::placeholders::_1, std::placeholders::_2, callback));
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
                                 << cnx->getServerProtocolVersion() << " is older than proto::v12");

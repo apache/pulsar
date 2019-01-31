@@ -19,12 +19,12 @@
 #include "NamedEntity.h"
 #include "LogUtils.h"
 #include "PartitionedProducerImpl.h"
+#include "TopicName.h"
 
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/find.hpp>
-#include <boost/make_shared.hpp>
-#include <lib/TopicName.h>
+#include <memory>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -34,10 +34,10 @@
 DECLARE_LOG_OBJECT()
 namespace pulsar {
 
-typedef boost::unique_lock<boost::mutex> Lock;
+typedef std::unique_lock<std::mutex> Lock;
 // static members
 CURL* TopicName::curl = NULL;
-boost::mutex TopicName::curlHandleMutex;
+std::mutex TopicName::curlHandleMutex;
 
 CURL* TopicName::getCurlHandle() {
     if (curl == NULL) {
@@ -182,17 +182,17 @@ bool TopicName::validate() {
     }
 }
 
-boost::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
-    boost::shared_ptr<TopicName> ptr(new TopicName());
+std::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
+    std::shared_ptr<TopicName> ptr(new TopicName());
     if (!ptr->init(topicName)) {
         LOG_ERROR("Topic name initialization failed");
-        return boost::shared_ptr<TopicName>();
+        return std::shared_ptr<TopicName>();
     }
     if (ptr->validate()) {
         return ptr;
     } else {
         LOG_ERROR("Topic name validation Failed - " << topicName);
-        return boost::shared_ptr<TopicName>();
+        return std::shared_ptr<TopicName>();
     }
 }
 

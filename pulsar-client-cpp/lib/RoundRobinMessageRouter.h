@@ -22,7 +22,7 @@
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/ProducerConfiguration.h>
 #include <pulsar/TopicMetadata.h>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include "Hash.h"
 #include "MessageRouterBase.h"
 
@@ -35,10 +35,10 @@ class RoundRobinMessageRouter : public MessageRouterBase {
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
    private:
-    boost::mutex mutex_;
+    std::mutex mutex_;
     unsigned int prevPartition_;
 };
-typedef boost::unique_lock<boost::mutex> Lock;
+typedef std::unique_lock<std::mutex> Lock;
 }  // namespace pulsar
 #pragma GCC visibility pop
 #endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_
