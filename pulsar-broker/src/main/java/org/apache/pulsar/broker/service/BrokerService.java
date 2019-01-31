@@ -1179,12 +1179,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic
             forEachTopic(topic -> {
-                if (topic instanceof PersistentTopic) {
-                    PersistentTopic persistentTopic = (PersistentTopic) topic;
-                    // it first checks namespace-policy rate and if not present then applies broker-config
-                    if (persistentTopic.getDispatchRateLimiter().isPresent()) {
-                        persistentTopic.getDispatchRateLimiter().get().updateDispatchRate();
-                    }
+                if (topic.getDispatchRateLimiter().isPresent()) {
+                    topic.getDispatchRateLimiter().get().updateDispatchRate();
                 }
             });
         });
@@ -1195,17 +1191,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // update message-rate for each topic subscription
             forEachTopic(topic -> {
                 topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
-                    if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
-                        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentSubscription.getDispatcher();
-                        if (dispatcher.getRateLimiter().isPresent()) {
-                            dispatcher.getRateLimiter().get().updateDispatchRate();
-                        }
-                    } else if (persistentSubscription
-                            .getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
-                        PersistentDispatcherSingleActiveConsumer dispatcher = (PersistentDispatcherSingleActiveConsumer) persistentSubscription.getDispatcher();
-                        if (dispatcher.getRateLimiter().isPresent()) {
-                            dispatcher.getRateLimiter().get().updateDispatchRate();
-                        }
+                    Dispatcher dispatcher = persistentSubscription.getDispatcher();
+                    if (dispatcher.getRateLimiter().isPresent()) {
+                        dispatcher.getRateLimiter().get().updateDispatchRate();
                     }
                 });
             });
