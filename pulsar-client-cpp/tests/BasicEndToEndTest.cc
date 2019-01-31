@@ -89,8 +89,8 @@ static void receiveCallBack(Result r, const Message& msg, std::string& messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix, double percentage,
-                         uint64_t delayInMicros, int* count) {
+static void sendCallBackWithDelay(Result r, const Message& msg, std::string prefix, double percentage,
+                                  uint64_t delayInMicros, int* count) {
     if ((rand() % 100) <= percentage) {
         usleep(delayInMicros);
     }
@@ -1011,8 +1011,8 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix,
-                                          15, 2 * 1e3, &count));
+        producer.sendAsync(msg, std::bind(&sendCallBackWithDelay, std::placeholders::_1,
+                                          std::placeholders::_2, prefix, 15, 2 * 1e3, &count));
         LOG_DEBUG("sending message " << messageContent);
     }
 
