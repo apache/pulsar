@@ -6990,10 +6990,10 @@
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
+        "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthIn" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
@@ -7011,9 +7011,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -7022,6 +7019,9 @@
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
