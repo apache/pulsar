@@ -27,6 +27,7 @@ import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.Map;
 
@@ -84,7 +85,7 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
                     public void onFailure(Throwable t) {
                         record.fail();
                     }
-                });
+                }, MoreExecutors.directExecutor());
     }
 
     private void createClient(String roots) {
