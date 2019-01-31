@@ -222,7 +222,7 @@ The Apache Software License, Version 2.0
     - jackson-mapper-asl-1.9.13.jar
     - jackson-dataformat-yaml-2.8.11.jar
  * Guava
-    - guava-21.0.jar
+    - guava-27.0.1-jre.jar
     - guava-24.1-jre.jar
  * Google Guice
     - guice-4.2.0.jar

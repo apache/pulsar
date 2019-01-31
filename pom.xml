@@ -424,7 +424,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>21.0</version>
+        <version>27.0.1-jre</version>
       </dependency>
 
       <dependency>
@@ -542,7 +542,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jersey-client</artifactId>
         <version>${jersey.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.glassfish.jersey.inject</groupId>
         <artifactId>jersey-hk2</artifactId>
@@ -762,7 +762,7 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt-api</artifactId>
