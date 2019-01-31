@@ -71,7 +71,7 @@ class ExecutorService : private boost::noncopyable {
      * background invoking async handlers as they are finished and result is available from
      * io_service
      */
-    std::thread worker_;
+    boost::asio::detail::thread worker_;
 };
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;
