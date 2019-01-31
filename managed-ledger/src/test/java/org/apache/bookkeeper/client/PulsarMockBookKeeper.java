@@ -249,6 +249,14 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
     }
 
+    synchronized boolean checkReturnEmptyLedger() {
+        if (emptyLedgerAfter-- == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     synchronized CompletableFuture<Void> getProgrammedFailure() {
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
     }
@@ -259,6 +267,15 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     public void failAfter(int steps, int rc) {
         promiseAfter(steps).completeExceptionally(BKException.create(rc));
+    }
+
+    private int emptyLedgerAfter = -1;
+
+    /**
+     * After N times, make a ledger to appear to be empty
+     */
+    public synchronized void returnEmptyLedgerAfter(int steps) {
+        emptyLedgerAfter = steps;
     }
 
     public synchronized CompletableFuture<Void> promiseAfter(int steps) {
