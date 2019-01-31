@@ -25,7 +25,7 @@ Each Pulsar instance relies on two separate ZooKeeper quorums.
 
 ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.
 
-Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster *per Pulsar cluster*. 
+Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster *per Pulsar cluster*.
 
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. Here's an example for a three-node cluster:
 
@@ -231,6 +231,8 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 # Change the ledger manager type
 ledgerManagerType=hierarchical
 ```
+
+To change the zookeeper root path used by Bookkeeper, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
 
 > Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
 
