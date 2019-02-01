@@ -60,7 +60,7 @@ public class TestEnvVarResolverProperties {
     String NC_PORT = "6667";
     environmentVariables.set("NC_PORT", NC_PORT);
     System.setProperty("propertiesImplementation",
-        "org.apache.flume.node.EnvVarResolverProperties");
+        "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
     Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
         .getConfigurationFor("a1")

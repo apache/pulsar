@@ -77,6 +77,11 @@
             <scope>test</scope>
             <version>1.17.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>18.0</version>
+        </dependency>
     </dependencies>
 
 
