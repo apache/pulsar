@@ -18,6 +18,7 @@
  */
 package org.apache.kafka.clients.producer;
 
+import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -242,11 +243,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
     }
 
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
+
     private int buildMessage(TypedMessageBuilder<byte[]> builder, ProducerRecord<K, V> record) {
         byte[] keyBytes = null;
         if (record.key() != null) {
             String key = getKey(record.topic(), record.key());
-            keyBytes = key.getBytes();
+            keyBytes = key.getBytes(UTF_8);
             builder.key(key);
         }
 

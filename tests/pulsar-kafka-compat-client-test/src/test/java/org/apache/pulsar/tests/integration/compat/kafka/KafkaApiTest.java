@@ -399,12 +399,12 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
-        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("key.deserializer", IntegerDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
         // Create Kakfa consumer and verify all messages came from intended partition
         @Cleanup
-        Consumer<String, String> consumer = new KafkaConsumer<>(props);
+        Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
         int N = 8 * 3;
@@ -416,7 +416,7 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         producer.flush();
 
         for (int i = 0; i < N;) {
-            ConsumerRecords<String, String> records = consumer.poll(100);
+            ConsumerRecords<Integer, String> records = consumer.poll(100);
             i += records.count();
 
             records.forEach(record -> {
@@ -425,7 +425,7 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         }
 
         // No more messages for this consumer
-        ConsumerRecords<String, String> records = consumer.poll(100);
+        ConsumerRecords<Integer, String> records = consumer.poll(100);
         assertEquals(records.count(), 0);
     }
 
