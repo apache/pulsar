@@ -372,6 +372,59 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
+
+        reset(functionRuntimeManager);
+        functionRuntimeManager.actionQueue.clear();
+
+        // add a stop
+        Function.FunctionMetaData.Builder function2StoppedBldr = function2.toBuilder();
+        function2StoppedBldr.putInstanceStates(0, Function.FunctionState.STOPPED);
+        Function.FunctionMetaData function2Stopped = function2StoppedBldr.build();
+
+        Function.Assignment assignment4 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-1")
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2Stopped).setInstanceId(0).build())
+                .build();
+
+        functionRuntimeManager.processAssignment(assignment4);
+
+        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        // make sure terminate is not called since this is a update operation
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+
+        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof FunctionRuntimeInfo) {
+                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
+
+                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
+
+        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
+        Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
+                new FunctionAction()
+                        .setAction(FunctionAction.Action.STOP)
+                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
+                                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
+                                        .build()))));
+
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment4);
+
     }
 
     @Test
