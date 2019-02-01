@@ -474,7 +474,7 @@ class PulsarTest(TestCase):
 
         content = 'test'.encode('utf-8')
 
-        self._check_value_error(lambda: producer.send(5))
+        self._check_type_error(lambda: producer.send(5))
         self._check_value_error(lambda: producer.send(content, properties='test'))
         self._check_value_error(lambda: producer.send(content, partition_key=5))
         self._check_value_error(lambda: producer.send(content, sequence_id='test'))
@@ -897,6 +897,14 @@ class PulsarTest(TestCase):
             # Should throw exception
             self.assertTrue(False)
         except ValueError:
+            pass  # Expected
+
+    def _check_type_error(self, fun):
+        try:
+            fun()
+            # Should throw exception
+            self.assertTrue(False)
+        except TypeError:
             pass  # Expected
 
 
