@@ -19,7 +19,7 @@
 #include "AuthToken.h"
 
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/bind.hpp>
+#include <functional>
 
 #include <sstream>
 #include <fstream>
@@ -65,14 +65,14 @@ AuthToken::~AuthToken() {}
 
 AuthenticationPtr AuthToken::create(ParamMap &params) {
     if (params.find("token") != params.end()) {
-        return create(boost::bind(&readDirect, params["token"]));
+        return create(std::bind(&readDirect, params["token"]));
     } else if (params.find("file") != params.end()) {
         // Read token from a file
-        return create(boost::bind(&readFromFile, params["file"]));
+        return create(std::bind(&readFromFile, params["file"]));
     } else if (params.find("env") != params.end()) {
         // Read token from environment variable
         std::string envVarName = params["env"];
-        return create(boost::bind(&readFromEnv, envVarName));
+        return create(std::bind(&readFromEnv, envVarName));
     } else {
         throw "Invalid configuration for token provider";
     }
@@ -99,7 +99,7 @@ AuthenticationPtr AuthToken::create(const std::string &authParamsString) {
 }
 
 AuthenticationPtr AuthToken::createWithToken(const std::string &token) {
-    return create(boost::bind(&readDirect, token));
+    return create(std::bind(&readDirect, token));
 }
 
 AuthenticationPtr AuthToken::create(const TokenSupplier &tokenSupplier) {

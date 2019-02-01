@@ -36,7 +36,6 @@
 #include "Commands.h"
 #include "LogUtils.h"
 #include "ObjectPool.h"
-#include <boost/bind.hpp>
 #include "ExecutorService.h"
 #include <boost/asio.hpp>
 #include "ProducerImpl.h"

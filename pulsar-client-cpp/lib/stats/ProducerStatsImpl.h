@@ -41,7 +41,6 @@
 #include <iostream>
 #include <vector>
 #include <lib/Utils.h>
-#include <boost/bind.hpp>
 #include <lib/stats/ProducerStatsBase.h>
 
 namespace pulsar {

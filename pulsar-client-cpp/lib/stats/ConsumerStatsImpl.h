@@ -22,7 +22,6 @@
 
 #include <lib/stats/ConsumerStatsBase.h>
 #include <lib/ExecutorService.h>
-#include <boost/bind.hpp>
 #include <lib/Utils.h>
 #include <utility>
 namespace pulsar {

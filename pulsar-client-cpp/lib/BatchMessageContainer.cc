@@ -18,6 +18,7 @@
  */
 #include "BatchMessageContainer.h"
 #include <memory>
+#include <functional>
 
 namespace pulsar {
 
@@ -80,8 +81,8 @@ void BatchMessageContainer::startTimer() {
     const unsigned long& publishDelayInMs = producer_.conf_.getBatchingMaxPublishDelayMs();
     LOG_DEBUG(*this << " Timer started with expiry after " << publishDelayInMs);
     timer_->expires_from_now(boost::posix_time::milliseconds(publishDelayInMs));
-    timer_->async_wait(boost::bind(&pulsar::ProducerImpl::batchMessageTimeoutHandler, &producer_,
-                                   boost::asio::placeholders::error));
+    timer_->async_wait(
+        std::bind(&pulsar::ProducerImpl::batchMessageTimeoutHandler, &producer_, std::placeholders::_1));
 }
 
 void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
