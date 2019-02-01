@@ -68,6 +68,13 @@ ClientConfiguration& ClientConfiguration::setUseTls(bool useTls) {
 
 bool ClientConfiguration::isUseTls() const { return impl_->useTls; }
 
+ClientConfiguration& ClientConfiguration::setValidateHostName(bool validateHostName) {
+    impl_->validateHostName = validateHostName;
+    return *this;
+}
+
+bool ClientConfiguration::isValidateHostName() const { return impl_->validateHostName; }
+
 ClientConfiguration& ClientConfiguration::setTlsTrustCertsFilePath(const std::string& filePath) {
     impl_->tlsTrustCertsFilePath = filePath;
     return *this;

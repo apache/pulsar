@@ -91,4 +91,4 @@ class LogUtils {
 };
 
 #pragma GCC visibility pop
-}
+}  // namespace pulsar
