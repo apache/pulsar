@@ -909,7 +909,7 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        if type(message) is Message:
+        if isinstance(message, Message):
             self._consumer.acknowledge(message._message)
         else:
             self._consumer.acknowledge(message)
@@ -927,7 +927,7 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        if type(message) is Message:
+        if isinstance(message, Message):
             self._consumer.acknowledge_cumulative(message._message)
         else:
             self._consumer.acknowledge_cumulative(message)
