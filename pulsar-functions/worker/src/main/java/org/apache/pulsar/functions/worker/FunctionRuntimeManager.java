@@ -150,6 +150,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getK8Uri(),
                     workerConfig.getKubernetesContainerFactory().getJobNamespace(),
                     workerConfig.getKubernetesContainerFactory().getPulsarDockerImageName(),
+                    workerConfig.getKubernetesContainerFactory().getImagePullPolicy(),
                     workerConfig.getKubernetesContainerFactory().getPulsarRootDir(),
                     workerConfig.getKubernetesContainerFactory().getSubmittingInsidePod(),
                     workerConfig.getKubernetesContainerFactory().getInstallUserCodeDependencies(),

@@ -344,10 +344,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
         )
         private String pulsarDockerImageName;
+
         @FieldContext(
-            doc = "The root directory of pulsar home directory in the pulsar docker image specified"
-                + " `pulsarDockerImageName`. By default it is under `/pulsar`. If you are using your own"
-                + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
+                doc = "The image pull policy for image used to run function instance. By default it is `IfNotPresent`"
+        )
+        private String imagePullPolicy;
+        @FieldContext(
+                doc = "The root directory of pulsar home directory in the pulsar docker image specified"
+                        + " `pulsarDockerImageName`. By default it is under `/pulsar`. If you are using your own"
+                        + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
         )
         private String pulsarRootDir;
         @FieldContext(
