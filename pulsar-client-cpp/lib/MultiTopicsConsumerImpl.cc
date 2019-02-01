@@ -442,7 +442,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         pendingReceives_.pop();
         lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
-        listenerExecutor_->postWork(boost::bind(callback, ResultOk, msg));
+        listenerExecutor_->postWork(std::bind(callback, ResultOk, msg));
     } else {
         if (messages_.full()) {
             lock.unlock();
@@ -534,7 +534,7 @@ void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
-        listenerExecutor_->postWork(boost::bind(callback, ResultAlreadyClosed, msg));
+        listenerExecutor_->postWork(std::bind(callback, ResultAlreadyClosed, msg));
     }
     lock.unlock();
 }

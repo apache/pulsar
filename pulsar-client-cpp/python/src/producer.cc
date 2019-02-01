@@ -18,6 +18,8 @@
  */
 #include "utils.h"
 
+#include <functional>
+
 void Producer_send(Producer& producer, const Message& message) {
     Result res;
     Py_BEGIN_ALLOW_THREADS
@@ -49,7 +51,8 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
     Py_XINCREF(pyCallback);
 
     Py_BEGIN_ALLOW_THREADS
-    producer.sendAsync(message, boost::bind(Producer_sendAsyncCallback, pyCallback, _1, _2));
+    producer.sendAsync(message, std::bind(Producer_sendAsyncCallback, pyCallback,
+            std::placeholders::_1, std::placeholders::_2));
     Py_END_ALLOW_THREADS
 }
 
