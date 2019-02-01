@@ -622,12 +622,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         this.insertStopAction(functionRuntimeInfo);
                     }
                     // still assigned to me, need to restart
-                    if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId()) && needsStart(assignment)) {
-                        //start again
-                        FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
-                        newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
-                        this.insertStartAction(newFunctionRuntimeInfo);
-                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                    if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
+                        if (needsStart(assignment)) {
+                            //start again
+                            FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
+                            newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+                            this.insertStartAction(newFunctionRuntimeInfo);
+                            this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                        }
                     } else {
                         deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
                     }
@@ -640,12 +642,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     this.insertStopAction(functionRuntimeInfo);
                 }
                 // still assigned to me, need to restart
-                if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId()) && needsStart(assignment)) {
-                    //start again
-                    FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
-                    newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
-                    this.insertStartAction(newFunctionRuntimeInfo);
-                    this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
+                    if (needsStart(assignment)) {
+                        //start again
+                        FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
+                        newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+                        this.insertStartAction(newFunctionRuntimeInfo);
+                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                    }
                 } else {
                     deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
                 }

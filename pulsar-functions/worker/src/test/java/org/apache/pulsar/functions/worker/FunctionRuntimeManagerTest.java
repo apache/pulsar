@@ -415,7 +415,7 @@ public class FunctionRuntimeManagerTest {
                                 Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
                                         .build()))));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
