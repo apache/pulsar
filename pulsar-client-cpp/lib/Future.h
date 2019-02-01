@@ -20,23 +20,22 @@
 #define LIB_FUTURE_H_
 
 #include <functional>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/make_shared.hpp>
+#include <mutex>
+#include <memory>
+#include <condition_variable>
 
 #include <list>
 
 #pragma GCC visibility push(default)
 
-typedef boost::unique_lock<boost::mutex> Lock;
+typedef std::unique_lock<std::mutex> Lock;
 
 namespace pulsar {
 
 template <typename Result, typename Type>
 struct InternalState {
-    boost::mutex mutex;
-    boost::condition_variable condition;
+    std::mutex mutex;
+    std::condition_variable condition;
     Result result;
     Type value;
     bool complete;

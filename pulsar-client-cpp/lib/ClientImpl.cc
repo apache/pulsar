@@ -27,16 +27,15 @@
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
-#include "Log4CxxLogger.h"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <openssl/sha.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
 #include <regex>
+#include <mutex>
 
 DECLARE_LOG_OBJECT()
 
@@ -62,7 +61,7 @@ const std::string generateRandomName() {
 
     return hexHash.str();
 }
-typedef boost::unique_lock<boost::mutex> Lock;
+typedef std::unique_lock<std::mutex> Lock;
 
 typedef std::vector<std::string> StringList;
 

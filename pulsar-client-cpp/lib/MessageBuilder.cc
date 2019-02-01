@@ -18,7 +18,7 @@
  */
 #include <pulsar/MessageBuilder.h>
 
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include "MessageImpl.h"
 #include "SharedBuffer.h"

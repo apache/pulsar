@@ -497,7 +497,7 @@ void ConsumerImpl::internalListener() {
     }
     lock.unlock();
     Message msg;
-    if (!incomingMessages_.pop(msg, boost::posix_time::milliseconds(0))) {
+    if (!incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
@@ -572,7 +572,7 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
-    if (incomingMessages_.pop(msg, milliseconds(0))) {
+    if (incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         messageProcessed(msg);
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
@@ -637,7 +637,7 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
-    if (incomingMessages_.pop(msg, milliseconds(timeout))) {
+    if (incomingMessages_.pop(msg, std::chrono::milliseconds(timeout))) {
         messageProcessed(msg);
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
