@@ -66,8 +66,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
         niFiConfig = NiFiConfig.load(config);
         Preconditions.checkNotNull(niFiConfig.getUrl(), "url property not set.");
         Preconditions.checkNotNull(niFiConfig.getPortName(), "portName property not set.");
-        Preconditions.checkArgument(niFiConfig.getWaitTimeMs() > 0,
-                "waitTimeMs must be a positive long.");
+        Preconditions.checkArgument(niFiConfig.getWaitTimeMs() > 0, "waitTimeMs must be a positive long.");
 
         waitTimeMs = niFiConfig.getWaitTimeMs();
         clientConfig = new SiteToSiteClient.Builder()
@@ -120,7 +119,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                     try {
                         Thread.sleep(waitTimeMs);
                     } catch (InterruptedException ioe) {
-                        log.warn("transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
+                        log.warn("transaction could not be created, waiting and will try again {} milliseconds.", waitTimeMs);
                     }
                     continue;
                 }
@@ -132,7 +131,7 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         try {
                             Thread.sleep(waitTimeMs);
                         } catch (InterruptedException ioe) {
-                            log.warn("dataPacket could not be received, waiting and will try again " + waitTimeMs + " milliseconds.");
+                            log.warn("dataPacket could not be received, waiting and will try again {} milliseconds.", waitTimeMs);
                         }
                         continue;
                     }
@@ -150,8 +149,8 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         dataPacket = transaction.receive();
                     } while (dataPacket != null);
 
-                    final Set<NiFiRecord> sets = new HashSet<>(dataPackets.size());
-                    final NiFiTransaction niFiTransaction = new NiFiTransaction(transaction, sets);
+                    Set<NiFiRecord> sets = new HashSet<>(dataPackets.size());
+                    NiFiTransaction niFiTransaction = new NiFiTransaction(transaction, sets);
                     for (NiFiDataPacket dp : dataPackets) {
                         NiFiRecord niFiRecord = new NiFiRecord(dp, niFiTransaction);
                         niFiTransaction.addRecord(niFiRecord);

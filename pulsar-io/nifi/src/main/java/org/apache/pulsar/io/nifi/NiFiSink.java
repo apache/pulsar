@@ -124,11 +124,9 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
         }
 
         int retries = 0;
-        boolean flag = true;
         Transaction transaction = null;
-        while (flag) {
-            if (null != transaction || retries >= maxRetryAttempts) {
-                flag = false;
+        while (true) {
+            if (retries >= maxRetryAttempts) {
                 break;
             }
 
@@ -138,7 +136,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 try {
                     Thread.sleep(waitTimeMs);
                 } catch (InterruptedException e) {
-                    log.warn("transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
+                    log.warn("transaction could not be created, waiting and will try again {} milliseconds.", waitTimeMs);
                 }
             }
 
@@ -149,7 +147,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
         }
 
         if (null == transaction) {
-            log.warn("Failed to send records", toFlushList);
+            log.warn("Failed to send records {}", toFlushList);
             toFlushList.forEach(record -> record.fail());
             return;
         }
@@ -160,7 +158,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
                 try {
                     transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
                 } catch (IOException ioe) {
-                    log.warn("Failed to send record " + record + " to NiFi", ioe);
+                    log.warn("Failed to send record {} to NiFi", record, ioe);
                 }
             }
 

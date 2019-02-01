@@ -58,7 +58,6 @@ public class NiFiConfigTest {
         assertEquals("Data for Pulsar", config.getPortName());
         assertEquals(5, config.getRequestBatchCount());
         assertEquals(1000, config.getWaitTimeMs());
-
     }
 
     @Test
