@@ -19,7 +19,7 @@
 #include <string>
 #include <map>
 #include <lib/LogUtils.h>
-#include <boost/thread.hpp>
+
 #pragma GCC visibility push(default)
 
 namespace pulsar {

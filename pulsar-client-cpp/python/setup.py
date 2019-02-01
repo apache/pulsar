@@ -20,6 +20,7 @@
 from setuptools import setup
 from distutils.core import Extension
 import subprocess
+import sys
 
 from distutils.command import build_ext
 
@@ -41,6 +42,10 @@ def get_version():
 
 VERSION = get_version()
 
+if sys.version_info[0] == 2:
+    PY2 = True
+else:
+    PY2 = False
 
 # This is a workaround to have setuptools to include
 # the already compiled _pulsar.so library
@@ -57,10 +62,24 @@ class my_build_ext(build_ext.build_ext):
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
 
 
+dependencies = [
+    'grpcio', 'protobuf',
+    'six',
+    'fastavro',
+
+    # functions dependencies
+    "prometheus_client",
+    "ratelimit"
+]
+
+if PY2:
+    # Python 2 compat dependencies
+    dependencies += ['enum34']
+
 setup(
     name="pulsar-client",
     version=VERSION,
-    packages=['pulsar', 'pulsar.functions'],
+    packages=['pulsar', 'pulsar.schema', 'pulsar.functions'],
     cmdclass={'build_ext': my_build_ext},
     ext_modules=[Extension('_pulsar', [])],
 
@@ -68,11 +87,6 @@ setup(
     author_email="dev@pulsar.apache.org",
     description="Apache Pulsar Python client library",
     license="Apache License v2.0",
-    url="http://pulsar.apache.org/",
-    install_requires=[
-        'grpcio', 'protobuf',
-        # functions dependencies
-        "prometheus_client",
-        "ratelimit"
-    ],
+    url="https://pulsar.apache.org/",
+    install_requires=dependencies,
 )
