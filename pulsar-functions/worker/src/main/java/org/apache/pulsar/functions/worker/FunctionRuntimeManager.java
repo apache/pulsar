@@ -612,20 +612,61 @@ public class FunctionRuntimeManager implements AutoCloseable{
             // and we don't really need to stop and start the function instance because the worker its assigned to changed
             // we just need to update the locally cached assignment info.  We only need to stop and start when there are
             // changes to the function meta data of the instance
-            if (!runtimeFactory.externallyManaged() || !assignment.getInstance().equals(existingAssignment.getInstance())) {
+
+            if (runtimeFactory.externallyManaged()) {
+                // change in metadata thus need to potentially restart
+                if (!assignment.getInstance().equals(existingAssignment.getInstance())) {
+                    //stop function
+                    if (functionRuntimeInfo != null) {
+                        this.insertStopAction(functionRuntimeInfo);
+                    }
+                    // still assigned to me, need to restart
+                    if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId()) && needsStart(assignment)) {
+                        //start again
+                        FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
+                        newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+                        this.insertStartAction(newFunctionRuntimeInfo);
+                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                    } else {
+                        deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
+                    }
+                } else {
+                    deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
+                }
+            } else {
                 //stop function
                 if (functionRuntimeInfo != null) {
                     this.insertStopAction(functionRuntimeInfo);
                 }
                 // still assigned to me, need to restart
-                if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
+                if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId()) && needsStart(assignment)) {
                     //start again
                     FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
                     newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                     this.insertStartAction(newFunctionRuntimeInfo);
                     this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                } else {
+                    deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
                 }
             }
+
+
+
+
+//            if (!runtimeFactory.externallyManaged() || !assignment.getInstance().equals(existingAssignment.getInstance())) {
+//                //stop function
+//                if (functionRuntimeInfo != null) {
+//                    this.insertStopAction(functionRuntimeInfo);
+//                }
+//                // still assigned to me, need to restart
+//                if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId()) && needsStart(assignment)) {
+//                    //start again
+//                    FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
+//                    newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+//                    this.insertStartAction(newFunctionRuntimeInfo);
+//                    this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+//                }
+//            }
 
             // find existing assignment
             Assignment existing_assignment = this.findAssignment(assignment);
