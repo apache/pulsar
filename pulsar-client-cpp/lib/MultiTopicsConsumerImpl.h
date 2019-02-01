@@ -23,7 +23,7 @@
 #include "BlockingQueue.h"
 #include <vector>
 #include <queue>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
@@ -90,8 +90,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     typedef std::map<std::string, ConsumerImplPtr> ConsumerMap;
     ConsumerMap consumers_;
     std::map<std::string, int> topicsPartitions_;
-    boost::mutex mutex_;
-    boost::mutex pendingReceiveMutex_;
+    std::mutex mutex_;
+    std::mutex pendingReceiveMutex_;
     MultiTopicsConsumerState state_;
     std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     LookupServicePtr lookupServicePtr_;

@@ -18,5 +18,6 @@ Pulsar Functions cluster.
 - [Twitter Firehose Source Connector](io-twitter.md)
 - [CDC Source Connector based on Debezium](io-cdc.md)
 - [Netty Source Connector](io-netty.md#source)
+- [Hbase Sink Connector](io-hbase.md#sink)
 - [NiFi Sink Connector](io-nifi.md#sink)
 - [NiFi Source Connector](io-nifi.md#source)
