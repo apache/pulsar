@@ -21,22 +21,21 @@
 
 #include "ServiceUnitId.h"
 
+#include <memory>
 #include <string>
-#include <boost/shared_ptr.hpp>
 
 #pragma GCC visibility push(default)
 namespace pulsar {
 
 class NamespaceName : public ServiceUnitId {
    public:
-    boost::shared_ptr<NamespaceName> getNamespaceObject();
+    std::shared_ptr<NamespaceName> getNamespaceObject();
     std::string getProperty();
     std::string getCluster();
     std::string getLocalName();
-    static boost::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
-                                                const std::string& namespaceName);
-    static boost::shared_ptr<NamespaceName> get(const std::string& property,
-                                                const std::string& namespaceName);
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
+                                              const std::string& namespaceName);
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& namespaceName);
     bool operator==(const NamespaceName& namespaceName);
     bool isV2();
     std::string toString();
@@ -53,7 +52,7 @@ class NamespaceName : public ServiceUnitId {
     NamespaceName(const std::string& property, const std::string& namespace_);
 };
 
-typedef boost::shared_ptr<NamespaceName> NamespaceNamePtr;
+typedef std::shared_ptr<NamespaceName> NamespaceNamePtr;
 
 }  // namespace pulsar
 #pragma GCC visibility pop

@@ -146,7 +146,6 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
         bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
         if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist

@@ -20,8 +20,6 @@
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #include <Future.h>
 #include <Utils.h>
 #include "ConnectionPool.h"
@@ -34,11 +32,11 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 TEST(BinaryLookupServiceTest, basicLookup) {
-    ExecutorServiceProviderPtr service = boost::make_shared<ExecutorServiceProvider>(1);
+    ExecutorServiceProviderPtr service = std::make_shared<ExecutorServiceProvider>(1);
     AuthenticationPtr authData = AuthFactory::Disabled();
     std::string url = "pulsar://localhost:6650";
     ClientConfiguration conf;
-    ExecutorServiceProviderPtr ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(1));
+    ExecutorServiceProviderPtr ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(1));
     ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
     BinaryProtoLookupService lookupService(pool_, url);
 
@@ -97,10 +95,10 @@ TEST(BinaryLookupServiceTest, basicGetNamespaceTopics) {
     ASSERT_EQ(ResultOk, result);
 
     // 2.  call getTopicsOfNamespaceAsync
-    ExecutorServiceProviderPtr service = boost::make_shared<ExecutorServiceProvider>(1);
+    ExecutorServiceProviderPtr service = std::make_shared<ExecutorServiceProvider>(1);
     AuthenticationPtr authData = AuthFactory::Disabled();
     ClientConfiguration conf;
-    ExecutorServiceProviderPtr ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(1));
+    ExecutorServiceProviderPtr ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(1));
     ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
     BinaryProtoLookupService lookupService(pool_, url);
 

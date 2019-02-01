@@ -19,15 +19,14 @@
 #ifndef PULSAR_CPP_MESSAGEROUTERBASE_H
 #define PULSAR_CPP_MESSAGEROUTERBASE_H
 
-#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
-#include <boost/checked_delete.hpp>
+#include <memory>
 
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/ProducerConfiguration.h>
 #include "Hash.h"
 
 namespace pulsar {
-typedef boost::interprocess::unique_ptr<Hash, boost::checked_deleter<Hash> > HashPtr;
+typedef std::unique_ptr<Hash> HashPtr;
 
 class MessageRouterBase : public MessageRoutingPolicy {
    public:

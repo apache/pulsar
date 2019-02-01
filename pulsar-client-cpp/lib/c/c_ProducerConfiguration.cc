@@ -125,7 +125,7 @@ class MessageRoutingPolicy : public pulsar::MessageRoutingPolicy {
 
 void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
                                                       pulsar_message_router router, void *ctx) {
-    conf->conf.setMessageRouter(boost::make_shared<MessageRoutingPolicy>(router, ctx));
+    conf->conf.setMessageRouter(std::make_shared<MessageRoutingPolicy>(router, ctx));
 }
 
 void pulsar_producer_configuration_set_block_if_queue_full(pulsar_producer_configuration_t *conf,

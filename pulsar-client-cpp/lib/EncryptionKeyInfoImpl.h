@@ -19,7 +19,6 @@
 #ifndef LIB_ENCRYPTIONKEYINFOIMPL_H_
 #define LIB_ENCRYPTIONKEYINFOIMPL_H_
 
-#include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <map>
 
