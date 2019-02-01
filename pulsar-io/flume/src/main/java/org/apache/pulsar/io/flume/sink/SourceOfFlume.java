@@ -1,19 +1,29 @@
 package org.apache.pulsar.io.flume.sink;
 
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.conf.BatchSizeSupported;
 import org.apache.flume.event.EventBuilder;
 import org.apache.flume.instrumentation.SourceCounter;
 import org.apache.flume.source.AbstractPollableSource;
+import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+
+
+import com.google.common.base.Optional;
 
 import static org.apache.flume.source.SpoolDirectorySourceConfigurationConstants.BATCH_SIZE;
 
@@ -23,13 +33,18 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
     private static final Logger log = LoggerFactory
             .getLogger(SourceOfFlume.class);
 
+    public static final String BATCH_DURATION_MS = "batchDurationMillis";
+
     private long batchSize;
+
+    private int maxBatchDurationMillis;
 
     private SourceCounter counter;
 
     private final List<Event> eventList = new ArrayList<Event>();
 
-    private Map<String, String> headers;
+    private Optional<SpecificDatumReader<AvroFlumeEvent>> reader = Optional.absent();
+
 
     @Override
     public synchronized void doStart() {
@@ -47,21 +62,24 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
     @Override
     public void doConfigure(Context context) {
         batchSize = context.getInteger(BATCH_SIZE, 1000);
+        maxBatchDurationMillis = context.getInteger(BATCH_DURATION_MS, 1000);
+        log.info("context: {}", context);
     }
 
     @Override
     public Status doProcess() {
         Event event;
-        byte[] eventBody;
+        String eventBody;
         try {
-            while (eventList.size() < this.getBatchSize()) {
+            final long maxBatchEndTime = System.currentTimeMillis() + maxBatchDurationMillis;
+
+            while (eventList.size() < this.getBatchSize() &&
+                    System.currentTimeMillis() < maxBatchEndTime) {
                 BlockingQueue<Map<String, Object>> blockingQueue = StringSink.getQueue();
-                while (!blockingQueue.isEmpty()) {
+                while (blockingQueue != null && !blockingQueue.isEmpty()) {
                     Map<String, Object> message = blockingQueue.take();
-                    eventBody = message.get("body").toString().getBytes();
-                    headers.clear();
-                    headers = new HashMap<String, String>(4);
-                    event = EventBuilder.withBody(eventBody, headers);
+                    eventBody = message.get("body").toString();
+                    event = EventBuilder.withBody(eventBody.getBytes());
                     eventList.add(event);
                 }
             }
@@ -74,7 +92,7 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
             return Status.BACKOFF;
 
         } catch (Exception e) {
-            log.error("KafkaSource EXCEPTION, {}", e);
+            log.error("Flume Source EXCEPTION, {}", e);
             counter.incrementEventReadOrChannelFail(e);
             return Status.BACKOFF;
         }

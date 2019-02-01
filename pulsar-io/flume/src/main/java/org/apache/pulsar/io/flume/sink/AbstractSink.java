@@ -45,7 +45,9 @@ public abstract class AbstractSink<T> implements Sink<T> {
             Map<String, Object> m = new HashMap();
             m.put("body", message);
             records.put(m);
+            record.ack();
         } catch (InterruptedException e) {
+            record.fail();
             LOG.error("error", e);
         }
     }

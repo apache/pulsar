@@ -7,6 +7,6 @@ public class StringSink extends AbstractSink<String> {
 
     @Override
     public String extractValue(Record<String> message) {
-        return null;
+        return message.getValue();
     }
 }
