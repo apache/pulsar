@@ -78,7 +78,6 @@ public class FunctionRuntimeManagerTest {
         WorkerService workerService = mock(WorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
-
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
@@ -216,8 +215,6 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment2);
 
         functionRuntimeManager.deleteAssignment(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
-
-
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
 
