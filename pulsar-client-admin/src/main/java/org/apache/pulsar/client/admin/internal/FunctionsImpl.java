@@ -291,6 +291,27 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
+    public void startFunction(String tenant, String namespace, String functionName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path("start"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();

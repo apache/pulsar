@@ -233,6 +233,27 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
+    public void startSink(String tenant, String namespace, String sinkName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
+        try {
+            request(sink.path(tenant).path(namespace).path(sinkName).path("start"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public List<ConnectorDefinition> getBuiltInSinks() throws PulsarAdminException {
         try {
             Response response = request(sink.path("builtinsinks")).get();
