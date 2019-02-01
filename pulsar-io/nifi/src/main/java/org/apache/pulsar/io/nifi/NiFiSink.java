@@ -59,6 +59,7 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
 
     private int requestBatchCount;
     private long waitTimeMs;
+    private int maxRetryAttempts =3;
     private List<Record<NiFiDataPacket>>  currentList;
     private ScheduledExecutorService flushExecutor;
 
@@ -122,36 +123,56 @@ public class NiFiSink implements Sink<NiFiDataPacket> {
             currentList = Lists.newArrayList();
         }
 
+        int retries = 0;
+        boolean flag = true;
         Transaction transaction = null;
-        try {
-            transaction = client.createTransaction(TransferDirection.SEND);
-        } catch (IOException ioe) {
-            log.warn("Created NiFi transaction Failed", ioe);
-        }
+        while (flag) {
+            if (null != transaction || retries >= maxRetryAttempts) {
+                flag = false;
+                break;
+            }
 
-        if (null != transaction) {
-            if (CollectionUtils.isNotEmpty(toFlushList)) {
-                for (Record<NiFiDataPacket> record : toFlushList) {
-                    NiFiDataPacket niFiDataPacket = record.getValue();
-                    try {
-                        transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
-                    } catch (IOException ioe) {
-                        log.warn("Failed to send record " + record + " to NiFi", ioe);
-                    }
-                }
-
+            try {
+                transaction = client.createTransaction(TransferDirection.SEND);
+            } catch (IOException ioe) {
                 try {
-                    transaction.confirm();
-                    transaction.complete();
-                    toFlushList.forEach(record -> record.ack());
-                } catch (Exception e) {
-                    log.warn("Send data to NiFi transfer was Failed", e);
-                    transaction.error();
-                    toFlushList.forEach(record -> record.fail());
+                    Thread.sleep(waitTimeMs);
+                } catch (InterruptedException e) {
+                    log.warn("transaction could not be created, waiting and will try again " + waitTimeMs + " milliseconds.");
                 }
             }
-        } else {
+
+            if (null != transaction) {
+                break;
+            }
+            retries++;
+        }
+
+        if (null == transaction) {
             log.warn("Failed to send records", toFlushList);
+            toFlushList.forEach(record -> record.fail());
+            return;
+        }
+
+        if (CollectionUtils.isNotEmpty(toFlushList)) {
+            for (Record<NiFiDataPacket> record : toFlushList) {
+                NiFiDataPacket niFiDataPacket = record.getValue();
+                try {
+                    transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
+                } catch (IOException ioe) {
+                    log.warn("Failed to send record " + record + " to NiFi", ioe);
+                }
+            }
+
+            try {
+                transaction.confirm();
+                toFlushList.forEach(record -> record.ack());
+                transaction.complete();
+            } catch (Exception e) {
+                log.warn("Send data to NiFi transfer was Failed", e);
+                toFlushList.forEach(record -> record.fail());
+                transaction.error();
+            }
         }
     }
 

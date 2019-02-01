@@ -35,8 +35,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -148,8 +150,12 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
                         dataPacket = transaction.receive();
                     } while (dataPacket != null);
 
+                    final Set<NiFiRecord> sets = new HashSet<>(dataPackets.size());
+                    final NiFiTransaction niFiTransaction = new NiFiTransaction(transaction, sets);
                     for (NiFiDataPacket dp : dataPackets) {
-                        consume(new NiFiRecord(dp, transaction));
+                        NiFiRecord niFiRecord = new NiFiRecord(dp, niFiTransaction);
+                        niFiTransaction.addRecord(niFiRecord);
+                        consume(niFiRecord);
                     }
 
                     //this method dictates that all data from the remote instance has been consumed in this transaction.
@@ -163,11 +169,11 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
 
     static private class NiFiRecord implements Record<NiFiDataPacket> {
         private final NiFiDataPacket value;
-        private final Transaction transaction;
+        private final NiFiTransaction niFiTransaction;
 
-        public NiFiRecord(NiFiDataPacket value, Transaction transaction) {
+        NiFiRecord(NiFiDataPacket value, NiFiTransaction niFiTransaction) {
             this.value = value;
-            this.transaction = transaction;
+            this.niFiTransaction = niFiTransaction;
         }
 
         @Override
@@ -177,19 +183,54 @@ public class NiFiSource extends PushSource<NiFiDataPacket> {
 
         @Override
         public void ack() {
-            try {
-                transaction.complete();
-            } catch (IOException e) {
-                log.warn("Record ack from NiFi transfer was Failed", e);
+            if (niFiTransaction.removeRecord(this)) {
+                niFiTransaction.complete();
             }
         }
 
         @Override
         public void fail() {
+            if (niFiTransaction.hasRecord(this)) {
+                niFiTransaction.cancel();
+            }
+        }
+    }
+
+    static private class NiFiTransaction {
+        private final Transaction transaction;
+        private final Set<NiFiRecord> records;
+
+        NiFiTransaction(Transaction transaction, Set<NiFiRecord> records) {
+            this.transaction = transaction;
+            this.records = records;
+        }
+
+        void addRecord(NiFiRecord record) {
+            records.add(record);
+        }
+
+        boolean removeRecord(NiFiRecord record) {
+            records.remove(record);
+            return records.isEmpty();
+        }
+
+        boolean hasRecord(NiFiRecord record) {
+            return records.contains(record);
+        }
+
+        void complete() {
+            try {
+                transaction.complete();
+            } catch (IOException e) {
+                log.warn("Records from NiFi transfer was Failed", e);
+            }
+        }
+
+        void cancel() {
             try {
                 transaction.cancel("Pulsar record was Failed");
             } catch (IOException e) {
-                log.warn("Record fail from NiFi transfer was Failed", e);
+                log.warn("Records fail from NiFi transfer was Failed", e);
             }
         }
     }
