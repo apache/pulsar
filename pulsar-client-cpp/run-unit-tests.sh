@@ -54,7 +54,7 @@ if [ $RES -eq 0 ]; then
 
     # Running tests from a different directory to avoid importing directly
     # from the current dir, but rather using the installed wheel file
-    cp pulsar_test.py /tmp
+    cp *_test.py /tmp
     pushd /tmp
 
     python pulsar_test.py
