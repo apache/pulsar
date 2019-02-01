@@ -1,0 +1,6 @@
+configs:
+  name: a1
+  confFile: sink.conf
+  noReloadConf: false
+  zkConnString: ""
+  zkBasePath: ""
