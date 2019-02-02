@@ -51,6 +51,7 @@ public class PrimitiveSchemaTest {
 
     final private Map<Schema, List<Object>> testData = new HashMap() {
         {
+            put(BooleanSchema.of(), Arrays.asList(false, true));
             put(StringSchema.utf8(), Arrays.asList("my string"));
             put(ByteSchema.of(), Arrays.asList((byte) 32767, (byte) -32768));
             put(ShortSchema.of(), Arrays.asList((short) 32767, (short) -32768));
@@ -90,6 +91,7 @@ public class PrimitiveSchemaTest {
 
     @Test
     public void allSchemasShouldHaveSchemaType() {
+        assertEquals(SchemaType.BOOLEAN, BooleanSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.INT8, ByteSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.INT16, ShortSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.INT32, IntSchema.of().getSchemaInfo().getType());

@@ -28,7 +28,7 @@
 #include <pulsar/Schema.h>
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
 using namespace pulsar;
 namespace pulsar {
@@ -98,22 +98,21 @@ SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
 
 SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::PARTITIONED_METADATA);
     CommandPartitionedTopicMetadata* partitionMetadata = cmd.mutable_partitionmetadata();
     partitionMetadata->set_topic(topic);
     partitionMetadata->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_partitionmetadata();
-    mutex.unlock();
     return buffer;
 }
 
 SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::LOOKUP);
     CommandLookupTopic* lookup = cmd.mutable_lookuptopic();
     lookup->set_topic(topic);
@@ -121,21 +120,19 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
-    mutex.unlock();
     return buffer;
 }
 
 SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
     consumerStats->set_consumer_id(consumerId);
     consumerStats->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_consumerstats();
-    mutex.unlock();
     return buffer;
 }
 

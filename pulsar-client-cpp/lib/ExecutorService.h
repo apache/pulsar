@@ -19,12 +19,13 @@
 #ifndef _PULSAR_EXECUTOR_SERVICE_HEADER_
 #define _PULSAR_EXECUTOR_SERVICE_HEADER_
 
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <functional>
+#include <thread>
 #include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
 #pragma GCC visibility push(default)
 
@@ -63,7 +64,7 @@ class ExecutorService : private boost::noncopyable {
      * it will keep it running in the background so we don't have to take care of it
      */
     typedef boost::asio::io_service::work BackgroundWork;
-    boost::scoped_ptr<BackgroundWork> work_;
+    std::unique_ptr<BackgroundWork> work_;
 
     /*
      * worker thread which runs until work object is destroyed, it's running io_service::run in
@@ -87,8 +88,8 @@ class ExecutorServiceProvider {
     typedef std::vector<ExecutorServicePtr> ExecutorList;
     ExecutorList executors_;
     int executorIdx_;
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 };
 
 typedef std::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;

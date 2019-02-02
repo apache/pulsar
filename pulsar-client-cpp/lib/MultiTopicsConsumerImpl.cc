@@ -442,7 +442,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         pendingReceives_.pop();
         lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
-        listenerExecutor_->postWork(boost::bind(callback, ResultOk, msg));
+        listenerExecutor_->postWork(std::bind(callback, ResultOk, msg));
     } else {
         if (messages_.full()) {
             lock.unlock();
@@ -498,7 +498,7 @@ Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
-    if (messages_.pop(msg, milliseconds(timeout))) {
+    if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
         lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
@@ -519,7 +519,7 @@ void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
-    if (messages_.pop(msg, milliseconds(0))) {
+    if (messages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         callback(ResultOk, msg);
@@ -534,7 +534,7 @@ void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
-        listenerExecutor_->postWork(boost::bind(callback, ResultAlreadyClosed, msg));
+        listenerExecutor_->postWork(std::bind(callback, ResultAlreadyClosed, msg));
     }
     lock.unlock();
 }

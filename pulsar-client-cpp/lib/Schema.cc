@@ -20,8 +20,7 @@
 
 #include <iostream>
 #include <map>
-#include <boost/make_shared.hpp>
-#include <include/pulsar/Schema.h>
+#include <memory>
 
 #pragma GCC visibility push(default)
 

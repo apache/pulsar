@@ -22,7 +22,6 @@
 
 #include <lib/stats/ConsumerStatsBase.h>
 #include <lib/ExecutorService.h>
-#include <boost/bind.hpp>
 #include <lib/Utils.h>
 #include <utility>
 namespace pulsar {
@@ -39,7 +38,7 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
 
     std::string consumerStr_;
     DeadlineTimerPtr timer_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
 
     friend std::ostream& operator<<(std::ostream&, const ConsumerStatsImpl&);

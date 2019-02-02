@@ -20,34 +20,11 @@
 package pulsar
 
 import (
-	"testing"
-	"runtime"
-	"net/http"
-	"log"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
+	"net/http"
 )
-
-func assertNil(t *testing.T, a interface{}) {
-	if a != nil {
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("%s:%d  | Expected nil", file, line)
-	}
-}
-
-func assertNotNil(t *testing.T, a interface{}) {
-	if a == nil {
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("%s:%d  | Expected not nil", file, line)
-	}
-}
-
-func assertEqual(t *testing.T, realValue interface{}, expected interface{}) {
-	if realValue != expected {
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("%s:%d  | Expected '%v' -- Got '%v'", file, line, expected, realValue)
-	}
-}
 
 func httpPut(url string, body interface{}) {
 	client := http.Client{}

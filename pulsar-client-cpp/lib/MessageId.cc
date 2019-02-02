@@ -26,7 +26,7 @@
 #include <limits>
 #include <tuple>
 #include <math.h>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 namespace pulsar {
 

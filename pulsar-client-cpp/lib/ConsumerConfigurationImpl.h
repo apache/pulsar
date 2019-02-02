@@ -20,7 +20,6 @@
 #define LIB_CONSUMERCONFIGURATIONIMPL_H_
 
 #include <pulsar/ConsumerConfiguration.h>
-#include <boost/make_shared.hpp>
 
 namespace pulsar {
 struct ConsumerConfigurationImpl {

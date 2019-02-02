@@ -141,7 +141,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 ###### REST
 
 ```
-{@inject: endpoint POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters}
 ```
 
 ###### Java
@@ -167,7 +167,7 @@ cl2
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/replication
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/replication|operation/getNamespaceReplicationClusters}
 ```
 
 ###### Java
@@ -201,7 +201,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/setBacklogQuota}
 ```
 
 ###### Java
@@ -232,7 +232,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap|operation/getBacklogQuotaMap}
 ```
 
 ###### Java
@@ -258,7 +258,7 @@ N/A
 ###### REST
 
 ```
-DELETE /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
+{@inject: endpoint|DELETE|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/removeBacklogQuota}
 ```
 
 ###### Java
@@ -292,7 +292,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/persistence
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/setPersistence}
 ```
 
 ###### Java
@@ -324,7 +324,7 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/persistence
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/getPersistence}
 ```
 
 ###### Java
@@ -351,7 +351,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/v2/namespaces/{tenant}/{namespace}/unload
+{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/unload|operation/unloadNamespaceBundle}
 ```
 
 ###### Java
@@ -378,7 +378,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/setNamespaceMessageTTL}
 ```
 
 ###### Java
@@ -405,13 +405,13 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/getNamespaceMessageTTL}
 ```
 
 ###### Java
 
 ```java
-admin.namespaces().getNamespaceReplicationClusters(namespace)
+admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
 
@@ -432,7 +432,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split
+{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split|operation/splitNamespaceBundle}
 ```
 
 ###### Java
@@ -459,7 +459,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/clearBacklog
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/clearBacklog|operation/clearNamespaceBacklogForSubscription}
 ```
 
 ###### Java
@@ -486,7 +486,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription}
 ```
 
 ###### Java
@@ -513,7 +513,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/retention
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/setRetention}
 ```
 
 ###### Java
@@ -543,7 +543,7 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/retention
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/getRetention}
 ```
 
 ###### Java
@@ -571,7 +571,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/setDispatchRate}
 ```
 
 ###### Java
@@ -601,7 +601,7 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/getDispatchRate}
 ```
 
 ###### Java
