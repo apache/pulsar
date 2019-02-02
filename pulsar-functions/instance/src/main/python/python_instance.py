@@ -42,7 +42,6 @@ import InstanceCommunication_pb2
 
 from functools import partial
 from collections import namedtuple
-from threading import Timer
 from function_stats import Stats
 
 Log = log.Log
@@ -110,8 +109,6 @@ class PythonInstance(object):
       Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
       os.kill(os.getpid(), signal.SIGKILL)
       sys.exit(1)
-
-    Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def run(self):
     # Setup consumers and input deserializers
@@ -187,7 +184,8 @@ class PythonInstance(object):
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
     if self.expected_healthcheck_interval > 0:
-      Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
+      timer = util.FixedTimer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer, name="health-check-timer")
+      timer.start()
 
   def actual_execution(self):
     Log.debug("Started Thread for executing the function")
@@ -292,7 +290,7 @@ class PythonInstance(object):
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, consumer.topic(), serde, consumer)
+    item = InternalMessage(message, message.topic_name(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
@@ -384,3 +382,19 @@ class PythonInstance(object):
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
     self.execution_thread.join()
+    self.close()
+
+  def close(self):
+    Log.info("Closing python instance...")
+    if self.producer:
+      self.producer.close()
+
+    if self.consumers:
+      for consumer in self.consumers.values():
+        try:
+          consumer.close()
+        except:
+          pass
+
+    if self.pulsar_client:
+      self.pulsar_client.close()

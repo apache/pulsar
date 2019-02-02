@@ -31,14 +31,16 @@ BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
-echo "---- Build Pulsar C++ client using image $IMAGE"
+echo "---- Build Pulsar C++ client using image $IMAGE (pass <skip-clean> for incremental build) "
 
 docker pull $IMAGE
 
 DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
 
 # Remove any cached CMake relate file from previous builds
-find . -name CMakeCache.txt | xargs rm -f
-find . -name CMakeFiles | xargs rm -rf
+if [ "$1" != "skip-clean" ]; then
+	find . -name CMakeCache.txt | xargs rm -f
+	find . -name CMakeFiles | xargs rm -rf
+fi
 
 $DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make check-format && make -j8"

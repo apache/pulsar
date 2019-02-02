@@ -389,12 +389,27 @@ Once you've done that, you can publish a message to Pulsar topic:
 $ bin/pulsar-client produce \
   persistent://public/default/test \
   -n 1 \
-  -m "Hello, Pulsar"
+  -m "Hello Pulsar"
 ```
 
 > You may need to use a different cluster name in the topic if you specified a cluster name different from `pulsar-cluster-1`.
 
-This will publish a single message to the Pulsar topic.
+This will publish a single message to the Pulsar topic. In addition, you can subscribe the Pulsar topic in a different terminal before publishing messages as below:
+
+```bash
+$ bin/pulsar-client consume \
+  persistent://public/default/test \
+  -n 100 \
+  -s "consumer-test" \
+  -t "Exclusive"
+```
+
+Once the message above has been successfully published to the topic, you should see it in the standard output:
+
+```bash
+----- got message -----
+Hello Pulsar
+```
 
 ## Running Functions
 

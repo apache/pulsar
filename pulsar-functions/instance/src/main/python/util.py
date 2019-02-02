@@ -76,10 +76,12 @@ def get_properties(fullyQualifiedName, instanceId):
 
 class FixedTimer():
 
-    def __init__(self, t, hFunction):
+    def __init__(self, t, hFunction, name="timer-thread"):
         self.t = t
         self.hFunction = hFunction
         self.thread = Timer(self.t, self.handle_function)
+        self.thread.setName(name)
+        self.thread.setDaemon(True)
 
     def handle_function(self):
         self.hFunction()

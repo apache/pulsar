@@ -34,6 +34,7 @@ public class CompressionCodecProvider {
         codecs.put(PulsarApi.CompressionType.NONE, new CompressionCodecNone());
         codecs.put(PulsarApi.CompressionType.LZ4, new CompressionCodecLZ4());
         codecs.put(PulsarApi.CompressionType.ZLIB, new CompressionCodecZLib());
+        codecs.put(PulsarApi.CompressionType.ZSTD, new CompressionCodecZstd());
     }
 
     public static CompressionCodec getCompressionCodec(PulsarApi.CompressionType type) {
@@ -52,6 +53,8 @@ public class CompressionCodecProvider {
             return PulsarApi.CompressionType.LZ4;
         case ZLIB:
             return PulsarApi.CompressionType.ZLIB;
+        case ZSTD:
+            return PulsarApi.CompressionType.ZSTD;
 
         default:
             throw new RuntimeException("Invalid compression type");
@@ -66,6 +69,8 @@ public class CompressionCodecProvider {
             return CompressionType.LZ4;
         case ZLIB:
             return CompressionType.ZLIB;
+        case ZSTD:
+            return CompressionType.ZSTD;
 
         default:
             throw new RuntimeException("Invalid compression type");

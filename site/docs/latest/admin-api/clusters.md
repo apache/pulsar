@@ -73,7 +73,7 @@ When provision a new cluster, you need to initialize that cluster's [metadata](.
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
-* The global ZooKeeper connection string for the entire instance
+* The Configuration Store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
 
@@ -89,7 +89,7 @@ Here's an example cluster metadata initialization command:
 bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \

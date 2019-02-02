@@ -48,14 +48,14 @@ webSocketServiceEnabled=true
 
 このモードでは、Pulsar {% popover_ja Broker %}とは別サービスとして起動されます。このモードの設定は[`conf/websocket.conf`](../../reference/Configuration#websocket)ファイルでハンドリングされます。*少なくとも*以下のパラメータを設定する必要があります:
 
-* [`globalZookeeperServers`](../../reference/Configuration#websocket-globalZookeeperServers)
+* [`configurationStoreServers`](../../reference/Configuration#websocket-configurationStoreServers)
 * [`webServicePort`](../../reference/Configuration#websocket-webServicePort)
 * [`clusterName`](../../reference/Configuration#websocket-clusterName)
 
 こちらは設定例です:
 
 ```properties
-globalZookeeperServers=zk1:2181,zk2:2181,zk3:2181
+configurationStoreServers=zk1:2181,zk2:2181,zk3:2181
 webServicePort=8080
 clusterName=my-cluster
 ```
@@ -262,7 +262,7 @@ Pulsarの{% popover_ja トピック %}に簡単なメッセージを送信する
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 var message = {
@@ -275,20 +275,19 @@ var message = {
 };
 
 ws.on('open', function() {
-  // 1つのメッセージを送信します
-  ws.send(JSON.stringify(message));
+  // 1つのメッセージを送信します
+  ws.send(JSON.stringify(message));
 });
 
 ws.on('message', function(message) {
   console.log('received ack: %s', message);
 });
-
 ```
 
 #### NodeJS Consumer
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic/my-sub",
     ws = new WebSocket(topic);
 
 socket.onmessage = function(packet) {
@@ -296,4 +295,18 @@ socket.onmessage = function(packet) {
 	var ackMsg = {"messageId" : receiveMsg.messageId};
 	socket.send(JSON.stringify(ackMsg));      
 };
+```
+
+#### NodeJS reader
+```javascript
+var WebSocket = require('ws'),
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
+    ws = new WebSocket(topic);
+
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
 ```

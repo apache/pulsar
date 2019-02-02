@@ -878,4 +878,29 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Global cluster, if there, should be omitted from the results
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList(cluster));
     }
+    /**
+     * verifies cluster has been set before create topic
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testClusterIsReadyBeforeCreateTopic() throws PulsarAdminException {
+        final String topicName = "partitionedTopic";
+        final int partitions = 4;
+        final String persistentPartitionedTopicName = "persistent://prop-xyz/ns2/" + topicName;
+        final String NonPersistentPartitionedTopicName = "non-persistent://prop-xyz/ns2/" + topicName;
+
+        // init tenant and namespace without cluster
+        admin.namespaces().createNamespace("prop-xyz/ns2");
+        try {
+            admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
+            Assert.fail("should have failed due to Namespace does not have any clusters configured");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+        }
+        try {
+            admin.topics().createPartitionedTopic(NonPersistentPartitionedTopicName, partitions);
+            Assert.fail("should have failed due to Namespace does not have any clusters configured");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+        }
+    }
 }

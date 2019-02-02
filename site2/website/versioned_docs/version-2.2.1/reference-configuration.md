@@ -109,7 +109,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
 |zookeeperServers|  Zookeeper quorum connection string  ||
-|globalZookeeperServers|  Global Zookeeper quorum connection string ||
+|configurationStoreServers| Configuration Store quorum connection string ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
 |webServicePort|  Port to use to server HTTP request  |8080|
@@ -241,7 +241,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |Name|Description|Default|
 |---|---|---|
 |zookeeperServers|  Zookeeper quorum connection string (comma-separated)  ||
-|globalZookeeperServers|  Global zookeeper quorum connection string (comma-separated) ||
+|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout |30000|
 |servicePort| Port to use to server binary-proto request  |6650|
 |servicePortTls|  Port to use to server binary-proto-tls request  |6651|
@@ -303,7 +303,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |Name|Description|Default|
 |---|---|---|
 |zookeeperServers|  The quorum connection string for local ZooKeeper  ||
-|globalZookeeperServers|  The quorum connection string for global ZooKeeper ||
+|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
@@ -389,7 +389,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 |Name|Description|Default|
 |---|---|---|
-|globalZookeeperServers    |||
+|configurationStoreServers    |||
 |zooKeeperSessionTimeoutMillis|   |30000|
 |serviceUrl|||
 |serviceUrlTls|||

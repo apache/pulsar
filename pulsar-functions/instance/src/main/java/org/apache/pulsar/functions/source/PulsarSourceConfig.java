@@ -37,6 +37,7 @@ public class PulsarSourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     SubscriptionType subscriptionType;
     private String subscriptionName;
+    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Integer maxMessageRetries = -1;
     private String deadLetterTopic;
 

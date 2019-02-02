@@ -31,6 +31,7 @@ import time
 import zipfile
 import json
 import inspect
+import threading
 
 import pulsar
 
@@ -193,7 +194,8 @@ def main():
     time.sleep(1)
 
   pyinstance.join()
-  sys.exit(1)
+  # make sure to close all non-daemon threads before this!
+  sys.exit(0)
 
 if __name__ == '__main__':
   main()

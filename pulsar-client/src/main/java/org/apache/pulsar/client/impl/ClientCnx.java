@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -122,6 +123,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean isTlsHostnameVerificationEnable;
     private DefaultHostnameVerifier hostnameVerifier;
 
+    private final ScheduledFuture<?> timeoutTask;
+
     enum State {
         None, SentConnectFrame, Ready, Failed
     }
@@ -136,7 +139,7 @@ public class ClientCnx extends PulsarHandler {
             this.requestId = requestId;
         }
     }
-    
+
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
     }
@@ -155,7 +158,8 @@ public class ClientCnx extends PulsarHandler {
         this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
         this.hostnameVerifier = new DefaultHostnameVerifier();
         this.protocolVersion = protocolVersion;
-        this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs, operationTimeoutMs, TimeUnit.MILLISECONDS);
+        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
+                operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -223,6 +227,8 @@ public class ClientCnx extends PulsarHandler {
 
         producers.clear();
         consumers.clear();
+
+        timeoutTask.cancel(true);
     }
 
     // Command Handlers
@@ -831,6 +837,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
         case TopicTerminatedError:
             return new PulsarClientException.TopicTerminatedException(errorMsg);
+        case IncompatibleSchema:
+            return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
@@ -862,6 +870,6 @@ public class ClientCnx extends PulsarHandler {
             }
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
 }

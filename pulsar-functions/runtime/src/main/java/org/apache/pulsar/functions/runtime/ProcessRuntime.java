@@ -179,18 +179,39 @@ class ProcessRuntime implements Runtime {
     }
 
     @Override
-    public void stop() {
+    public void stop() throws InterruptedException {
         if (timer != null) {
             timer.cancel(false);
-        }
-        if (process != null) {
-            process.destroyForcibly();
         }
         if (channel != null) {
             channel.shutdown();
         }
         channel = null;
         stub = null;
+
+        // kill process
+        if (process != null) {
+            process.destroy();
+            int i = 0;
+            // gracefully terminate at first
+            while(process.isAlive()) {
+                Thread.sleep(100);
+                if (i > 100) {
+                    break;
+                }
+                i++;
+            }
+
+            // forcibly kill after timeout
+            if (process.isAlive()) {
+                log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
+                        Utils.getFullyQualifiedInstanceId(
+                                instanceConfig.getFunctionDetails().getTenant(),
+                                instanceConfig.getFunctionDetails().getNamespace(),
+                                instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));
+                process.destroyForcibly();
+            }
+        }
     }
 
     @Override
@@ -267,7 +288,7 @@ class ProcessRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));

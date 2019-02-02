@@ -204,11 +204,11 @@ public class PulsarCluster {
 
         // start bookies
         bookieContainers.values().forEach(BKContainer::start);
-        log.info("Successfully started {} bookie conntainers.", bookieContainers.size());
+        log.info("Successfully started {} bookie containers.", bookieContainers.size());
 
         // start brokers
         this.startAllBrokers();
-        log.info("Successfully started {} broker conntainers.", brokerContainers.size());
+        log.info("Successfully started {} broker containers.", brokerContainers.size());
 
         // create proxy
         proxyContainer.start();
@@ -394,7 +394,7 @@ public class PulsarCluster {
     public synchronized void startWorkers() {
         // Start workers that have been initialized
         workerContainers.values().parallelStream().forEach(WorkerContainer::start);
-        log.info("Successfully started {} worker conntainers.", workerContainers.size());
+        log.info("Successfully started {} worker containers.", workerContainers.size());
     }
 
     public synchronized void stopWorkers() {

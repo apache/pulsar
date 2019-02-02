@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.io.netty.server;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -29,11 +32,13 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.netty.NettySource;
+import org.apache.pulsar.io.netty.http.NettyHttpChannelInitializer;
+import org.apache.pulsar.io.netty.http.NettyHttpServerHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Netty Tcp or Udp Server to accept any incoming data through Tcp.
+ * Netty Server to accept incoming data via the configured type.
  */
 public class NettyServer {
 
@@ -58,28 +63,32 @@ public class NettyServer {
     public void run() {
         try {
             switch (type) {
-                case TCP:
-                    runTcp();
-                    break;
                 case UDP:
                     runUdp();
                     break;
+                case HTTP:
+                    runHttp();
+                    break;
+                case TCP:
                 default:
                     runTcp();
                     break;
             }
-        } catch(Exception ex) {
-            logger.error("Error occurred when Netty Tcp or Udp Server is running", ex);
+        } catch (Exception ex) {
+            logger.error("Error occurred when Netty Server is running", ex);
         } finally {
             shutdownGracefully();
         }
     }
 
     public void shutdownGracefully() {
-        if (workerGroup != null)
+        if (workerGroup != null) {
             workerGroup.shutdownGracefully();
-        if (bossGroup != null)
+        }
+
+        if (bossGroup != null) {
             bossGroup.shutdownGracefully();
+        }
     }
 
     private void runUdp() throws InterruptedException {
@@ -95,17 +104,32 @@ public class NettyServer {
     }
 
     private void runTcp() throws InterruptedException {
+        ServerBootstrap serverBootstrap = getServerBootstrap(
+                new NettyChannelInitializer(new NettyServerHandler(this.nettySource)));
+
+        ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
+        channelFuture.channel().closeFuture().sync();
+    }
+
+    private void runHttp() throws InterruptedException {
+        ServerBootstrap serverBootstrap = getServerBootstrap(
+                new NettyHttpChannelInitializer(new NettyHttpServerHandler(this.nettySource), null));
+
+        ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
+        channelFuture.channel().closeFuture().sync();
+    }
+
+    private ServerBootstrap getServerBootstrap(ChannelHandler childHandler) {
         bossGroup = new NioEventLoopGroup(this.numberOfThreads);
         workerGroup = new NioEventLoopGroup(this.numberOfThreads);
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup);
         serverBootstrap.channel(NioServerSocketChannel.class);
-        serverBootstrap.childHandler(new NettyChannelInitializer(new NettyServerHandler(this.nettySource)))
-                .option(ChannelOption.SO_BACKLOG, 1024)
-                .childOption(ChannelOption.SO_KEEPALIVE, true);
+        serverBootstrap.childHandler(childHandler)
+        .option(ChannelOption.SO_BACKLOG, 1024)
+        .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-        ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
-        channelFuture.channel().closeFuture().sync();
+        return serverBootstrap;
     }
 
     /**
@@ -145,11 +169,11 @@ public class NettyServer {
         }
 
         public NettyServer build() {
-            Preconditions.checkNotNull(this.type, "type cannot be blank/null");
-            Preconditions.checkArgument(StringUtils.isNotBlank(host), "host cannot be blank/null");
-            Preconditions.checkArgument(this.port >= 1024, "port must be set equal or bigger than 1024");
-            Preconditions.checkNotNull(this.nettySource, "nettySource must be set");
-            Preconditions.checkArgument(this.numberOfThreads > 0,
+            checkNotNull(this.type, "type cannot be blank/null");
+            checkArgument(StringUtils.isNotBlank(host), "host cannot be blank/null");
+            checkArgument(this.port >= 1024, "port must be set equal or bigger than 1024");
+            checkNotNull(this.nettySource, "nettySource must be set");
+            checkArgument(this.numberOfThreads > 0,
                     "numberOfThreads must be set as positive");
 
             return new NettyServer(this);
@@ -157,13 +181,11 @@ public class NettyServer {
     }
 
     /**
-     * tcp or udp network protocol
+     * Network protocol.
      */
     public enum Type {
-
         TCP,
-
-        UDP
+        UDP,
+        HTTP
     }
-
 }
