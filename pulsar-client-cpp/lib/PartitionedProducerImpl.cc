@@ -19,7 +19,6 @@
 #include <cstdlib>
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
-#include <boost/bind.hpp>
 #include <lib/TopicName.h>
 #include <sstream>
 #include "RoundRobinMessageRouter.h"

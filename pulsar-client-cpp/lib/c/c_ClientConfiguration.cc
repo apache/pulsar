@@ -110,6 +110,15 @@ int pulsar_client_configuration_is_use_tls(pulsar_client_configuration_t *conf) 
     return conf->conf.isUseTls();
 }
 
+void pulsar_client_configuration_set_validate_hostname(pulsar_client_configuration_t *conf,
+                                                       int validateHostName) {
+    conf->conf.setValidateHostName(validateHostName);
+}
+
+int pulsar_client_configuration_is_validate_hostname(pulsar_client_configuration_t *conf) {
+    return conf->conf.isValidateHostName();
+}
+
 void pulsar_client_configuration_set_tls_trust_certs_file_path(pulsar_client_configuration_t *conf,
                                                                const char *tlsTrustCertsFilePath) {
     conf->conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);

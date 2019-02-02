@@ -21,7 +21,6 @@
 
 #include <lib/TopicName.h>
 
-#include <boost/bind.hpp>
 #include "ConnectionPool.h"
 
 #include <string>

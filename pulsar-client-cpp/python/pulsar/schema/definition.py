@@ -76,10 +76,10 @@ class Record(with_metaclass(RecordMeta, object)):
             'fields': []
         }
 
-        for name, value in cls._fields.items():
+        for name in sorted(cls._fields.keys()):
             schema['fields'].append({
                 'name': name,
-                'type': value.schema()
+                'type': cls._fields[name].schema()
             })
         return schema
 
