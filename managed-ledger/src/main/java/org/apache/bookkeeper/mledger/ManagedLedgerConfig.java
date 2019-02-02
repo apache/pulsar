@@ -36,7 +36,6 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 public class ManagedLedgerConfig {
 
     private boolean createIfMissing = true;
-    private boolean allowAutoTopicCreation = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -72,15 +71,6 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
         return this;
-    }
-
-    public boolean allowAutoTopicCreation() {
-    	return allowAutoTopicCreation;
-    }
-   
-    public ManagedLedgerConfig setAllowAutoTopicCreation(boolean allowAutoTopicCreation) {
-    	this.allowAutoTopicCreation = allowAutoTopicCreation;
-    	return this;
     }
     
     /**

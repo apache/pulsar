@@ -246,6 +246,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " messages that were already stored in the topic"
     )
     private boolean brokerDeduplicationEnabled = false;
+    
+    @FieldContext(
+    	category = CATEGORY_POLICIES,
+    	doc = "Allow automated creation of non-partition topics if set to true (default value)."
+    )
+    private boolean allowAutoTopicCreation = true;
+    
 
     @FieldContext(
         category = CATEGORY_POLICIES,
