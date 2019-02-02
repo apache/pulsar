@@ -16,29 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.common.stats;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
+/**
+ * 
+ * {@link JvmGCMetricsLogger} can be implemented for each specific GC type which retrieves GC count and pause time and
+ * logs it into metrics.
+ *
+ */
+public interface JvmGCMetricsLogger {
 
-import org.apache.pulsar.common.stats.JvmMetrics;
-import org.apache.pulsar.common.stats.Metrics;
+    /**
+     * {@link JvmGCMetricsLogger} should update the metrics with GC specific dimensions and value.
+     * 
+     * @param metrics
+     */
+    void logMetrics(Metrics metrics);
 
-public class MetricsGenerator {
-
-    private final JvmMetrics jvmMetrics;
-
-    public MetricsGenerator(ScheduledExecutorService executor, WorkerConfig workerConfig) {
-        this.jvmMetrics = JvmMetrics.create(executor, "fun", workerConfig.getJvmGCMetricsLoggerClassName());
-    }
-
-    public List<Metrics> generate() {
-        List<Metrics> metricsCollection = new ArrayList<Metrics>();
-        metricsCollection.addAll(jvmMetrics.generate());
-        // add more metrics here..
-
-        return metricsCollection;
-    }
-
+    /**
+     * It will be triggered by {@link JvmMetrics} periodically to refresh stats at interval (default = 1 min)
+     */
+    void refresh();
 }
