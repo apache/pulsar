@@ -103,7 +103,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         });
 
         // schedule the next re-check task
-        client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
+        recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
             Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
     }
 
