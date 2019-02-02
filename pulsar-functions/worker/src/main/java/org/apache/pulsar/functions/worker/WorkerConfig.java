@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.stats.JvmG1GCMetricsLogger;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -95,9 +96,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Integer workerPortTls;
     @FieldContext(
-            category = CATEGORY_WORKER,
-            doc = "Number of threads to use for HTTP requests processing"
-        )
+        category = CATEGORY_WORKER,
+        doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+    private String jvmGCMetricsLoggerClassName;
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "Number of threads to use for HTTP requests processing"
+    )
     private int numHttpServerThreads = 8;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
@@ -268,14 +273,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
-    
+
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
-    
-    
+
+
     @Data
     @Setter
     @Getter
@@ -470,7 +475,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
     }
-  
+
     @Override
     public void setProperties(Properties properties) {
         this.properties = properties;
