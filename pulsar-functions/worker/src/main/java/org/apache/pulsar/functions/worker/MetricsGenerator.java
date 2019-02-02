@@ -29,8 +29,8 @@ public class MetricsGenerator {
 
     private final JvmMetrics jvmMetrics;
 
-    public MetricsGenerator(ScheduledExecutorService executor) {
-        this.jvmMetrics = new JvmMetrics(executor, "fun");
+    public MetricsGenerator(ScheduledExecutorService executor, WorkerConfig workerConfig) {
+        this.jvmMetrics = JvmMetrics.create(executor, "fun", workerConfig.getJvmGCMetricsLoggerClassName());
     }
 
     public List<Metrics> generate() {

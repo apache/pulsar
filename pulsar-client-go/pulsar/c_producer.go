@@ -238,3 +238,28 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 		callback(nil)
 	}
 }
+
+func (p *producer) Flush() error {
+	f := make(chan error)
+	p.FlushAsync(func(err error) {
+		f <- err
+		close(f)
+	})
+	return <-f
+}
+
+func (p *producer) FlushAsync(callback func(error)) {
+	C._pulsar_producer_flush_async(p.ptr, savePointer(callback))
+}
+
+
+//export pulsarProducerFlushCallbackProxy
+func pulsarProducerFlushCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func(error))
+
+	if res != C.pulsar_result_Ok {
+		callback(newError(res, "Failed to flush Producer"))
+	} else {
+		callback(nil)
+	}
+}

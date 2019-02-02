@@ -25,7 +25,6 @@
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include <ctime>
