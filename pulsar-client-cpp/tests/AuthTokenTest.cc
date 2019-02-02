@@ -23,7 +23,6 @@
 #include <pulsar/Client.h>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
 #include <lib/LogUtils.h>
 
 #include <string>

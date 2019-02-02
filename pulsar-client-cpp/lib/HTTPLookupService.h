@@ -24,7 +24,6 @@
 #include <lib/Url.h>
 #include <json/value.h>
 #include <json/reader.h>
-#include <boost/bind.hpp>
 #include <curl/curl.h>
 #include <lib/Version.h>
 

@@ -68,6 +68,7 @@ public class CmdSources extends CmdBase {
     private final UpdateSource updateSource;
     private final RestartSource restartSource;
     private final StopSource stopSource;
+    private final StartSource startSource;
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
@@ -80,6 +81,7 @@ public class CmdSources extends CmdBase {
         getSourceStatus = new GetSourceStatus();
         restartSource = new RestartSource();
         stopSource = new StopSource();
+        startSource = new StartSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
@@ -90,6 +92,7 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("status", getSourceStatus, "getstatus");
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
+        jcommander.addCommand("start", startSource);
         jcommander.addCommand("restart", restartSource);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
@@ -529,7 +532,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Temporary stops source instance. (If worker restarts then it reassigns and starts source again")
+    @Parameters(commandDescription = "Stop source instance")
     class StopSource extends SourceCommand {
 
         @Parameter(names = "--instance-id", description = "The source instanceId (stop all instances if instance-id is not provided")
@@ -546,7 +549,28 @@ public class CmdSources extends CmdBase {
             } else {
                 admin.source().stopSource(tenant, namespace, sourceName);
             }
-            System.out.println("Restarted successfully");
+            System.out.println("Stopped successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Start source instance")
+    class StartSource extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (start all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.source().startSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.source().startSource(tenant, namespace, sourceName);
+            }
+            System.out.println("Started successfully");
         }
     }
 
