@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.WindowConfigUtils;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.fail;

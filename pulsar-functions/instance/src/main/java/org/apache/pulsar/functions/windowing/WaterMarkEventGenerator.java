@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.windowing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
-import org.apache.pulsar.functions.api.Context;
 
 import java.util.Map;
 import java.util.Set;
@@ -49,7 +48,9 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     private final long intervalMs;
     private ScheduledFuture<?> executorFuture;
     private volatile long lastWaterMarkTs;
-    private Context context;
+    private String tenant;
+    private String namespace;
+    private String name;
 
     /**
      * Creates a new WatermarkEventGenerator.
@@ -59,7 +60,8 @@ public class WaterMarkEventGenerator<T> implements Runnable {
      * @param inputTopics The input topics this generator is expected to handle
      */
     public WaterMarkEventGenerator(WindowManager<T> windowManager, long intervalMs,
-                                   long eventTsLagMs, Set<String> inputTopics, Context context) {
+                                   long eventTsLagMs, Set<String> inputTopics, String tenant,
+                                   String namespace, String name) {
         this.windowManager = windowManager;
         topicToTs = new ConcurrentHashMap<>();
 
@@ -72,7 +74,9 @@ public class WaterMarkEventGenerator<T> implements Runnable {
         this.intervalMs = intervalMs;
         this.eventTsLagMs = eventTsLagMs;
         this.inputTopics = inputTopics;
-        this.context = context;
+        this.tenant = tenant;
+        this.namespace = namespace;
+        this.name = name;
     }
 
     /**
@@ -93,7 +97,7 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     public void run() {
         // initialize the thread context
         ThreadContext.put("function", WindowUtils.getFullyQualifiedName(
-                context.getTenant(), context.getNamespace(), context.getFunctionName()));
+                tenant, namespace, name));
         try {
             long waterMarkTs = computeWaterMarkTs();
             if (waterMarkTs > lastWaterMarkTs) {

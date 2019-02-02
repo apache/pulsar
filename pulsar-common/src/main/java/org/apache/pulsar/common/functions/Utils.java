@@ -74,5 +74,10 @@ public class Utils {
         if (sinkConfig.getParallelism() == null) {
             sinkConfig.setParallelism(1);
         }
+        WindowConfig windowConfig = sinkConfig.getWindowConfig();
+        if (windowConfig != null) {
+            WindowConfigUtils.inferMissingArguments(windowConfig);
+            sinkConfig.setAutoAck(false);
+        }
     }
 }

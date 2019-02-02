@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.functions.Utils;
@@ -281,6 +282,14 @@ public class CmdSinks extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)")
         protected Long disk;
+        @Parameter(names = "--window-length-count", description = "The number of messages per window")
+        protected Integer windowLengthCount;
+        @Parameter(names = "--window-length-duration-ms", description = "The time duration of the window in milliseconds")
+        protected Long windowLengthDurationMs;
+        @Parameter(names = "--sliding-interval-count", description = "The number of messages after which the window slides")
+        protected Integer slidingIntervalCount;
+        @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
+        protected Long slidingIntervalDurationMs;
         @Parameter(names = "--sinkConfig", description = "User defined configs key/values", hidden = true)
         protected String DEPRECATED_sinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
@@ -402,6 +411,35 @@ public class CmdSinks extends CmdBase {
             if (resources != null) {
                 sinkConfig.setResources(resources);
             }
+
+            // window configs
+            WindowConfig windowConfig = sinkConfig.getWindowConfig();
+            if (null != windowLengthCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthCount(windowLengthCount);
+            }
+            if (null != windowLengthDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthDurationMs(windowLengthDurationMs);
+            }
+            if (null != slidingIntervalCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+            }
+            if (null != slidingIntervalDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalDurationMs(slidingIntervalDurationMs);
+            }
+
+            sinkConfig.setWindowConfig(windowConfig);
 
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.functions;
 
 import org.apache.pulsar.common.functions.WindowConfig;
 

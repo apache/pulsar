@@ -26,6 +26,7 @@ import lombok.*;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
 
 @Getter
 @Setter
@@ -64,6 +65,7 @@ public class SinkConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
     private Resources resources;
+    private WindowConfig windowConfig;
     private Boolean autoAck;
     private Long timeoutMs;
     private String archive;

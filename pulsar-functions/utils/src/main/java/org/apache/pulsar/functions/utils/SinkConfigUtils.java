@@ -25,9 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -44,6 +42,8 @@ import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
@@ -170,9 +170,15 @@ public class SinkConfigUtils {
             sinkSpecBuilder.setBuiltin(builtin);
         }
 
+        Map<String, Object> configs = new HashMap<>();
         if (sinkConfig.getConfigs() != null) {
-            sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            configs.putAll(sinkConfig.getConfigs());
         }
+        if (sinkConfig.getWindowConfig() != null) {
+            configs.put(WindowConfig.WINDOW_CONFIG_KEY, sinkConfig.getWindowConfig());
+        }
+        sinkSpecBuilder.setConfigs(new Gson().toJson(configs));
+
         if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
         }
@@ -238,8 +244,16 @@ public class SinkConfigUtils {
             sinkConfig.setArchive("builtin://" + functionDetails.getSink().getBuiltin());
         }
         if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> configs = new Gson().fromJson(functionDetails.getSink().getConfigs(), type);
+            if (configs.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
+                WindowConfig windowConfig = new Gson().fromJson(
+                        (new Gson().toJson(configs.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                        WindowConfig.class);
+                configs.remove(WindowConfig.WINDOW_CONFIG_KEY);
+                sinkConfig.setWindowConfig(windowConfig);
+            }
+            sinkConfig.setConfigs(configs);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
@@ -345,6 +359,17 @@ public class SinkConfigUtils {
                 }
             });
         }
+
+        WindowConfig windowConfig = sinkConfig.getWindowConfig();
+        if (windowConfig != null) {
+            // set auto ack to false since windowing framework is responsible
+            // for acking and not the function framework
+            if (sinkConfig.getAutoAck() != null && sinkConfig.getAutoAck()) {
+                throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
+            }
+            WindowConfigUtils.validate(windowConfig);
+        }
+
         return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
     }
 
@@ -451,6 +476,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getArchive())) {
             mergedConfig.setArchive(newConfig.getArchive());
+        }
+        if (newConfig.getWindowConfig() != null) {
+            mergedConfig.setWindowConfig(newConfig.getWindowConfig());
         }
         return mergedConfig;
     }

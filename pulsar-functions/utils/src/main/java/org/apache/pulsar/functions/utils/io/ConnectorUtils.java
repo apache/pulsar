@@ -34,6 +34,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.utils.Exceptions;
+import org.apache.pulsar.io.core.BatchedSink;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
@@ -87,7 +88,7 @@ public class ConnectorUtils {
         try {
             // Try to load source class and check it implements Sink interface
             Object instance = ncl.loadClass(conf.getSinkClass()).newInstance();
-            if (!(instance instanceof Sink)) {
+            if (!(instance instanceof Sink) && !(instance instanceof BatchedSink)) {
                 throw new IOException(
                         "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());
             }

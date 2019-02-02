@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.windowing.triggers;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
-import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
@@ -48,10 +47,12 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
     private final EvictionPolicy<T, ?> evictionPolicy;
     private ScheduledFuture<?> executorFuture;
     private final ScheduledExecutorService executor;
-    private Context context;
+    private String tenant;
+    private String namespace;
+    private String name;
 
     public TimeTriggerPolicy(long millis, TriggerHandler handler, EvictionPolicy<T, ?>
-            evictionPolicy, Context context) {
+            evictionPolicy, String tenant, String namespace, String name) {
         this.duration = millis;
         this.handler = handler;
         this.evictionPolicy = evictionPolicy;
@@ -60,7 +61,9 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
                 .setDaemon(true)
                 .build();
         this.executor = Executors.newSingleThreadScheduledExecutor(threadFactory);
-        this.context = context;
+        this.tenant = tenant;
+        this.namespace = namespace;
+        this.name = name;
     }
 
     @Override
@@ -102,7 +105,7 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
             public void run() {
                 // initialize the thread context
                 ThreadContext.put("function", WindowUtils.getFullyQualifiedName(
-                        context.getTenant(), context.getNamespace(), context.getFunctionName()));
+                        tenant, namespace, name));
                 // do not process current timestamp since tuples might arrive while the trigger is executing
                 long now = System.currentTimeMillis() - 1;
                 try {

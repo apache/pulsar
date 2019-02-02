@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.io.core;
 
-import java.util.Map;
-
 import org.apache.pulsar.functions.api.Record;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
- * Generic sink interface users can implement to run Sink on top of Pulsar Functions
+ * A Batched version of the sink interface where the write method is called
+ * only upon accumulation of a window of events
  */
-public interface Sink<T> extends AutoCloseable {
+public interface BatchedSink<T> extends AutoCloseable {
     /**
      * Open connector with configuration
      *
@@ -37,8 +39,8 @@ public interface Sink<T> extends AutoCloseable {
 
     /**
      * Write a message to Sink
-     * @param record record to write to sink
+     * @param records The batch of records to be written to the sink
      * @throws Exception
      */
-    void write(Record<T> record) throws Exception;
+    void write(Collection<Record<T>> records) throws Exception;
 }

@@ -38,6 +38,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.io.core.BatchedSink;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
@@ -213,12 +214,23 @@ public class Utils {
 
         Object userClass = Reflections.createInstance(className, classLoader);
         Class<?> typeArg;
-        Sink sink = (Sink) userClass;
-        if (sink == null) {
-            throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated",
-                    className));
+        if (userClass instanceof  Sink) {
+            Sink sink = (Sink) userClass;
+            if (sink == null) {
+                throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated",
+                        className));
+            }
+            typeArg = TypeResolver.resolveRawArgument(Sink.class, sink.getClass());
+        } else if (userClass instanceof BatchedSink) {
+            BatchedSink sink = (BatchedSink) userClass;
+            if (sink == null) {
+                throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated",
+                        className));
+            }
+            typeArg = TypeResolver.resolveRawArgument(BatchedSink.class, sink.getClass());
+        } else {
+            throw new IllegalArgumentException(String.format("The sink class does not implement the right interface"));
         }
-        typeArg = TypeResolver.resolveRawArgument(Sink.class, sink.getClass());
 
         return typeArg;
     }

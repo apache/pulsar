@@ -72,6 +72,8 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.windowing.BatchedSinkExecutor;
+import org.apache.pulsar.io.core.BatchedSink;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
@@ -714,6 +716,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (object instanceof Sink) {
             this.sink = (Sink) object;
+        } else if (object instanceof BatchedSink) {
+            this.sink = new BatchedSinkExecutor<>((BatchedSink) object);
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
