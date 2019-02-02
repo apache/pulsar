@@ -18,17 +18,7 @@
  */
 #include "Latch.h"
 
-#include <boost/make_shared.hpp>
-
 namespace pulsar {
-
-struct CountIsZero {
-    const int& count_;
-
-    CountIsZero(const int& count) : count_(count) {}
-
-    bool operator()() const { return count_ == 0; }
-};
 
 Latch::Latch(int count) : state_(std::make_shared<InternalState>()) { state_->count = count; }
 
@@ -52,11 +42,6 @@ void Latch::wait() {
     Lock lock(state_->mutex);
 
     state_->condition.wait(lock, CountIsZero(state_->count));
-}
-
-bool Latch::wait(const boost::posix_time::time_duration& timeout) {
-    Lock lock(state_->mutex);
-    return state_->condition.timed_wait(lock, timeout, CountIsZero(state_->count));
 }
 
 } /* namespace pulsar */

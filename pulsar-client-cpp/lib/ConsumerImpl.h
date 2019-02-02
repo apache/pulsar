@@ -24,9 +24,7 @@
 #include "pulsar/Result.h"
 #include "UnboundedBlockingQueue.h"
 #include "HandlerBase.h"
-#include "boost/enable_shared_from_this.hpp"
 #include "ClientConnection.h"
-#include <boost/shared_ptr.hpp>
 #include "lib/UnAckedMessageTrackerEnabled.h"
 #include "Commands.h"
 #include "ExecutorService.h"
@@ -144,7 +142,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Optional<MessageId> clearReceiveQueue();
 
-    boost::mutex mutexForReceiveWithZeroQueueSize;
+    std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
     const std::string subscription_;
     std::string originalSubscriptionName_;
@@ -165,7 +163,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     bool messageListenerRunning_;
-    boost::mutex messageListenerMutex_;
+    std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

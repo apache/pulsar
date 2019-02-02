@@ -26,8 +26,7 @@
 #include <functional>
 #include <boost/date_time/microsec_time_clock.hpp>
 #include <lib/BrokerConsumerStatsImpl.h>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+
 #pragma GCC visibility push(default)
 namespace pulsar {
 class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {

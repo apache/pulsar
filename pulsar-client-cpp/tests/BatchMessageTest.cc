@@ -18,7 +18,6 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
 #include <lib/Commands.h>
@@ -26,7 +25,6 @@
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include <ctime>
@@ -81,7 +79,7 @@ TEST(BatchMessageTest, testProducerConfig) {
 }
 
 TEST(BatchMessageTest, testProducerTimeout) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testProducerTimeout";
+    std::string testName = std::to_string(epochTime) + "testProducerTimeout";
 
     ClientConfiguration clientConf;
     clientConf.setStatsIntervalInSeconds(1);
@@ -128,11 +126,11 @@ TEST(BatchMessageTest, testProducerTimeout) {
     // Send Asynchronously
     std::string prefix = "msg-batch-test-produce-timeout-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder()
                           .setContent(messageContent)
                           .setProperty("type", "batch")
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .setProperty("msgIndex", std::to_string(i))
                           .build();
         LOG_DEBUG("sending message " << messageContent);
         clock_t start, end;
@@ -155,10 +153,10 @@ TEST(BatchMessageTest, testProducerTimeout) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(receivedMsg.getProperty("type"), "batch");
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -168,7 +166,7 @@ TEST(BatchMessageTest, testProducerTimeout) {
 }
 
 TEST(BatchMessageTest, testBatchSizeInBytes) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testBatchSizeInBytes";
+    std::string testName = std::to_string(epochTime) + "testBatchSizeInBytes";
     globalTestBatchMessagesCounter = 0;
 
     Client client(lookupUrl);
@@ -212,11 +210,9 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
     // Send Asynchronously
     std::string prefix = "12345678";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         ASSERT_EQ(producerStatsImplPtr->getNumMsgsSent(), i + 1);
         ASSERT_LT(PulsarFriend::sum(producerStatsImplPtr->getSendMap()), i + 1);
@@ -228,11 +224,11 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
         ASSERT_LT(pulsar::PulsarFriend::getBatchIndex(receivedMsg.getMessageId()), 2);
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
@@ -249,7 +245,7 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
 }
 
 TEST(BatchMessageTest, testSmallReceiverQueueSize) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testSmallReceiverQueueSize";
+    std::string testName = std::to_string(epochTime) + "testSmallReceiverQueueSize";
     globalTestBatchMessagesCounter = 0;
 
     ClientConfiguration clientConf;
@@ -301,11 +297,9 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         ASSERT_EQ(producerStatsImplPtr->getTotalMsgsSent(), i + 1);
         ASSERT_LE(PulsarFriend::sum(producerStatsImplPtr->getTotalSendMap()), i + 1);
@@ -316,10 +310,10 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     int i = 0;
     for (i = 0; i < numOfMessages; i++) {
         consumer.receive(receivedMsg);
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
@@ -348,7 +342,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
 }
 
 TEST(BatchMessageTest, testIndividualAck) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testIndividualAck";
+    std::string testName = std::to_string(epochTime) + "testIndividualAck";
 
     ClientConfiguration clientConfig;
     clientConfig.setStatsIntervalInSeconds(1);
@@ -395,11 +389,9 @@ TEST(BatchMessageTest, testIndividualAck) {
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
@@ -407,10 +399,10 @@ TEST(BatchMessageTest, testIndividualAck) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Ack every 2nd message
         if (i % 2 == 0) {
@@ -431,10 +423,10 @@ TEST(BatchMessageTest, testIndividualAck) {
 
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Ack every first 5 and 10th message
         if (i <= 5 || i == 10) {
@@ -453,11 +445,10 @@ TEST(BatchMessageTest, testIndividualAck) {
 
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i + numOfMessages / 2);
+        std::string expectedMessageContent = prefix + std::to_string(i + numOfMessages / 2);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"),
-                  boost::lexical_cast<std::string>(i++ + numOfMessages / 2));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++ + numOfMessages / 2));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Ack first 4 message only
         if (i <= 4) {
@@ -476,11 +467,10 @@ TEST(BatchMessageTest, testIndividualAck) {
 
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i + numOfMessages / 2);
+        std::string expectedMessageContent = prefix + std::to_string(i + numOfMessages / 2);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"),
-                  boost::lexical_cast<std::string>(i++ + numOfMessages / 2));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++ + numOfMessages / 2));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Ack all
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -503,7 +493,7 @@ TEST(BatchMessageTest, testIndividualAck) {
 }
 
 TEST(BatchMessageTest, testCumulativeAck) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testCumulativeAck";
+    std::string testName = std::to_string(epochTime) + "testCumulativeAck";
 
     ClientConfiguration clientConfig;
     clientConfig.setStatsIntervalInSeconds(100);
@@ -553,11 +543,9 @@ TEST(BatchMessageTest, testCumulativeAck) {
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
@@ -566,10 +554,10 @@ TEST(BatchMessageTest, testCumulativeAck) {
     int i = 0;
     ConsumerStatsImplPtr consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Cumm. Ack 7th message
         if (i == 7) {
@@ -602,10 +590,10 @@ TEST(BatchMessageTest, testCumulativeAck) {
     consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i + 5);
+        std::string expectedMessageContent = prefix + std::to_string(i + 5);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++ + 5));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++ + 5));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Ack 10th message
         if (i == 10) {
@@ -632,7 +620,7 @@ TEST(BatchMessageTest, testCumulativeAck) {
 }
 
 TEST(BatchMessageTest, testMixedAck) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testMixedAck";
+    std::string testName = std::to_string(epochTime) + "testMixedAck";
 
     Client client(lookupUrl);
     std::string topicName = "persistent://public/default/" + testName;
@@ -676,11 +664,9 @@ TEST(BatchMessageTest, testMixedAck) {
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
@@ -688,10 +674,10 @@ TEST(BatchMessageTest, testMixedAck) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Cumm. Ack 14th message
         if (i == 14) {
@@ -712,10 +698,10 @@ TEST(BatchMessageTest, testMixedAck) {
 
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i + 10);
+        std::string expectedMessageContent = prefix + std::to_string(i + 10);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++ + 10));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++ + 10));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         // Cumm Ack 9th message
         if (i == 4) {
@@ -740,7 +726,7 @@ TEST(BatchMessageTest, testMixedAck) {
 // Also testing Cumulative Ack test case where greatestCumulativeAck returns
 // MessageId()
 TEST(BatchMessageTest, testPermits) {
-    std::string testName = boost::lexical_cast<std::string>(epochTime) + "testPermits";
+    std::string testName = std::to_string(epochTime) + "testPermits";
 
     Client client(lookupUrl);
     std::string topicName = "persistent://public/default/" + testName;
@@ -787,11 +773,9 @@ TEST(BatchMessageTest, testPermits) {
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
@@ -801,10 +785,10 @@ TEST(BatchMessageTest, testPermits) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(receivedMsg));
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -824,11 +808,9 @@ TEST(BatchMessageTest, testPermits) {
     globalTestBatchMessagesCounter = 0;
     // Send Asynchronously
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
@@ -839,10 +821,10 @@ TEST(BatchMessageTest, testPermits) {
 
     i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(receivedMsg));
     }
@@ -855,12 +837,12 @@ TEST(BatchMessageTest, testPermits) {
 
 TEST(BatchMessageTest, testPartitionedTopics) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://public/default/test-partitioned-batch-messages-" +
-                            boost::lexical_cast<std::string>(epochTime);
+    std::string topicName =
+        "persistent://public/default/test-partitioned-batch-messages-" + std::to_string(epochTime);
 
     // call admin api to make it partitioned
     std::string url = adminUrl + "admin/v2/persistent/public/default/test-partitioned-batch-messages-" +
-                      boost::lexical_cast<std::string>(epochTime) + "/partitions";
+                      std::to_string(epochTime) + "/partitions";
     int res = makePutRequest(url, "7");
 
     LOG_DEBUG("res = " << res);
@@ -907,11 +889,9 @@ TEST(BatchMessageTest, testPartitionedTopics) {
     // Send Asynchronously
     std::string prefix = "msg-batch-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBackExpectingErrors);
         LOG_DEBUG("sending message " << messageContent);
     }

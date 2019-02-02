@@ -63,6 +63,6 @@ static std::string tokenSupplierWrapper(token_supplier supplier, void *ctx) {
 pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(token_supplier tokenSupplier,
                                                                           void *ctx) {
     pulsar_authentication_t *authentication = new pulsar_authentication_t;
-    authentication->auth = pulsar::AuthToken::create(boost::bind(&tokenSupplierWrapper, tokenSupplier, ctx));
+    authentication->auth = pulsar::AuthToken::create(std::bind(&tokenSupplierWrapper, tokenSupplier, ctx));
     return authentication;
 }

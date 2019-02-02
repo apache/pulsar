@@ -546,9 +546,9 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk15on-1.55.jar
-    - org.bouncycastle-bcprov-jdk15on-1.55.jar
-    - org.bouncycastle-bcprov-ext-jdk15on-1.59.jar
+    - org.bouncycastle-bcpkix-jdk15on-1.60.jar
+    - org.bouncycastle-bcprov-jdk15on-1.60.jar
+    - org.bouncycastle-bcprov-ext-jdk15on-1.60.jar
 
 ------------------------
 

@@ -34,6 +34,7 @@ typedef struct _pulsar_producer pulsar_producer_t;
 
 typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg, void *ctx);
 typedef void (*pulsar_close_callback)(pulsar_result, void *ctx);
+typedef void (*pulsar_flush_callback)(pulsar_result, void *ctx);
 
 /**
  * @return the topic to which producer is publishing to
@@ -113,6 +114,11 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
  * pending writes will not be retried.
  */
 void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx);
+
+// Flush all the messages buffered in the client and wait until all messages have been successfully persisted.
+pulsar_result pulsar_producer_flush(pulsar_producer_t *producer);
+
+void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_flush_callback callback, void *ctx);
 
 void pulsar_producer_free(pulsar_producer_t *producer);
 

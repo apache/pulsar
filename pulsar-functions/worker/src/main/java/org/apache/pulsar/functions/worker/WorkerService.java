@@ -83,7 +83,7 @@ public class WorkerService {
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.executor = Executors.newScheduledThreadPool(10, new DefaultThreadFactory("pulsar-worker"));
-        this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
+        this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
     }
 
     public void start(URI dlogUri) throws InterruptedException {
