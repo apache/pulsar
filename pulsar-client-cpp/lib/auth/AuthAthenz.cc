@@ -33,13 +33,12 @@
 #include <json/reader.h>
 
 #include <boost/ref.hpp>
-#include <boost/make_shared.hpp>
 
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 AuthDataAthenz::AuthDataAthenz(ParamMap& params) {
-    ztsClient_ = boost::make_shared<ZTSClient>(boost::ref(params));
+    ztsClient_ = std::make_shared<ZTSClient>(boost::ref(params));
     LOG_DEBUG("AuthDataAthenz is construted.")
 }
 

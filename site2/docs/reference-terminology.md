@@ -114,7 +114,7 @@ or geographical regions.
 
 #### Configuration Store
 
-Pulsar's configuration store (previously known as global ZooKeeper) is a ZooKeeper quorum that
+Pulsar's configuration store (previously known as configuration store) is a ZooKeeper quorum that
 is used for configuration-specific tasks. A multi-cluster Pulsar installation requires just one
 configuration store across all [clusters](#cluster).
 

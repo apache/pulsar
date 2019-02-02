@@ -20,9 +20,11 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -37,10 +39,11 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
@@ -49,7 +52,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -57,6 +59,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
 
     private final static String clientRole = "plugbleRole";
+    private final static Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
 
     protected void setup() throws Exception {
 
@@ -145,6 +148,101 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testSubscriberPermission() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        final String tenantRole = "tenant-role";
+        final String subscriptionRole = "sub1-role";
+        final String subscriptionName = "sub1";
+        final String namespace = "my-property/my-ns-sub-auth";
+        final String topicName = "persistent://" + namespace + "/my-topic";
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+
+        clientAuthProviderSupportedRoles.add(subscriptionRole);
+
+        PulsarAdmin superAdmin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
+
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
+        Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
+        PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(subAdminAuthentication).build());
+
+        String lookupUrl;
+        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+
+        Authentication authentication = new ClientAuthentication(subscriptionRole);
+
+        superAdmin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
+        superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
+                Collections.singleton(AuthAction.consume));
+
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        // (1) Create subscription name
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
+        consumer.close();
+
+        // verify tenant is able to perform all subscription-admin api
+        tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
+        tenantAdmin.topics().skipMessages(topicName, subscriptionName, 1);
+        tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
+        tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
+        tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+
+        // grant namespace-level authorization to the subscriptionRole
+        tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
+                Collections.singleton(AuthAction.consume));
+
+        // subscriptionRole has namespace-level authorization
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
+        
+        // grant subscription access to specific different role and only that role can access the subscription
+        String otherPrincipal = "Principal-1-to-access-sub";
+        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+                Collections.singleton(otherPrincipal));
+        
+        // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
+        try {
+            sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
+            fail("should have fail with authorization exception");
+        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
+            // Ok
+        }
+
+        // now, grant subscription-access to subscriptionRole as well
+        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+                Sets.newHashSet(otherPrincipal, subscriptionRole));
+
+        sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
+        sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
+        sub1Admin.topics().expireMessages(topicName, subscriptionName, 10);
+        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+
+        superAdmin.namespaces().revokePermissionOnSubscription(namespace, subscriptionName, subscriptionRole);
+        
+        try {
+            sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
+            fail("should have fail with authorization exception");
+        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
+            // Ok
+        }
+        
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
     @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -304,32 +402,41 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     public static class TestAuthorizationProvider implements AuthorizationProvider {
 
+        public ServiceConfiguration conf;
+
         @Override
         public void close() throws IOException {
             // No-op
         }
 
         @Override
+        public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+            Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+            return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        }
+
+        @Override
         public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+            this.conf = conf;
             // No-op
         }
 
         @Override
         public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
                 AuthenticationDataSource authenticationData) {
-            return CompletableFuture.completedFuture(clientRole.equals(role));
+            return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
         public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
                 AuthenticationDataSource authenticationData, String subscription) {
-            return CompletableFuture.completedFuture(clientRole.equals(role));
+            return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
         public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
                 AuthenticationDataSource authenticationData) {
-            return CompletableFuture.completedFuture(clientRole.equals(role));
+            return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
@@ -341,6 +448,18 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
                 String authenticationData) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
+                String subscriptionName, Set<String> roles, String authDataJson) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
+                String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
     }

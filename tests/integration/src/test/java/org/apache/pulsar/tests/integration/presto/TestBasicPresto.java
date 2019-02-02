@@ -66,7 +66,7 @@ public class TestBasicPresto extends PulsarTestSuite {
         pulsarCluster.stopPrestoWorker();;
     }
 
-    @Test(enabled = false)
+    @Test
     public void testSimpleSQLQuery() throws Exception {
 
         @Cleanup
@@ -86,6 +86,14 @@ public class TestBasicPresto extends PulsarTestSuite {
             final Stock stock = new Stock(i,"STOCK_" + i , 100.0 + i * 10);
             producer.send(stock);
         }
+
+        ContainerExecResult result = execQuery("show schemas in pulsar;");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("public/default");
+
+        result = execQuery("show tables in pulsar.\"public/default\";");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("stocks");
 
         ContainerExecResult containerExecResult = execQuery("select * from pulsar.\"public/default\".stocks order by entryid;");
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);

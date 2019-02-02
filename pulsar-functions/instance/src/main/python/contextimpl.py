@@ -29,37 +29,25 @@ import json
 
 import pulsar
 import util
-import InstanceCommunication_pb2
 
-# For keeping track of accumulated metrics
-class AccumulatedMetricDatum(object):
-  def __init__(self):
-    self.count = 0.0
-    self.sum = 0.0
-    self.max = float('-inf')
-    self.min = float('inf')
-
-  def record(self, value):
-    self.count += 1
-    self.sum += value
-    if value > self.max:
-      self.max = value
-    if value < self.min:
-      self.min = value
+from prometheus_client import Summary
+from function_stats import Stats
 
 class ContextImpl(pulsar.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider):
+
+  # add label to indicate user metric
+  user_metrics_label_names = Stats.metrics_label_names + ["metric"]
+
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
     self.secrets_provider = secrets_provider
-    self.current_accumulated_metrics = {}
-    self.accumulated_metrics = {}
     self.publish_producers = {}
     self.publish_serializers = {}
-    self.current_message_id = None
+    self.message = None
     self.current_input_topic_name = None
     self.current_start_time = None
     self.user_config = json.loads(instance_config.function_details.userConfig) \
@@ -69,14 +57,29 @@ class ContextImpl(pulsar.Context):
       if instance_config.function_details.secretsMap \
       else {}
 
+    self.metrics_labels = metrics_labels
+    self.user_metrics_map = dict()
+    self.user_metrics_summary = Summary("pulsar_function_user_metric",
+                                    'Pulsar Function user defined metric',
+                                        ContextImpl.user_metrics_label_names)
+
   # Called on a per message basis to set the context for the current message
-  def set_current_message_context(self, msgid, topic):
-    self.current_message_id = msgid
+  def set_current_message_context(self, message, topic):
+    self.message = message
     self.current_input_topic_name = topic
     self.current_start_time = time.time()
 
   def get_message_id(self):
-    return self.current_message_id
+    return self.message.message_id()
+
+  def get_message_key(self):
+    return self.message.partition_key()
+
+  def get_message_eventtime(self):
+    return self.message.event_timestamp()
+
+  def get_message_properties(self):
+    return self.message.properties()
 
   def get_current_message_topic_name(self):
     return self.current_input_topic_name
@@ -117,9 +120,12 @@ class ContextImpl(pulsar.Context):
     return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
-    if not metric_name in self.current_accumulated_metrics:
-      self.current_accumulated_metrics[metric_name] = AccumulatedMetricDatum()
-    self.current_accumulated_metrics[metric_name].update(metric_value)
+    if metric_name not in self.user_metrics_map:
+      user_metrics_labels = self.metrics_labels + [metric_name]
+      self.user_metrics_map[metric_name] = self.user_metrics_summary.labels(*user_metrics_labels)
+
+    self.user_metrics_map[metric_name].observe(metric_value)
+
 
   def get_output_topic(self):
     return self.instance_config.function_details.output
@@ -127,7 +133,7 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
@@ -141,7 +147,12 @@ class ContextImpl(pulsar.Context):
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000,
-        compression_type=pulsar_compression_type
+        compression_type=pulsar_compression_type,
+        properties=util.get_properties(util.getFullyQualifiedFunctionName(
+          self.instance_config.function_details.tenant,
+          self.instance_config.function_details.namespace,
+          self.instance_config.function_details.name),
+          self.instance_config.instance_id)
       )
 
     if serde_class_name not in self.publish_serializers:
@@ -149,7 +160,7 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
-    self.publish_producers[topic_name].send_async(output_bytes, None, properties=properties)
+    self.publish_producers[topic_name].send_async(output_bytes, callback, properties=properties)
 
   def ack(self, msgid, topic):
     if topic not in self.consumers:
@@ -164,17 +175,14 @@ class ContextImpl(pulsar.Context):
 
   def reset_metrics(self):
     # TODO: Make it thread safe
-    self.accumulated_metrics.clear()
-    self.accumulated_metrics.update(self.current_accumulated_metrics)
-    self.current_accumulated_metrics.clear()
+    for user_metric in self.user_metrics_map.values():
+      user_metric._sum.set(0.0)
+      user_metric._count.set(0.0)
 
   def get_metrics(self):
-    metrics = InstanceCommunication_pb2.MetricsData()
-    for metric_name, accumulated_metric in self.accumulated_metrics.items():
-      m = InstanceCommunication_pb2.MetricsData.DataDigest()
-      m.count = accumulated_metric.count
-      m.sum = accumulated_metric.sum
-      m.max = accumulated_metric.max
-      m.min = accumulated_metric.min
-      metrics.metrics[metric_name] = m
-    return metrics
+    metrics_map = {}
+    for metric_name, user_metric in self.user_metrics_map.items():
+      metrics_map["%s%s_sum" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._sum.get()
+      metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._count.get()
+
+    return metrics_map

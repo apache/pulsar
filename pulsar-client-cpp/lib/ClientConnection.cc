@@ -20,7 +20,6 @@
 
 #include "PulsarApi.pb.h"
 
-#include <boost/shared_ptr.hpp>
 #include <boost/array.hpp>
 #include <iostream>
 #include <algorithm>
@@ -103,6 +102,15 @@ static Result getResult(ServerError serverError) {
 
         case TopicTerminatedError:
             return ResultTopicTerminated;
+
+        case ProducerBusy:
+            return ResultProducerBusy;
+
+        case InvalidTopicName:
+            return ResultInvalidTopicName;
+
+        case IncompatibleSchema:
+            return ResultIncompatibleSchema;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -380,7 +388,7 @@ void ClientConnection::tcpConnectAsync() {
     }
 
     LOG_DEBUG(cnxString_ << "Connecting to " << service_url.host() << ":" << service_url.port());
-    tcp::resolver::query query(service_url.host(), boost::lexical_cast<std::string>(service_url.port()));
+    tcp::resolver::query query(service_url.host(), std::to_string(service_url.port()));
     resolver_->async_resolve(
         query, boost::bind(&ClientConnection::handleResolve, shared_from_this(),
                            boost::asio::placeholders::error, boost::asio::placeholders::iterator));
@@ -506,7 +514,6 @@ void ClientConnection::processIncomingBuffer() {
             handleIncomingCommand();
         }
     }
-
     if (incomingBuffer_.readableBytes() > 0) {
         // We still have 1 to 3 bytes from the next frame
         assert(incomingBuffer_.readableBytes() < sizeof(uint32_t));
@@ -679,7 +686,7 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue({"", -1});
+                        requestData.promise.setValue({});
                         requestData.timer->cancel();
                     }
                     break;
@@ -695,7 +702,8 @@ void ClientConnection::handleIncomingCommand() {
                     PendingLookupRequestsMap::iterator it =
                         pendingLookupRequests_.find(partitionMetadataResponse.request_id());
                     if (it != pendingLookupRequests_.end()) {
-                        LookupDataResultPromisePtr lookupDataPromise = it->second;
+                        it->second.timer->cancel();
+                        LookupDataResultPromisePtr lookupDataPromise = it->second.promise;
                         pendingLookupRequests_.erase(it);
                         numOfPendingLookupRequest_--;
                         lock.unlock();
@@ -714,7 +722,7 @@ void ClientConnection::handleIncomingCommand() {
                             }
                             lookupDataPromise->setFailed(ResultConnectError);
                         } else {
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
                             lookupResultPtr->setPartitions(partitionMetadataResponse.partitions());
                             lookupDataPromise->setValue(lookupResultPtr);
                         }
@@ -779,7 +787,8 @@ void ClientConnection::handleIncomingCommand() {
                     PendingLookupRequestsMap::iterator it =
                         pendingLookupRequests_.find(lookupTopicResponse.request_id());
                     if (it != pendingLookupRequests_.end()) {
-                        LookupDataResultPromisePtr lookupDataPromise = it->second;
+                        it->second.timer->cancel();
+                        LookupDataResultPromisePtr lookupDataPromise = it->second.promise;
                         pendingLookupRequests_.erase(it);
                         numOfPendingLookupRequest_--;
                         lock.unlock();
@@ -805,7 +814,7 @@ void ClientConnection::handleIncomingCommand() {
                                       << lookupTopicResponse.brokerserviceurltls()
                                       << " authoritative: " << lookupTopicResponse.authoritative()  //
                                       << " redirect: " << lookupTopicResponse.response());
-                            LookupDataResultPtr lookupResultPtr = boost::make_shared<LookupDataResult>();
+                            LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
 
                             if (tlsSocket_) {
                                 lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurltls());
@@ -842,8 +851,13 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue(
-                            {producerSuccess.producer_name(), producerSuccess.last_sequence_id()});
+                        ResponseData data;
+                        data.producerName = producerSuccess.producer_name();
+                        data.lastSequenceId = producerSuccess.last_sequence_id();
+                        if (producerSuccess.has_schema_version()) {
+                            data.schemaVersion = producerSuccess.schema_version();
+                        }
+                        requestData.promise.setValue(data);
                         requestData.timer->cancel();
                     }
                     break;
@@ -1020,7 +1034,7 @@ void ClientConnection::handleIncomingCommand() {
                         }
 
                         NamespaceTopicsPtr topicsPtr =
-                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+                            std::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
 
                         getTopicsPromise.setValue(topicsPtr);
                     } else {
@@ -1071,8 +1085,8 @@ void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,
                                  LookupDataResultPromisePtr promise) {
     Lock lock(mutex_);
-    boost::shared_ptr<LookupDataResultPtr> lookupDataResult;
-    lookupDataResult = boost::make_shared<LookupDataResultPtr>();
+    std::shared_ptr<LookupDataResultPtr> lookupDataResult;
+    lookupDataResult = std::make_shared<LookupDataResultPtr>();
     if (isClosed()) {
         lock.unlock();
         promise->setFailed(ResultNotConnected);
@@ -1082,7 +1096,14 @@ void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t request
         promise->setFailed(ResultTooManyLookupRequestException);
         return;
     }
-    pendingLookupRequests_.insert(std::make_pair(requestId, promise));
+    LookupRequestData requestData;
+    requestData.timer = executor_->createDeadlineTimer();
+    requestData.timer->expires_from_now(operationsTimeout_);
+    requestData.timer->async_wait(
+        boost::bind(&ClientConnection::handleLookupTimeout, shared_from_this(), _1, requestData));
+    requestData.promise = promise;
+
+    pendingLookupRequests_.insert(std::make_pair(requestId, requestData));
     numOfPendingLookupRequest_++;
     lock.unlock();
     sendCommand(cmd);
@@ -1194,6 +1215,13 @@ void ClientConnection::handleRequestTimeout(const boost::system::error_code& ec,
     }
 }
 
+void ClientConnection::handleLookupTimeout(const boost::system::error_code& ec,
+                                           LookupRequestData pendingRequestData) {
+    if (!ec) {
+        pendingRequestData.promise->setFailed(ResultTimeout);
+    }
+}
+
 void ClientConnection::handleKeepAliveTimeout() {
     if (isClosed()) {
         return;
@@ -1270,7 +1298,7 @@ void ClientConnection::close() {
 
     for (PendingLookupRequestsMap::iterator it = pendingLookupRequests.begin();
          it != pendingLookupRequests.end(); ++it) {
-        it->second->setFailed(ResultConnectError);
+        it->second.promise->setFailed(ResultConnectError);
     }
 
     for (PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap.begin();

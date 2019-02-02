@@ -143,6 +143,12 @@ public abstract class TestPulsarConnector {
             public int field1;
         }
 
+        public enum TestEnum {
+            TEST_ENUM_1,
+            TEST_ENUM_2,
+            TEST_ENUM_3
+        }
+
         public int field1;
         public String field2;
         public float field3;
@@ -156,6 +162,7 @@ public abstract class TestPulsarConnector {
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"date\" }")
         public int date;
         public TestPulsarConnector.Bar bar;
+        public TestEnum field7;
     }
 
     public static class Bar {
@@ -249,6 +256,8 @@ public abstract class TestPulsarConnector {
             fooTypes.put("bar.test2.field5", BooleanType.BOOLEAN);
             fooTypes.put("bar.test2.field6", BigintType.BIGINT);
             fooTypes.put("bar.test2.foobar.field1", IntegerType.INTEGER);
+            // Enums currently map to VARCHAR
+            fooTypes.put("field7", VarcharType.VARCHAR);
 
             topicsToNumEntries = new HashMap<>();
             topicsToNumEntries.put(TOPIC_1.getSchemaName(), 1233L);
@@ -510,6 +519,19 @@ public abstract class TestPulsarConnector {
                     bar_test2_foobar_fieldNames1,
                     bar_test2_foobar_positionIndices1));
 
+            String[] fieldNames10 = {"field7"};
+            Integer[] positionIndices10 = {10};
+            fooFieldNames.put("field7", fieldNames10);
+            fooPositionIndices.put("field7", positionIndices10);
+            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
+                    "field7",
+                    fooTypes.get("field7"),
+                    false,
+                    false,
+                    fieldNames10,
+                    positionIndices10));
+
+
             fooColumnHandles.addAll(PulsarInternalColumn.getInternalFields().stream().map(
                     new Function<PulsarInternalColumn, PulsarColumnHandle>() {
                         @Override
@@ -565,7 +587,7 @@ public abstract class TestPulsarConnector {
             fooFunctions.put("bar.test2.field5", integer -> (integer + 1) % 32 == 0);
             fooFunctions.put("bar.test2.field6", integer -> integer + 15L);
             fooFunctions.put("bar.test2.foobar.field1", integer -> integer % 3);
-
+            fooFunctions.put("field7", integer -> Foo.TestEnum.values()[integer % Foo.TestEnum.values().length]);
 
         } catch (Throwable e) {
             System.out.println("Error: " + e);
@@ -844,6 +866,7 @@ public abstract class TestPulsarConnector {
                                     foo.time = (int) fooFunctions.get("time").apply(count);
                                     foo.date = (int) fooFunctions.get("date").apply(count);
                                     foo.bar = bar;
+                                    foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
 
                                     PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
                                             .setProducerName("test-producer").setSequenceId(positions.get(topic))

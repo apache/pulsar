@@ -39,6 +39,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,8 +200,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
             public CompletableFuture<ReadHandle> execute() {
                 return getProgrammedFailure().thenCompose(
                         (res) -> {
-                            if (validate() != Code.OK) {
-                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
+                            int rc = validate();
+                            if (rc != BKException.Code.OK) {
+                                return FutureUtils.exception(BKException.create(rc));
                             }
 
                             PulsarMockLedgerHandle lh = ledgers.get(ledgerId);

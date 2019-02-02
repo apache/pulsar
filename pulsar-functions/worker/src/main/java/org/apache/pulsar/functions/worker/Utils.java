@@ -23,7 +23,11 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -37,13 +41,13 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.pulsar.functions.proto.Function;
-import static org.apache.pulsar.functions.utils.Utils.FILE;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Slf4j
 public final class Utils {
@@ -52,21 +56,11 @@ public final class Utils {
 
     public static byte[] toByteArray(Object obj) throws IOException {
         byte[] bytes = null;
-        ByteArrayOutputStream bos = null;
-        ObjectOutputStream oos = null;
-        try {
-            bos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(bos);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(obj);
             oos.flush();
             bytes = bos.toByteArray();
-        } finally {
-            if (oos != null) {
-                oos.close();
-            }
-            if (bos != null) {
-                bos.close();
-            }
         }
         return bytes;
     }
@@ -118,8 +112,14 @@ public final class Utils {
     }
 
     public static void downloadFromBookkeeper(Namespace namespace,
-                                                 OutputStream outputStream,
-                                                 String packagePath) throws IOException {
+                                              File outputFile,
+                                              String packagePath) throws IOException {
+        downloadFromBookkeeper(namespace, new FileOutputStream(outputFile), packagePath);
+    }
+
+    public static void downloadFromBookkeeper(Namespace namespace,
+                                              OutputStream outputStream,
+                                              String packagePath) throws IOException {
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;
@@ -185,17 +185,49 @@ public final class Utils {
         }
     }
 
-    public static String getFullyQualifiedInstanceId(Function.Instance instance) {
-        return getFullyQualifiedInstanceId(
-                instance.getFunctionMetaData().getFunctionDetails().getTenant(),
-                instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
-                instance.getFunctionMetaData().getFunctionDetails().getName(),
-                instance.getInstanceId());
-    }
+    public static FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName,
+                                                                               FunctionRuntimeInfo functionRuntimeInfo,
+                                                                               int instanceId) {
+        RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
-    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
-                                                     String functionName, int instanceId) {
-        return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
+        FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+        if (functionRuntimeSpawner != null) {
+            Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
+            if (functionRuntime != null) {
+                try {
+
+                    InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
+                    functionInstanceStats.setInstanceId(instanceId);
+
+                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData
+                            = new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
+
+                    functionInstanceStatsData.setReceivedTotal(metricsData.getReceivedTotal());
+                    functionInstanceStatsData.setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal());
+                    functionInstanceStatsData.setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal());
+                    functionInstanceStatsData.setUserExceptionsTotal(metricsData.getUserExceptionsTotal());
+                    functionInstanceStatsData.setAvgProcessLatency(metricsData.getAvgProcessLatency() == 0.0 ? null : metricsData.getAvgProcessLatency());
+                    functionInstanceStatsData.setLastInvocation(metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
+
+                    functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedTotal1Min());
+                    functionInstanceStatsData.oneMin.setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
+                    functionInstanceStatsData.oneMin.setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
+                    functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
+                    functionInstanceStatsData.oneMin.setAvgProcessLatency(metricsData.getAvgProcessLatency1Min() == 0.0 ? null : metricsData.getAvgProcessLatency1Min());
+
+                    // Filter out values that are NaN
+                    Map<String, Double> statsDataMap = metricsData.getUserMetricsMap().entrySet().stream()
+                            .filter(stringDoubleEntry -> !stringDoubleEntry.getValue().isNaN())
+                            .collect(Collectors.toMap(x -> x.getKey(), x -> x.getValue()));
+
+                    functionInstanceStatsData.setUserMetrics(statsDataMap);
+
+                    functionInstanceStats.setMetrics(functionInstanceStatsData);
+                } catch (InterruptedException | ExecutionException e) {
+                    log.warn("Failed to collect metrics for function instance {}", fullyQualifiedInstanceName, e);
+                }
+            }
+        }
+        return functionInstanceStats;
     }
-    
 }

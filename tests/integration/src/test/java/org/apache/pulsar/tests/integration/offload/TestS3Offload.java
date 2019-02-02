@@ -92,9 +92,8 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
 
         long firstLedger = -1;
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer producer = client.newProducer().topic(topic)
-                .blockIfQueueFull(true).enableBatching(false).create();
-            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            Producer<byte[]> producer = client.newProducer().topic(topic)
+                .blockIfQueueFull(true).enableBatching(false).create();) {
             client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
 
             // write enough to topic to make it roll
@@ -102,8 +101,10 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
             for (; i < ENTRIES_PER_LEDGER * 1.5; i++) {
                 producer.sendAsync(buildEntry("offload-message" + i));
             }
-            MessageId latestMessage = producer.send(buildEntry("offload-message" + i));
+            producer.flush();
+        }
 
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
             // read managed ledger info, check ledgers exist
             firstLedger = admin.topics().getInternalStats(topic).ledgers.get(0).ledgerId;
 
@@ -125,27 +126,24 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
             output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
                 "offload-status", "-w", topic).getStdout();
             Assert.assertTrue(output.contains("Offload was a success"));
+
+            // delete the first ledger, so that we cannot possibly read from it
+            ClientConfiguration bkConf = new ClientConfiguration();
+            bkConf.setZkServers(pulsarCluster.getZKConnString());
+            try (BookKeeper bk = new BookKeeper(bkConf)) {
+                bk.deleteLedger(firstLedger);
+            }
+
+            // Unload topic to clear all caches, open handles, etc
+            admin.topics().unload(topic);
         }
-
-        // stop brokers to clear all caches, open handles, etc
-        pulsarCluster.stopAllBrokers();
-
-        // delete the first ledger, so that we cannot possibly read from it
-        ClientConfiguration bkConf = new ClientConfiguration();
-        bkConf.setZkServers(pulsarCluster.getZKConnString());
-        try (BookKeeper bk = new BookKeeper(bkConf)) {
-            bk.deleteLedger(firstLedger);
-        }
-
-        // start all brokers again
-        pulsarCluster.startAllBrokers();
 
         log.info("Read back the data (which would be in that first ledger)");
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Consumer consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+            Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 1.5; i++) {
-                Message m = consumer.receive(1, TimeUnit.MINUTES);
+                Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
                 Assert.assertEquals(buildEntry("offload-message" + i), m.getData());
             }
         }
@@ -169,9 +167,9 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
 
         long firstLedger = 0;
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer producer = client.newProducer().topic(topic)
+            Producer<byte[]> producer = client.newProducer().topic(topic)
                 .blockIfQueueFull(true).enableBatching(false).create();
-            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            ) {
 
             client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
 
@@ -179,8 +177,11 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 producer.sendAsync(buildEntry("offload-message" + i));
             }
-            producer.send(buildEntry("final-offload-message"));
 
+            producer.flush();
+        }
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
             firstLedger = admin.topics().getInternalStats(topic).ledgers.get(0).ledgerId;
 
             // wait up to 30 seconds for offload to occur
@@ -188,27 +189,24 @@ public class TestS3Offload extends PulsarTieredStorageTestSuite {
                 Thread.sleep(100);
             }
             Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded);
+
+            // delete the first ledger, so that we cannot possibly read from it
+            ClientConfiguration bkConf = new ClientConfiguration();
+            bkConf.setZkServers(pulsarCluster.getZKConnString());
+            try (BookKeeper bk = new BookKeeper(bkConf)) {
+                bk.deleteLedger(firstLedger);
+            }
+
+            // Unload topic to clear all caches, open handles, etc
+            admin.topics().unload(topic);
         }
-
-        // stop brokers to clear all caches, open handles, etc
-        pulsarCluster.stopAllBrokers();
-
-        // delete the first ledger, so that we cannot possibly read from it
-        ClientConfiguration bkConf = new ClientConfiguration();
-        bkConf.setZkServers(pulsarCluster.getZKConnString());
-        try (BookKeeper bk = new BookKeeper(bkConf)) {
-            bk.deleteLedger(firstLedger);
-        }
-
-        // start all brokers again
-        pulsarCluster.startAllBrokers();
 
         log.info("Read back the data (which would be in that first ledger)");
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-             Consumer consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+             Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
-                Message m = consumer.receive(1, TimeUnit.MINUTES);
+                Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
                 Assert.assertEquals(buildEntry("offload-message" + i), m.getData());
             }
         }

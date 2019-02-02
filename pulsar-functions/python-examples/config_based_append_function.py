@@ -31,4 +31,4 @@ class ConfigBasedAppendFunction(Function):
     append_value = "!"
     if key in context.get_user_config_map():
       append_value = context.get_user_config_value(key)
-    return input + append_value
+    return input + str(append_value)

@@ -74,7 +74,7 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
         return totalReceivedMsgMap_;
     }
 };
-typedef boost::shared_ptr<ConsumerStatsImpl> ConsumerStatsImplPtr;
+typedef std::shared_ptr<ConsumerStatsImpl> ConsumerStatsImplPtr;
 } /* namespace pulsar */
 
 #endif /* PULSAR_CONSUMER_STATS_IMPL_H_ */

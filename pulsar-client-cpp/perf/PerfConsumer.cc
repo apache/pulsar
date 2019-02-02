@@ -182,7 +182,7 @@ void startPerfConsumer(const Arguments& args) {
     ConsumerConfiguration consumerConf;
     consumerConf.setMessageListener(messageListener);
     consumerConf.setReceiverQueueSize(args.receiverQueueSize);
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>(args.encKeyValueFile);
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>(args.encKeyValueFile);
     if (!args.encKeyName.empty()) {
         consumerConf.setCryptoKeyReader(keyReader);
     }
@@ -192,13 +192,13 @@ void startPerfConsumer(const Arguments& args) {
     for (int i = 0; i < args.numTopics; i++) {
         std::string topic =
                 (args.numTopics == 1) ?
-                        args.topic : args.topic + "-" + boost::lexical_cast<std::string>(i);
+                        args.topic : args.topic + "-" + std::to_string(i);
         LOG_INFO("Adding " << args.numConsumers << " consumers on topic " << topic);
 
         for (int j = 0; j < args.numConsumers; j++) {
             std::string subscriberName;
             if (args.numConsumers > 1) {
-                subscriberName = args.subscriberName + "-" + boost::lexical_cast<std::string>(j);
+                subscriberName = args.subscriberName + "-" + std::to_string(j);
             } else {
                 subscriberName = args.subscriberName;
             }

@@ -12,7 +12,7 @@ const translate = require('../../server/translate.js').translate;
 
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
-const iframeSrc = "https://calendar.google.com/calendar/embed?showTitle=0&amp;showPrint=0&amp;showCalendars=0&amp;mode=AGENDA&amp;height=300&amp;wkst=1&amp;hl=en&amp;bgcolor=%23FFFFFF&amp;src=22kknj432ap5io49lvsjaac71o%40group.calendar.google.com&amp;color=%232952A3&amp;ctz=America%2FLos_Angeles";
+const iframeSrc = "https://calendar.google.com/calendar/embed?src=apache.pulsar.slack%40gmail.com";
 
 class Events extends React.Component {
   render() {

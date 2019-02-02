@@ -26,15 +26,17 @@
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/ClientConfiguration.h>
+#include <pulsar/Schema.h>
 #include <string>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-typedef boost::function<void(Result, Producer)> CreateProducerCallback;
-typedef boost::function<void(Result, Consumer)> SubscribeCallback;
-typedef boost::function<void(Result, Reader)> ReaderCallback;
-typedef boost::function<void(Result)> CloseCallback;
+typedef std::function<void(Result, Producer)> CreateProducerCallback;
+typedef std::function<void(Result, Consumer)> SubscribeCallback;
+typedef std::function<void(Result, Reader)> ReaderCallback;
+typedef std::function<void(Result, const std::vector<std::string>&)> GetPartitionsCallback;
+typedef std::function<void(Result)> CloseCallback;
 
 class ClientImpl;
 class PulsarFriend;
@@ -160,6 +162,38 @@ class Client {
                            const ReaderConfiguration& conf, ReaderCallback callback);
 
     /**
+     * Get the list of partitions for a given topic.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not
+     * partitioned, the returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create Reader, Consumer or Producer
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @since 2.3.0
+     */
+    Result getPartitionsForTopic(const std::string& topic, std::vector<std::string>& partitions);
+
+    /**
+     * Get the list of partitions for a given topic in asynchronous mode.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not
+     * partitioned, the returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create Reader, Consumer or Producer
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @param callback
+     *            the callback that will be invoked when the list of partitions is available
+     * @since 2.3.0
+     */
+    void getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback);
+
+    /**
      *
      * @return
      */
@@ -172,11 +206,11 @@ class Client {
    private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
            bool poolConnections);
-    Client(const boost::shared_ptr<ClientImpl>);
+    Client(const std::shared_ptr<ClientImpl>);
 
     friend class PulsarFriend;
     friend class PulsarWrapper;
-    boost::shared_ptr<ClientImpl> impl_;
+    std::shared_ptr<ClientImpl> impl_;
 };
 }  // namespace pulsar
 

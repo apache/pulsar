@@ -19,7 +19,11 @@
 
 package pulsar
 
-import "time"
+import (
+	"time"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
+)
 
 func NewClient(options ClientOptions) (Client, error) {
 	return newClient(options)
@@ -27,6 +31,16 @@ func NewClient(options ClientOptions) (Client, error) {
 
 // Opaque interface that represents the authentication credentials
 type Authentication interface {}
+
+// Create new Authentication provider with specified auth token
+func NewAuthenticationToken(token string) Authentication {
+	return newAuthenticationToken(token)
+}
+
+// Create new Authentication provider with specified auth token supplier
+func NewAuthenticationTokenSupplier(tokenSupplier func() string) Authentication {
+	return newAuthenticationTokenSupplier(tokenSupplier)
+}
 
 // Create new Authentication provider with specified TLS certificate and private key
 func NewAuthenticationTLS(certificatePath string, privateKeyPath string) Authentication {
@@ -64,7 +78,7 @@ type ClientOptions struct {
 	// By default, log messages will be printed on standard output. By passing a logger function, application
 	// can determine how to print logs. This function will be called each time the Pulsar client library wants
 	// to write any logs.
-	Logger func(level LoggerLevel, file string, line int, message string)
+	Logger func(level log.LoggerLevel, file string, line int, message string)
 
 	// Set the path to the trusted TLS certificate file
 	TLSTrustCertsFilePath string
@@ -95,6 +109,16 @@ type Client interface {
 	// Create a Reader instance.
 	// This method will block until the reader is created successfully.
 	CreateReader(ReaderOptions) (Reader, error)
+
+	// Fetch the list of partitions for a given topic
+	//
+	// If the topic is partitioned, this will return a list of partition names.
+	// If the topic is not partitioned, the returned list will contain the topic
+	// name itself.
+	//
+	// This can be used to discover the partitions and create {@link Reader},
+	// {@link Consumer} or {@link Producer} instances directly on a particular partition.
+	TopicPartitions(topic string) ([]string, error)
 
 	// Close the Client and free associated resources
 	Close() error

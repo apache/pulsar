@@ -18,6 +18,8 @@
 # under the License.
 #
 
+bin/set_python_version.sh
+
 bin/apply-config-from-env.py conf/client.conf && \
     bin/gen-yml-from-env.py conf/functions_worker.yml && \
     bin/apply-config-from-env.py conf/pulsar_env.sh

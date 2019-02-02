@@ -23,9 +23,9 @@ class Libpulsar < Formula
 
   head "https://github.com/apache/pulsar.git"
 
-  version "2.2.0"
+  version "2.2.1"
   url "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-#{version}/apache-pulsar-#{version}-src.tar.gz"
-  sha256 "a3b1940a803043bb2c365ce9df657d15bf9aacb3c9ff5db86a79dc4374033f08"
+  sha256 "3a365368f0d7beba091ba3a6d0f703dcc77545c8b454e5e33b72c1a29905232e"
 
   option "with-python3", "Use Boost with Python-3.x"
   option "with-log4cxx", "Enable Log4cxx logger"

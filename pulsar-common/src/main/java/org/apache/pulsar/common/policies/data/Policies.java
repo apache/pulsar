@@ -36,6 +36,7 @@ public class Policies {
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
+    public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication
@@ -72,6 +73,7 @@ public class Policies {
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
                     && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
@@ -101,6 +103,13 @@ public class Policies {
         return bundle;
     }
 
+    public static void setStorageQuota(Policies polices, BacklogQuota quota) {
+        if (polices == null) {
+            return;
+        }
+        polices.backlog_quota_map.put(BacklogQuota.BacklogQuotaType.destination_storage, quota);
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
@@ -108,6 +117,7 @@ public class Policies {
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("clusterDispatchRate", clusterDispatchRate)
+                .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)

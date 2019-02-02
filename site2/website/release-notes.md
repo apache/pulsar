@@ -1,30 +1,49 @@
 
-## Apache 
+## Apache
+
+### 2.2.1 &mdash; 2018-12-31 <a id="2.2.1"></a>
+
+This release includes fixes for 2.2.0 release. In particular:
+
+* Fixed issue when proxy HTTP admin API requests Pulsar proxy [#3022](https://github.com/apache/pulsar/pull/3022)
+
+* Fixed `Consumer.unsubscribe()` in Python client library [#3093](https://github.com/apache/pulsar/pull/3093)
+
+* Fixed ZLib decompression in C++ client [#2854](https://github.com/apache/pulsar/pull/2854)
+
+* Fixed Pulsar functions context publish in Python [#2844](https://github.com/apache/pulsar/pull/2844)
+
+For a complete list of issues fixed, see
+
+https://github.com/apache/pulsar/milestone/19?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.2.1
+
 
 ### 2.2.0 &mdash; 2018-10-24 <a id="2.2.0"></a>
 
-This is the first release of Pulsar as an Apache Top Level Project 
+This is the first release of Pulsar as an Apache Top Level Project
 
 This is a feature release, including several new features, improvements and fixes for  issues reported for 2.1.1-incubating.
  
 * [Pulsar Java Client Interceptors](https://github.com/apache/pulsar/pull/2471)
 
-* [Integration of functions and io with schema registry](https://github.com/apache/pulsar/pull/2266) 
+* [Integration of functions and io with schema registry](https://github.com/apache/pulsar/pull/2266)
 
-* [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) 
+* [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic)
 
-* [Flink Source connector](https://github.com/apache/pulsar/pull/2555) 
+* [Flink Source connector](https://github.com/apache/pulsar/pull/2555)
 
-* [JDBC Sink Connector](https://github.com/apache/pulsar/issues/2313) 
+* [JDBC Sink Connector](https://github.com/apache/pulsar/issues/2313)
 
-* [HDFS Sink Connector](https://github.com/apache/pulsar/pull/2409) 
+* [HDFS Sink Connector](https://github.com/apache/pulsar/pull/2409)
 
-* [Google Cloud Storage Offloader](https://github.com/apache/pulsar/issues/2067) 
+* [Google Cloud Storage Offloader](https://github.com/apache/pulsar/issues/2067)
 
-* [Pulsar SQL](https://github.com/apache/pulsar/wiki/PIP-19:-Pulsar-SQL) 
+* [Pulsar SQL](https://github.com/apache/pulsar/wiki/PIP-19:-Pulsar-SQL)
 
 
-For a complete list of issues fixed, see 
+For a complete list of issues fixed, see
 
 https://github.com/apache/pulsar/milestone/16?closed=1
 
@@ -68,7 +87,7 @@ It is a feature release, including several new features and major improvements:
   - [Kafka Connector](/docs/en/io-kafka/)
   - [Kinesis Connector](/docs/en/io-kinesis/)
   - [RabbitMQ Connector](/docs/en/io-rabbitmq/)
-  - [Twitter Firehose Connector](/docs/en/io-twitter/) 
+  - [Twitter Firehose Connector](/docs/en/io-twitter/)
 - [Tiered Storage](/docs/en/concepts-tiered-storage/): An extension in Pulsar segment store to offload older segments into long term storage (e.g. HDFS, S3).
   S3 support is supported in 2.1 release.
 - [Stateful function](/docs/en/functions-state/): Pulsar Functions is able to use [State API](/docs/en/functions-state#api) for storing state within Pulsar.

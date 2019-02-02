@@ -251,7 +251,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
         ResourceUnit ru1 = new SimpleResourceUnit(
-                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort(), rd);
+                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get(), rd);
         Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
@@ -355,7 +355,7 @@ public class SimpleLoadManagerImplTest {
         assertTrue(rd1.calculateRank() > rd.calculateRank());
 
         SimpleLoadCalculatorImpl calc = new SimpleLoadCalculatorImpl();
-        calc.recaliberateResourceUsagePerServiceUnit(null);
+        calc.recalibrateResourceUsagePerServiceUnit(null);
         assertNull(calc.getResourceDescription(null));
 
     }

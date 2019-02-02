@@ -28,21 +28,28 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Utils;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -57,18 +64,22 @@ class ProcessRuntime implements Runtime {
     @Getter
     private List<String> processArgs;
     private int instancePort;
+    private int metricsPort;
     @Getter
     private Throwable deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
-    private ScheduledExecutorService timer;
+    private ScheduledFuture timer;
     private InstanceConfig instanceConfig;
     private final Long expectedHealthCheckInterval;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
+    private final String extraDependenciesDir;
     private static final long GRPC_TIMEOUT_SECS = 5;
+    private final String funcLogDir;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
+                   String extraDependenciesDir,
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl,
@@ -78,8 +89,10 @@ class ProcessRuntime implements Runtime {
                    Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
+        this.metricsPort = Utils.findAvailablePort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.funcLogDir = RuntimeUtils.genFunctionLogFolder(logDirectory, instanceConfig);
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -94,9 +107,29 @@ class ProcessRuntime implements Runtime {
                 logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                logConfigFile, secretsProviderClassName, secretsProviderConfig, false, null, null);
+        this.extraDependenciesDir = extraDependenciesDir;
+        this.processArgs = RuntimeUtils.composeArgs(
+            instanceConfig,
+            instanceFile,
+            // DONT SET extra dependencies here (for python runtime),
+            // since process runtime is using Java ProcessBuilder,
+            // we have to set the environment variable via ProcessBuilder
+            FunctionDetails.Runtime.JAVA == instanceConfig.getFunctionDetails().getRuntime() ? extraDependenciesDir : null,
+            logDirectory,
+            codeFile,
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig,
+            instanceConfig.getInstanceName(),
+            instanceConfig.getPort(),
+            expectedHealthCheckInterval,
+            logConfigFile,
+            secretsProviderClassName,
+            secretsProviderConfig,
+            false,
+            null,
+            null,
+                this.metricsPort);
     }
 
     /**
@@ -105,6 +138,21 @@ class ProcessRuntime implements Runtime {
     @Override
     public void start() {
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
+
+        // Note: we create the expected log folder before the function process logger attempts to create it
+        // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
+
+        log.info("Creating function log directory {}", funcLogDir);
+
+        try {
+            Files.createDirectories(Paths.get(funcLogDir));
+        } catch (IOException e) {
+            log.info("Exception when creating log folder : {}",funcLogDir, e);
+            throw new RuntimeException("Log folder creation error");
+        }
+
+        log.info("Created or found function log directory {}", funcLogDir);
+
         startProcess();
         if (channel == null && stub == null) {
             channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
@@ -112,19 +160,14 @@ class ProcessRuntime implements Runtime {
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
 
-            timer = Executors.newSingleThreadScheduledExecutor();
-            timer.scheduleAtFixedRate(new TimerTask() {
-
-                @Override
-                public void run() {
-                    CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
-                    try {
-                        result.get();
-                    } catch (Exception e) {
-                        log.error("Health check failed for {}-{}",
-                                instanceConfig.getFunctionDetails().getName(),
-                                instanceConfig.getInstanceId(), e);
-                    }
+            timer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
+                CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                try {
+                    result.get();
+                } catch (Exception e) {
+                    log.error("Health check failed for {}-{}",
+                            instanceConfig.getFunctionDetails().getName(),
+                            instanceConfig.getInstanceId(), e);
                 }
             }, expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
@@ -136,18 +179,39 @@ class ProcessRuntime implements Runtime {
     }
 
     @Override
-    public void stop() {
+    public void stop() throws InterruptedException {
         if (timer != null) {
-            timer.shutdown();
-        }
-        if (process != null) {
-            process.destroy();
+            timer.cancel(false);
         }
         if (channel != null) {
             channel.shutdown();
         }
         channel = null;
         stub = null;
+
+        // kill process
+        if (process != null) {
+            process.destroy();
+            int i = 0;
+            // gracefully terminate at first
+            while(process.isAlive()) {
+                Thread.sleep(100);
+                if (i > 100) {
+                    break;
+                }
+                i++;
+            }
+
+            // forcibly kill after timeout
+            if (process.isAlive()) {
+                log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
+                        Utils.getFullyQualifiedInstanceId(
+                                instanceConfig.getFunctionDetails().getTenant(),
+                                instanceConfig.getFunctionDetails().getNamespace(),
+                                instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));
+                process.destroyForcibly();
+            }
+        }
     }
 
     @Override
@@ -224,7 +288,7 @@ class ProcessRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
@@ -243,6 +307,11 @@ class ProcessRuntime implements Runtime {
             }
         });
         return retval;
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return RuntimeUtils.getPrometheusMetrics(metricsPort);
     }
 
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
@@ -270,6 +339,9 @@ class ProcessRuntime implements Runtime {
         deathException = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                processBuilder.environment().put("PYTHONPATH", "${PYTHONPATH}:" + extraDependenciesDir);
+            }
             secretsProviderConfigurator.configureProcessRuntimeSecretsProvider(processBuilder, instanceConfig.getFunctionDetails());
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();

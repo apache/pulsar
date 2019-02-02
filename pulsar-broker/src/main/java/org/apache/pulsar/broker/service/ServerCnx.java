@@ -53,7 +53,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -98,7 +97,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -148,7 +147,7 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
-        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
     }
 
@@ -600,7 +599,7 @@ public class ServerCnx extends PulsarHandler {
                                                                 readCompacted, initialPosition);
                                                     } else {
                                                         return FutureUtil.failedFuture(
-                                                                new BrokerServiceException(
+                                                                new IncompatibleSchemaException(
                                                                         "Trying to subscribe with incompatible schema"
                                                         ));
                                                     }
@@ -846,7 +845,9 @@ public class ServerCnx extends PulsarHandler {
                             }
 
                             schemaVersionFuture.exceptionally(exception -> {
-                                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, exception.getMessage()));
+                                ctx.writeAndFlush(Commands.newError(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                        exception.getMessage()));
                                 producers.remove(producerId, producerFuture);
                                 return null;
                             });
@@ -1249,7 +1250,7 @@ public class ServerCnx extends PulsarHandler {
                         "Topic not found or no-schema"));
             } else {
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
-                        new SchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
         }).exceptionally(ex -> {
             ctx.writeAndFlush(
@@ -1408,6 +1409,10 @@ public class ServerCnx extends PulsarHandler {
      */
     public State getState() {
         return state;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
     }
 
     public BrokerService getBrokerService() {

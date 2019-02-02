@@ -16,7 +16,7 @@ When a [tenant](reference-terminology.md#tenant) is created by a superuser, that
 
 ### Enabling Authorization and Assigning Superusers
 
-Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) and proxy ([`conf/proxy.conf`](reference-configuration.md#proxy)) configuration files.
+Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) configuration files.
 
 ```properties
 authorizationEnabled=true
@@ -27,6 +27,8 @@ superUserRoles=my-super-user-1,my-super-user-2
 > as well as the default values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker) 
 
 Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other clusters' topics.
+
+Authorization can also be enabled for the proxy the proxy configuration file (`conf/proxy.conf`). If it is enabled on the proxy, the proxy will do an additional authorization check before forwarding the request to a broker. The broker will still check the authorization of the request when it receives the forwarded request.
 
 ### Proxy Roles
 
@@ -80,35 +82,18 @@ You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permissi
 ### Pulsar admin authentication
 
 ```java
-String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1:value1";
-boolean useTls = false;
-boolean tlsAllowInsecureConnection = false;
-String tlsTrustCertsFilePath = null;
-
-ClientConfiguration config = new ClientConfiguration();
-config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
-config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
-config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
-
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = PulsarAdmin.builder()
+                    .serviceHttpUrl("http://broker:8080")
+                    .authentication("com.org.MyAuthPluginClass", "param1:value1")
+                    .build();
 ```
 
 To use TLS:
 
 ```java
-String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1:value1";
-boolean useTls = false;
-boolean tlsAllowInsecureConnection = false;
-String tlsTrustCertsFilePath = null;
-
-ClientConfiguration config = new ClientConfiguration();
-config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
-config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
-config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
-
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = PulsarAdmin.builder()
+                    .serviceHttpUrl("https://broker:8080")
+                    .authentication("com.org.MyAuthPluginClass", "param1:value1")
+                    .tlsTrustCertsFilePath("/path/to/trust/cert")
+                    .build();
 ```

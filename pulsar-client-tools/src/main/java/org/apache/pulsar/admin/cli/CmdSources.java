@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -30,15 +29,12 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -53,16 +49,11 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
+import org.apache.pulsar.common.functions.Utils;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -95,7 +86,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
-        jcommander.addCommand("getstatus", getSourceStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSourceStatus, "getstatus");
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
         jcommander.addCommand("restart", restartSource);
@@ -179,6 +171,7 @@ public class CmdSources extends CmdBase {
             localRunArgs.add(new Gson().toJson(sourceConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
                 if (field.getName().startsWith("DEPRECATED")) continue;
+                if(field.getName().contains("$")) continue;
                 Object value = field.get(this);
                 if (value != null) {
                     localRunArgs.add("--" + field.getName());
@@ -191,22 +184,8 @@ public class CmdSources extends CmdBase {
         }
 
         @Override
-        protected String validateSourceType(String sourceType) throws IOException {
-            // Validate the connector source type from the locally available connectors
-            String pulsarHome = System.getenv("PULSAR_HOME");
-            if (pulsarHome == null) {
-                pulsarHome = Paths.get("").toAbsolutePath().toString();
-            }
-            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
-
-            if (!connectors.getSources().containsKey(sourceType)) {
-                throw new ParameterException("Invalid source type '" + sourceType + "' -- Available sources are: "
-                        + connectors.getSources().keySet());
-            }
-
-            // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSources().get(sourceType).toString();
+        protected String validateSourceType(String sourceType) {
+            return sourceType;
         }
     }
 
@@ -233,6 +212,10 @@ public class CmdSources extends CmdBase {
                 admin.source().updateSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Updated successfully");
+        }
+
+        protected void validateSourceConfigs(SourceConfig sourceConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
         }
     }
 
@@ -294,8 +277,6 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
-
-        protected NarClassLoader classLoader;
 
         private void mergeArgs() {
             if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
@@ -359,27 +340,33 @@ public class CmdSources extends CmdBase {
             }
 
             Resources resources = sourceConfig.getResources();
-            if (resources == null) {
-                resources = new Resources();
-            }
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            sourceConfig.setResources(resources);
+            if (resources != null) {
+                sourceConfig.setResources(resources);
+            }
 
             if (null != sourceConfigString) {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
-
-            inferMissingArguments(sourceConfig);
 
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
@@ -391,42 +378,20 @@ public class CmdSources extends CmdBase {
             return new Gson().fromJson(str, type);
         }
 
-        private void inferMissingArguments(SourceConfig sourceConfig) {
-            if (sourceConfig.getTenant() == null) {
-                sourceConfig.setTenant(PUBLIC_TENANT);
-            }
-            if (sourceConfig.getNamespace() == null) {
-                sourceConfig.setNamespace(DEFAULT_NAMESPACE);
-            }
-        }
-
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
             if (isBlank(sourceConfig.getArchive())) {
-                throw new ParameterException("Source archive not specfied");
+                throw new ParameterException("Source archive not specified");
             }
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
             if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
-                !sourceConfig.getArchive().startsWith(BUILTIN)) {
+                !sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sourceConfig.getArchive()).exists()) {
                     throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
             }
-
-            try {
-             // Need to load jar and set context class loader before calling
-                String sourcePkgUrl = Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) ? sourceConfig.getArchive() : null;
-                Path archivePath = (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) || sourceConfig.getArchive().startsWith(BUILTIN)) ? null : new File(sourceConfig.getArchive()).toPath();
-                classLoader = SourceConfigUtils.validate(sourceConfig, archivePath, sourcePkgUrl, null);
-            } catch (Exception e) {
-                throw new ParameterException(e.getMessage());
+            if (isBlank(sourceConfig.getName())) {
+                throw new IllegalArgumentException("Source name not specified");
             }
-        }
-
-        protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSourceConfigProto2(SourceConfig sourceConfig)
-                throws IOException {
-            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
-                    = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(SourceConfigUtils.convert(sourceConfig, classLoader)), functionDetailsBuilder);
-            return functionDetailsBuilder.build();
         }
 
         protected String validateSourceType(String sourceType) throws IOException {
@@ -535,12 +500,11 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(
-                    isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
-                            : admin.source().getSourceStatus(tenant, namespace, sourceName,
-                            Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName));
+            } else {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+            };
         }
     }
 

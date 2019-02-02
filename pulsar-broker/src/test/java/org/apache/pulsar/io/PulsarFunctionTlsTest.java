@@ -29,16 +29,14 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
@@ -78,6 +76,7 @@ public class PulsarFunctionTlsTest {
     String workerId;
     WorkerServer workerServer;
     PulsarAdmin functionAdmin;
+    private List<String> namespaceList = new LinkedList<>();
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int workerServicePort = PortManager.nextFreePort();
     private final int workerServicePortTls = PortManager.nextFreePort();
@@ -107,7 +106,6 @@ public class PulsarFunctionTlsTest {
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(providers);
-        config.setTlsEnabled(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
@@ -123,6 +121,9 @@ public class PulsarFunctionTlsTest {
         Set<String> admins = Sets.newHashSet("superUser");
         TenantInfo tenantInfo = new TenantInfo(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
+        Namespaces namespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(namespaces);
+        when(namespaces.getNamespaces(any())).thenReturn(namespaceList);
 
         // mock: once authentication passes, function should return response: function already exist
         FunctionMetaDataManager dataManager = mock(FunctionMetaDataManager.class);
@@ -164,8 +165,8 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls());
-        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls());
+        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -205,8 +206,9 @@ public class PulsarFunctionTlsTest {
         final String sinkTopic = "persistent://" + replNamespace + "/output";
         final String functionName = "PulsarSink-test";
         final String subscriptionName = "test-sub";
+        namespaceList.add(replNamespace);
 
-        String jarFilePathUrl = String.format("%s:%s", Utils.FILE,
+        String jarFilePathUrl = String.format("%s:%s", org.apache.pulsar.common.functions.Utils.FILE,
                 PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath());
         FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);

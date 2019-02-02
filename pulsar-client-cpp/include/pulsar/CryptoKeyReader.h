@@ -62,7 +62,7 @@ class CryptoKeyReader {
 
 }; /* namespace pulsar */
 
-typedef boost::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
+typedef std::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
 }  // namespace pulsar
 
 #pragma GCC visibility pop

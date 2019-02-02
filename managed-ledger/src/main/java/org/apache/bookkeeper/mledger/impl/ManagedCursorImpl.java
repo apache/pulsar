@@ -104,8 +104,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
+    public static final int FALSE = 0;
+    public static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
@@ -665,7 +665,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntriesSinceFirstNotAckedMessage() {
-        return ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition));
+        // sometimes for already caught up consumer: due to race condition markDeletePosition > readPosition. so,
+        // validate it before preparing range
+        PositionImpl markDeletePosition = this.markDeletePosition;
+        PositionImpl readPosition = this.readPosition;
+        return (markDeletePosition.compareTo(readPosition) < 0)
+                ? ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition))
+                : 0;
     }
 
     @Override
@@ -688,7 +694,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
-            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition()));
+            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
         }
 
         return backlog;

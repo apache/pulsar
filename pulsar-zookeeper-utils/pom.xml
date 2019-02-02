@@ -45,6 +45,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-codec-http2</artifactId>
+      <version>4.1.30.Final</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>stream-storage-server</artifactId>
     </dependency>
@@ -122,8 +128,9 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
+        <groupId>com.github.m50d</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
+        <version>${aspectj-maven-plugin.version}</version>
         <configuration>
           <complianceLevel>1.8</complianceLevel>
           <source>1.8</source>

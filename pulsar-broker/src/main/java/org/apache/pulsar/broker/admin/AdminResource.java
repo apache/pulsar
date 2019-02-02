@@ -37,6 +37,7 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -48,11 +49,14 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
@@ -66,6 +70,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +108,14 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    protected boolean zkPathExists(String path) throws KeeperException, InterruptedException {
+        Stat stat = globalZk().exists(path, false);
+        if (null != stat) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -230,6 +243,19 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validateGlobalNamespaceOwnership(String property, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            validateGlobalNamespaceOwnership(this.namespaceName);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
+        } catch (RestException re) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+        } catch (Exception e) {
+            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
+        }
+    }
     @Deprecated
     protected void validateNamespaceName(String property, String cluster, String namespace) {
         try {
@@ -289,8 +315,8 @@ public abstract class AdminResource extends PulsarWebResource {
     protected void validateBrokerName(String broker) throws MalformedURLException {
         String brokerUrl = String.format("http://%s", broker);
         String brokerUrlTls = String.format("https://%s", broker);
-        if (!pulsar().getWebServiceAddress().equals(brokerUrl)
-                && !pulsar().getWebServiceAddressTls().equals(brokerUrlTls)) {
+        if (!brokerUrl.equals(pulsar().getWebServiceAddress())
+                && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
             String[] parts = broker.split(":");
             checkArgument(parts.length == 2, "Invalid broker url %s", broker);
             String host = parts[0];
@@ -304,13 +330,19 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
-            Policies policies = policiesCache().get(AdminResource.path(POLICIES, namespaceName.toString()))
+            final String namespace = namespaceName.toString();
+            final String policyPath = AdminResource.path(POLICIES, namespace);
+            Policies policies = policiesCache().get(policyPath)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+
+            // hydrate the namespace polices
+            mergeNamespaceWithDefaults(policies, namespace, policyPath);
+
             return policies;
         } catch (RestException re) {
             throw re;
@@ -318,6 +350,66 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
+        if (policies.backlog_quota_map.isEmpty()) {
+            Policies.setStorageQuota(policies, namespaceBacklogQuota(namespace, namespacePath));
+        }
+
+        final ServiceConfiguration config = pulsar().getConfiguration();
+        if (policies.max_producers_per_topic < 1) {
+            policies.max_producers_per_topic = config.getMaxProducersPerTopic();
+        }
+
+        if (policies.max_consumers_per_topic < 1) {
+            policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
+        }
+
+        if (policies.max_consumers_per_subscription < 1) {
+            policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
+        }
+
+        final String cluster = config.getClusterName();
+        // attach default dispatch rate polices
+        if (policies.clusterDispatchRate.isEmpty()) {
+            policies.clusterDispatchRate.put(cluster, dispatchRate());
+        }
+
+        if (policies.subscriptionDispatchRate.isEmpty()) {
+            policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
+        }
+
+        if (policies.clusterSubscribeRate.isEmpty()) {
+            policies.clusterSubscribeRate.put(cluster, subscribeRate());
+        }
+    }
+
+    protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
+        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
+    }
+
+    protected DispatchRate dispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
+                1
+        );
+    }
+
+    protected DispatchRate subscriptionDispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte(),
+                1
+        );
+    }
+
+    protected SubscribeRate subscribeRate() {
+        return new SubscribeRate(
+                pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
+        );
     }
 
     public static ObjectMapper jsonMapper() {

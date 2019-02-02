@@ -47,6 +47,8 @@ import com.google.common.collect.Lists;
 
 public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
+    private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
+
     private List<ProducerImpl<T>> producers;
     private MessageRouter routerPolicy;
     private final ProducerStatsRecorderImpl stats;
@@ -70,24 +72,22 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         MessageRouter messageRouter;
 
         MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
-        MessageRouter customMessageRouter = conf.getCustomMessageRouter();
 
         switch (messageRouteMode) {
-        case CustomPartition:
-            checkNotNull(customMessageRouter);
-            messageRouter = customMessageRouter;
-            break;
-        case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(
-                conf.getHashingScheme(),
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
-                conf.isBatchingEnabled(),
-                TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
-            break;
-        case SinglePartition:
-        default:
-            messageRouter = new SinglePartitionMessageRouterImpl(
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
+            case CustomPartition:
+                messageRouter = checkNotNull(conf.getCustomMessageRouter());
+                break;
+            case SinglePartition:
+                messageRouter = new SinglePartitionMessageRouterImpl(
+                        ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
+                break;
+            case RoundRobinPartition:
+            default:
+                messageRouter = new RoundRobinPartitionMessageRouterImpl(
+                        conf.getHashingScheme(),
+                        ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
+                        conf.isBatchingEnabled(),
+                        TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
         }
 
         return messageRouter;
@@ -126,15 +126,15 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 if (completed.incrementAndGet() == topicMetadata.numPartitions()) {
                     if (createFail.get() == null) {
                         setState(State.Ready);
-                        producerCreatedFuture().complete(PartitionedProducerImpl.this);
                         log.info("[{}] Created partitioned producer", topic);
+                        producerCreatedFuture().complete(PartitionedProducerImpl.this);
                     } else {
+                        log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
                         closeAsync().handle((ok, closeException) -> {
                             producerCreatedFuture().completeExceptionally(createFail.get());
                             client.cleanupProducer(this);
                             return null;
                         });
-                        log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
                     }
                 }
 
@@ -234,8 +234,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
         return stats;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
 
     public List<ProducerImpl<T>> getProducers() {
         return producers.stream().collect(Collectors.toList());

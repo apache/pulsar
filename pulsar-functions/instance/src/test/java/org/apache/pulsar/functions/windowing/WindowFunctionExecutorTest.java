@@ -24,8 +24,8 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
 import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.functions.api.WindowContext;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,10 +50,10 @@ public class WindowFunctionExecutorTest {
 
     private static class TestWindowFunctionExecutor extends WindowFunctionExecutor<Long, Long> {
 
-        List<Window<Long>> windows = new ArrayList<>();
+        List<Window<Record<Long>>> windows = new ArrayList<>();
 
         @Override
-        public Long process(Window<Long> inputWindow, WindowContext context) throws Exception {
+        public Long process(Window<Record<Long>> inputWindow, WindowContext context) throws Exception {
             windows.add(inputWindow);
             return null;
         }
@@ -149,22 +149,26 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithTs() throws Exception {
         long[] timestamps = {603, 605, 607, 618, 626, 636};
         for (long ts : timestamps) {
+            Record<?> record = Mockito.mock(Record.class);
+            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            Mockito.doReturn(record).when(context).getCurrentRecord();
+            Mockito.doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
         }
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
         assertEquals(3, testWindowedPulsarFunction.windows.size());
-        Window<Long> first = testWindowedPulsarFunction.windows.get(0);
+        Window<Record<Long>> first = testWindowedPulsarFunction.windows.get(0);
         assertArrayEquals(
                 new long[]{603, 605, 607},
-                new long[]{first.get().get(0), first.get().get(1), first.get().get(2)});
+                new long[]{first.get().get(0).getValue(), first.get().get(1).getValue(), first.get().get(2).getValue()});
 
-        Window<Long> second = testWindowedPulsarFunction.windows.get(1);
+        Window<Record<Long>> second = testWindowedPulsarFunction.windows.get(1);
         assertArrayEquals(
                 new long[]{603, 605, 607, 618},
-                new long[]{second.get().get(0), second.get().get(1), second.get().get(2), second.get().get(3)});
+                new long[]{second.get().get(0).getValue(), second.get().get(1).getValue(), second.get().get(2).getValue(), second.get().get(3).getValue()});
 
-        Window<Long> third = testWindowedPulsarFunction.windows.get(2);
-        assertArrayEquals(new long[]{618, 626}, new long[]{third.get().get(0), third.get().get(1)});
+        Window<Record<Long>> third = testWindowedPulsarFunction.windows.get(2);
+        assertArrayEquals(new long[]{618, 626}, new long[]{third.get().get(0).getValue(), third.get().get(1).getValue()});
     }
 
     @Test
@@ -206,6 +210,10 @@ public class WindowFunctionExecutorTest {
 
         for (long ts : timestamps) {
             events.add(ts);
+            Record<?> record = Mockito.mock(Record.class);
+            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            Mockito.doReturn(record).when(context).getCurrentRecord();
+            Mockito.doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
 
             //Update the watermark to this timestamp
@@ -213,379 +221,5 @@ public class WindowFunctionExecutorTest {
         }
         System.out.println(testWindowedPulsarFunction.windows);
         long event = events.get(events.size() - 1);
-    }
-
-    @Test
-    public void testSettingSlidingCountWindow() throws Exception {
-        final Object[][] args = new Object[][]{
-                {5, 10},
-                {1, 1},
-                {10, 5},
-                {100, 10},
-                {100, 100},
-                {200, 100},
-                {500, 100},
-                {1, null},
-        };
-
-        for (Object[] arg : args) {
-            Object arg0 = arg[0];
-            Object arg1 = arg[1];
-            try {
-
-                Integer windowLengthCount = null;
-                if (arg0 != null) {
-                    windowLengthCount = (Integer) arg0;
-                }
-                Integer slidingIntervalCount = null;
-
-                if (arg1 != null) {
-                    slidingIntervalCount = (Integer) arg1;
-                }
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthCount(windowLengthCount);
-                windowConfig.setSlidingIntervalCount(slidingIntervalCount);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    fail(String.format("Window length cannot be null -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-                if ((Integer) arg0 <= 0) {
-                    fail(String.format("Window length cannot be zero or less -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-                if (arg1 != null && (Integer) arg1 <= 0) {
-                    fail(String.format("Sliding interval length cannot be zero or less -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthCount().intValue(),
-                        windowLengthCount.intValue());
-                // if slidingIntervalCount is null then its a tumbling windowing and slidingIntervalCount will be
-                // set to window length count
-                if (slidingIntervalCount == null) {
-                    Assert.assertEquals(
-                            testWindowedPulsarFunction.windowConfig.getSlidingIntervalCount().intValue(),
-                            windowLengthCount.intValue());
-                } else {
-                    Assert.assertEquals(
-                            testWindowedPulsarFunction.windowConfig.getSlidingIntervalCount().intValue(),
-                            slidingIntervalCount.intValue());
-                }
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && arg1 != null && (Integer) arg0 > 0 && (Integer) arg1 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- windowLengthCount: %s "
-                            + "slidingIntervalCount: %s", e.getMessage(), arg0, arg1));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testSettingSlidingTimeWindow() throws Exception {
-        final Object[][] args = new Object[][]{
-                {5L, 10L},
-                {1L, 1L},
-                {10L, 5L},
-                {100L, 10L},
-                {100L, 100L},
-                {200L, 100L},
-                {500L, 100L},
-                {1L, null},
-        };
-
-        for (Object[] arg : args) {
-            Object arg0 = arg[0];
-            Object arg1 = arg[1];
-            try {
-                Long windowLengthDuration = null;
-                if (arg0 != null) {
-                    windowLengthDuration = (Long) arg0;
-                }
-                Long slidingIntervalDuration = null;
-
-                if (arg1 != null) {
-                    slidingIntervalDuration = (Long) arg1;
-                }
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthDurationMs(windowLengthDuration);
-                windowConfig.setSlidingIntervalDurationMs(slidingIntervalDuration);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    fail(String.format("Window length cannot be null -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-                if ((Long) arg0 <= 0) {
-                    fail(String.format("Window length cannot be zero or less -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-                if (arg1 != null && (Long) arg1 <= 0) {
-                    fail(String.format("Sliding interval length cannot be zero or less -- "
-                            + "windowLengthCount: %s slidingIntervalCount: %s", arg0, arg1));
-                }
-
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthDurationMs().longValue(),
-                        windowLengthDuration.longValue());
-                // if slidingIntervalDuration is null then its a tumbling windowing and slidingIntervalDuration will be
-                // set to window length duration
-                if (slidingIntervalDuration == null) {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getSlidingIntervalDurationMs().longValue(),
-                            windowLengthDuration.longValue());
-                } else {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getSlidingIntervalDurationMs().longValue(),
-                            slidingIntervalDuration.longValue());
-                }
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && arg1 != null && (Long) arg0 > 0 && (Long) arg1 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- windowLengthDuration: %s "
-                            + "slidingIntervalDuration: %s", e.getMessage(), arg0, arg1));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testSettingTumblingCountWindow() throws Exception {
-        final Object[] args = new Object[]{1, 2, 5, 10};
-
-        for (Object arg : args) {
-            Object arg0 = arg;
-            try {
-
-                Integer windowLengthCount = null;
-                if (arg0 != null) {
-                    windowLengthCount = (Integer) arg0;
-                }
-
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthCount(windowLengthCount);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    fail(String.format("Window length cannot be null -- windowLengthCount: %s", arg0));
-                }
-                if ((Integer) arg0 <= 0) {
-                    fail(String.format("Window length cannot be zero or less -- windowLengthCount: %s",
-                            arg0));
-                }
-
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthCount().intValue(),
-                        windowLengthCount.intValue());
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthCount().intValue(),
-                        testWindowedPulsarFunction.windowConfig.getSlidingIntervalCount().intValue());
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && (Integer) arg0 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- windowLengthCount: %s", e
-                            .getMessage(), arg0));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testSettingTumblingTimeWindow() throws Exception {
-        final Object[] args = new Object[]{1L, 2L, 5L, 10L};
-        for (Object arg : args) {
-            Object arg0 = arg;
-            try {
-
-                Long windowLengthDuration = null;
-                if (arg0 != null) {
-                    windowLengthDuration = (Long) arg0;
-                }
-
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthDurationMs(windowLengthDuration);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    fail(String.format("Window count duration cannot be null -- windowLengthDuration: %s",
-                            arg0));
-                }
-                if ((Long) arg0 <= 0) {
-                    fail(String.format("Window length cannot be zero or less -- windowLengthDuration: %s",
-                            arg0));
-                }
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthDurationMs().longValue(),
-                        windowLengthDuration.longValue());
-                Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWindowLengthDurationMs().longValue(),
-                        testWindowedPulsarFunction.windowConfig.getSlidingIntervalDurationMs().longValue());
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && (Long) arg0 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- windowLengthDuration: %s", e
-                            .getMessage(), arg0));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testSettingLagTime() throws Exception {
-        final Object[] args = new Object[]{0L, 1L, 2L, 5L, 10L, null};
-        for (Object arg : args) {
-            Object arg0 = arg;
-            try {
-
-                Long maxLagMs = null;
-                if (arg0 != null) {
-                    maxLagMs = (Long) arg0;
-                }
-
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthCount(1);
-                windowConfig.setSlidingIntervalCount(1);
-                windowConfig.setMaxLagMs(maxLagMs);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getMaxLagMs(),
-                            new Long(testWindowedPulsarFunction.DEFAULT_MAX_LAG_MS));
-                } else if((Long) arg0 < 0) {
-                    fail(String.format("Window lag cannot be less than zero -- lagTime: %s", arg0));
-                } else {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getMaxLagMs().longValue(),
-                            maxLagMs.longValue());
-                }
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && (Long) arg0 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- lagTime: %s",
-                            e.getMessage(), arg0));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testSettingWaterMarkInterval() throws Exception {
-        final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
-        for (Object arg : args) {
-            Object arg0 = arg;
-            try {
-                Long watermarkEmitInterval = null;
-                if (arg0 != null) {
-                    watermarkEmitInterval = (Long) arg0;
-                }
-
-                context = Mockito.mock(Context.class);
-                Mockito.doReturn("test-function").when(context).getFunctionName();
-                Mockito.doReturn("test-namespace").when(context).getNamespace();
-                Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-                Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-                Record<?> record = Mockito.mock(Record.class);
-                Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-                Mockito.doReturn(record).when(context).getCurrentRecord();
-
-                WindowConfig windowConfig = new WindowConfig();
-                windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
-                windowConfig.setWindowLengthCount(1);
-                windowConfig.setSlidingIntervalCount(1);
-                windowConfig.setWatermarkEmitIntervalMs(watermarkEmitInterval);
-                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-                Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                        .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-
-                testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-                testWindowedPulsarFunction.process(10L, context);
-
-                if (arg0 == null) {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWatermarkEmitIntervalMs(),
-                            new Long(testWindowedPulsarFunction.DEFAULT_WATERMARK_EVENT_INTERVAL_MS));
-                } else if ((Long) arg0 <= 0) {
-                    fail(String.format("Watermark interval cannot be zero or less -- watermarkInterval: "
-                            + "%s", arg0));
-                } else {
-                    Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWatermarkEmitIntervalMs().longValue(),
-                            watermarkEmitInterval.longValue());
-                }
-            } catch (IllegalArgumentException e) {
-                if (arg0 != null && (Long) arg0 > 0) {
-                    fail(String.format("Exception: %s thrown on valid input -- watermarkInterval: %s", e
-                            .getMessage(), arg0));
-                }
-            }
-        }
     }
 }

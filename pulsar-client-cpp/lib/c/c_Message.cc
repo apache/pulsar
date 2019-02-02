@@ -100,3 +100,7 @@ pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message) {
     map->map = message->message.getProperties();
     return map;
 }
+
+const char *pulsar_message_get_topic_name(pulsar_message_t *message) {
+    return message->message.getTopicName().c_str();
+}

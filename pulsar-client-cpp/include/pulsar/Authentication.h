@@ -22,9 +22,9 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <pulsar/Result.h>
-#include <boost/make_shared.hpp>
+#include <functional>
 
 #pragma GCC visibility push(default)
 
@@ -49,8 +49,8 @@ class AuthenticationDataProvider {
     AuthenticationDataProvider();
 };
 
-typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
-typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+typedef std::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+typedef std::shared_ptr<Authentication> AuthenticationPtr;
 typedef std::map<std::string, std::string> ParamMap;
 
 class Authentication {
@@ -112,6 +112,43 @@ class AuthTls : public Authentication {
 
    private:
     AuthenticationDataPtr authDataTls_;
+};
+
+typedef std::function<std::string()> TokenSupplier;
+
+/**
+ * Token based implementation of Pulsar client authentication
+ */
+class AuthToken : public Authentication {
+   public:
+    AuthToken(AuthenticationDataPtr&);
+    ~AuthToken();
+
+    static AuthenticationPtr create(ParamMap& params);
+
+    static AuthenticationPtr create(const std::string& authParamsString);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param token
+     *            a string containing the auth token
+     */
+    static AuthenticationPtr createWithToken(const std::string& token);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param tokenSupplier
+     *            a supplier of the client auth token
+     */
+    static AuthenticationPtr create(const TokenSupplier& tokenSupplier);
+
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataToken) const;
+
+   private:
+    AuthenticationDataPtr authDataToken_;
 };
 
 /**

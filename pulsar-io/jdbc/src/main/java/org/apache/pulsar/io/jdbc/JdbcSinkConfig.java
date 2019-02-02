@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
 @Setter
@@ -39,13 +40,43 @@ public class JdbcSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "Username used to connect to the database specified by `jdbcUrl`"
+    )
     private String userName;
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "Password used to connect to the database specified by `jdbcUrl`"
+    )
     private String password;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The JDBC url of the database this connector connects to"
+    )
     private String jdbcUrl;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The name of the table this connector writes messages to"
+    )
     private String tableName;
 
     // Optional
+    @FieldDoc(
+        required = false,
+        defaultValue = "500",
+        help = "The jdbc operation timeout in milliseconds"
+    )
     private int timeoutMs = 500;
+    @FieldDoc(
+        required = false,
+        defaultValue = "200",
+        help = "The batch size of updates made to the database"
+    )
     private int batchSize = 200;
 
     public static JdbcSinkConfig load(String yamlFile) throws IOException {

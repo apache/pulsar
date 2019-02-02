@@ -28,9 +28,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.Utils;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -41,7 +40,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
@@ -58,29 +56,6 @@ import static org.mockito.Mockito.when;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
-
-    public static class TestSink implements MetricsSink {
-
-        @Override
-        public void init(Map<String, String> conf) {
-
-        }
-
-        @Override
-        public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionDetails functionDetails) {
-
-        }
-
-        @Override
-        public void flush() {
-
-        }
-
-        @Override
-        public void close() {
-
-        }
-    }
 
     @Test
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {
@@ -110,8 +85,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -204,8 +179,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -240,7 +215,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment1);
         functionRuntimeManager.processAssignment(assignment2);
 
-        functionRuntimeManager.deleteAssignment(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
+        functionRuntimeManager.deleteAssignment(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
         
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
@@ -250,8 +225,8 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-2").get("test-tenant/test-namespace/func-2:0"), assignment2);
 
         verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionRuntimeManager, times(1)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager).insertTerminateAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -269,7 +244,7 @@ public class FunctionRuntimeManagerTest {
         Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
         Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
                 new FunctionAction()
-                        .setAction(FunctionAction.Action.STOP)
+                        .setAction(FunctionAction.Action.TERMINATE)
                         .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
                                 Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                         .build()))));
@@ -302,8 +277,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -348,6 +323,9 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment3);
 
         verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        // make sure terminate is not called since this is a update operation
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+
         verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
@@ -432,11 +410,11 @@ public class FunctionRuntimeManagerTest {
         List<Message<byte[]>> messageList = new LinkedList<>();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                         new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
@@ -495,8 +473,8 @@ public class FunctionRuntimeManagerTest {
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
 
 
         functionRuntimeManager.initialize();

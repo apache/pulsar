@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.functions.utils.Utils.FILE;
-import static org.apache.pulsar.functions.utils.Utils.HTTP;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
+import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.MoreFiles;
@@ -37,10 +38,13 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
+import com.google.gson.Gson;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -50,13 +54,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -79,35 +86,43 @@ public class FunctionActioner implements AutoCloseable {
     private volatile boolean running;
     private Thread actioner;
     private final ConnectorsManager connectorsManager;
+    private final PulsarAdmin pulsarAdmin;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue,
-                            ConnectorsManager connectorsManager) {
+                            ConnectorsManager connectorsManager, PulsarAdmin pulsarAdmin) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
         this.connectorsManager = connectorsManager;
+        this.pulsarAdmin = pulsarAdmin;
         actioner = new Thread(() -> {
             log.info("Starting Actioner Thread...");
             while(running) {
                 try {
                     FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
                     if (action == null) continue;
-                    if (action.getAction() == FunctionAction.Action.START) {
-                        try {
-                            startFunction(action.getFunctionRuntimeInfo());
-                        } catch (Exception ex) {
-                            FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
-                                    .getFunctionMetaData().getFunctionDetails();
-                            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
-                                    details.getName(), ex);
-                            action.getFunctionRuntimeInfo().setStartupException(ex);
-                        }
-                    } else {
-                        stopFunction(action.getFunctionRuntimeInfo());
+                    switch (action.getAction()) {
+                        case START:
+                            try {
+                                startFunction(action.getFunctionRuntimeInfo());
+                            } catch (Exception ex) {
+                                FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
+                                        .getFunctionMetaData().getFunctionDetails();
+                                log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                                        details.getName(), ex);
+                                action.getFunctionRuntimeInfo().setStartupException(ex);
+                            }
+                            break;
+                        case STOP:
+                            stopFunction(action.getFunctionRuntimeInfo());
+                            break;
+                        case TERMINATE:
+                            terminateFunction(action.getFunctionRuntimeInfo());
+                            break;
                     }
                 } catch (InterruptedException ex) {
                 }
@@ -173,6 +188,7 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        instanceConfig.setClusterName(workerConfig.getPulsarFunctionsCluster());
 
         log.info("{}/{}/{}-{} start process with instance config {}", functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), instanceId, instanceConfig);
@@ -263,6 +279,49 @@ public class FunctionActioner implements AutoCloseable {
                 log.warn("Failed to delete package for function: {}",
                         FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
             }
+        }
+    }
+
+    private void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                .getFunctionDetails();
+        log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
+                functionRuntimeInfo.getFunctionInstance().getInstanceId());
+
+        stopFunction(functionRuntimeInfo);
+        //cleanup subscriptions
+        if (details.getSource().getCleanupSubscription()) {
+            Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();
+            consumerSpecMap.entrySet().forEach(new Consumer<Map.Entry<String, Function.ConsumerSpec>>() {
+                @Override
+                public void accept(Map.Entry<String, Function.ConsumerSpec> stringConsumerSpecEntry) {
+
+                    Function.ConsumerSpec consumerSpec = stringConsumerSpecEntry.getValue();
+                    String topic = stringConsumerSpecEntry.getKey();
+                    String subscriptionName = functionRuntimeInfo
+                            .getFunctionInstance().getFunctionMetaData()
+                            .getFunctionDetails().getSource().getSubscriptionName();
+                    // if user specified subscription name is empty use default subscription name
+                    if (isBlank(subscriptionName)) {
+                        subscriptionName =  InstanceUtils.getDefaultSubscriptionName(
+                                functionRuntimeInfo.getFunctionInstance()
+                                        .getFunctionMetaData().getFunctionDetails());
+                    }
+
+                    try {
+                        if (consumerSpec.getIsRegexPattern()) {
+                            pulsarAdmin.namespaces().unsubscribeNamespace(TopicName.get(topic).getNamespace(), subscriptionName);
+                        } else {
+                            pulsarAdmin.topics().deleteSubscription(topic, subscriptionName);
+                        }
+                    } catch (PulsarAdminException e) {
+                        log.warn("Failed to cleanup {} subscription for {}", subscriptionName,
+                                FunctionDetailsUtils.getFullyQualifiedName(
+                                        functionRuntimeInfo.getFunctionInstance()
+                                                .getFunctionMetaData().getFunctionDetails()), e);
+                    }
+                }
+            });
         }
     }
 

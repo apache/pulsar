@@ -168,6 +168,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
     private final DispatchRateLimiter dispatchRateLimiter;
+    private final SubscribeRateLimiter subscribeRateLimiter;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
@@ -226,6 +227,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         USAGE_COUNT_UPDATER.set(this, 0);
 
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
+        this.subscribeRateLimiter = new SubscribeRateLimiter(this);
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -492,6 +494,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
             return future;
+        }
+
+        if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
+            SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
+                    cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
+            if (!subscribeRateLimiter.subscribeAvailable(consumer) || !subscribeRateLimiter.tryAcquire(consumer)) {
+                log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
+                        topic, subscriptionName, consumer, subscribeRateLimiter.getSubscribeRate(),
+                        subscribeRateLimiter.getAvailableSubscribeRateLimit(consumer));
+                future.completeExceptionally(new NotAllowedException("Subscribe limited by subscribe rate limit per consumer."));
+                return future;
+            }
         }
 
         lock.readLock().lock();
@@ -840,6 +854,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }, null);
 
             dispatchRateLimiter.close();
+            subscribeRateLimiter.close();
 
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -1196,12 +1211,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             // Add incoming msg rates
             PublisherStats pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
-            if (pubStats != null) {
-                rStat.msgRateIn = pubStats.msgRateIn;
-                rStat.msgThroughputIn = pubStats.msgThroughputIn;
-                rStat.inboundConnection = pubStats.getAddress();
-                rStat.inboundConnectedSince = pubStats.getConnectedSince();
-            }
+            rStat.msgRateIn = pubStats != null ? pubStats.msgRateIn : 0;
+            rStat.msgThroughputIn = pubStats != null ? pubStats.msgThroughputIn : 0;
+            rStat.inboundConnection = pubStats != null ? pubStats.getAddress() : null;
+            rStat.inboundConnectedSince = pubStats != null ? pubStats.getConnectedSince() : null;
 
             topicStatsHelper.aggMsgRateOut += rStat.msgRateOut;
             topicStatsHelper.aggMsgThroughputOut += rStat.msgThroughputOut;
@@ -1223,6 +1236,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
+            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
+                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
+            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -1580,6 +1597,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
         CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
         dispatchRateLimiter.onPoliciesUpdate(data);
+        subscribeRateLimiter.onPoliciesUpdate(data);
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -1725,6 +1743,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     public DispatchRateLimiter getDispatchRateLimiter() {
         return this.dispatchRateLimiter;
+    }
+
+    public SubscribeRateLimiter getSubscribeRateLimiter() {
+        return this.subscribeRateLimiter;
     }
 
     public long getLastPublishedSequenceId(String producerName) {

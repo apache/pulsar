@@ -35,7 +35,7 @@ To start the proxy:
 $ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
-  --global-zookeeper-servers zk-0,zk-1,zk-2
+  --configuration-store-servers zk-0,zk-1,zk-2
 ```
 
 {% include admonition.html type="success" content="You can run as many instances of the Pulsar proxy in a cluster as you would like." %}

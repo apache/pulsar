@@ -167,11 +167,23 @@ class Message:
         """
         return self._message.publish_timestamp()
 
+    def event_timestamp(self):
+        """
+        Get the timestamp in milliseconds with the message event time.
+        """
+        return self._message.event_timestamp()
+
     def message_id(self):
         """
         The message ID that can be used to refere to this particular message.
         """
         return self._message.message_id()
+
+    def topic_name(self):
+        """
+        Get the topic Name from which this message originated from
+        """
+        return self._message.topic_name()
 
 
 class Authentication:
@@ -210,6 +222,24 @@ class AuthenticationTLS(Authentication):
         _check_type(str, certificate_path, 'certificate_path')
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+
+class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
 
 class AuthenticationAthenz(Authentication):
     """
@@ -355,7 +385,9 @@ class Client:
         * `compression_type`:
           Set the compression type for the producer. By default, message
           payloads are not compressed. Supported compression types are
-          `CompressionType.LZ4` and `CompressionType.ZLib`.
+          `CompressionType.LZ4`, `CompressionType.ZLib` and `CompressionType.ZSTD`.
+          ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with ZSTD.
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.
@@ -596,6 +628,21 @@ class Client:
         self._consumers.append(c)
         return c
 
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -639,7 +686,8 @@ class Producer:
              partition_key=None,
              sequence_id=None,
              replication_clusters=None,
-             disable_replication=False
+             disable_replication=False,
+             event_timestamp=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -665,9 +713,11 @@ class Producer:
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -675,7 +725,8 @@ class Producer:
                    partition_key=None,
                    sequence_id=None,
                    replication_clusters=None,
-                   disable_replication=False
+                   disable_replication=False,
+                   event_timestamp=None
                    ):
         """
         Send a message asynchronously.
@@ -715,9 +766,11 @@ class Producer:
           configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         self._producer.send_async(msg, callback)
 
     def close(self):
@@ -727,13 +780,14 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication):
+                   replication_clusters, disable_replication, event_timestamp):
         _check_type(bytes, content, 'content')
         _check_type_or_none(dict, properties, 'properties')
         _check_type_or_none(str, partition_key, 'partition_key')
         _check_type_or_none(int, sequence_id, 'sequence_id')
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
+        _check_type_or_none(int, event_timestamp, 'event_timestamp')
 
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -748,6 +802,8 @@ class Producer:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
             mb.disable_replication(disable_replication)
+        if event_timestamp:
+            mb.event_timestamp(event_timestamp)
         return mb.build()
 
 
@@ -778,7 +834,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -791,7 +847,7 @@ class Consumer:
 
         * `timeout_millis`:
           If specified, the receive will raise an exception if a message is not
-          availble within the timeout.
+          available within the timeout.
         """
         if timeout_millis is None:
             return self._consumer.receive()
