@@ -36,9 +36,15 @@ type ProducerMessage struct {
 
 	// Override the replication clusters for this message.
 	ReplicationClusters []string
+
+	// Set the sequence id to assign to the current message
+	SequenceID int64
 }
 
 type Message interface {
+	// Get the topic from which this message originated from
+	Topic() string
+
 	// Return the properties attached to the message.
 	// Properties are application defined key/value pairs that will be attached to the message
 	Properties() map[string]string

@@ -20,11 +20,11 @@
 #include <lib/BrokerConsumerStatsImplBase.h>
 
 namespace pulsar {
-BrokerConsumerStats::BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
+BrokerConsumerStats::BrokerConsumerStats(std::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
 
 BrokerConsumerStats::BrokerConsumerStats() {}
 
-boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const { return impl_; }
+std::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const { return impl_; }
 
 bool BrokerConsumerStats::isValid() const { return impl_->isValid(); }
 

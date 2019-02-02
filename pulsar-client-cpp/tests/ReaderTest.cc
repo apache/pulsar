@@ -19,7 +19,6 @@
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
-#include <boost/lexical_cast.hpp>
 
 #include <string>
 
@@ -43,7 +42,7 @@ TEST(ReaderTest, testSimpleReader) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -53,7 +52,7 @@ TEST(ReaderTest, testSimpleReader) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -71,7 +70,7 @@ TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -85,7 +84,7 @@ TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -103,7 +102,7 @@ TEST(ReaderTest, testMultipleReaders) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -120,7 +119,7 @@ TEST(ReaderTest, testMultipleReaders) {
         ASSERT_EQ(ResultOk, reader1.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -129,7 +128,7 @@ TEST(ReaderTest, testMultipleReaders) {
         ASSERT_EQ(ResultOk, reader2.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -148,7 +147,7 @@ TEST(ReaderTest, testReaderOnLastMessage) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -158,7 +157,7 @@ TEST(ReaderTest, testReaderOnLastMessage) {
     ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::latest(), readerConf, reader));
 
     for (int i = 10; i < 20; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -168,7 +167,7 @@ TEST(ReaderTest, testReaderOnLastMessage) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -186,7 +185,7 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -202,7 +201,7 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
 
         lastMessageId = msg.getMessageId();
@@ -216,7 +215,7 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -241,7 +240,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConf, producer));
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         producer.sendAsync(msg, NULL);
     }
@@ -262,7 +261,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
 
         msg.getMessageId().serialize(lastMessageId);
@@ -278,7 +277,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
         ASSERT_EQ(ResultOk, reader2.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string expected = "my-message-" + std::to_string(i);
         ASSERT_EQ(expected, content);
     }
 
@@ -312,7 +311,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
 
     // 3. produce 10 messages.
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -327,7 +326,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        std::string expected = "my-message-" + std::to_string(readMessageCount);
         ASSERT_EQ(expected, content);
         reader.hasMessageAvailable(hasMessageAvailable);
     }
@@ -338,7 +337,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
     // 5. produce another 10 messages, expect hasMessageAvailable return true,
     //    and after read these 10 messages out, it return false.
     for (int i = 10; i < 20; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
@@ -351,7 +350,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        std::string expected = "my-message-" + std::to_string(readMessageCount);
         ASSERT_EQ(expected, content);
         reader.hasMessageAvailable(hasMessageAvailable);
     }
@@ -385,7 +384,7 @@ TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
 
     // 3. produce 10 messages in batches way.
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         producer.sendAsync(msg, NULL);
     }
@@ -405,7 +404,7 @@ TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
         ASSERT_EQ(ResultOk, reader.readNext(msg));
 
         std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        std::string expected = "my-message-" + std::to_string(readMessageCount);
         ASSERT_EQ(expected, content);
         reader.hasMessageAvailable(hasMessageAvailable);
         msg.getMessageId().serialize(lastMessageId);

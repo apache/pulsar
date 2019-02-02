@@ -44,18 +44,18 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     private transient Function<Throwable, MessageId> failureCallback;
     private static volatile Producer<byte[]> producer;
 
-    protected static String serviceUrl;
-    protected static String topicName;
+    protected final String serviceUrl;
+    protected final String topicName;
     protected SerializationSchema<T> serializationSchema;
 
-    protected BasePulsarOutputFormat(String serviceUrl, String topicName) {
+    protected BasePulsarOutputFormat(final String serviceUrl, final String topicName) {
         Preconditions.checkArgument(StringUtils.isNotBlank(serviceUrl), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(topicName),  "topicName cannot be blank.");
 
         this.serviceUrl = serviceUrl;
         this.topicName = topicName;
 
-        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic {}", this.topicName);
+        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}", this.topicName);
     }
 
     @Override
@@ -65,10 +65,10 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
-        this.producer = getProducerInstance();
+        this.producer = getProducerInstance(serviceUrl, topicName);
 
         this.failureCallback = cause -> {
-            LOG.error("Error while sending record to Pulsar : " + cause.getMessage(), cause);
+            LOG.error("Error while sending record to Pulsar: " + cause.getMessage(), cause);
             return null;
         };
     }
@@ -85,11 +85,11 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     }
 
-    private static Producer<byte[]> getProducerInstance() throws PulsarClientException {
+    private static Producer<byte[]> getProducerInstance(String serviceUrl, String topicName) throws PulsarClientException {
         if(producer == null){
             synchronized (PulsarOutputFormat.class) {
                 if(producer == null){
-                    producer = Preconditions.checkNotNull(createPulsarProducer(),
+                    producer = Preconditions.checkNotNull(createPulsarProducer(serviceUrl, topicName),
                             "Pulsar producer cannot be null.");
                 }
             }
@@ -97,7 +97,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         return producer;
     }
 
-    private static Producer<byte[]> createPulsarProducer() throws PulsarClientException {
+    private static Producer<byte[]> createPulsarProducer(String serviceUrl, String topicName) throws PulsarClientException {
         try {
             PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
             return client.newProducer().topic(topicName).create();

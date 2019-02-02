@@ -66,6 +66,12 @@ boost::python::object Message_data(const Message& msg) {
     return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize((const char*)msg.getData(), msg.getLength())));
 }
 
+std::string Topic_name_str(const Message& msg) {
+    std::stringstream ss;
+    ss << msg.getTopicName();
+    return ss.str();
+}
+
 const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
@@ -117,5 +123,6 @@ void export_message() {
             .def("event_timestamp", &Message::getEventTimestamp)
             .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
+            .def("topic_name", &Topic_name_str)
             ;
 }

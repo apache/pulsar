@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.slf4j.Logger;
+
 public interface SourceContext {
 
     /**
-     * The id of the instance that invokes this function.
+     * The id of the instance that invokes this source.
      *
      * @return the instance id
      */
     int getInstanceId();
 
     /**
-     * Get the number of instances that invoke this function.
+     * Get the number of instances that invoke this source.
      *
-     * @return the number of instances that invoke this function.
+     * @return the number of instances that invoke this source.
      */
     int getNumInstances();
 
@@ -40,4 +42,34 @@ public interface SourceContext {
      * @param value The value of the metric
      */
     void recordMetric(String metricName, double value);
+
+    /**
+     * Get the output topic of the source
+     * @return output topic name
+     */
+    String getOutputTopic();
+
+    /**
+     * The tenant this source belongs to
+     * @return the tenant this source belongs to
+     */
+    String getTenant();
+
+    /**
+     * The namespace this source belongs to
+     * @return the namespace this source belongs to
+     */
+    String getNamespace();
+
+    /**
+     * The name of the source that we are executing
+     * @return The Source name
+     */
+    String getSourceName();
+
+    /**
+     * The logger object that can be used to log in a source
+     * @return the logger object
+     */
+    Logger getLogger();
 }

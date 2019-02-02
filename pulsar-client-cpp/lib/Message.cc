@@ -19,9 +19,6 @@
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
 
-#include <boost/make_shared.hpp>
-#include <boost/smart_ptr.hpp>
-
 #include "PulsarApi.pb.h"
 
 #include "MessageImpl.h"
@@ -64,7 +61,7 @@ Message::Message(MessageImplPtr& impl) : impl_(impl) {}
 
 Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metadata, SharedBuffer& payload,
                  int32_t partition)
-    : impl_(boost::make_shared<MessageImpl>()) {
+    : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId =
         MessageId(partition, msg.message_id().ledgerid(), msg.message_id().entryid(), /* batchId */
                   -1);
@@ -73,12 +70,13 @@ Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metad
 }
 
 Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-                 proto::SingleMessageMetadata& singleMetadata)
-    : impl_(boost::make_shared<MessageImpl>()) {
+                 proto::SingleMessageMetadata& singleMetadata, const std::string& topicName)
+    : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;
     impl_->metadata = metadata;
     impl_->payload = payload;
     impl_->metadata.mutable_properties()->CopyFrom(singleMetadata.properties());
+    impl_->topicName_ = &topicName;
 
     if (singleMetadata.has_partition_key()) {
         impl_->metadata.set_partition_key(singleMetadata.partition_key());
@@ -109,6 +107,13 @@ const std::string& Message::getPartitionKey() const {
         return emptyString;
     }
     return impl_->getPartitionKey();
+}
+
+const std::string& Message::getTopicName() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getTopicName();
 }
 
 uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }

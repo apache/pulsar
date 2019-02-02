@@ -49,7 +49,7 @@ if (NOT C_STANDARD)
     set(C_STANDARD "-std=c11")
 endif(NOT C_STANDARD)
 
-set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -71,19 +71,24 @@ if (LINK_STATIC)
     find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
     find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
+    find_library(LIB_ZSTD NAMES libzstd.a)
 
     if (USE_LOG4CXX)
-        find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
+        if (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH log4cxx)
+        elseif (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
-        # Libraries needed by log4cxx to link statically with
-        find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
-        find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
-        find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
-        if (APPLE)
-            find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
-        else ()
-            set(ICONV_LIBRARY_PATH )
-        endif (APPLE)
+            # Libraries needed by log4cxx to link statically with
+            find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
+            find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
+            find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
+            if (APPLE)
+                find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
+            else ()
+                set(ICONV_LIBRARY_PATH )
+            endif (APPLE)
+        endif (LOG4CXX_USE_DYNAMIC_LIBS)
     endif (USE_LOG4CXX)
 else()
     # Link to shared libraries
@@ -97,6 +102,7 @@ else()
     endif (NOT PROTOBUF_LIBRARIES)
 
     find_library(LIB_JSON jsoncpp)
+    find_library(LIB_ZSTD zstd)
     find_library(CURL_LIBRARY_PATH curl)
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
@@ -104,7 +110,7 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
+find_package(Boost REQUIRED COMPONENTS program_options filesystem regex system)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -161,6 +167,7 @@ if (NOT LIB_JSON)
     find_library(LIB_JSON json_cpp)
 endif (NOT LIB_JSON)
 
+
 if (NOT JSON_INCLUDE_PATH)
     find_path(JSON_INCLUDE_PATH json)
 else (NOT JSON_INCLUDE_PATH)
@@ -173,6 +180,13 @@ if (NOT APPLE)
     # Hide all non-exported symbols to avoid conflicts
     set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
 endif ()
+
+if (LIB_ZSTD)
+    set(HAS_ZSTD 1)
+else ()
+    set(HAS_ZSTD 0)
+endif ()
+MESSAGE(STATUS "HAS_ZSTD: ${HAS_ZSTD}")
 
 
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
@@ -221,6 +235,12 @@ if (USE_LOG4CXX)
       ${ICONV_LIBRARY_PATH}
     )
 endif ()
+
+if (HAS_ZSTD)
+    set(COMMON_LIBS ${COMMON_LIBS} ${LIB_ZSTD} )
+endif ()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAS_ZSTD=${HAS_ZSTD}")
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)

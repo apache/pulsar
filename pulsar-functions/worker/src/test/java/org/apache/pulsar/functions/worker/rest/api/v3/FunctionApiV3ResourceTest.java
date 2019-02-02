@@ -76,6 +76,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -177,7 +180,7 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        doReturn(ComponentImpl.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(any());
+        doReturn(FUNCTION).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -1383,9 +1386,9 @@ public class FunctionApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(ComponentImpl.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(ComponentImpl.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(ComponentImpl.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+        doReturn(SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> functionList = listDefaultFunctions();
         assertEquals(functions, functionList);

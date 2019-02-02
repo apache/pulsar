@@ -25,7 +25,7 @@
 
 #include <string>
 #include <map>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #pragma GCC visibility push(default)
 namespace pulsar {
 
@@ -62,7 +62,7 @@ class ConnectionPool {
     typedef std::map<std::string, ClientConnectionWeakPtr> PoolMap;
     PoolMap pool_;
     bool poolConnections_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     friend class ConnectionPoolTest;
 };

@@ -34,6 +34,7 @@ import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.stats.JvmG1GCMetricsLogger;
 
 /**
  * Pulsar service configuration object.
@@ -758,6 +759,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerMetadataOperationsTimeoutSeconds = 60;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Read entries timeout when broker tries to read messages from bookkeeper "
+                    + "(0 to disable it)"
+        )
+    private long managedLedgerReadEntryTimeoutSeconds = 120;
+        
+    @FieldContext(category = CATEGORY_STORAGE_ML, 
+            doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
+    private long managedLedgerAddEntryTimeoutSeconds = 120;
+
     /*** --- Load balancer --- ****/
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
@@ -1016,6 +1028,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS, 
+            doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+    private String jvmGCMetricsLoggerClassName;
 
     /**** --- Functions --- ****/
     @FieldContext(

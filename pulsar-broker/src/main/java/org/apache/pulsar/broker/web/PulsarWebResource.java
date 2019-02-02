@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -176,14 +177,26 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
-                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
-                boolean proxyAuthorized = superUserRoles.contains(appId);
-                boolean originalPrincipalAuthorized = superUserRoles.contains(originalPrincipal);
 
-                if (!proxyAuthorized || !originalPrincipalAuthorized) {
-                    throw new RestException(Status.UNAUTHORIZED,
-                            String.format("Proxy not authorized for super-user operation (proxy:%s,original:%s)",
-                                          appId, originalPrincipal));
+                CompletableFuture<Boolean> proxyAuthorizedFuture;
+                CompletableFuture<Boolean> originalPrincipalAuthorizedFuture;
+
+                try {
+                    proxyAuthorizedFuture = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(appId);
+
+                    originalPrincipalAuthorizedFuture = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(originalPrincipal);
+
+                    if (!proxyAuthorizedFuture.get() || !originalPrincipalAuthorizedFuture.get()) {
+                        throw new RestException(Status.UNAUTHORIZED,
+                                String.format("Proxy not authorized for super-user operation (proxy:%s,original:%s)",
+                                              appId, originalPrincipal));
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
                 log.debug("Successfully authorized {} (proxied by {}) as super-user",
                           originalPrincipal, appId);
@@ -238,16 +251,29 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
-                Set<String> adminRoles = tenantInfo.getAdminRoles();
-                boolean proxyAuthorized = superUserRoles.contains(clientAppId) || adminRoles.contains(clientAppId);
-                boolean originalPrincipalAuthorized
-                    = superUserRoles.contains(originalPrincipal) || adminRoles.contains(originalPrincipal);
 
-                if (!proxyAuthorized || !originalPrincipalAuthorized) {
-                    throw new RestException(Status.UNAUTHORIZED,
-                            String.format("Proxy not authorized to access resource (proxy:%s,original:%s)",
-                                          clientAppId, originalPrincipal));
+                CompletableFuture<Boolean> isProxySuperUserFuture;
+                CompletableFuture<Boolean> isOriginalPrincipalSuperUserFuture;
+                try {
+                    isProxySuperUserFuture = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(clientAppId);
+
+                    isOriginalPrincipalSuperUserFuture = pulsar.getBrokerService()
+                            .getAuthorizationService()
+                            .isSuperUser(originalPrincipal);
+
+                Set<String> adminRoles = tenantInfo.getAdminRoles();
+                boolean proxyAuthorized = isProxySuperUserFuture.get() || adminRoles.contains(clientAppId);
+                boolean originalPrincipalAuthorized
+                    = isOriginalPrincipalSuperUserFuture.get() || adminRoles.contains(originalPrincipal);
+                    if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                        throw new RestException(Status.UNAUTHORIZED,
+                                String.format("Proxy not authorized to access resource (proxy:%s,original:%s)",
+                                              clientAppId, originalPrincipal));
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
                 log.debug("Successfully authorized {} (proxied by {}) on tenant {}",
                           originalPrincipal, clientAppId, tenant);

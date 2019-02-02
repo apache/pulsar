@@ -30,14 +30,14 @@ webSocketServiceEnabled=true
 
 In this mode, the WebSocket service will be run from a Pulsar [broker](reference-terminology.md#broker) as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
 
-* [`globalZookeeperServers`](reference-configuration.md#websocket-globalZookeeperServers)
+* [`configurationStoreServers`](reference-configuration.md#websocket-configurationStoreServers)
 * [`webServicePort`](reference-configuration.md#websocket-webServicePort)
 * [`clusterName`](reference-configuration.md#websocket-clusterName)
 
 Here's an example:
 
 ```properties
-globalZookeeperServers=zk1:2181,zk2:2181,zk3:2181
+configurationStoreServers=zk1:2181,zk2:2181,zk3:2181
 webServicePort=8080
 clusterName=my-cluster
 ```
@@ -389,7 +389,7 @@ Here's an example Node.js producer that sends a simple message to a Pulsar topic
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/producer/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 var message = {
@@ -417,7 +417,7 @@ Here's an example Node.js consumer that listens on the same topic used by the pr
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
@@ -431,7 +431,7 @@ ws.on('message', function(message) {
 #### NodeJS reader
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/reader/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {

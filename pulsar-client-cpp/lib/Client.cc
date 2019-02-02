@@ -20,8 +20,7 @@
 #include <pulsar/Client.h>
 #include <utility>
 
-#include <boost/make_shared.hpp>
-#include <boost/smart_ptr.hpp>
+#include <memory>
 
 #include "ClientImpl.h"
 #include "Utils.h"
@@ -32,17 +31,17 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
-Client::Client(const boost::shared_ptr<ClientImpl> impl) : impl_(impl) {}
+Client::Client(const std::shared_ptr<ClientImpl> impl) : impl_(impl) {}
 
 Client::Client(const std::string& serviceUrl)
-    : impl_(boost::make_shared<ClientImpl>(serviceUrl, ClientConfiguration(), true)) {}
+    : impl_(std::make_shared<ClientImpl>(serviceUrl, ClientConfiguration(), true)) {}
 
 Client::Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration)
-    : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, true)) {}
+    : impl_(std::make_shared<ClientImpl>(serviceUrl, clientConfiguration, true)) {}
 
 Client::Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                bool poolConnections)
-    : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, poolConnections)) {}
+    : impl_(std::make_shared<ClientImpl>(serviceUrl, clientConfiguration, poolConnections)) {}
 
 Result Client::createProducer(const std::string& topic, Producer& producer) {
     return createProducer(topic, ProducerConfiguration(), producer);
@@ -86,7 +85,7 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
 
 void Client::subscribeAsync(const std::string& topic, const std::string& consumerName,
                             const ConsumerConfiguration& conf, SubscribeCallback callback) {
-    LOG_DEBUG("Topic is :" << topic);
+    LOG_INFO("Subscribing on Topic :" << topic);
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 

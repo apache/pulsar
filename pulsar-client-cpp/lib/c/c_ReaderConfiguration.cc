@@ -42,7 +42,8 @@ static void message_listener_callback(pulsar::Reader reader, const pulsar::Messa
 
 void pulsar_reader_configuration_set_reader_listener(pulsar_reader_configuration_t *configuration,
                                                      pulsar_reader_listener listener, void *ctx) {
-    configuration->conf.setReaderListener(boost::bind(message_listener_callback, _1, _2, listener, ctx));
+    configuration->conf.setReaderListener(
+        std::bind(message_listener_callback, std::placeholders::_1, std::placeholders::_2, listener, ctx));
 }
 
 int pulsar_reader_configuration_has_reader_listener(pulsar_reader_configuration_t *configuration) {

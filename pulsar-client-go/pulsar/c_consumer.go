@@ -276,3 +276,27 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 func (c *consumer) RedeliverUnackedMessages() {
 	C.pulsar_consumer_redeliver_unacknowledged_messages(c.ptr)
 }
+
+func (c *consumer) Seek(msgID MessageID) error {
+	channel := make(chan error)
+	c.SeekAsync(msgID, func(err error) {
+		channel <- err
+		close(channel)
+	})
+	return <-channel
+}
+
+func (c *consumer) SeekAsync(msgID MessageID, callback func(error)) {
+	C._pulsar_consumer_seek_async(c.ptr, msgID.(*messageID).ptr, savePointer(callback))
+}
+
+//export pulsarConsumerSeekCallbackProxy
+func pulsarConsumerSeekCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func(err error))
+
+	if res != C.pulsar_result_Ok {
+		go callback(newError(res, "Failed to seek Consumer"))
+	} else {
+		go callback(nil)
+	}
+}

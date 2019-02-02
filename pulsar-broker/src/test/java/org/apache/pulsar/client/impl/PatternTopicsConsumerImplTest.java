@@ -24,6 +24,8 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -37,8 +39,8 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
@@ -46,8 +48,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
@@ -260,7 +260,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-            .subscriptionTopicsMode(PulsarApi.CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT)
+            .subscriptionTopicsMode(RegexSubscriptionMode.NonPersistentOnly)
             .subscribe();
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
@@ -349,7 +349,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
-            .subscriptionTopicsMode(PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+            .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .subscribe();
 

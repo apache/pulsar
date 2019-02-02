@@ -56,10 +56,10 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     protected static Network network;
     protected static StandaloneContainer container;
 
-    protected void startCluster() throws Exception {
+    protected void startCluster(final String pulsarImageName) throws Exception {
         network = Network.newNetwork();
         String clusterName = PulsarClusterTestBase.randomName(8);
-        container = new StandaloneContainer(clusterName)
+        container = new StandaloneContainer(clusterName, pulsarImageName)
             .withNetwork(network)
             .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName);
         container.start();

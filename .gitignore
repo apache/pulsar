@@ -80,5 +80,5 @@ docker.debug-info
 **/website/translated_docs*
 
 # Avro
-examples/flink-consumer-source/src/main/java/org/apache/flink/avro/generated
+examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated

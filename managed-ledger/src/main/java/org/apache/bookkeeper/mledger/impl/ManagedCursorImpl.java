@@ -104,8 +104,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
+    public static final int FALSE = 0;
+    public static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
@@ -282,6 +282,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             // Read the last entry in the ledger
             long lastEntryInLedger = lh.getLastAddConfirmed();
+
+            if (lastEntryInLedger < 0) {
+                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: No entries in ledger",
+                        ledger.getName(), ledgerId, name);
+                // Rewind to last cursor snapshot available
+                initialize(getRollbackPosition(info), callback);
+                return;
+            }
+
             lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
@@ -2059,7 +2068,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 });
             }));
         }, Collections.emptyMap());
-       
+
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {

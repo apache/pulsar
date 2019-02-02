@@ -261,5 +261,76 @@ This string was backwards but is now forwards
 
 Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
 
+## Packaging python dependencies
+
+For python functions requiring dependencies to be deployable in pulsar worker instances in an offline manner, we need to package the artifacts as below.
+
+
+#### Client Requirements
+
+Following programs are required to be installed on the client machine
+
+```
+pip \\ rquired for getting python dependencies
+zip \\ for building zip archives
+```
+
+#### Python Dependencies
+
+A file named **requirements.txt** is needed with required dependencies for the python function
+
+
+```
+sh==1.12.14
+```
+
+Prepare the pulsar function in folder called **src**.
+
+Run the following command to gather the python dependencies in the folder caller **deps**
+
+```
+pip download \
+--only-binary :all: \
+--platform manylinux1_x86_64 \
+--python-version 27 \
+--implementation cp \
+--abi cp27m -r requirements.txt -d deps
+
+```
+
+Sample ouptut
+
+```
+Collecting sh==1.12.14 (from -r requirements.txt (line 1))
+  Using cached https://files.pythonhosted.org/packages/4a/22/17b22ef5b049f12080f5815c41bf94de3c229217609e469001a8f80c1b3d/sh-1.12.14-py2.py3-none-any.whl
+  Saved ./deps/sh-1.12.14-py2.py3-none-any.whl
+Successfully downloaded sh
+```
+
+**Note** pulsar-client is not needed as a dependency as it already installed in the worker node.
+
+
+#### Packaging
+Create a destination folder with the desired pacaking name eg : **exclamation**, copy **src** and **deps** folder into it and finally compress the folder into a zip archive.
+
+Sample sequence
+
+```
+cp -R deps exclamation/
+cp -R src exclamation/
+
+ls -la exclamation/
+total 7
+drwxr-xr-x   5 a.ahmed  staff  160 Nov  6 17:51 .
+drwxr-xr-x  12 a.ahmed  staff  384 Nov  6 17:52 ..
+drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 deps
+drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 src
+
+zip -r exclamation.zip exclamation
+```
+
+Archive **exclamation.zip** can we deployed as function into a pulsar worker, the worker does not need internet connectivity to download packages as they are all included in the zip file.
+
+
 * [The Pulsar Functions API](functions-api.md)
 * [Deploying Pulsar Functions](functions-deploying.md)

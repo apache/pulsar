@@ -35,6 +35,7 @@ struct ClientConfigurationImpl {
     bool tlsAllowInsecureConnection;
     unsigned int statsIntervalInSeconds;
     LoggerFactoryPtr loggerFactory;
+    bool validateHostName;
 
     ClientConfigurationImpl()
         : authenticationPtr(AuthFactory::Disabled()),
@@ -46,7 +47,8 @@ struct ClientConfigurationImpl {
           useTls(false),
           tlsAllowInsecureConnection(false),
           statsIntervalInSeconds(600),  // 10 minutes
-          loggerFactory() {}
+          loggerFactory(),
+          validateHostName(false) {}
 };
 }  // namespace pulsar
 

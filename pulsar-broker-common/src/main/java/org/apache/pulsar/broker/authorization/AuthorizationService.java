@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
-
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,6 +29,14 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
@@ -68,6 +70,13 @@ public class AuthorizationService {
         } else {
             log.info("Authorization is disabled");
         }
+    }
+
+    public CompletableFuture<Boolean> isSuperUser(String user) {
+        if (provider != null) {
+           return provider.isSuperUser(user, conf);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
     /**
@@ -164,9 +173,14 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-
         if (provider != null) {
-            return provider.canProduceAsync(topicName, role, authenticationData);
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.canProduceAsync(topicName, role, authenticationData);
+                }
+            });
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -187,7 +201,13 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+                }
+            });
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }

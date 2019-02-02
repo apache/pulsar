@@ -70,6 +70,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,14 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    protected boolean zkPathExists(String path) throws KeeperException, InterruptedException {
+        Stat stat = globalZk().exists(path, false);
+        if (null != stat) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -234,6 +243,19 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validateGlobalNamespaceOwnership(String property, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            validateGlobalNamespaceOwnership(this.namespaceName);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
+        } catch (RestException re) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+        } catch (Exception e) {
+            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
+        }
+    }
     @Deprecated
     protected void validateNamespaceName(String property, String cluster, String namespace) {
         try {

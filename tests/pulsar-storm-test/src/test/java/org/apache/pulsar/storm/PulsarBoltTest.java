@@ -20,28 +20,27 @@ package org.apache.pulsar.storm;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.testng.Assert;
-import static org.testng.Assert.fail;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Tuple;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class PulsarBoltTest extends ProducerConsumerBase {
 
@@ -73,14 +72,14 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         pulsarBoltConf.setTopic(topic);
         pulsarBoltConf.setTupleToMessageMapper(tupleToMessageMapper);
         pulsarBoltConf.setMetricsTimeIntervalInSecs(60);
-        bolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
+        bolt = new PulsarBolt(pulsarBoltConf, PulsarClient.builder());
         mockCollector = new MockOutputCollector();
         OutputCollector collector = new OutputCollector(mockCollector);
         TopologyContext context = mock(TopologyContext.class);
         when(context.getThisComponentId()).thenReturn("test-bolt-" + methodName);
         when(context.getThisTaskId()).thenReturn(0);
         bolt.prepare(Maps.newHashMap(), context, collector);
-        consumer = pulsarClient.subscribe(topic, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe();
     }
 
     @AfterMethod
@@ -94,14 +93,14 @@ public class PulsarBoltTest extends ProducerConsumerBase {
     static TupleToMessageMapper tupleToMessageMapper = new TupleToMessageMapper() {
 
         @Override
-        public Message toMessage(Tuple tuple) {
+        public TypedMessageBuilder<byte[]> toMessage(TypedMessageBuilder<byte[]> msgBuilder, Tuple tuple) {
             if ("message to be dropped".equals(new String(tuple.getBinary(0)))) {
                 return null;
             }
             if ("throw exception".equals(new String(tuple.getBinary(0)))) {
                 throw new RuntimeException();
             }
-            return MessageBuilder.create().setContent(tuple.getBinary(0)).build();
+            return msgBuilder.value(tuple.getBinary(0));
         }
 
         @Override
@@ -190,7 +189,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
     public void testSharedProducer() throws Exception {
         TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
-        PulsarBolt otherBolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
+        PulsarBolt otherBolt = new PulsarBolt(pulsarBoltConf, PulsarClient.builder());
         MockOutputCollector otherMockCollector = new MockOutputCollector();
         OutputCollector collector = new OutputCollector(otherMockCollector);
         TopologyContext context = mock(TopologyContext.class);
@@ -210,7 +209,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
     @Test
     public void testSerializability() throws Exception {
         // test serializability with no auth
-        PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
+        PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, PulsarClient.builder());
         TestUtil.testSerializability(boltWithNoAuth);
     }
 
@@ -221,7 +220,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         pulsarBoltConf.setTopic("persistent://invalid");
         pulsarBoltConf.setTupleToMessageMapper(tupleToMessageMapper);
         pulsarBoltConf.setMetricsTimeIntervalInSecs(60);
-        PulsarBolt bolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
+        PulsarBolt bolt = new PulsarBolt(pulsarBoltConf, PulsarClient.builder());
         MockOutputCollector mockCollector = new MockOutputCollector();
         OutputCollector collector = new OutputCollector(mockCollector);
         TopologyContext context = mock(TopologyContext.class);
