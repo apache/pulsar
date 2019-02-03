@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -43,7 +41,6 @@ public class WaterMarkEventGeneratorTest {
     private WaterMarkEventGenerator<Integer> waterMarkEventGenerator;
     private WindowManager<Integer> windowManager;
     private List<Event<Integer>> eventList = new ArrayList<>();
-    private Context context;
 
     @BeforeMethod
     public void setUp() {
@@ -54,13 +51,9 @@ public class WaterMarkEventGeneratorTest {
             }
         };
 
-        context = Mockito.mock(Context.class);
-        Mockito.doReturn("test-function").when(context).getFunctionName();
-        Mockito.doReturn("test-namespace").when(context).getNamespace();
-        Mockito.doReturn("test-tenant").when(context).getTenant();
         // set watermark interval to a high value and trigger manually to fix timing issues
         waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L, 5, Collections
-                .singleton("s1"), context);
+                .singleton("s1"), "test-tenant", "test-namespace", "test-function");
 //        waterMarkEventGenerator.start();
     }
 
@@ -95,7 +88,7 @@ public class WaterMarkEventGeneratorTest {
         streams.add("s1");
         streams.add("s2");
         waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L,
-                5, streams, context);
+                5, streams, "test-tenant", "test-namespace", "test-function");
         waterMarkEventGenerator.start();
 
         waterMarkEventGenerator.track("s1", 100);
