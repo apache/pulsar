@@ -352,14 +352,16 @@ PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     PrivateKeyUri uriSt;
     // scheme mediatype[;base64] path file
     static const std::regex expression(
-        "^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
+        R"(^(?:([A-Za-z]+):)(?:([/\w\-]+;\w+),([=\w]+))?(?:\/\/)?(\/[^?#]+)?)");
+
     std::cmatch groups;
     if (std::regex_match(uri, groups, expression)) {
         uriSt.scheme = groups.str(1);
         uriSt.mediaTypeAndEncodingType = groups.str(2);
-        uriSt.data = groups.str(4);
-        uriSt.path = groups.str(3) + groups.str(4);
+        uriSt.data = groups.str(3);
+        uriSt.path = groups.str(4);
     }
+
     return uriSt;
 }
 }  // namespace pulsar
