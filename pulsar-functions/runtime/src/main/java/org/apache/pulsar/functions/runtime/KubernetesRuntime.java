@@ -117,6 +117,7 @@ class KubernetesRuntime implements Runtime {
     private final String jobNamespace;
     private final Map<String, String> customLabels;
     private final String pulsarDockerImageName;
+    private final String imagePullPolicy;
     private final String pulsarRootDir;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
@@ -133,6 +134,7 @@ class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
@@ -152,6 +154,7 @@ class KubernetesRuntime implements Runtime {
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
         this.pulsarDockerImageName = pulsarDockerImageName;
+        this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
@@ -614,6 +617,7 @@ class KubernetesRuntime implements Runtime {
 
         // set up the container images
         container.setImage(pulsarDockerImageName);
+        container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
         container.setCommand(instanceCommand);

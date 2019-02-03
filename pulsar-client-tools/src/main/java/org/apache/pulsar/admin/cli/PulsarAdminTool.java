@@ -185,13 +185,8 @@ public class PulsarAdminTool {
         Properties properties = new Properties();
 
         if (configFile != null) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(configFile);
+            try (FileInputStream fis = new FileInputStream(configFile)) {
                 properties.load(fis);
-            } finally {
-                if (fis != null)
-                    fis.close();
             }
         }
 

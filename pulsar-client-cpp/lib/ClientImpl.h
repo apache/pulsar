@@ -24,7 +24,7 @@
 #include "BinaryProtoLookupService.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <lib/TopicName.h>
 #include "ProducerImplBase.h"
 #include "ConsumerImplBase.h"
@@ -125,7 +125,7 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
         Closed
     };
 
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     State state_;
     std::string serviceUrl_;

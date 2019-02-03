@@ -24,10 +24,8 @@
 #include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
 #include "HttpHelper.h"
@@ -37,11 +35,14 @@
 #include <lib/PatternMultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
+
+#include <functional>
+
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-boost::mutex mutex_;
+std::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
@@ -60,7 +61,7 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& 
 }
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix, int* count) {
-    static boost::mutex sendMutex_;
+    static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
     std::string messageContent = prefix + std::to_string(*count);
@@ -72,7 +73,7 @@ static void sendCallBack(Result r, const Message& msg, std::string prefix, int* 
 
 static void receiveCallBack(Result r, const Message& msg, std::string& messageContent, bool checkContent,
                             bool* isFailed, int* count) {
-    static boost::mutex receiveMutex_;
+    static std::mutex receiveMutex_;
     receiveMutex_.lock();
 
     if (r == ResultOk) {
@@ -88,8 +89,8 @@ static void receiveCallBack(Result r, const Message& msg, std::string& messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix, double percentage,
-                         uint64_t delayInMicros, int* count) {
+static void sendCallBackWithDelay(Result r, const Message& msg, std::string prefix, double percentage,
+                                  uint64_t delayInMicros, int* count) {
     if ((rand() % 100) <= percentage) {
         usleep(delayInMicros);
     }
@@ -185,7 +186,8 @@ TEST(BasicEndToEndTest, testBatchMessages) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -215,7 +217,8 @@ void resendMessage(Result r, const Message msg, Producer producer) {
         }
     }
     lock.unlock();
-    producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+    producer.sendAsync(MessageBuilder().build(),
+                       std::bind(resendMessage, std::placeholders::_1, std::placeholders::_2, producer));
 }
 
 TEST(BasicEndToEndTest, testProduceConsume) {
@@ -857,7 +860,8 @@ TEST(BasicEndToEndTest, testMessageListener) {
     globalCount = 0;
 
     ConsumerConfiguration consumerConfig;
-    consumerConfig.setMessageListener(boost::bind(messageListenerFunction, _1, _2));
+    consumerConfig.setMessageListener(
+        std::bind(messageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     Consumer consumer;
     result = client.subscribe(topicName, "subscription-A", consumerConfig, consumer);
 
@@ -900,7 +904,8 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     globalCount = 0;
 
     ConsumerConfiguration consumerConfig;
-    consumerConfig.setMessageListener(boost::bind(messageListenerFunction, _1, _2));
+    consumerConfig.setMessageListener(
+        std::bind(messageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     Consumer consumer;
     // Removing dangling subscription from previous test failures
     result = client.subscribe(topicName, "subscription-name", consumerConfig, consumer);
@@ -957,7 +962,8 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     // Expect timeouts since we have set timeout to 1 ms
     // On receiving timeout send the message using the Pulsar client IO thread via cb function.
     for (int i = 0; i < 10000; i++) {
-        producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+        producer.sendAsync(MessageBuilder().build(),
+                           std::bind(resendMessage, std::placeholders::_1, std::placeholders::_2, producer));
     }
     // 3 seconds
     usleep(3 * 1000 * 1000);
@@ -1005,7 +1011,8 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 2 * 1e3, &count));
+        producer.sendAsync(msg, std::bind(&sendCallBackWithDelay, std::placeholders::_1,
+                                          std::placeholders::_2, prefix, 15, 2 * 1e3, &count));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -1515,7 +1522,8 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     ConsumerConfiguration consConfig;
     consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
     Latch latch(2);
-    consConfig.setMessageListener(boost::bind(messageListenerFunctionWithoutAck, _1, _2, latch, content));
+    consConfig.setMessageListener(std::bind(messageListenerFunctionWithoutAck, std::placeholders::_1,
+                                            std::placeholders::_2, latch, content));
     result = client.subscribe(topicName, subName, consConfig, consumer);
     ASSERT_EQ(ResultOk, result);
 
@@ -1525,7 +1533,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
 
-    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
     ASSERT_GE(globalCount, 2);
 
     consumer.unsubscribe();
@@ -2117,7 +2125,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending first half messages in async, should timeout to receive");
@@ -2131,7 +2140,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending the other half messages in async, should able to receive");
@@ -2341,7 +2351,8 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO("sending half of messages in async, should timeout to receive");
@@ -2364,7 +2375,8 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("async sending message " << messageContent);
     }
     LOG_INFO(
@@ -2512,7 +2524,8 @@ TEST(BasicEndToEndTest, testReceiveAsync) {
     int totalMsgs = 5;
     bool isFailed = false;
     for (int i = 0; i < totalMsgs; i++) {
-        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, true, &isFailed, &count));
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, true, &isFailed, &count));
     }
     // Send synchronously
     for (int i = 0; i < totalMsgs; i++) {
@@ -2557,7 +2570,8 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsync) {
     int count = 0;
     bool isFailed = false;
     for (int i = 0; i < totalMsgs; i++) {
-        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, false, &isFailed, &count));
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, false, &isFailed, &count));
     }
 
     for (int i = 0; i < totalMsgs; i++) {
@@ -2627,7 +2641,8 @@ TEST(BasicEndToEndTest, testBatchMessagesReceiveAsync) {
     int count = 0;
     bool isFailed = false;
     for (int i = 0; i < numOfMessages; i++) {
-        consumer.receiveAsync(boost::bind(&receiveCallBack, _1, _2, content, false, &isFailed, &count));
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, false, &isFailed, &count));
     }
 
     // Send Asynchronously
@@ -2637,7 +2652,8 @@ TEST(BasicEndToEndTest, testBatchMessagesReceiveAsync) {
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, &msgCount));
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -2669,16 +2685,16 @@ TEST(BasicEndToEndTest, testReceiveAsyncFailedConsumer) {
     std::string content;
     int closingCunt = 0;
     // callback should immediately fail
-    consumer.receiveAsync(
-        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosing, &closingCunt));
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosing, &closingCunt));
 
     // close consumer
     consumer.close();
     bool isFailedOnConsumerClosed = false;
     int count = 0;
     // callback should immediately fail
-    consumer.receiveAsync(
-        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosed, &count));
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosed, &count));
 
     // check strategically
     for (int i = 0; i < 3; i++) {
@@ -2714,15 +2730,15 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
     std::string content;
     int closingCunt = 0;
     // callback should immediately fail
-    consumer.receiveAsync(
-        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosing, &closingCunt));
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosing, &closingCunt));
     // close consumer
     consumer.close();
 
     int count = 0;
     bool isFailedOnConsumerClosed = false;
-    consumer.receiveAsync(
-        boost::bind(&receiveCallBack, _1, _2, content, false, &isFailedOnConsumerClosed, &count));
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosed, &count));
 
     // check strategically
     for (int i = 0; i < 3; i++) {

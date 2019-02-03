@@ -264,6 +264,40 @@ public interface Sink {
     void stopSink(String tenant, String namespace, String sink) throws PulsarAdminException;
 
     /**
+     * Start sink instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param sink
+     *            Sink name
+     *
+     * @param instanceId
+     *            Sink instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSink(String tenant, String namespace, String sink, int instanceId) throws PulsarAdminException;
+
+    /**
+     * Start all sink instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param sink
+     *            Sink name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSink(String tenant, String namespace, String sink) throws PulsarAdminException;
+
+
+    /**
      * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
      *
      * @throws PulsarAdminException
