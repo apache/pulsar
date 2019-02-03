@@ -54,7 +54,6 @@ public class WindowManagerTest {
     private Listener listener;
 
     private static final long TIMESTAMP = 1516776194873L;
-    private static final String TOPIC = "test-topic";
 
     private static class Listener implements WindowLifecycleListener<Event<Integer>> {
         private List<Event<Integer>> onExpiryEvents = Collections.emptyList();
