@@ -638,7 +638,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
             managedLedgerConfig.setCreateIfMissing(useDefaultConfig ? 
-            		                               pulsar.getConfiguration().getAllowAutoTopicCreation() 
+            		                               pulsar.getConfiguration().isAllowAutoTopicCreation() 
             		                               : createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation
