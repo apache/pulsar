@@ -677,7 +677,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
 
     /**
-     * Test topic partitions auto subscribe.
+     * Test topic partitions auto subscribed.
      *
      * Steps:
      * 1. Create a consumer with 2 topics, and each topic has 2 partitions: xx-partition-0, xx-partition-1.
@@ -730,7 +730,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         // since partition-2 not subscribed,  could not receive any message.
         Message<byte[]> message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
-
 
         // 3. update to 3 partitions
         admin.topics().updatePartitionedTopic(topicName1, 3);

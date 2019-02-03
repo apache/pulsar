@@ -443,6 +443,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         setState(State.Closing);
 
+        if (partitionsAutoUpdateTimeout != null) {
+            partitionsAutoUpdateTimeout.cancel();
+            partitionsAutoUpdateTimeout = null;
+        }
+
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futureList = consumers.values().stream()
             .map(c -> c.closeAsync()).collect(Collectors.toList());
@@ -808,6 +813,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 new PulsarClientException.AlreadyClosedException("Topics Consumer was already closed"));
         }
 
+        if (partitionsAutoUpdateTimeout != null) {
+            partitionsAutoUpdateTimeout.cancel();
+            partitionsAutoUpdateTimeout = null;
+        }
+
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         String topicPartName = TopicName.get(topicName).getPartitionedTopicName();
 
@@ -875,33 +885,25 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         consumers.forEach((name, consumer) -> consumer.resume());
     }
 
-    interface PartitionsChangedListener {
-        /**
-         * Notified when topic partitions increased.
-         * Passed in topics that have partitions increased.
-         */
-        CompletableFuture<Void> onTopicsExpended(Collection<String> topicsExpended);
-    }
-
     // This listener is triggered when topics partitions are updated.
     private class TopicsPartitionChangedListener implements PartitionsChangedListener {
         // Check partitions changes of passed in topics, and subscribe new added partitions.
         @Override
-        public CompletableFuture<Void> onTopicsExpended(Collection<String> topicsExpended) {
+        public CompletableFuture<Void> onTopicsExtended(Collection<String> topicsExtended) {
             CompletableFuture<Void> future = new CompletableFuture<>();
-            if (topicsExpended.isEmpty()) {
+            if (topicsExtended.isEmpty()) {
                 future.complete(null);
                 return future;
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}]  run onTopicsExpended: {}, size: {}",
-                    topic, topicsExpended.toString(), topicsExpended.size());
+                log.debug("[{}]  run onTopicsExtended: {}, size: {}",
+                    topic, topicsExtended.toString(), topicsExtended.size());
             }
 
             List<TopicName> topicsName;
             try {
-                topicsName = topicsExpended.stream()
+                topicsName = topicsExtended.stream()
                     .map(topic -> TopicName.get(topic))
                     .collect(Collectors.toList());
             } catch (IllegalArgumentException e) {
@@ -989,27 +991,27 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
         @Override
         public void run(Timeout timeout) throws Exception {
-            if (timeout.isCancelled()) {
+            if (timeout.isCancelled() || getState() != State.Ready) {
                 return;
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}]  run partitionsAutoUpdateTimerTask: {}", topic);
+                log.debug("[{}]  run partitionsAutoUpdateTimerTask for multiTopicsConsumer: {}", topic);
             }
 
-            // if last auto update not completed yet do nothing.
+            // if last auto update not completed yet, do nothing.
             if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
-                partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExpended(topics.keySet());
+                partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(topics.keySet());
             }
 
             // schedule the next re-check task
-            client.timer().newTimeout(partitionsAutoUpdateTimerTask,
+            partitionsAutoUpdateTimeout = client.timer().newTimeout(partitionsAutoUpdateTimerTask,
                 Math.min(1, conf.getPartitionAutoUpdatePeriod()), TimeUnit.MINUTES);
         }
     };
 
     @VisibleForTesting
-    Timeout getPartitionsAutoUpdateTimeout() {
+    public Timeout getPartitionsAutoUpdateTimeout() {
         return partitionsAutoUpdateTimeout;
     }
 

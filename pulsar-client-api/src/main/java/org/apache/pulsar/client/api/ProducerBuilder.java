@@ -328,4 +328,22 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return producer builder.
      */
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+
+    /**
+     * If enabled, partitioned producer will auto create new producers for new partitions.
+     * This is only for partitioned producer.
+     *
+     * @param autoUpdate
+     *            whether to auto update partition increasement
+     */
+    ProducerBuilder<T> trackPartitionUpdate(boolean autoUpdate);
+
+    /**
+     * Set topics auto update period when setting {@link #trackPartitionUpdate(boolean)} to true for partitioned producer.
+     * The period is in minute, and default and minimum value is 1 minute.
+     *
+     * @param periodInMinutes
+     *            number of minutes between checks for topic partitions update
+     */
+    ProducerBuilder<T> partitionAutoUpdatePeriod(int periodInMinutes);
 }
