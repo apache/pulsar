@@ -110,7 +110,12 @@ public class PulsarAdminTool {
             adminBuilder.authentication(authPluginClassName, authParams);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                if (admin != null) {
+                    jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                } else if (c.getKey().equals("functions") || c.getKey().equals("source") || c.getKey().equals("sink")) {
+                    // In mode localrun, only some components are initialized, such as source, sink and functions
+                    jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                }
             }
         } catch (Exception e) {
             Throwable cause;
@@ -205,17 +210,23 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
+        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
-        adminFactory = (adminBuilder) -> {
-            try {
-                return adminBuilder.build();
-            } catch (Exception ex) {
-                System.err.println(ex.getClass() + ": " + ex.getMessage());
-                System.exit(1);
-                return null;
-            }
-        };
+        if (isLocalRun) {
+            // bypass constructing admin client
+            adminFactory = (adminBuilder) -> null;
+        } else {
+            adminFactory = (adminBuilder) -> {
+                try {
+                    return adminBuilder.build();
+                } catch (Exception ex) {
+                    System.err.println(ex.getClass() + ": " + ex.getMessage());
+                    System.exit(1);
+                    return null;
+                }
+            };
+        }
 
         if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
             System.exit(0);
