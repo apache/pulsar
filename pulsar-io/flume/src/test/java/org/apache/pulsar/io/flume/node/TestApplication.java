@@ -132,4 +132,68 @@ public class TestApplication {
     verify(sinkRunner).stop();
     verify(channel).stop();
   }
+
+  @Test
+  public void testFLUME1854() throws Exception {
+    File configFile = new File(baseDir, "flume-conf.properties");
+    Files.copy(new File(getClass().getClassLoader()
+            .getResource("flume-conf.properties").getFile()), configFile);
+    Random random = new Random();
+    for (int i = 0; i < 3; i++) {
+      EventBus eventBus = new EventBus("test-event-bus");
+      PollingPropertiesFileConfigurationProvider configurationProvider =
+              new PollingPropertiesFileConfigurationProvider("host1",
+                      configFile, eventBus, 1);
+      List<LifecycleAware> components = Lists.newArrayList();
+      components.add(configurationProvider);
+      Application application = new Application(components);
+      eventBus.register(application);
+      application.start();
+      Thread.sleep(random.nextInt(10000));
+      application.stop();
+    }
+  }
+
+  @Test(timeout = 10000L)
+  public void testFLUME2786() throws Exception {
+    final String agentName = "test";
+    final int interval = 1;
+    final long intervalMs = 1000L;
+
+    File configFile = new File(baseDir, "flume-conf.properties");
+    Files.copy(new File(getClass().getClassLoader()
+            .getResource("flume-conf.properties.2786").getFile()), configFile);
+    File mockConfigFile = spy(configFile);
+    when(mockConfigFile.lastModified()).then(new Answer<Long>() {
+      @Override
+      public Long answer(InvocationOnMock invocation) throws Throwable {
+        Thread.sleep(intervalMs);
+        return System.currentTimeMillis();
+      }
+    });
+
+    EventBus eventBus = new EventBus(agentName + "-event-bus");
+    PollingPropertiesFileConfigurationProvider configurationProvider =
+            new PollingPropertiesFileConfigurationProvider(agentName,
+                    mockConfigFile, eventBus, interval);
+    PollingPropertiesFileConfigurationProvider mockConfigurationProvider =
+            spy(configurationProvider);
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        Thread.sleep(intervalMs);
+        invocation.callRealMethod();
+        return null;
+      }
+    }).when(mockConfigurationProvider).stop();
+
+    List<LifecycleAware> components = Lists.newArrayList();
+    components.add(mockConfigurationProvider);
+    Application application = new Application(components);
+    eventBus.register(application);
+    application.start();
+    Thread.sleep(1500L);
+    application.stop();
+  }
+
 }

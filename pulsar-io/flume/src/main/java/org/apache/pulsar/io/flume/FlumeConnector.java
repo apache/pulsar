@@ -19,6 +19,8 @@ public class FlumeConnector {
     private static final Logger log = LoggerFactory
             .getLogger(FlumeConnector.class);
 
+    protected Application application;
+
     public void StartConnector(FlumeConfig flumeConfig) throws Exception  {
         SSLUtil.initGlobalSSLParameters();
         String agentName = flumeConfig.getName();
@@ -27,7 +29,6 @@ public class FlumeConnector {
         if (flumeConfig.getZkConnString().length() > 0) {
             isZkConfigured = true;
         }
-        Application application;
         if (isZkConfigured) {
             // get options
             String zkConnectionStr = flumeConfig.getZkConnString();
@@ -95,5 +96,11 @@ public class FlumeConnector {
                 appReference.stop();
             }
         });
+    }
+
+    public void stop() {
+        if (application != null) {
+            application.stop();
+        }
     }
 }

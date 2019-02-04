@@ -22,6 +22,8 @@ public abstract class AbstractSink<T> implements Sink<T> {
 
     protected static BlockingQueue<Map<String, Object>> records;
 
+    protected FlumeConnector flumeConnector;
+
     public static BlockingQueue<Map<String, Object>> getQueue() {
         return records;
     }
@@ -33,9 +35,8 @@ public abstract class AbstractSink<T> implements Sink<T> {
 
         FlumeConfig flumeConfig = FlumeConfig.load(config);
 
-        FlumeConnector flumeConnector = new FlumeConnector();
+        flumeConnector = new FlumeConnector();
         flumeConnector.StartConnector(flumeConfig);
-
     }
 
     @Override
@@ -54,6 +55,8 @@ public abstract class AbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() {
-
+        if (flumeConnector != null) {
+            flumeConnector.stop();
+        }
     }
 }
