@@ -49,6 +49,12 @@ static inline void _pulsar_client_create_producer_async(pulsar_client_t *client,
     pulsar_client_create_producer_async(client, topic, conf, pulsarCreateProducerCallbackProxy, ctx);
 }
 
+void pulsarProducerFlushCallbackProxy(pulsar_result result, void *ctx);
+
+static inline void _pulsar_producer_flush_async(pulsar_producer_t *producer, void *ctx){
+    pulsar_producer_flush_async(producer, pulsarProducerFlushCallbackProxy, ctx);
+}
+
 void pulsarProducerCloseCallbackProxy(pulsar_result result, void *ctx);
 
 static inline void _pulsar_producer_close_async(pulsar_producer_t *producer, void *ctx) {
@@ -110,6 +116,12 @@ void pulsarConsumerCloseCallbackProxy(pulsar_result result, void *ctx);
 
 static inline void _pulsar_consumer_close_async(pulsar_consumer_t *consumer, void *ctx) {
     pulsar_consumer_close_async(consumer, pulsarConsumerCloseCallbackProxy, ctx);
+}
+
+void pulsarConsumerSeekCallbackProxy(pulsar_result result, void *ctx);
+
+static inline void _pulsar_consumer_seek_async(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId,void *ctx) {
+    pulsar_consumer_seek_async(consumer, messageId,pulsarConsumerSeekCallbackProxy, ctx);
 }
 
 //// Reader callbacks

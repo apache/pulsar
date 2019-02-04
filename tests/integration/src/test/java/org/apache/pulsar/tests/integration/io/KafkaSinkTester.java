@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.io;
 
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
+import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -42,17 +43,18 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 @Slf4j
 public class KafkaSinkTester extends SinkTester<KafkaContainer> {
 
-    private static final String NAME = "kafka";
-
     private final String kafkaTopicName;
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    public KafkaSinkTester() {
-        super(NAME, SinkType.KAFKA);
+    private final String containerName;
+
+      public KafkaSinkTester(String containerName) {
+        super(containerName, SinkType.KAFKA);
+        this.containerName = containerName;
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_sink_topic_" + suffix;
 
-        sinkConfig.put("bootstrapServers", NAME + ":9092");
+        sinkConfig.put("bootstrapServers", networkAlias + ":9092");
         sinkConfig.put("acks", "all");
         sinkConfig.put("batchSize", 1L);
         sinkConfig.put("maxRequestSize", 1048576L);
@@ -61,13 +63,12 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
 
     @Override
     protected KafkaContainer createSinkService(PulsarCluster cluster) {
-        final String kafkaServiceName = NAME;
         return new KafkaContainer()
                 .withEmbeddedZookeeper()
-                .withNetworkAliases(kafkaServiceName)
+                .withNetworkAliases(containerName)
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                    .withName(kafkaServiceName)
-                    .withHostName(cluster.getClusterName() + "-" + kafkaServiceName));
+                    .withName(containerName)
+                    .withHostName(cluster.getClusterName() + "-" + containerName));
     }
 
     @Override

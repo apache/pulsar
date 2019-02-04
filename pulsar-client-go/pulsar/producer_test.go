@@ -25,6 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInvalidURL(t *testing.T) {
@@ -203,5 +206,53 @@ func TestProducerZstd(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestProducer_Flush(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "test-flush-in-producer"
+	subName := "subscription-name"
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+		Properties: map[string]string{
+			"producer-name": "test-producer-name",
+			"producer-id":   "test-producer-id",
+		},
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topicName,
+		SubscriptionName: subName,
+		Properties: map[string]string{
+			"consumer-name": "test-consumer-name",
+			"consumer-id":   "test-consumer-id",
+		},
+	})
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	ctx := context.Background()
+	for i := 0; i < 10; i++ {
+		// Create a different message to send asynchronously
+		asyncMsg := ProducerMessage{
+			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
+		}
+		// Attempt to send the message asynchronously and handle the response
+		producer.SendAsync(ctx, asyncMsg, func(msg ProducerMessage, err error) {
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Message %s successfully published", msg.Payload)
+		})
+		producer.Flush()
 	}
 }

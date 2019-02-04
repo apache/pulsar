@@ -21,7 +21,7 @@
 #include <pulsar/Client.h>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <thread>
 #include <lib/LogUtils.h>
 
 #include "lib/Future.h"
@@ -139,6 +139,27 @@ TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     ASSERT_EQ(ResultOk, result);
 }
 
+TEST(AuthPluginTest, testTlsDetectPulsarSslWithHostNameValidation) {
+    try {
+        ClientConfiguration config = ClientConfiguration();
+        config.setTlsTrustCertsFilePath(caPath);
+        config.setTlsAllowInsecureConnection(false);
+        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+        config.setValidateHostName(true);
+
+        Client client(serviceUrlTls, config);
+        std::string topicName = "persistent://private/auth/test-tls-detect";
+
+        Producer producer;
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
+    } catch (...) {
+        FAIL() << "Expected handshake: certificate verify failed";
+    }
+}
+
 TEST(AuthPluginTest, testTlsDetectHttps) {
     ClientConfiguration config = ClientConfiguration();
     config.setUseTls(true);  // shouldn't be needed soon
@@ -156,6 +177,29 @@ TEST(AuthPluginTest, testTlsDetectHttps) {
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
+}
+
+TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
+    try {
+        ClientConfiguration config = ClientConfiguration();
+        config.setUseTls(true);  // shouldn't be needed soon
+        config.setTlsTrustCertsFilePath(caPath);
+        config.setTlsAllowInsecureConnection(false);
+        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+        config.setValidateHostName(true);
+
+        Client client(serviceUrlHttps, config);
+
+        std::string topicName = "persistent://private/auth/test-tls-detect-https";
+
+        Producer producer;
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
+    } catch (...) {
+        FAIL() << "Expected handshake: certificate verify failed";
+    }
 }
 
 namespace testAthenz {
@@ -196,7 +240,7 @@ void mockZTS(int port) {
 }  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
-    boost::thread zts(boost::bind(&testAthenz::mockZTS, 9999));
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9999));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test.tenant",
@@ -266,7 +310,7 @@ TEST(AuthPluginTest, testAuthFactoryTls) {
 }
 
 TEST(AuthPluginTest, testAuthFactoryAthenz) {
-    boost::thread zts(boost::bind(&testAthenz::mockZTS, 9998));
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9998));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test2.tenant",

@@ -1091,6 +1091,37 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    void failDuringRecoveryWithEmptyLedger() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedCursor cursor = ledger.openCursor("cursor");
+
+        ledger.addEntry("entry-1".getBytes());
+        Position p2 = ledger.addEntry("entry-2".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
+
+        cursor.markDelete(p2);
+        // Do graceful close so snapshot is forced
+        ledger.close();
+
+        // Re-open
+        ledger = factory.open("my_test_ledger");
+        cursor = ledger.openCursor("cursor");
+        cursor.markDelete(p3);
+
+        // Force-reopen so the recovery will be forced to read from ledger
+        bkc.returnEmptyLedgerAfter(1);
+        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+        ledger = factory2.open("my_test_ledger");
+        cursor = ledger.openCursor("cursor");
+
+        // Cursor was rolled back to p2 because of the ledger recovery failure
+        assertEquals(cursor.getMarkDeletedPosition(), p2);
+
+        factory2.shutdown();
+    }
+
     @Test(timeOut = 20000)
     void errorRecoveringCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");

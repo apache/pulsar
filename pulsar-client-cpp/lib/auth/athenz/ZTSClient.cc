@@ -38,6 +38,8 @@
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 
+#include <mutex>
+
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
@@ -254,14 +256,14 @@ static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-static boost::mutex cacheMtx_;
+static std::mutex cacheMtx_;
 const std::string ZTSClient::getRoleToken() const {
     RoleToken roleToken;
     std::string cacheKey = "p=" + tenantDomain_ + "." + tenantService_ + ";d=" + providerDomain_;
 
     // locked block
     {
-        boost::lock_guard<boost::mutex> lock(cacheMtx_);
+        std::lock_guard<std::mutex> lock(cacheMtx_);
         roleToken = roleTokenCache_[cacheKey];
     }
 
@@ -328,7 +330,7 @@ const std::string ZTSClient::getRoleToken() const {
                 }
                 roleToken.token = root["token"].asString();
                 roleToken.expiryTime = root["expiryTime"].asUInt();
-                boost::lock_guard<boost::mutex> lock(cacheMtx_);
+                std::lock_guard<std::mutex> lock(cacheMtx_);
                 roleTokenCache_[cacheKey] = roleToken;
                 LOG_DEBUG("Got role token " << roleToken.token)
             } else {

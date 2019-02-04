@@ -19,6 +19,9 @@
 #ifndef LIB_UNACKEDMESSAGETRACKERENABLED_H_
 #define LIB_UNACKEDMESSAGETRACKERENABLED_H_
 #include "lib/UnAckedMessageTrackerInterface.h"
+
+#include <mutex>
+
 namespace pulsar {
 
 class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
@@ -34,13 +37,12 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     void clear();
 
    private:
-    void timeoutHandler(const boost::system::error_code& ec);
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();
     std::set<MessageId> currentSet_;
     std::set<MessageId> oldSet_;
-    boost::mutex lock_;
+    std::mutex lock_;
     DeadlineTimerPtr timer_;
     ConsumerImplBase& consumerReference_;
     ClientImplPtr client_;

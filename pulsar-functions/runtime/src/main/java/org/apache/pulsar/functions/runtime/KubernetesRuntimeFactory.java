@@ -57,6 +57,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String k8Uri;
         private String jobNamespace;
         private String pulsarDockerImageName;
+        private String imagePullPolicy;
         private String pulsarRootDir;
         private String pulsarAdminUrl;
         private String pulsarServiceUrl;
@@ -86,6 +87,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntimeFactory(String k8Uri,
                                     String jobNamespace,
                                     String pulsarDockerImageName,
+                                    String imagePullPolicy,
                                     String pulsarRootDir,
                                     Boolean submittingInsidePod,
                                     Boolean installUserCodeDependencies,
@@ -112,6 +114,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.setPulsarDockerImageName(pulsarDockerImageName);
         } else {
             this.kubernetesInfo.setPulsarDockerImageName("apachepulsar/pulsar");
+        }
+        if (!isEmpty(imagePullPolicy)) {
+            this.kubernetesInfo.setImagePullPolicy(imagePullPolicy);
+        } else {
+            this.kubernetesInfo.setImagePullPolicy("IfNotPresent");
         }
         if (!isEmpty(pulsarRootDir)) {
             this.kubernetesInfo.setPulsarRootDir(pulsarRootDir);
@@ -176,6 +183,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPythonDependencyRepository(),
             this.kubernetesInfo.getPythonExtraDependencyRepository(),
             this.kubernetesInfo.getPulsarDockerImageName(),
+            this.kubernetesInfo.imagePullPolicy,
             this.kubernetesInfo.getPulsarRootDir(),
             instanceConfig,
             instanceFile,
