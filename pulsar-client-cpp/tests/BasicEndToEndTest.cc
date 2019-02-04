@@ -2782,7 +2782,7 @@ TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string subsName = "my-only-sub";
-    std::string topicName = "persistent://public/default/test-prevent-dup-consumers";
+    std::string topicName = "persistent://public/default/testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe";
     ConsumerConfiguration consumerConf;
     consumerConf.setConsumerType(ConsumerShared);
 
