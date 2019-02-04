@@ -18,8 +18,9 @@
  */
 #include "NamedEntity.h"
 
-const boost::regex NamedEntity::pattern = boost::regex("^[-=:.\\w]*$");
+#include <regex>
 
 bool NamedEntity::checkName(const std::string& name) {
-    return boost::regex_match(name, pattern) ? true : false;
+    static const std::regex pattern = std::regex("^[-=:.\\w]*$");
+    return std::regex_match(name, pattern) ? true : false;
 }
