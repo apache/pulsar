@@ -36,7 +36,6 @@
 #include "Commands.h"
 #include "LogUtils.h"
 #include "ObjectPool.h"
-#include <boost/bind.hpp>
 #include "ExecutorService.h"
 #include <boost/asio.hpp>
 #include "ProducerImpl.h"
@@ -52,7 +51,7 @@ class BatchMessageContainer {
         SendCallback sendCallback_;
     };
     typedef std::vector<MessageContainer> MessageContainerList;
-    typedef boost::shared_ptr<MessageContainerList> MessageContainerListPtr;
+    typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;
 
     BatchMessageContainer(ProducerImpl& producer);
 

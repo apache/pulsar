@@ -60,11 +60,13 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Utils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -115,6 +117,7 @@ class KubernetesRuntime implements Runtime {
     private final String jobNamespace;
     private final Map<String, String> customLabels;
     private final String pulsarDockerImageName;
+    private final String imagePullPolicy;
     private final String pulsarRootDir;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
@@ -131,6 +134,7 @@ class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
@@ -150,6 +154,7 @@ class KubernetesRuntime implements Runtime {
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
         this.pulsarDockerImageName = pulsarDockerImageName;
+        this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
@@ -546,6 +551,23 @@ class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
+        Utils.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
+        String component;
+        switch (componentType) {
+            case FUNCTION:
+                component = "function";
+                break;
+            case SOURCE:
+                component = "source";
+                break;
+            case SINK:
+                component = "sink";
+                break;
+            default:
+                component = "function";
+                break;
+        }
+        labels.put("component", component);
         labels.put("namespace", functionDetails.getNamespace());
         labels.put("tenant", functionDetails.getTenant());
         labels.put("name", functionDetails.getName());
@@ -595,6 +617,7 @@ class KubernetesRuntime implements Runtime {
 
         // set up the container images
         container.setImage(pulsarDockerImageName);
+        container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
         container.setCommand(instanceCommand);

@@ -38,7 +38,7 @@ class AuthDataAthenz : public AuthenticationDataProvider {
     ~AuthDataAthenz();
 
    private:
-    boost::shared_ptr<ZTSClient> ztsClient_;
+    std::shared_ptr<ZTSClient> ztsClient_;
 };
 
 }  // namespace pulsar

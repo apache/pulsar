@@ -20,6 +20,8 @@
 #include <pulsar/Client.h>
 #include <lib/Latch.h>
 #include "ConsumerTest.h"
+#include <functional>
+
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
@@ -91,7 +93,8 @@ TEST(ZeroQueueSizeTest, testMessageListener) {
     ConsumerConfiguration consConfig;
     consConfig.setReceiverQueueSize(0);
     Latch latch(totalMessages);
-    consConfig.setMessageListener(boost::bind(messageListenerFunction, _1, _2, latch));
+    consConfig.setMessageListener(
+        std::bind(messageListenerFunction, std::placeholders::_1, std::placeholders::_2, latch));
     result = client.subscribe(topicName, subName, consConfig, consumer);
     ASSERT_EQ(ResultOk, result);
 
@@ -105,7 +108,7 @@ TEST(ZeroQueueSizeTest, testMessageListener) {
         ASSERT_EQ(ResultOk, result);
     }
 
-    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
     ASSERT_EQ(globalCount, totalMessages);
 
     consumer.unsubscribe();

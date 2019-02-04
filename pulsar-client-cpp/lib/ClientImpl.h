@@ -24,8 +24,7 @@
 #include "BinaryProtoLookupService.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <lib/TopicName.h>
 #include "ProducerImplBase.h"
 #include "ConsumerImplBase.h"
@@ -36,16 +35,16 @@ namespace pulsar {
 
 class ClientImpl;
 class PulsarFriend;
-typedef boost::shared_ptr<ClientImpl> ClientImplPtr;
-typedef boost::weak_ptr<ClientImpl> ClientImplWeakPtr;
+typedef std::shared_ptr<ClientImpl> ClientImplPtr;
+typedef std::weak_ptr<ClientImpl> ClientImplWeakPtr;
 
 class ReaderImpl;
-typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
-typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
+typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
+typedef std::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
 const std::string generateRandomName();
 
-class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
+class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
    public:
     ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                bool poolConnections);
@@ -111,7 +110,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerWeakPtr,
                                SubscribeCallback callback, ConsumerImplBasePtr consumer);
 
-    typedef boost::shared_ptr<int> SharedInt;
+    typedef std::shared_ptr<int> SharedInt;
 
     void handleClose(Result result, SharedInt remaining, ResultCallback callback);
 
@@ -126,7 +125,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
         Closed
     };
 
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     State state_;
     std::string serviceUrl_;
@@ -151,9 +150,6 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
 
     friend class Client;
 };
-
-typedef boost::shared_ptr<ClientImpl> ClientImplPtr;
-
 } /* namespace pulsar */
 
 #endif /* LIB_CLIENTIMPL_H_ */

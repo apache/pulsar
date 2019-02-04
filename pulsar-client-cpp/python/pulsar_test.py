@@ -28,6 +28,8 @@ from pulsar import Client, MessageId, \
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
+from schema_test import *
+
 try:
     # For Python 3.0 and later
     from urllib.request import urlopen, Request
@@ -472,7 +474,7 @@ class PulsarTest(TestCase):
 
         content = 'test'.encode('utf-8')
 
-        self._check_value_error(lambda: producer.send(5))
+        self._check_type_error(lambda: producer.send(5))
         self._check_value_error(lambda: producer.send(content, properties='test'))
         self._check_value_error(lambda: producer.send(content, partition_key=5))
         self._check_value_error(lambda: producer.send(content, sequence_id='test'))
@@ -832,6 +834,30 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello')
         client.close()
 
+    def test_producer_consumer_zstd(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-producer-consumer-zstd',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-producer-consumer-zstd',
+                                          compression_type=CompressionType.ZSTD)
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    #####
+
     def test_get_topic_name(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('persistent://public/default/topic_name_test',
@@ -865,14 +891,20 @@ class PulsarTest(TestCase):
         self.assertTrue(msg.topic_name() in partitions)
         client.close()
 
-#####
-
     def _check_value_error(self, fun):
         try:
             fun()
             # Should throw exception
             self.assertTrue(False)
         except ValueError:
+            pass  # Expected
+
+    def _check_type_error(self, fun):
+        try:
+            fun()
+            # Should throw exception
+            self.assertTrue(False)
+        except TypeError:
             pass  # Expected
 
 

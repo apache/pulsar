@@ -32,6 +32,8 @@ workerPortTls: 6751
 
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
+# Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
+# jvmGCMetricsLoggerClassName: 
 
 #################################################################
 # Function metadata managment (assignment, scheduling, and etc)
@@ -53,6 +55,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Number of threads to use for HTTP requests processing. Default is set to 8
+numHttpServerThreads: 8
 
 # function assignment and scheduler
 

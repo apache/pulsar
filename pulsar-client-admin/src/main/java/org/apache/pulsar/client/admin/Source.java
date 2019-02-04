@@ -264,6 +264,40 @@ public interface Source {
     void stopSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
+     * Start source instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @param instanceId
+     *            Source instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSource(String tenant, String namespace, String source, int instanceId) throws PulsarAdminException;
+
+    /**
+     * Start all source instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSource(String tenant, String namespace, String source) throws PulsarAdminException;
+
+
+    /**
      * Fetches a list of supported Pulsar IO sources currently running in cluster mode
      *
      * @throws PulsarAdminException

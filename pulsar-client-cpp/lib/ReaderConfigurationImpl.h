@@ -20,7 +20,6 @@
 #define LIB_READERCONFIGURATIONIMPL_H_
 
 #include <pulsar/ReaderConfiguration.h>
-#include <boost/make_shared.hpp>
 
 namespace pulsar {
 struct ReaderConfigurationImpl {

@@ -260,6 +260,37 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     }
 
     @POST
+    @ApiOperation(value = "Start function instance", response = Void.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startFunction(final @PathParam("tenant") String tenant,
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("functionName") String functionName,
+                              final @PathParam("instanceId") String instanceId) {
+        functions.startFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
+    }
+
+    @POST
+    @ApiOperation(value = "Start all function instances", response = Void.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startFunction(final @PathParam("tenant") String tenant,
+                              final @PathParam("namespace") String namespace,
+                              final @PathParam("functionName") String functionName) {
+        functions.startFunctionInstances(tenant, namespace, functionName);
+    }
+
+    @POST
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
