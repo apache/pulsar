@@ -20,9 +20,7 @@
 #include <pulsar/Client.h>
 #include <lib/LogUtils.h>
 #include <lib/Commands.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "PulsarFriend.h"
@@ -31,6 +29,8 @@
 #include <lib/Latch.h>
 #include <lib/PartitionedConsumerImpl.h>
 #include <lib/TopicName.h>
+
+#include <functional>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
@@ -91,8 +91,9 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
     }
 
     LOG_DEBUG("Calling consumer.getBrokerConsumerStats");
-    consumer.getBrokerConsumerStatsAsync(
-        boost::bind(simpleCallbackFunction, _1, _2, ResultOk, numOfMessages, ConsumerExclusive));
+    consumer.getBrokerConsumerStatsAsync(std::bind(simpleCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, ResultOk, numOfMessages,
+                                                   ConsumerExclusive));
 
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
         std::string messageContent = prefix + std::to_string(i);
@@ -281,7 +282,8 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
 
     // Expecting return from 4 callbacks
     Latch latch(4);
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
 
     // Now we have 10 messages per partition
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
@@ -291,11 +293,13 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting cached result
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
 
     usleep(4.5 * 1000 * 1000);
     // Expecting fresh results
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 2));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 2));
 
     Message msg;
     while (consumer.receive(msg)) {
@@ -303,8 +307,9 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting the backlog to be the same since we didn't acknowledge the messages
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 3));
 
     // Wait for ten seconds only
-    ASSERT_TRUE(latch.wait(milliseconds(10 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(10)));
 }

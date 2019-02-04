@@ -131,6 +131,7 @@ public class KubernetesRuntimeFactoryTest {
             null,
             null,
             null,
+            null,
             pulsarRootDir,
             false,
             true,

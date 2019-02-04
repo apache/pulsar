@@ -140,6 +140,7 @@ public class KubernetesRuntimeTest {
             null,
             null,
             null,
+            null,
             pulsarRootDir,
             false,
             true,

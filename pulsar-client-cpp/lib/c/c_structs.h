@@ -22,7 +22,7 @@
 #include <pulsar/Client.h>
 
 #include <memory>
-#include <boost/bind.hpp>
+#include <functional>
 
 struct _pulsar_client {
     std::unique_ptr<pulsar::Client> client;

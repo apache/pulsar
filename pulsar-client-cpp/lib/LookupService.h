@@ -25,6 +25,8 @@
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 
+#include <vector>
+
 namespace pulsar {
 typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 typedef Promise<Result, NamespaceTopicsPtr> NamespaceTopicsPromise;

@@ -12,7 +12,7 @@ Pulsar relies on two external systems for essential tasks:
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
 
 > Skip to the [How Pulsar uses ZooKeeper and BookKeeper](#how-pulsar-uses-zookeeper-and-bookkeeper) section below for a more schematic explanation of the role of these two systems in Pulsar.
-' %}
+
 
 ## ZooKeeper
 
@@ -25,7 +25,7 @@ Each Pulsar instance relies on two separate ZooKeeper quorums.
 
 ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.
 
-Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster *per Pulsar cluster*. 
+Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster *per Pulsar cluster*.
 
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. Here's an example for a three-node cluster:
 
@@ -55,7 +55,7 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 $ bin/pulsar-daemon start zookeeper
 ```
 
-### Deploying the configuration store {#configuration-store}
+### Deploying configuration store
 
 The ZooKeeper cluster configured and started up in the section above is a *local* ZooKeeper cluster used to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
 
@@ -231,6 +231,8 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 # Change the ledger manager type
 ledgerManagerType=hierarchical
 ```
+
+To change the zookeeper root path used by Bookkeeper, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
 
 > Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
 

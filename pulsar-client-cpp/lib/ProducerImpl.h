@@ -19,7 +19,7 @@
 #ifndef LIB_PRODUCERIMPL_H_
 #define LIB_PRODUCERIMPL_H_
 
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <boost/date_time/posix_time/ptime.hpp>
 
 #include "ClientImpl.h"
@@ -133,7 +133,7 @@ class ProducerImpl : public HandlerBase,
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
 
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
 
     ProducerConfiguration conf_;
 
