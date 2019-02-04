@@ -21,6 +21,7 @@ to a Pulsar topic.
 | heartbeatIntervalMs | `false` | `3000` | The interval between heartbeats to the consumer when using Kafka's group management facilities. |
 | sessionTimeoutMs | `false` | `30000` | The timeout used to detect consumer failures when using Kafka's group management facility. |
 | topic | `true` | `null` | Topic name to receive records from Kafka. |
+| consumerConfigProperties | `false` | `null` | The consumer config properties to be passed to Consumer. Note that other properties specified in the connector config file take precedence over this config. |
 | keyDeserializationClass | `false` | `org.apache.kafka.common.serialization.StringDeserializer` | Deserializer class for key that implements the org.apache.kafka.common.serialization.Deserializer interface. |
 | valueDeserializationClass | `false` | `org.apache.kafka.common.serialization.ByteArrayDeserializer` | Deserializer class for value that implements the org.apache.kafka.common.serialization.Deserializer interface. |
 
@@ -38,5 +39,6 @@ to a Kafka topic.
 | batchSize | `false` | `16384` | The kafka producer batch size. |
 | maxRequestSize | `false` | `1048576` | The maximum size of a request in bytes. |
 | topic | `true` | `null` | Topic name to receive records from Kafka. |
+| producerConfigProperties | `false` | `null` | The producer config properties to be passed to Producer. Note that other properties specified in the connector config file take precedence over this config. |
 | keySerializerClass | `false` | `org.apache.kafka.common.serialization.StringSerializer` | Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface. |
 | valueSerializerClass | `false` | `org.apache.kafka.common.serialization.ByteArraySerializer` | Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface. |
