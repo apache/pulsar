@@ -24,11 +24,11 @@ DECLARE_LOG_OBJECT()
 #include <iostream>
 #include <fstream>
 #include <mutex>
+#include <functional>
 
 using namespace std::chrono;
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/accumulators/accumulators.hpp>
@@ -205,7 +205,7 @@ void startPerfConsumer(const Arguments& args) {
             }
 
             client.subscribeAsync(topic, subscriberName, consumerConf,
-                                  boost::bind(handleSubscribe, _1, _2, latch));
+                                  std::bind(handleSubscribe, std::placeholders::_1, std::placeholders::_2, latch));
         }
     }
 

@@ -64,6 +64,7 @@ public class CmdSinks extends CmdBase {
     private final GetSink getSink;
     private final GetSinkStatus getSinkStatus;
     private final StopSink stopSink;
+    private final StartSink startSink;
     private final RestartSink restartSink;
     private final LocalSinkRunner localSinkRunner;
 
@@ -76,6 +77,7 @@ public class CmdSinks extends CmdBase {
         getSink = new GetSink();
         getSinkStatus = new GetSinkStatus();
         stopSink = new StopSink();
+        startSink = new StartSink();
         restartSink = new RestartSink();
         localSinkRunner = new LocalSinkRunner();
 
@@ -87,6 +89,7 @@ public class CmdSinks extends CmdBase {
         // TODO deprecate getstatus
         jcommander.addCommand("status", getSinkStatus, "getstatus");
         jcommander.addCommand("stop", stopSink);
+        jcommander.addCommand("start", startSink);
         jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
         jcommander.addCommand("available-sinks", new ListBuiltInSinks());
@@ -575,7 +578,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Temporary stops sink instance. (If worker restarts then it reassigns and starts sink again")
+    @Parameters(commandDescription = "Stops sink instance")
     class StopSink extends SinkCommand {
 
         @Parameter(names = "--instance-id", description = "The sink instanceId (stop all instances if instance-id is not provided")
@@ -592,7 +595,28 @@ public class CmdSinks extends CmdBase {
             } else {
                 admin.sink().stopSink(tenant, namespace, sinkName);
             }
-            System.out.println("Restarted successfully");
+            System.out.println("Stopped successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Starts sink instance")
+    class StartSink extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (start all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.sink().startSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.sink().startSink(tenant, namespace, sinkName);
+            }
+            System.out.println("Started successfully");
         }
     }
 

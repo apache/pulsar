@@ -37,7 +37,6 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     void clear();
 
    private:
-    void timeoutHandler(const boost::system::error_code& ec);
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();

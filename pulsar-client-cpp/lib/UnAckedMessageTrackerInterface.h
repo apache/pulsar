@@ -26,7 +26,6 @@
 #include "pulsar/MessageId.h"
 #include "lib/ClientImpl.h"
 #include "lib/ConsumerImplBase.h"
-#include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <lib/LogUtils.h>
 #include "lib/PulsarApi.pb.h"

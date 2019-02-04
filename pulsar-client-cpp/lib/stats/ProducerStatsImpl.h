@@ -33,7 +33,6 @@
 #include <boost/accumulators/statistics.hpp>
 #include <boost/accumulators/framework/accumulator_set.hpp>
 #include <boost/accumulators/statistics/extended_p_square.hpp>
-#include <boost/array.hpp>
 
 #include <boost/date_time/local_time/local_time.hpp>
 #include <memory>
@@ -41,7 +40,6 @@
 #include <iostream>
 #include <vector>
 #include <lib/Utils.h>
-#include <boost/bind.hpp>
 #include <lib/stats/ProducerStatsBase.h>
 
 namespace pulsar {

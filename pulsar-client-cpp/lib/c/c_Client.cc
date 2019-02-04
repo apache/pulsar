@@ -19,8 +19,6 @@
 
 #include <pulsar/c/client.h>
 
-#include <boost/bind.hpp>
-
 #include "c_structs.h"
 
 pulsar_client_t *pulsar_client_create(const char *serviceUrl,
@@ -61,7 +59,8 @@ void pulsar_client_create_producer_async(pulsar_client_t *client, const char *to
                                          const pulsar_producer_configuration_t *conf,
                                          pulsar_create_producer_callback callback, void *ctx) {
     client->client->createProducerAsync(topic, conf->conf,
-                                        boost::bind(&handle_create_producer_callback, _1, _2, callback, ctx));
+                                        std::bind(&handle_create_producer_callback, std::placeholders::_1,
+                                                  std::placeholders::_2, callback, ctx));
 }
 
 pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic,
@@ -94,8 +93,9 @@ static void handle_subscribe_callback(pulsar::Result result, pulsar::Consumer co
 void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, const char *subscriptionName,
                                    const pulsar_consumer_configuration_t *conf,
                                    pulsar_subscribe_callback callback, void *ctx) {
-    client->client->subscribeAsync(topic, subscriptionName, conf->consumerConfiguration,
-                                   boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
+    client->client->subscribeAsync(
+        topic, subscriptionName, conf->consumerConfiguration,
+        std::bind(&handle_subscribe_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
 }
 
 void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics, int topicsCount,
@@ -107,16 +107,18 @@ void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const c
         topicsList.push_back(topics[i]);
     }
 
-    client->client->subscribeAsync(topicsList, subscriptionName, conf->consumerConfiguration,
-                                   boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
+    client->client->subscribeAsync(
+        topicsList, subscriptionName, conf->consumerConfiguration,
+        std::bind(&handle_subscribe_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
 }
 
 void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
                                            const char *subscriptionName,
                                            const pulsar_consumer_configuration_t *conf,
                                            pulsar_subscribe_callback callback, void *ctx) {
-    client->client->subscribeWithRegexAsync(topicPattern, subscriptionName, conf->consumerConfiguration,
-                                            boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
+    client->client->subscribeWithRegexAsync(
+        topicPattern, subscriptionName, conf->consumerConfiguration,
+        std::bind(&handle_subscribe_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
 }
 
 pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *topic,
@@ -148,8 +150,9 @@ void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topi
                                        const pulsar_message_id_t *startMessageId,
                                        pulsar_reader_configuration_t *conf, pulsar_reader_callback callback,
                                        void *ctx) {
-    client->client->createReaderAsync(topic, startMessageId->messageId, conf->conf,
-                                      boost::bind(&handle_reader_callback, _1, _2, callback, ctx));
+    client->client->createReaderAsync(
+        topic, startMessageId->messageId, conf->conf,
+        std::bind(&handle_reader_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
 }
 
 pulsar_result pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
@@ -188,7 +191,8 @@ static void handle_get_partitions_callback(pulsar::Result result,
 void pulsar_client_get_topic_partitions_async(pulsar_client_t *client, const char *topic,
                                               pulsar_get_partitions_callback callback, void *ctx) {
     client->client->getPartitionsForTopicAsync(
-        topic, boost::bind(&handle_get_partitions_callback, _1, _2, callback, ctx));
+        topic, std::bind(&handle_get_partitions_callback, std::placeholders::_1, std::placeholders::_2,
+                         callback, ctx));
 }
 
 pulsar_result pulsar_client_close(pulsar_client_t *client) { return (pulsar_result)client->client->close(); }
@@ -198,5 +202,5 @@ static void handle_client_close(pulsar::Result result, pulsar_close_callback cal
 }
 
 void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback, void *ctx) {
-    client->client->closeAsync(boost::bind(handle_client_close, _1, callback, ctx));
+    client->client->closeAsync(std::bind(handle_client_close, std::placeholders::_1, callback, ctx));
 }
