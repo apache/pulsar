@@ -109,11 +109,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
             producerConfig.ignore(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
         }
 
-        if (producerConfig.getString(ProducerConfig.PARTITIONER_CLASS_CONFIG) != null) {
-            partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
+        partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
+        if (partitioner != null) {
             partitioner.configure(producerConfig.originals());
-        } else {
-            partitioner = null;
         }
 
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
@@ -224,6 +222,10 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     @Override
     public void close() {
         close(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+
+        if (partitioner != null) {
+            partitioner.close();
+        }
     }
 
     @Override
