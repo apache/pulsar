@@ -240,7 +240,7 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    void start() throws Exception {
+    public void start() throws Exception {
 
         if (config == null) {
             System.exit(1);
