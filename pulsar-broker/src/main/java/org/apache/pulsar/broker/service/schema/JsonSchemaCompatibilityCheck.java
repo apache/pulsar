@@ -27,6 +27,7 @@ import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -75,10 +76,8 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
     }
 
     private boolean isCompatibleAvroSchema(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        Schema.Parser fromParser = new Schema.Parser();
-        Schema fromSchema = fromParser.parse(new String(from.getData()));
-        Schema.Parser toParser = new Schema.Parser();
-        Schema toSchema =  toParser.parse(new String(to.getData()));
+        Schema fromSchema = AvroSchemaParser.parseSchema(from.getData());
+        Schema toSchema = AvroSchemaParser.parseSchema(to.getData());
 
         SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
         try {
@@ -89,17 +88,9 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         return true;
     }
 
-    private ObjectMapper objectMapper;
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
-    }
-
     private boolean isCompatibleJsonSchema(SchemaData from, SchemaData to) {
         try {
-            ObjectMapper objectMapper = getObjectMapper();
+            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             JsonSchema fromSchema = objectMapper.readValue(from.getData(), JsonSchema.class);
             JsonSchema toSchema = objectMapper.readValue(to.getData(), JsonSchema.class);
             return fromSchema.getId().equals(toSchema.getId());
@@ -110,9 +101,7 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
     private boolean isAvroSchema(SchemaData schemaData) {
         try {
-
-            Schema.Parser fromParser = new Schema.Parser();
-            Schema fromSchema = fromParser.parse(new String(schemaData.getData()));
+            Schema fromSchema = AvroSchemaParser.parseSchema(schemaData.getData());
             return true;
         } catch (SchemaParseException e) {
             return false;
@@ -120,7 +109,7 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
     }
 
     private boolean isJsonSchema(SchemaData schemaData) {
-        ObjectMapper objectMapper = getObjectMapper();
+        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         try {
             JsonSchema fromSchema = objectMapper.readValue(schemaData.getData(), JsonSchema.class);
             return true;

@@ -32,6 +32,11 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                     ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData1 = getSchemaData(schemaJson1);
 
+    private static final String schemaJson1_differentNamespace =
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema.XYZ" +
+                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+    private static final SchemaData schemaData1_differentNamespace = getSchemaData(schemaJson1_differentNamespace);
+
     private static final String schemaJson2 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
                     ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
@@ -155,7 +160,16 @@ public abstract class BaseAvroSchemaCompatibilityTest {
         Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData1,
                                                                  SchemaCompatibilityStrategy.FULL),
                 "adding a field without default is not fully compatible");
+    }
 
+    /**
+     * Make sure the new schema is compatible even if the namespace specified is different
+     */
+    @Test
+    public void testIgnoringNamespace() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData1_differentNamespace,
+                SchemaCompatibilityStrategy.FULL),  "using different namespace is fully compatible");
     }
 
     private static SchemaData getSchemaData(String schemaJson) {

@@ -22,17 +22,20 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
+import org.apache.avro.reflect.AvroIgnore;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 
 import java.util.Arrays;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
-    private final static Logger log = LoggerFactory.getLogger(AvroSchemaCompatibilityCheck.class);
 
     @Override
     public SchemaType getSchemaType() {
@@ -41,10 +44,8 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        Schema.Parser fromParser = new Schema.Parser();
-        Schema fromSchema = fromParser.parse(new String(from.getData()));
-        Schema.Parser toParser = new Schema.Parser();
-        Schema toSchema =  toParser.parse(new String(to.getData()));
+        Schema fromSchema = AvroSchemaParser.parseSchema(from.getData());
+        Schema toSchema =  AvroSchemaParser.parseSchema(to.getData());
 
         SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
         try {
