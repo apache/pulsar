@@ -425,6 +425,99 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    public void testReassignment() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+        workerConfig.setStateStorageServiceUrl("foo");
+
+        PulsarClient pulsarClient = mock(PulsarClient.class);
+        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(pulsarClient).newReader();
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
+        doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+
+        // test new assignment update functions
+        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+                workerConfig,
+                workerService,
+                mock(Namespace.class),
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class),
+                mock(FunctionMetaDataManager.class)));
+
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+
+
+        Function.Assignment assignment1 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-1")
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
+
+        /** Test transfer from me to other worker **/
+
+        // add existing assignments
+        functionRuntimeManager.setAssignment(assignment1);
+        reset(functionRuntimeManager);
+
+        // new assignment with different worker
+        Function.Assignment assignment2 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-2")
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
+
+        FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo().setFunctionInstance(
+                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                        .build());
+        functionRuntimeManager.functionRuntimeInfoMap.put(
+                "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
+
+        functionRuntimeManager.processAssignment(assignment2);
+
+        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), null);
+
+        /** Test transfer from other worker to me **/
+        reset(functionRuntimeManager);
+
+        Function.Assignment assignment3 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-1")
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
+
+        functionRuntimeManager.processAssignment(assignment3);
+
+        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-2"), null);
+
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
+    }
+
+    @Test
     public void testRuntimeManagerInitialize() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -602,7 +695,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment2);
 
         // make sure nothing is called
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
 
@@ -621,7 +714,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment3);
 
         // make sure nothing is called
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
 
