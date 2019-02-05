@@ -371,19 +371,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If enabled, the consumer will auto subscribe for partitions increasement.
-     * This is only for partitioned consumer and multi-topics consumer.
+     * This is only for partitioned consumer.
      *
      * @param autoUpdate
      *            whether to auto update partition increasement
      */
-    ConsumerBuilder<T> trackPartitionUpdate(boolean autoUpdate);
-
-    /**
-     * Set topics auto update period when setting {@link #trackPartitionUpdate(boolean)} to true for topics consumer.
-     * The period is in minute, and default and minimum value is 1 minute.
-     *
-     * @param periodInMinutes
-     *            number of minutes between checks for topic partitions update
-     */
-    ConsumerBuilder<T> partitionAutoUpdatePeriod(int periodInMinutes);
+    ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 }

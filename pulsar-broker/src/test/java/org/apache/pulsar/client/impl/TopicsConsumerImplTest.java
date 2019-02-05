@@ -709,7 +709,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
-            .trackPartitionUpdate(true)
+            .autoUpdatePartitions(true)
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
@@ -735,7 +735,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName1, 3);
         admin.topics().updatePartitionedTopic(topicName2, 3);
 
-        // 4. trigger partitionsAutoUpdate. this should be done automatically, this is to save time to manually trigger.
+        // 4. trigger partitionsAutoUpdate. this should be done automatically in 1 minutes,
+        // this is to save time to manually trigger.
         log.info("trigger partitionsAutoUpdateTimerTask");
         Timeout timeout = topicsConsumer.getPartitionsAutoUpdateTimeout();
         timeout.task().run(timeout);

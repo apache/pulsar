@@ -256,14 +256,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
     @Override
-    public ProducerBuilder<T> trackPartitionUpdate(boolean autoUpdate) {
+    public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setTrackPartitionUpdate(autoUpdate);
-        return this;
-    }
-
-    @Override
-    public ProducerBuilder<T> partitionAutoUpdatePeriod(int periodInMinutes) {
-        conf.setPartitionAutoUpdatePeriod(periodInMinutes);
         return this;
     }
 

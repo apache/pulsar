@@ -294,14 +294,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> trackPartitionUpdate(boolean autoUpdate) {
+    public ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setTrackPartitionUpdate(autoUpdate);
-        return this;
-    }
-
-    @Override
-    public ConsumerBuilder<T> partitionAutoUpdatePeriod(int periodInMinutes) {
-        conf.setPartitionAutoUpdatePeriod(periodInMinutes);
         return this;
     }
 

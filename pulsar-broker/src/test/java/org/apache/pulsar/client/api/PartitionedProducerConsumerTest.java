@@ -696,15 +696,13 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
             .enableBatching(false)
-            .trackPartitionUpdate(true)
-            .partitionAutoUpdatePeriod(10) // set 10 minutes, so will not auto trigger.
+            .autoUpdatePartitions(true)
             .create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
             .subscriptionName("my-partitioned-subscriber")
             .subscriptionType(SubscriptionType.Shared)
-            .trackPartitionUpdate(true)
-            .partitionAutoUpdatePeriod(10) // set 10 minutes, so will not auto trigger.
+            .autoUpdatePartitions(true)
             .subscribe();
 
         // 1. produce and consume 2 partitions

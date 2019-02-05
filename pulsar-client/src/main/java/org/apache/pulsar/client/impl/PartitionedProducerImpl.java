@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.Collection;
@@ -32,9 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -49,8 +48,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
@@ -82,8 +79,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         // start track and auto subscribe partition increasement
         if (conf.isTrackPartitionUpdate()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
-            partitionsAutoUpdateTimeout = client.timer().newTimeout(partitionsAutoUpdateTimerTask,
-                Math.min(1, conf.getPartitionAutoUpdatePeriod()), TimeUnit.MINUTES);
+            partitionsAutoUpdateTimeout = client.timer()
+                .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);
         }
     }
 
@@ -279,9 +276,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 return future;
             }
 
-            client.getLookup().getPartitionedTopicMetadata(TopicName.get(topic)).thenCompose(metadata -> {
+            client.getPartitionsForTopic(topic).thenCompose(list -> {
                 int oldPartitionNumber = topicMetadata.numPartitions();
-                int currentPartitionNumber = metadata.partitions;
+                int currentPartitionNumber = list.size();
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] partitions number. old: {}, new: {}",
@@ -293,19 +290,18 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                     future.complete(null);
                     return future;
                 } else if (oldPartitionNumber < currentPartitionNumber) {
-                    List<CompletableFuture<Producer<T>>> futureList = IntStream
-                        .range(oldPartitionNumber, currentPartitionNumber)
-                        .mapToObj(
-                            partitionIndex -> {
-                                String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-                                ProducerImpl<T> producer =
-                                    new ProducerImpl<>(client,
-                                        partitionName, conf, new CompletableFuture<>(),
-                                        partitionIndex, schema, interceptors);
-                                producers.add(producer);
-                                return producer.producerCreatedFuture();
-                            })
-                        .collect(Collectors.toList());
+                    List<CompletableFuture<Producer<T>>> futureList = list
+                        .subList(oldPartitionNumber, currentPartitionNumber)
+                        .stream()
+                        .map(partitionName -> {
+                            int partitionIndex = TopicName.getPartitionIndex(partitionName);
+                            ProducerImpl<T> producer =
+                                new ProducerImpl<>(client,
+                                    partitionName, conf, new CompletableFuture<>(),
+                                    partitionIndex, schema, interceptors);
+                            producers.add(producer);
+                            return producer.producerCreatedFuture();
+                        }).collect(Collectors.toList());
 
                     FutureUtil.waitForAll(futureList)
                         .thenAccept(finalFuture -> {
@@ -356,8 +352,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             }
 
             // schedule the next re-check task
-            partitionsAutoUpdateTimeout = client.timer().newTimeout(partitionsAutoUpdateTimerTask,
-                Math.min(1, conf.getPartitionAutoUpdatePeriod()), TimeUnit.MINUTES);
+            partitionsAutoUpdateTimeout = client.timer()
+                .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);
         }
     };
 
