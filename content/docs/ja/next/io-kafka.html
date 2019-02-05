@@ -36,6 +36,7 @@
 <tr><td>heartbeatIntervalMs</td><td><code>false</code></td><td><code>3000</code></td><td>The interval between heartbeats to the consumer when using Kafka's group management facilities.</td></tr>
 <tr><td>sessionTimeoutMs</td><td><code>false</code></td><td><code>30000</code></td><td>The timeout used to detect consumer failures when using Kafka's group management facility.</td></tr>
 <tr><td>topic</td><td><code>true</code></td><td><code>null</code></td><td>Topic name to receive records from Kafka.</td></tr>
+<tr><td>consumerConfigProperties</td><td><code>false</code></td><td><code>null</code></td><td>The consumer config properties to be passed to Consumer. Note that other properties specified in the connector config file take precedence over this config.</td></tr>
 <tr><td>keyDeserializationClass</td><td><code>false</code></td><td><code>org.apache.kafka.common.serialization.StringDeserializer</code></td><td>Deserializer class for key that implements the org.apache.kafka.common.serialization.Deserializer interface.</td></tr>
 <tr><td>valueDeserializationClass</td><td><code>false</code></td><td><code>org.apache.kafka.common.serialization.ByteArrayDeserializer</code></td><td>Deserializer class for value that implements the org.apache.kafka.common.serialization.Deserializer interface.</td></tr>
 </tbody>
@@ -53,6 +54,7 @@
 <tr><td>batchSize</td><td><code>false</code></td><td><code>16384</code></td><td>The kafka producer batch size.</td></tr>
 <tr><td>maxRequestSize</td><td><code>false</code></td><td><code>1048576</code></td><td>The maximum size of a request in bytes.</td></tr>
 <tr><td>topic</td><td><code>true</code></td><td><code>null</code></td><td>Topic name to receive records from Kafka.</td></tr>
+<tr><td>producerConfigProperties</td><td><code>false</code></td><td><code>null</code></td><td>The producer config properties to be passed to Producer. Note that other properties specified in the connector config file take precedence over this config.</td></tr>
 <tr><td>keySerializerClass</td><td><code>false</code></td><td><code>org.apache.kafka.common.serialization.StringSerializer</code></td><td>Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface.</td></tr>
 <tr><td>valueSerializerClass</td><td><code>false</code></td><td><code>org.apache.kafka.common.serialization.ByteArraySerializer</code></td><td>Serializer class for value that implements the org.apache.kafka.common.serialization.Serializer interface.</td></tr>
 </tbody>
