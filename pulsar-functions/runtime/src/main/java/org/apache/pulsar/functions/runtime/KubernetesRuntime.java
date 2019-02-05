@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -85,7 +86,8 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
  * The service abstraction is used for getting functionstatus.
  */
 @Slf4j
-class KubernetesRuntime implements Runtime {
+@VisibleForTesting
+public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;

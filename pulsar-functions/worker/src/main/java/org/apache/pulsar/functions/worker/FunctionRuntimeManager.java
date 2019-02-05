@@ -87,6 +87,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionAssignmentTailer functionAssignmentTailer;
 
+    @Setter
     private FunctionActioner functionActioner;
 
     @Getter
@@ -104,6 +105,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     boolean isInitializePhase = false;
 
     private final FunctionMetaDataManager functionMetaDataManager;
+
 
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager,
@@ -641,6 +643,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
                         FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
                         newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+                        RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
+                                assignment.getInstance(),
+                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                        newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+
                         this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                     } else {
                         deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
