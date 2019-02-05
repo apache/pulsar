@@ -909,7 +909,10 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge(message._message)
+        else:
+            self._consumer.acknowledge(message)
 
     def acknowledge_cumulative(self, message):
         """
@@ -924,7 +927,10 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge_cumulative(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge_cumulative(message._message)
+        else:
+            self._consumer.acknowledge_cumulative(message)
 
     def pause_message_listener(self):
         """
@@ -1036,7 +1042,9 @@ def _check_type_or_none(var_type, var, name):
 
 
 def _listener_wrapper(listener, schema):
-    def wrapper(c, msg):
+    def wrapper(consumer, msg):
+        c = Consumer()
+        c._consumer = consumer
         m = Message()
         m._message = msg
         m._schema = schema
