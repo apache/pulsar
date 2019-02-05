@@ -34,6 +34,7 @@ class RecordMeta(type):
         if name != 'Record':
             # Do not apply this logic to the base class itself
             dct['_fields'] = RecordMeta._get_fields(dct)
+            dct['_required'] = False
         return type.__new__(metacls, name, parents, dct)
 
     @classmethod
@@ -77,9 +78,11 @@ class Record(with_metaclass(RecordMeta, object)):
         }
 
         for name in sorted(cls._fields.keys()):
+            field = cls._fields[name]
+            field_type = field.schema() if field._required else ['null', field.schema()]
             schema['fields'].append({
                 'name': name,
-                'type': cls._fields[name].schema()
+                'type': field_type
             })
         return schema
 
@@ -97,10 +100,14 @@ class Record(with_metaclass(RecordMeta, object)):
     def __str__(self):
         return str(self.__dict__)
 
+    def type(self):
+        return str(self.__class__.__name__)
+
 
 class Field(object):
-    def __init__(self, default=None):
+    def __init__(self, default=None, required=False):
         self._default = default
+        self._required = required
 
     @abstractmethod
     def type(self):
@@ -163,6 +170,7 @@ class _Enum(Field):
         if not issubclass(enum_type, Enum):
             raise Exception(enum_type + " is not a valid Enum type")
         self.enum_type = enum_type
+        super(_Enum, self).__init__()
 
     def type(self):
         return 'enum'
@@ -179,6 +187,7 @@ class Array(Field):
     def __init__(self, array_type):
         _check_record_or_field(array_type)
         self.array_type = array_type
+        super(Array, self).__init__()
 
     def type(self):
         return 'array'
@@ -186,7 +195,7 @@ class Array(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'items': self.array_type.schema()
+            'items': self.array_type.type()
         }
 
 
@@ -194,6 +203,7 @@ class Map(Field):
     def __init__(self, value_type):
         _check_record_or_field(value_type)
         self.value_type = value_type
+        super(Map, self).__init__()
 
     def type(self):
         return 'map'
@@ -201,6 +211,5 @@ class Map(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'values': self.value_type.schema()
+            'values': self.value_type.type()
         }
-
