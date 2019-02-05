@@ -580,6 +580,8 @@ public class FunctionRuntimeManagerTest {
                         .setFunctionMetaData(function1).setInstanceId(0).build())
                 .build();
 
+        /** Test transfer from me to other worker **/
+
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
         reset(functionRuntimeManager);
@@ -591,10 +593,11 @@ public class FunctionRuntimeManagerTest {
                         .setFunctionMetaData(function1).setInstanceId(0).build())
                 .build();
 
+        FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo().setFunctionInstance(
+                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                        .build());
         functionRuntimeManager.functionRuntimeInfoMap.put(
-                "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
-                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                                .build()));
+                "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 
         functionRuntimeManager.processAssignment(assignment2);
 
@@ -606,5 +609,27 @@ public class FunctionRuntimeManagerTest {
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), null);
+
+        /** Test transfer from other worker to me **/
+
+        Function.Assignment assignment3 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-1")
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
+
+        functionRuntimeManager.processAssignment(assignment3);
+
+        // make sure nothing is called
+        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+                .get("worker-2"), null);
+
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
     }
 }
