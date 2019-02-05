@@ -226,7 +226,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             this.length = ledgerMetadataFormat.getLength();
             this.digestType = ledgerMetadataFormat.getDigestType();
             this.ctime = ledgerMetadataFormat.getCtime();
-            this.state = State.CLOSED; // should probably do something better
+            this.state = State.CLOSED;
             this.password = ledgerMetadataFormat.getPassword().toByteArray();
 
             if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {

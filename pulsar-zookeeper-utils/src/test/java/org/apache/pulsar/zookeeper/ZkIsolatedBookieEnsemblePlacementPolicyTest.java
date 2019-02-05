@@ -167,18 +167,15 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         } catch (BKNotEnoughBookiesException e) {
             // ok
         }
-        /*
         bookieToExclude = new HashSet<>();
         bookieToExclude.add(new BookieSocketAddress(BOOKIE1));
-        org.slf4j.LoggerFactory.getLogger(this.getClass()).info("IKDEBUG new ensemble", ensemble, BOOKIE5);
 
         ensemble = isolationPolicy.newEnsemble(1, 1, 1, Collections.emptyMap(), bookieToExclude).getResult();
-        org.slf4j.LoggerFactory.getLogger(this.getClass()).info("IKDEBUG ensemble {} bookie {}", ensemble, BOOKIE5);
         BookieSocketAddress chosenBookie = isolationPolicy.replaceBookie(1, 1, 1, Collections.emptyMap(),
-                ensemble, new BookieSocketAddress(BOOKIE5), new HashSet<>()).getResult();
+                ensemble, ensemble.get(0), new HashSet<>()).getResult();
         assertTrue(chosenBookie.equals(new BookieSocketAddress(BOOKIE1)));
 
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);*/
+        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test

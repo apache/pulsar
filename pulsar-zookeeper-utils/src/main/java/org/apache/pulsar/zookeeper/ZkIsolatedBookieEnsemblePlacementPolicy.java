@@ -117,7 +117,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             excludeBookies = new HashSet<BookieSocketAddress>();
         }
         excludeBookies.addAll(blacklistedBookies);
-        LOG.info("IKDEBUG excludes {}", excludeBookies);
         return super.newEnsemble(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, excludeBookies);
     }
 
