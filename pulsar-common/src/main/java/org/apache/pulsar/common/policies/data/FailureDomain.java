@@ -36,6 +36,11 @@ public class FailureDomain {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(brokers);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof FailureDomain) {
             FailureDomain other = (FailureDomain) obj;

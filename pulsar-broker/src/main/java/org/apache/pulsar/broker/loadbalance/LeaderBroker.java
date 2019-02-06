@@ -47,6 +47,11 @@ public class LeaderBroker {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(serviceUrl);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof LeaderBroker) {
             LeaderBroker other = (LeaderBroker) obj;

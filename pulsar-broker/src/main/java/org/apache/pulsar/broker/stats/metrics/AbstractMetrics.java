@@ -184,7 +184,7 @@ abstract class AbstractMetrics {
             double value;
 
             // example of key : "<metric_key>_0.0_0.5"
-            if (i == 0) {
+            if (i == 0 && boundaries.length > 0) {
                 bucketKey = String.format("%s_0.0_%1.1f", mkey, boundaries[i]);
             } else if (i < boundaries.length) {
                 bucketKey = String.format("%s_%1.1f_%1.1f", mkey, boundaries[i - 1], boundaries[i]);

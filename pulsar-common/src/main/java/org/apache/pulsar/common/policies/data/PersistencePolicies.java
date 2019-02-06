@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Objects;
+
 import com.google.common.base.MoreObjects;
 
 public class PersistencePolicies {
@@ -54,6 +56,11 @@ public class PersistencePolicies {
         return managedLedgerMaxMarkDeleteRate;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(bookkeeperEnsemble, bookkeeperWriteQuorum,
+                bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate);
+    }
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof PersistencePolicies) {

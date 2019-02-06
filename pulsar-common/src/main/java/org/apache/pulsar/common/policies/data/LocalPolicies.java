@@ -31,6 +31,11 @@ public class LocalPolicies {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(bundles);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof LocalPolicies) {
             LocalPolicies other = (LocalPolicies) obj;

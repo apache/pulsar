@@ -59,6 +59,11 @@ public class BundlesData {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(boundaries);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof BundlesData) {
             BundlesData other = (BundlesData) obj;

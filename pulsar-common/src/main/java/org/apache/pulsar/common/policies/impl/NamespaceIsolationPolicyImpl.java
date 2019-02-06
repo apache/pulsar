@@ -119,6 +119,12 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(namespaces, primary, secondary,
+                auto_failover_policy);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceIsolationPolicyImpl) {
             NamespaceIsolationPolicyImpl other = (NamespaceIsolationPolicyImpl) obj;

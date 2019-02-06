@@ -33,6 +33,12 @@ public class NamespaceIsolationData {
     public AutoFailoverPolicyData auto_failover_policy;
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(namespaces, primary, secondary,
+                auto_failover_policy);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceIsolationData) {
             NamespaceIsolationData other = (NamespaceIsolationData) obj;

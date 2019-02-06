@@ -66,6 +66,21 @@ public class Policies {
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
     @Override
+    public int hashCode() {
+        return Objects.hash(auth_policies, replication_clusters,
+                backlog_quota_map, clusterDispatchRate,
+                clusterSubscribeRate, deduplicationEnabled, persistence,
+                bundles, latency_stats_sample_rate,
+                message_ttl_in_seconds, retention_policies,
+                encryption_required, subscription_auth_mode,
+                antiAffinityGroup, max_producers_per_topic,
+                max_consumers_per_topic, max_consumers_per_subscription,
+                compaction_threshold, offload_threshold,
+                offload_deletion_lag_ms,
+                schema_auto_update_compatibility_strategy);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
             Policies other = (Policies) obj;
@@ -77,7 +92,8 @@ public class Policies {
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
-                    && message_ttl_in_seconds == other.message_ttl_in_seconds
+                    && Objects.equals(message_ttl_in_seconds,
+                            other.message_ttl_in_seconds)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
