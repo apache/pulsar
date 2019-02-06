@@ -137,7 +137,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                         | currentNumMsgsSent) != 0) {
 
                     for (int i = 0; i < latencyPctValues.length; i++) {
-                        if (latencyPctValues[i] == Double.NaN) {
+                        if (Double.isNaN(latencyPctValues[i])) {
                             latencyPctValues[i] = 0;
                         }
                     }
