@@ -343,7 +343,7 @@ NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string
     // get all topics
     for (const auto &item : root) {
         // remove partition part
-        const std::string &topicName = item.first;
+        const std::string topicName = item.second.get_value<std::string>();
         int pos = topicName.find("-partition-");
         std::string filteredName = topicName.substr(0, pos);
 
