@@ -382,7 +382,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper-stream-storage-service-api-4.7.3.jar
     - org.apache.bookkeeper-stream-storage-service-impl-4.7.3.jar
     - org.apache.bookkeeper.http-http-server-4.7.3.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.7.2.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.7.3.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.7.3.jar
     - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.7.3.jar
     - org.apache.bookkeeper.tests-stream-storage-tests-common-4.7.3.jar
