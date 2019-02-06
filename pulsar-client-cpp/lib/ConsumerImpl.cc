@@ -20,7 +20,6 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
-#include <boost/bind.hpp>
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -304,8 +303,8 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         lock.unlock();
 
         if (asyncReceivedWaiting) {
-            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                    shared_from_this(), ResultOk, m, callback));
+            listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                  shared_from_this(), ResultOk, m, callback));
             return;
         }
 
@@ -341,8 +340,8 @@ void ConsumerImpl::failPendingReceiveCallback() {
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
-        listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                shared_from_this(), ResultAlreadyClosed, msg, callback));
+        listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                              shared_from_this(), ResultAlreadyClosed, msg, callback));
     }
     lock.unlock();
 }
@@ -391,8 +390,8 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
             ReceiveCallback callback = pendingReceives_.front();
             pendingReceives_.pop();
             lock.unlock();
-            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                    shared_from_this(), ResultOk, msg, callback));
+            listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                  shared_from_this(), ResultOk, msg, callback));
         } else {
             // Regular path, append individual message to incoming messages queue
             incomingMessages_.push(msg);

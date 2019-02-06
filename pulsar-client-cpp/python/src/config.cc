@@ -95,6 +95,7 @@ void export_config() {
             .def("tls_trust_certs_file_path", &ClientConfiguration::setTlsTrustCertsFilePath, return_self<>())
             .def("tls_allow_insecure_connection", &ClientConfiguration::isTlsAllowInsecureConnection)
             .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection, return_self<>())
+            .def("tls_validate_hostname", &ClientConfiguration::setValidateHostName, return_self<>())
             ;
 
     class_<ProducerConfiguration>("ProducerConfiguration")

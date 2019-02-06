@@ -12,7 +12,7 @@ Pulsar relies on two external systems for essential tasks:
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
 
 > Skip to the [How Pulsar uses ZooKeeper and BookKeeper](#how-pulsar-uses-zookeeper-and-bookkeeper) section below for a more schematic explanation of the role of these two systems in Pulsar.
-' %}
+
 
 ## ZooKeeper
 
@@ -55,7 +55,7 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 $ bin/pulsar-daemon start zookeeper
 ```
 
-### Deploying the configuration store {#configuration-store}
+### Deploying configuration store
 
 The ZooKeeper cluster configured and started up in the section above is a *local* ZooKeeper cluster used to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
 
