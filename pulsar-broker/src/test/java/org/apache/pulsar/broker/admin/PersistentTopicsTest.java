@@ -61,7 +61,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-    	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         super.internalSetup();
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
@@ -81,7 +80,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
     }
-    
+
     @Override
     @AfterMethod
     protected void cleanup() throws Exception {
@@ -89,7 +88,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetSubscriptions() throws Exception {
+    public void testGetSubscriptions() {
         String testLocalTopicName = "topic-not-found";
         try {
             persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName, true);
@@ -116,14 +115,4 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.deletePartitionedTopic(testTenant, testNamespace, testLocalTopicName, true, true);
     }
 
-    @Test
-    public void testGetSubscriptionsWithAutoTopicCreationDisabled() {
-    	final String nonPartitionTopic = "nonPartitionedTopic";
-    	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
-    	List<String> subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
-        Assert.assertTrue(subscriptions.contains("test"));
-        persistentTopics.deleteSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true);
-        subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
-        Assert.assertTrue(subscriptions.isEmpty());        
-    }
 }
