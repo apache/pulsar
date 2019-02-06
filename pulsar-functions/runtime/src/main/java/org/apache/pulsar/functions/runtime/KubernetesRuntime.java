@@ -125,7 +125,6 @@ public class KubernetesRuntime implements Runtime {
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
-    private boolean running;
 
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -195,7 +194,6 @@ public class KubernetesRuntime implements Runtime {
             pythonDependencyRepository,
             pythonExtraDependencyRepository,
                 METRICS_PORT);
-        running = false;
         doChecks(instanceConfig.getFunctionDetails());
     }
 
@@ -214,7 +212,6 @@ public class KubernetesRuntime implements Runtime {
                     instanceConfig.getFunctionDetails().getName(), e);
             deleteService();
         }
-        running = true;
         if (channel == null && stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
@@ -237,10 +234,9 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public void stop() throws Exception {
-        if (running) {
-            deleteStatefulSet();
-            deleteService();
-        }
+        deleteStatefulSet();
+        deleteService();
+
         if (channel != null) {
             for (ManagedChannel cn : channel) {
                 cn.shutdown();
@@ -248,7 +244,6 @@ public class KubernetesRuntime implements Runtime {
         }
         channel = null;
         stub = null;
-        running = false;
     }
 
     @Override
@@ -337,7 +332,8 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public boolean isAlive() {
-        return running;
+        // No point for kubernetes just return dummy value
+        return true;
     }
 
     private void submitService() throws Exception {

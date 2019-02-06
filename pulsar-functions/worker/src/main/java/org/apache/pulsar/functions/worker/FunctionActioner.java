@@ -33,8 +33,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -46,7 +44,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.google.gson.Gson;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -106,31 +103,37 @@ public class FunctionActioner implements AutoCloseable {
             while(running) {
                 try {
                     FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
-                    if (action == null) continue;
-                    switch (action.getAction()) {
-                        case START:
-                            try {
-                                startFunction(action.getFunctionRuntimeInfo());
-                            } catch (Exception ex) {
-                                FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails();
-                                log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
-                                        details.getName(), ex);
-                                action.getFunctionRuntimeInfo().setStartupException(ex);
-                            }
-                            break;
-                        case STOP:
-                            stopFunction(action.getFunctionRuntimeInfo());
-                            break;
-                        case TERMINATE:
-                            terminateFunction(action.getFunctionRuntimeInfo());
-                            break;
-                    }
+                    processAction(action);
                 } catch (InterruptedException ex) {
                 }
             }
         });
         actioner.setName("FunctionActionerThread");
+    }
+
+
+    void processAction(FunctionAction action) {
+        if (action == null) return;
+
+        switch (action.getAction()) {
+            case START:
+                try {
+                    startFunction(action.getFunctionRuntimeInfo());
+                } catch (Exception ex) {
+                    FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
+                            .getFunctionMetaData().getFunctionDetails();
+                    log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                            details.getName(), ex);
+                    action.getFunctionRuntimeInfo().setStartupException(ex);
+                }
+                break;
+            case STOP:
+                stopFunction(action.getFunctionRuntimeInfo());
+                break;
+            case TERMINATE:
+                terminateFunction(action.getFunctionRuntimeInfo());
+                break;
+        }
     }
 
     public void start() {
