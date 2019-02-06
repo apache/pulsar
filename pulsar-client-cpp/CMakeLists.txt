@@ -207,7 +207,6 @@ include_directories(
 
 set(COMMON_LIBS
   ${COMMON_LIBS} -lpthread -lm
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_REGEX_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARY_PATH}
