@@ -66,7 +66,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        pulsar.getConfiguration();
         doReturn(mockZookKeeper).when(persistentTopics).globalZk();
         doReturn(mockZookKeeper).when(persistentTopics).localZk();
         doReturn(pulsar.getConfigurationCache().propertiesCache()).when(persistentTopics).tenantsCache();
@@ -91,11 +90,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetSubscriptions() throws Exception {
-    	try {
-			setup();
-		} catch (Exception exc) {
-			throw exc;
-		}
         String testLocalTopicName = "topic-not-found";
         try {
             persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName, true);
