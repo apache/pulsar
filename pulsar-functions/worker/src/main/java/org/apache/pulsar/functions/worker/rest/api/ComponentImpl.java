@@ -1037,9 +1037,7 @@ public abstract class ComponentImpl {
 
     public List<ConnectorDefinition> getListOfConnectors() {
         if (!isWorkerServiceAvailable()) {
-            throw new WebApplicationException(
-                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+            throwUnavailableException();
         }
 
         return this.worker().getConnectorsManager().getConnectors();
