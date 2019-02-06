@@ -72,7 +72,7 @@ public class ManagedLedgerConfig {
         this.createIfMissing = createIfMissing;
         return this;
     }
-    
+
     /**
      * @return the maxEntriesPerLedger
      */

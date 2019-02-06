@@ -619,7 +619,7 @@ public class PulsarService implements AutoCloseable {
             return null;
         });
     }
-    
+
     // No need to synchronize since config is only init once
     // We only read this from memory later
     public String getStatusFilePath() {
