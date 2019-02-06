@@ -121,7 +121,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl() : null;
 
         // start track and auto subscribe partition increasement
-        if (conf.isTrackPartitionUpdate()) {
+        if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
                 .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);

@@ -90,8 +90,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private DeadLetterPolicy deadLetterPolicy;
 
-    private boolean trackPartitionUpdate = false;
-    private int partitionAutoUpdatePeriod = 1;
+    private boolean autoUpdatePartitions = true;
 
     @JsonIgnore
     public String getSingleTopic() {

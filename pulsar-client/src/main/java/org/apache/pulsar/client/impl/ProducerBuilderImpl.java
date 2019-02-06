@@ -257,7 +257,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
     @Override
     public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
-        conf.setTrackPartitionUpdate(autoUpdate);
+        conf.setAutoUpdatePartitions(autoUpdate);
         return this;
     }
 

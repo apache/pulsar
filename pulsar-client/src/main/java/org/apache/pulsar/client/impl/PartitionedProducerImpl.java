@@ -77,7 +77,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         start();
 
         // start track and auto subscribe partition increasement
-        if (conf.isTrackPartitionUpdate()) {
+        if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
                 .newTimeout(partitionsAutoUpdateTimerTask, 1, TimeUnit.MINUTES);
