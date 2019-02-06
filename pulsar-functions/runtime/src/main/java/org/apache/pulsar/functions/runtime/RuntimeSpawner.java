@@ -150,7 +150,7 @@ public class RuntimeSpawner implements AutoCloseable {
             try {
                 runtime.stop();
             } catch (Exception e) {
-                // Ignore
+                log.warn("Failed to stop function runtime: {}", e, e);
             }
             runtime = null;
         }
