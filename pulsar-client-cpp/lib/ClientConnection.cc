@@ -20,7 +20,6 @@
 
 #include "PulsarApi.pb.h"
 
-#include <boost/array.hpp>
 #include <iostream>
 #include <algorithm>
 #include <boost/date_time/posix_time/posix_time.hpp>

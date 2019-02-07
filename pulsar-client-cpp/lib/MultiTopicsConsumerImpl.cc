@@ -414,6 +414,7 @@ void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::stri
 
     // closed all consumers
     if (numberTopicPartitions_->load() == 0) {
+        messages_.clear();
         consumers_.clear();
         topicsPartitions_.clear();
         unAckedMessageTrackerPtr_->clear();
