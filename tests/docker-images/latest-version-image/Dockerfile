@@ -46,3 +46,5 @@ RUN mkdir -p /pulsar/instances/deps
 COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
 COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
+COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
+COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
