@@ -181,18 +181,19 @@ public class KubernetesRuntimeFactoryTest {
             fail();
         }
 
-        testMinResource(0.2, 2048L, false);
-        testMinResource(0.05, 2048L, true);
-        testMinResource(0.2,512L, true );
-        testMinResource(0.05,512L, true );
-        testMinResource(null, null, true);
-        testMinResource(0.2, null, true);
-        testMinResource(0.05, null, true);
-        testMinResource(null, 2048L, true);
-        testMinResource(null, 512L, true);
+        testMinResource(0.2, 2048L, false, null);
+        testMinResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(0.2,512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinResource(0.05,512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
+
+        testMinResource(0.05, null, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, 2048L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(null, 512L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
     }
 
-    private void testMinResource(Double cpu, Long ram, boolean fail) throws Exception {
+    private void testMinResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
 
         factory = createKubernetesRuntimeFactory(null, Resources.builder().cpu(0.1).ram(1024L).build());
         FunctionDetails functionDetailsBase = createFunctionDetails();
@@ -204,13 +205,21 @@ public class KubernetesRuntimeFactoryTest {
         if (ram != null) {
             resources.setRam(ram);
         }
-        FunctionDetails functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
+        FunctionDetails functionDetails;
+        if (ram != null || cpu != null) {
+            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
+        } else {
+            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).build();
+        }
 
-            try {
-                factory.validateMinResourcesRequired(functionDetails);
-                if (fail) fail();
-            } catch (Exception e) {
-                if (!fail) fail();
+        try {
+            factory.validateMinResourcesRequired(functionDetails);
+            if (fail) fail();
+        } catch (IllegalArgumentException e) {
+            if (!fail) fail();
+            if (failError != null) {
+                assertEquals(e.getMessage(), failError);
             }
+        }
     }
 }

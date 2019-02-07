@@ -285,10 +285,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (minCpu != null) {
                 if (functionDetails.getResources() == null) {
                     throw new IllegalArgumentException(
-                            String.format("Per instance CPU requested is not specified. Must specify CPU requested for function to be at least %d", minCpu));
+                            String.format("Per instance CPU requested is not specified. Must specify CPU requested for function to be at least %s", minCpu));
                 } else if (functionDetails.getResources().getCpu() < minCpu) {
                     throw new IllegalArgumentException(
-                            String.format("Per instance CPU requested, %d, for function is less than the minimum required, %d",
+                            String.format("Per instance CPU requested, %s, for function is less than the minimum required, %s",
                                     functionDetails.getResources().getCpu(), minCpu));
                 }
             }
@@ -296,10 +296,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (minRam != null) {
                 if (functionDetails.getResources() == null) {
                     throw new IllegalArgumentException(
-                            String.format("Per instance RAM requested is not specified. Must specify RAM requested for function to be at least %d", minRam));
+                            String.format("Per instance RAM requested is not specified. Must specify RAM requested for function to be at least %s", minRam));
                 } else if (functionDetails.getResources().getRam() < minRam) {
                     throw new IllegalArgumentException(
-                            String.format("Per instance CPU requested, %d, for function is less than the minimum required, %d",
+                            String.format("Per instance RAM requested, %s, for function is less than the minimum required, %s",
                                     functionDetails.getResources().getRam(), minRam));
                 }
             }
