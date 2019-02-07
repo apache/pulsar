@@ -23,6 +23,22 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.URL;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
@@ -60,19 +76,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -151,10 +154,11 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
+        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
         config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
+
         config1.setAdvertisedAddress("localhost");
+        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
         pulsar1 = new PulsarService(config1);
 
         pulsar1.start();
@@ -167,10 +171,10 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
+        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
         config2.setAdvertisedAddress("localhost");
+        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         pulsar2 = new PulsarService(config2);
         secondaryHost = String.format("%s:%d", "localhost",
                 SECONDARY_BROKER_WEBSERVICE_PORT);
@@ -599,9 +603,9 @@ public class ModularLoadManagerImplTest {
         config.setClusterName("use");
         int brokerWebServicePort = PortManager.nextFreePort();
         int brokerServicePort = PortManager.nextFreePort();
-        config.setWebServicePort(brokerWebServicePort);
+        config.setWebServicePort(Optional.ofNullable(brokerWebServicePort));
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
+        config.setBrokerServicePort(Optional.ofNullable(brokerServicePort));
         PulsarService pulsar = new PulsarService(config);
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"

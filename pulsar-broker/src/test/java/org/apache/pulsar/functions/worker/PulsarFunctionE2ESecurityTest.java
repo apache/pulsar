@@ -127,9 +127,9 @@ public class PulsarFunctionE2ESecurityTest {
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet(ADMIN_SUBJECT);
         config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(brokerWebServicePort);
+        config.setWebServicePort(Optional.of(brokerWebServicePort));
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
+        config.setBrokerServicePort(Optional.of(brokerServicePort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
 

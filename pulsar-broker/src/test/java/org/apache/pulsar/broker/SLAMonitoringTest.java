@@ -28,6 +28,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -81,12 +82,12 @@ public class SLAMonitoringTest {
             brokerNativeBrokerPorts[i] = PortManager.nextFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(brokerWebServicePorts[i]);
+            config.setWebServicePort(Optional.ofNullable(brokerWebServicePorts[i]));
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-            config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             configurations[i] = config;
