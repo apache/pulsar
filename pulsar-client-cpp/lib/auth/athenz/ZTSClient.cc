@@ -34,7 +34,7 @@
 #include <boost/property_tree/ptree.hpp>
 namespace ptree = boost::property_tree;
 
-#include <regex>
+#include <boost/regex.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
@@ -356,17 +356,15 @@ const std::string ZTSClient::getHeader() const { return roleHeader_; }
 PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     PrivateKeyUri uriSt;
     // scheme mediatype[;base64] path file
-    static const std::regex expression(
-        R"(^(?:([A-Za-z]+):)(?:([/\w\-]+;\w+),([=\w]+))?(?:\/\/)?(\/[^?#]+)?)");
-
-    std::cmatch groups;
-    if (std::regex_match(uri, groups, expression)) {
+    static const boost::regex expression(
+        "^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
+    boost::cmatch groups;
+    if (boost::regex_match(uri, groups, expression)) {
         uriSt.scheme = groups.str(1);
         uriSt.mediaTypeAndEncodingType = groups.str(2);
-        uriSt.data = groups.str(3);
-        uriSt.path = groups.str(4);
+        uriSt.data = groups.str(4);
+        uriSt.path = groups.str(3) + groups.str(4);
     }
-
     return uriSt;
 }
 }  // namespace pulsar

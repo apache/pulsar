@@ -19,9 +19,12 @@
 #ifndef _PULSAR_NAMED_ENTITY_HEADER_
 #define _PULSAR_NAMED_ENTITY_HEADER_
 
-#include <string>
+#include <boost/regex.hpp>
 
 class NamedEntity {
+   private:
+    static const boost::regex pattern;
+
    public:
     static bool checkName(const std::string& name);
 };
