@@ -342,10 +342,11 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
             return;
         } else if (conf.getConsumerType() == ConsumerShared) {
             ConsumersList consumers(consumers_);
-            for (ConsumersList::iterator it = consumers.begin(); it != consumers.end(); ++it) {
-                ConsumerImplBasePtr consumer = it->lock();
+            for (auto& weakPtr : consumers) {
+                ConsumerImplBasePtr consumer = weakPtr.lock();
                 if (consumer && consumer->getSubscriptionName() == consumerName && !consumer->isClosed()) {
                     lock.unlock();
+                    LOG_INFO("Reusing existing consumer instance for " << topic << " -- " << consumerName);
                     callback(ResultOk, Consumer(consumer));
                     return;
                 }

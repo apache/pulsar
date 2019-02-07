@@ -47,6 +47,7 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Getter
     private final InstanceConfig instanceConfig;
+    @Getter
     private final RuntimeFactory runtimeFactory;
     private final String codeFile;
     private final String originalCodeFileName;
@@ -69,6 +70,12 @@ public class RuntimeSpawner implements AutoCloseable {
         this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
+        try {
+            this.runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
+                    instanceLivenessCheckFreqMs / 1000);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void start() throws Exception {
@@ -76,8 +83,6 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
-                instanceLivenessCheckFreqMs / 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
@@ -145,7 +150,7 @@ public class RuntimeSpawner implements AutoCloseable {
             try {
                 runtime.stop();
             } catch (Exception e) {
-                // Ignore
+                log.warn("Failed to stop function runtime: {}", e, e);
             }
             runtime = null;
         }
