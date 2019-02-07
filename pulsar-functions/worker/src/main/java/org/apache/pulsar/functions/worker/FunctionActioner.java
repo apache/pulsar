@@ -44,7 +44,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.google.gson.Gson;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -104,31 +103,37 @@ public class FunctionActioner implements AutoCloseable {
             while(running) {
                 try {
                     FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
-                    if (action == null) continue;
-                    switch (action.getAction()) {
-                        case START:
-                            try {
-                                startFunction(action.getFunctionRuntimeInfo());
-                            } catch (Exception ex) {
-                                FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails();
-                                log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
-                                        details.getName(), ex);
-                                action.getFunctionRuntimeInfo().setStartupException(ex);
-                            }
-                            break;
-                        case STOP:
-                            stopFunction(action.getFunctionRuntimeInfo());
-                            break;
-                        case TERMINATE:
-                            terminateFunction(action.getFunctionRuntimeInfo());
-                            break;
-                    }
+                    processAction(action);
                 } catch (InterruptedException ex) {
                 }
             }
         });
         actioner.setName("FunctionActionerThread");
+    }
+
+
+    void processAction(FunctionAction action) {
+        if (action == null) return;
+
+        switch (action.getAction()) {
+            case START:
+                try {
+                    startFunction(action.getFunctionRuntimeInfo());
+                } catch (Exception ex) {
+                    FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
+                            .getFunctionMetaData().getFunctionDetails();
+                    log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                            details.getName(), ex);
+                    action.getFunctionRuntimeInfo().setStartupException(ex);
+                }
+                break;
+            case STOP:
+                stopFunction(action.getFunctionRuntimeInfo());
+                break;
+            case TERMINATE:
+                terminateFunction(action.getFunctionRuntimeInfo());
+                break;
+        }
     }
 
     public void start() {
@@ -148,11 +153,12 @@ public class FunctionActioner implements AutoCloseable {
     @VisibleForTesting
     public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
         FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
+        FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
-        FunctionDetails.Builder functionDetails = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
         log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), instanceId);
+
         String packageFile;
 
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
@@ -166,7 +172,7 @@ public class FunctionActioner implements AutoCloseable {
                 File pkgFile = new File(url.toURI());
                 packageFile = pkgFile.getAbsolutePath();
             } else if (isFunctionCodeBuiltin(functionDetails)) {
-                File pkgFile = getBuiltinArchive(functionDetails);
+                File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
                 packageFile = pkgFile.getAbsolutePath();
             } else {
                 File pkgDir = new File(workerConfig.getDownloadDirectory(),
@@ -180,25 +186,40 @@ public class FunctionActioner implements AutoCloseable {
             }
         }
 
+        RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(), packageFile);
+        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+
+        runtimeSpawner.start();
+    }
+
+    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile) {
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        int instanceId = instance.getInstanceId();
+
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
+
+        InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
+                instanceId, workerConfig.getPulsarFunctionsCluster());
+
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
+                functionMetaData.getPackageLocation().getOriginalFileName(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
+
+        return runtimeSpawner;
+    }
+
+
+    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionDetails.build());
+        instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
-        instanceConfig.setClusterName(workerConfig.getPulsarFunctionsCluster());
-
-        log.info("{}/{}/{}-{} start process with instance config {}", functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), instanceId, instanceConfig);
-
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
-                functionMetaData.getPackageLocation().getOriginalFileName(),
-                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
-
-        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
-        runtimeSpawner.start();
+        instanceConfig.setClusterName(clusterName);
+        return instanceConfig;
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
