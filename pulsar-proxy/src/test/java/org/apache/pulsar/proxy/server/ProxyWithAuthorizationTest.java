@@ -404,7 +404,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
                                                         new AuthenticationService(
                                                                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        proxyService.start();
+        try {
+            proxyService.start();
+        } catch (Exception ex) {
+            if (!expectFailure) {
+                Assert.fail("This test case should not fail");
+            }
+        }
         org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically((test) -> {
             try {
                 return admin.namespaces().getPermissions(namespaceName).containsKey("Proxy")
