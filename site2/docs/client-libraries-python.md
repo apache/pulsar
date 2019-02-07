@@ -188,6 +188,15 @@ are matching the AVRO fields types.
 Additionally, any Python `Enum` type can be used as a valid field
 type
 
+#### Fields parameters
+
+When adding a field these parameters can be used in the constructor:
+
+| Argument   | Default | Notes |
+| ---------- | --------| ----- |
+| `default`  | `None`  | Set a default value for the field. Eg: `a = Integer(default=5)` |
+| `required` | `False` | Mark the field as "required". This will set it in the schema accordingly. |
+
 #### Schema definition examples
 
 ##### Simple definition
