@@ -309,17 +309,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
+    public void restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
             URI uri) throws Exception {
         if (runtimeFactory.externallyManaged()) {
-            return Response.status(Status.NOT_IMPLEMENTED).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Externally managed schedulers can't do per instance stop")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.NOT_IMPLEMENTED)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Externally managed schedulers can't do per instance stop")).build());
         }
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
         if (assignment == null) {
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(fullFunctionName + " doesn't exist")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " doesn't exist")).build());
         }
 
         final String assignedWorkerId = assignment.getWorkerId();
@@ -327,7 +329,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         if (assignedWorkerId.equals(workerId)) {
             stopFunction(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()), true);
-            return Response.status(Status.OK).build();
+            return;
         } else {
             // query other worker
             List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
@@ -338,8 +340,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
             if (workerInfo == null) {
-                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                        .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+                throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                        .type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
             }
 
             if (uri == null) {
@@ -351,14 +354,15 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public Response restartFunctionInstances(String tenant, String namespace, String functionName)
+    public void restartFunctionInstances(String tenant, String namespace, String functionName)
             throws Exception {
         final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
 
         if (assignments.isEmpty()) {
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
         }
         if (runtimeFactory.externallyManaged()) {
             Assignment assignment = assignments.iterator().next();
@@ -379,8 +383,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
                     }
-                    return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+                    throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                            .type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
                 this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
             }
@@ -410,7 +415,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
         }
-        return Response.status(Status.OK).build();
+        return;
     }
 
     /**
