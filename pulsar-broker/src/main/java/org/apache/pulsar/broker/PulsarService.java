@@ -170,10 +170,10 @@ public class PulsarService implements AutoCloseable {
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
     private final String advertisedAddress;
-    private final String webServiceAddress;
-    private final String webServiceAddressTls;
-    private final String brokerServiceUrl;
-    private final String brokerServiceUrlTls;
+    private String webServiceAddress;
+    private String webServiceAddressTls;
+    private String brokerServiceUrl;
+    private String brokerServiceUrlTls;
     private final String brokerVersion;
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
@@ -399,12 +399,6 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
-            // Start the leader election service
-            startLeaderElectionService();
-
-            // needs load management service
-            this.startNamespaceService();
-
             this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
             brokerService.start();
@@ -463,12 +457,24 @@ public class PulsarService implements AutoCloseable {
             }
             this.webService.addStaticResources("/static", "/static");
 
-            // Register heartbeat and bootstrap namespaces.
-            this.nsService.registerBootstrapNamespaces();
-
             schemaRegistryService = SchemaRegistryService.create(this);
 
             webService.start();
+
+            // Refresh addresses, since the port might have been dynamically assigned
+            this.webServiceAddress = webAddress(config);
+            this.webServiceAddressTls = webAddressTls(config);
+            this.brokerServiceUrl = brokerUrl(config);
+            this.brokerServiceUrlTls = brokerUrlTls(config);
+
+            // needs load management service
+            this.startNamespaceService();
+
+            // Start the leader election service
+            startLeaderElectionService();
+
+            // Register heartbeat and bootstrap namespaces.
+            this.nsService.registerBootstrapNamespaces();
 
             this.metricsGenerator = new MetricsGenerator(this);
 
