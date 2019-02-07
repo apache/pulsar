@@ -22,7 +22,6 @@ package org.apache.pulsar.functions.runtime;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1PodSpec;
-import lombok.ToString;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.proto.Function;
