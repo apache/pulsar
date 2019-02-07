@@ -20,17 +20,23 @@
 package org.apache.pulsar.io.kafka.source;
 
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
+import org.apache.pulsar.io.kafka.KafkaSourceConfig;
 import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 
@@ -140,5 +146,28 @@ public class KafkaAbstractSourceTest {
         config.put("heartbeatIntervalMs", 5000);
         source.open(config, ctx);
         source.close();
+    }
+
+    @Test
+    public final void loadFromYamlFileTest() throws IOException {
+        File yamlFile = getFile("kafkaSourceConfig.yaml");
+        KafkaSourceConfig config = KafkaSourceConfig.load(yamlFile.getAbsolutePath());
+        assertNotNull(config);
+        assertEquals("localhost:6667", config.getBootstrapServers());
+        assertEquals("test", config.getTopic());
+        assertEquals(Long.parseLong("10000"), config.getSessionTimeoutMs());
+        assertEquals(Boolean.parseBoolean("false"), config.isAutoCommitEnabled());
+        assertNotNull(config.getConsumerConfigProperties());
+        Properties props = new Properties();
+        props.putAll(config.getConsumerConfigProperties());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, config.getGroupId());
+        assertEquals("test-pulsar-consumer", props.getProperty("client.id"));
+        assertEquals("SASL_PLAINTEXT", props.getProperty("security.protocol"));
+        assertEquals("test-pulsar-io", props.getProperty(ConsumerConfig.GROUP_ID_CONFIG));
+    }
+
+    private File getFile(String name) {
+        ClassLoader classLoader = getClass().getClassLoader();
+        return new File(classLoader.getResource(name).getFile());
     }
 }

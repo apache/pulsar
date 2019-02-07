@@ -97,6 +97,12 @@ public class KafkaSourceConfig implements Serializable {
             "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "
                 + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
     private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
+    @FieldDoc(
+        defaultValue = "",
+        help =
+            "The consumer config properties to be passed to Consumer. Note that other properties specified "
+                + "in the connector config file take precedence over this config.")
+    private Map<String, Object> consumerConfigProperties;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
