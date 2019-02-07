@@ -75,6 +75,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         Properties props = new Properties();
+        if (kafkaSourceConfig.getConsumerConfigProperties() != null) {
+            props.putAll(kafkaSourceConfig.getConsumerConfigProperties());
+        }
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
