@@ -115,4 +115,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.deletePartitionedTopic(testTenant, testNamespace, testLocalTopicName, true, true);
     }
 
+    @Test
+    public void testGetSubscriptionsWithAutoTopicCreationDisabled() {
+    	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+    	final String nonPartitionTopic = "non-partitioned-topic";
+    	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
+    	List<String> subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
+        Assert.assertTrue(subscriptions.contains("test"));
+        persistentTopics.deleteSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true);
+        subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
+        Assert.assertTrue(subscriptions.isEmpty());
+    }
 }

@@ -432,6 +432,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testUpdateDynamicConfigurationWithZkWatch() throws Exception {
         final int initValue = 30000;
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         // (1) try to update dynamic field
         final long shutdownTime = 10;
         // update configuration
@@ -524,6 +525,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final long initValue = 30000;
         final long shutdownTime = 10;
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
+    	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
         // sleep incrementally as zk-watch notification is async and may take some time
