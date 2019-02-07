@@ -328,4 +328,13 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return producer builder.
      */
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+
+    /**
+     * If enabled, partitioned producer will auto create new producers for new partitions.
+     * This is only for partitioned producer.
+     *
+     * @param autoUpdate
+     *            whether to auto update partition increasement
+     */
+    ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 }
