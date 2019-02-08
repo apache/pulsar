@@ -24,8 +24,8 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -97,13 +97,8 @@ public class CmdProduce {
 
         try {
             for (String filename : messageFileNames) {
-                File f = new File(filename);
-                FileInputStream fis = new FileInputStream(f);
-                byte[] fileBytes = new byte[(int) f.length()];
-                fis.read(fileBytes);
+                byte[] fileBytes = Files.readAllBytes(Paths.get(filename));
                 messageBodies.add(fileBytes);
-                fis.close();
-
             }
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
