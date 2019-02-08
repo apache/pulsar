@@ -26,10 +26,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.net.UnknownHostException;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -66,10 +66,9 @@ public class FunctionActionerTest {
         // throw exception when dlogNamespace is accessed by actioner and verify it
         final String exceptionMsg = "dl namespace not-found";
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
-        LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
                 new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
         Runtime runtime = mock(Runtime.class);
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -109,10 +108,9 @@ public class FunctionActionerTest {
         Namespace dlogNamespace = mock(Namespace.class);
         final String exceptionMsg = "dl namespace not-found";
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
-        LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
                 new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
@@ -142,12 +140,7 @@ public class FunctionActionerTest {
         functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
 
-        try {
-            actioner.startFunction(functionRuntimeInfo);
-            fail("Function-Actioner should have tried to donwload file from http-location");
-        } catch (UnknownHostException ue) {
-            // ok
-        }
+        assertTrue(actioner.startFunction(functionRuntimeInfo));
     }
 
 }

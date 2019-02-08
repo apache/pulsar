@@ -25,7 +25,6 @@ import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
@@ -40,8 +39,6 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import lombok.Data;
@@ -76,120 +73,74 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 @EqualsAndHashCode
 @ToString
 @Slf4j
-public class FunctionActioner implements AutoCloseable {
+public class FunctionActioner {
 
     private final WorkerConfig workerConfig;
     private final RuntimeFactory runtimeFactory;
     private final Namespace dlogNamespace;
-    private LinkedBlockingQueue<FunctionAction> actionQueue;
-    private volatile boolean running;
-    private Thread actioner;
     private final ConnectorsManager connectorsManager;
     private final PulsarAdmin pulsarAdmin;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            LinkedBlockingQueue<FunctionAction> actionQueue,
                             ConnectorsManager connectorsManager, PulsarAdmin pulsarAdmin) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
-        this.actionQueue = actionQueue;
         this.connectorsManager = connectorsManager;
         this.pulsarAdmin = pulsarAdmin;
-        actioner = new Thread(() -> {
-            log.info("Starting Actioner Thread...");
-            while(running) {
-                try {
-                    FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
-                    processAction(action);
-                } catch (InterruptedException ex) {
-                }
-            }
-        });
-        actioner.setName("FunctionActionerThread");
     }
 
+    public boolean startFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+        try {
+            FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
+            FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
+            int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
-    void processAction(FunctionAction action) {
-        if (action == null) return;
+            log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
+                    functionDetails.getName(), instanceId);
 
-        switch (action.getAction()) {
-            case START:
-                try {
-                    startFunction(action.getFunctionRuntimeInfo());
-                } catch (Exception ex) {
-                    FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
-                            .getFunctionMetaData().getFunctionDetails();
-                    log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
-                            details.getName(), ex);
-                    action.getFunctionRuntimeInfo().setStartupException(ex);
-                }
-                break;
-            case STOP:
-                stopFunction(action.getFunctionRuntimeInfo());
-                break;
-            case TERMINATE:
-                terminateFunction(action.getFunctionRuntimeInfo());
-                break;
-        }
-    }
+            String packageFile;
 
-    public void start() {
-        this.running = true;
-        actioner.start();
-    }
+            String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
+            boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
 
-    @Override
-    public void close() {
-        running = false;
-    }
-
-    public void join() throws InterruptedException {
-        actioner.join();
-    }
-
-    @VisibleForTesting
-    public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
-        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
-        FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
-        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-
-        log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), instanceId);
-
-        String packageFile;
-
-        String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
-
-        if (runtimeFactory.externallyManaged()) {
-            packageFile = pkgLocation;
-        } else {
-            if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
-                URL url = new URL(pkgLocation);
-                File pkgFile = new File(url.toURI());
-                packageFile = pkgFile.getAbsolutePath();
-            } else if (isFunctionCodeBuiltin(functionDetails)) {
-                File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
-                packageFile = pkgFile.getAbsolutePath();
+            if (runtimeFactory.externallyManaged()) {
+                packageFile = pkgLocation;
             } else {
-                File pkgDir = new File(workerConfig.getDownloadDirectory(),
-                        getDownloadPackagePath(functionMetaData, instanceId));
-                pkgDir.mkdirs();
-                File pkgFile = new File(
-                        pkgDir,
-                        new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
-                downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
-                packageFile = pkgFile.getAbsolutePath();
+                if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+                    URL url = new URL(pkgLocation);
+                    File pkgFile = new File(url.toURI());
+                    packageFile = pkgFile.getAbsolutePath();
+                } else if (isFunctionCodeBuiltin(functionDetails)) {
+                    File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
+                    packageFile = pkgFile.getAbsolutePath();
+                } else {
+                    File pkgDir = new File(workerConfig.getDownloadDirectory(),
+                            getDownloadPackagePath(functionMetaData, instanceId));
+                    pkgDir.mkdirs();
+                    File pkgFile = new File(
+                            pkgDir,
+                            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
+                    downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+                    packageFile = pkgFile.getAbsolutePath();
+                }
             }
+
+            RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(), packageFile);
+            functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+
+            runtimeSpawner.start();
+            return true;
+        } catch (Exception ex) {
+            FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
+                    .getFunctionMetaData().getFunctionDetails();
+            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                    details.getName(), ex);
+            functionRuntimeInfo.setStartupException(ex);
+            return false;
         }
-
-        RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(), packageFile);
-        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
-
-        runtimeSpawner.start();
     }
 
     RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile) {
@@ -303,7 +254,7 @@ public class FunctionActioner implements AutoCloseable {
         }
     }
 
-    private void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
                 .getFunctionDetails();
         log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
