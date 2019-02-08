@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -85,7 +86,8 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
  * The service abstraction is used for getting functionstatus.
  */
 @Slf4j
-class KubernetesRuntime implements Runtime {
+@VisibleForTesting
+public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;
@@ -123,7 +125,6 @@ class KubernetesRuntime implements Runtime {
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
-    private boolean running;
 
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -193,7 +194,6 @@ class KubernetesRuntime implements Runtime {
             pythonDependencyRepository,
             pythonExtraDependencyRepository,
                 METRICS_PORT);
-        running = false;
         doChecks(instanceConfig.getFunctionDetails());
     }
 
@@ -212,7 +212,6 @@ class KubernetesRuntime implements Runtime {
                     instanceConfig.getFunctionDetails().getName(), e);
             deleteService();
         }
-        running = true;
         if (channel == null && stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
@@ -235,10 +234,9 @@ class KubernetesRuntime implements Runtime {
 
     @Override
     public void stop() throws Exception {
-        if (running) {
-            deleteStatefulSet();
-            deleteService();
-        }
+        deleteStatefulSet();
+        deleteService();
+
         if (channel != null) {
             for (ManagedChannel cn : channel) {
                 cn.shutdown();
@@ -246,7 +244,6 @@ class KubernetesRuntime implements Runtime {
         }
         channel = null;
         stub = null;
-        running = false;
     }
 
     @Override
@@ -335,7 +332,8 @@ class KubernetesRuntime implements Runtime {
 
     @Override
     public boolean isAlive() {
-        return running;
+        // No point for kubernetes just return dummy value
+        return true;
     }
 
     private void submitService() throws Exception {

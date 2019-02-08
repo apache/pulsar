@@ -24,6 +24,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectExecResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ContainerNetwork;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
@@ -140,7 +141,9 @@ public class DockerUtils {
                 read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
             }
         } catch (RuntimeException|IOException e) {
-            LOG.error("Error reading dir from container {}", containerName, e);
+            if (!(e instanceof NotFoundException)) {
+                LOG.error("Error reading dir from container {}", containerName, e);
+            }
         }
     }
 
