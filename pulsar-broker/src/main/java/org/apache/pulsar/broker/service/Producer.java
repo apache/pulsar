@@ -50,6 +50,7 @@ import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.apache.pulsar.broker.service.AbstractReplicator.producerNamePadding;
 
 /**
  * Represents a currently connected producer
@@ -107,7 +108,7 @@ public class Producer {
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
-        this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+        this.remoteCluster = isRemote ? producerName.split("\\.")[2].split(producerNamePadding)[0] : null;
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
