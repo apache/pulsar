@@ -20,7 +20,6 @@
 DECLARE_LOG_OBJECT()
 
 #include <mutex>
-#include <boost/filesystem.hpp>
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -197,13 +196,13 @@ int main(int argc, char** argv) {
     // First try to read default values from config file if present
     const std::string confFile = "conf/client.conf";
 
-    if (boost::filesystem::exists(confFile)) {
+    std::ifstream file(confFile.c_str());
+    if (file) {
         po::variables_map vm;
         po::options_description confFileDesc;
         confFileDesc.add_options()  //
         ("serviceURL", po::value<std::string>()->default_value("pulsar://localhost:6650"));
 
-        std::ifstream file(confFile.c_str());
         po::store(po::parse_config_file<char>(file, confFileDesc, true), vm);
         po::notify(vm);
 
