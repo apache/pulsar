@@ -46,7 +46,7 @@ public abstract class AbstractReplicator {
     protected final PulsarClientImpl client;
 
     protected volatile ProducerImpl producer;
-    public static final String producerNamePadding = "####@@@@!!!!padding";
+    public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
 
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
@@ -81,8 +81,7 @@ public abstract class AbstractReplicator {
                 .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(producerQueueSize) //
-                .producerName(String.format("%s%s%s", getReplicatorName(replicatorPrefix, localCluster),
-                        producerNamePadding, remoteCluster));
+                .producerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);
     }
 
