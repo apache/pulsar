@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
@@ -63,6 +64,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     private final Serializer<V> valueSerializer;
 
     private final Partitioner partitioner;
+    private volatile Cluster cluster = Cluster.empty();
 
     /** Map that contains the last future for each producer */
     private final ConcurrentMap<String, CompletableFuture<MessageId>> lastSendFuture = new ConcurrentHashMap<>();
@@ -110,9 +112,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
 
         partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
-        if (partitioner != null) {
-            partitioner.configure(producerConfig.originals());
-        }
+        partitioner.configure(producerConfig.originals());
 
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
         try {
@@ -222,10 +222,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     @Override
     public void close() {
         close(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-
-        if (partitioner != null) {
-            partitioner.close();
-        }
+        partitioner.close();
     }
 
     @Override
@@ -239,10 +236,26 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private org.apache.pulsar.client.api.Producer<byte[]> createNewProducer(String topic) {
         try {
+            // Add the partitions info for the new topic
+            cluster = cluster.withPartitions(readPartitionsInfo(topic));
             return pulsarProducerBuilder.clone().topic(topic).create();
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Map<TopicPartition, PartitionInfo> readPartitionsInfo(String topic) {
+        List<String> partitions = client.getPartitionsForTopic(topic).join();
+
+        Map<TopicPartition, PartitionInfo> partitionsInfo = new HashMap<>();
+
+        for (int i = 0; i < partitions.size(); i++) {
+            TopicPartition tp = new TopicPartition(topic, i);
+            PartitionInfo pi = new PartitionInfo(topic, i, null, null, null);
+            partitionsInfo.put(tp, pi);
+        }
+
+        return partitionsInfo;
     }
 
     private int buildMessage(TypedMessageBuilder<byte[]> builder, ProducerRecord<K, V> record) {
@@ -260,13 +273,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         byte[] value = valueSerializer.serialize(record.topic(), record.value());
         builder.value(value);
 
-        if (partitioner != null) {
-            // Get the partition id from the partitioner
-            int partition = partitioner.partition(record.topic(), record.key(), keyBytes, record.value(), value, null);
-            builder.property(KafkaMessageRouter.PARTITION_ID, Integer.toString(partition));
-        } else if (record.partition() != null) {
+        if (record.partition() != null) {
             // Partition was explicitely set on the record
             builder.property(KafkaMessageRouter.PARTITION_ID, record.partition().toString());
+        } else {
+            // Get the partition id from the partitioner
+            int partition = partitioner.partition(record.topic(), record.key(), keyBytes, record.value(), value, cluster);
+            builder.property(KafkaMessageRouter.PARTITION_ID, Integer.toString(partition));
         }
 
         return value.length;

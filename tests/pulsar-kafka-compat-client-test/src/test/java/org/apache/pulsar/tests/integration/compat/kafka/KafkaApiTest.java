@@ -355,12 +355,12 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         assertEquals(records.count(), 0);
     }
 
-    private static class MyCustomPartitioner implements Partitioner {
+    public static class MyCustomPartitioner implements Partitioner {
 
         static int USED_PARTITION = 3;
 
         @Override
-        public void configure(Map<String, ?> arg0) {
+        public void configure(Map<String, ?> conf) {
             // Do nothing
         }
 
@@ -370,16 +370,15 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         }
 
         @Override
-        public int partition(String arg0, Object arg1, byte[] arg2, Object arg3, byte[] arg4, Cluster arg5) {
+        public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
             // Dummy implementation that always return same partition
             return USED_PARTITION;
         }
-
     }
 
     @Test
     public void testCustomRouter() throws Exception {
-        String topic = "testExplicitPartitions";
+        String topic = "testCustomRouter";
 
         // Create 8 partitions in topic
         @Cleanup
