@@ -23,9 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * Utilities for managing BookKeeper Ledgers custom metadata
+ * Utilities for managing BookKeeper Ledgers custom metadata.
  */
-public abstract class LedgerMetadataUtils {
+public final class LedgerMetadataUtils {
 
     private static final String METADATA_PROPERTY_APPLICATION = "application";
     private static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR
@@ -96,5 +96,7 @@ public abstract class LedgerMetadataUtils {
                 METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
         );
     }
+    
+    private LedgerMetadataUtils() {}
 
 }
