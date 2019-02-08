@@ -34,6 +34,8 @@ public final class LedgerMetadataUtils {
     private static final String METADATA_PROPERTY_COMPONENT = "component";
     private static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER
             = "managed-ledger".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER
+            = "compacted-ledger".getBytes(StandardCharsets.UTF_8);
     private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA
             = "schema".getBytes(StandardCharsets.UTF_8);
 
@@ -68,16 +70,16 @@ public final class LedgerMetadataUtils {
     }
 
     /**
-     * Build additional metadata for a compacted topic fragment.
+     * Build additional metadata for a CompactedLedger.
      *
      * @param compactedTopic reference to the compacted topic.
      * @param compactedToMessageId last mesasgeId.
      * @return an immutable map which describes the cursor
      */
-    public static Map<String, byte[]> buildMetadataForCompactedTopicFrament(String compactedTopic, byte[] compactedToMessageId) {
+    public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic, byte[] compactedToMessageId) {
         return ImmutableMap.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
-                METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER,
+                METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER,
                 METADATA_PROPERTY_COMPACTEDTOPIC, compactedTopic.getBytes(StandardCharsets.UTF_8),
                 METADATA_PROPERTY_COMPACTEDTO, compactedToMessageId
         );
@@ -96,7 +98,7 @@ public final class LedgerMetadataUtils {
                 METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
         );
     }
-    
+
     private LedgerMetadataUtils() {}
 
 }

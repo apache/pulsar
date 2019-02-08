@@ -166,7 +166,7 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
             Map<String, MessageId> latestForKey, BookKeeper bk) {
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedTopicFrament(reader.getTopic(), to.toByteArray());
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
         return createLedger(bk, metadata).thenCompose((ledger) -> {
             log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
                     reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
