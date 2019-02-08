@@ -73,6 +73,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
 
+    private boolean autoUpdatePartitions = true;
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     /**

@@ -24,7 +24,6 @@
 #include <algorithm>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
-#include <boost/filesystem.hpp>
 #include <climits>
 
 #include "ExecutorService.h"
@@ -116,6 +115,11 @@ static Result getResult(ServerError serverError) {
     return ResultUnknownError;
 }
 
+static bool file_exists(const std::string& path) {
+    std::ifstream f(path);
+    return !f.bad();
+}
+
 ClientConnection::ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
                                    ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
@@ -144,8 +148,6 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       numOfPendingLookupRequest_(0),
       isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
-        using namespace boost::filesystem;
-
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
 #else
@@ -157,7 +159,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         } else {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
             std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
-            if (exists(path(trustCertFilePath))) {
+            if (file_exists(trustCertFilePath)) {
                 ctx.load_verify_file(trustCertFilePath);
             } else {
                 LOG_ERROR(trustCertFilePath << ": No such trustCertFile");
@@ -177,7 +179,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             std::string tlsCertificates = authData->getTlsCertificates();
             std::string tlsPrivateKey = authData->getTlsPrivateKey();
 
-            if (exists(path(tlsCertificates))) {
+            if (file_exists(tlsCertificates)) {
                 ctx.use_certificate_file(tlsCertificates, boost::asio::ssl::context::pem);
             } else {
                 LOG_ERROR(tlsCertificates << ": No such tlsCertificates");
@@ -185,7 +187,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
                 return;
             }
 
-            if (exists(path(tlsPrivateKey))) {
+            if (file_exists(tlsPrivateKey)) {
                 ctx.use_private_key_file(tlsPrivateKey, boost::asio::ssl::context::pem);
             } else {
                 LOG_ERROR(tlsPrivateKey << ": No such tlsPrivateKey");

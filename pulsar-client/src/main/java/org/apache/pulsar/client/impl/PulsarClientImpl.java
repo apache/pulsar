@@ -685,11 +685,13 @@ public class PulsarClientImpl implements PulsarClient {
 
     @SuppressWarnings("unchecked")
     private <T> Optional<ConsumerBase<T>> subscriptionExist(ConsumerConfigurationData<?> conf) {
-        Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
-                .filter(consumerBase -> consumerBase.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
-                .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
-                .findFirst();
-        return subscriber.map(ConsumerBase.class::cast);
+        synchronized (consumers) {
+            Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
+                    .filter(consumerBase -> consumerBase.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
+                    .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
+                    .findFirst();
+            return subscriber.map(ConsumerBase.class::cast);
+        }
     }
 
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
