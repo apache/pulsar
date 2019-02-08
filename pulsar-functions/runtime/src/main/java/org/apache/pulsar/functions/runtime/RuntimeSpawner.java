@@ -143,7 +143,7 @@ public class RuntimeSpawner implements AutoCloseable {
     public void close() {
         // cancel liveness checker before stopping runtime.
         if (processLivenessCheckTimer != null) {
-            processLivenessCheckTimer.cancel(false);
+            processLivenessCheckTimer.cancel(true);
             processLivenessCheckTimer = null;
         }
         if (null != runtime) {
