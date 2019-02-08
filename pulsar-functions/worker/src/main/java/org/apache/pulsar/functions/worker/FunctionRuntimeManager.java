@@ -857,9 +857,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
-        stopAllOwnedFunctions();
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
+
+        stopAllOwnedFunctions();
+
         if (runtimeFactory != null) {
             runtimeFactory.close();
         }
