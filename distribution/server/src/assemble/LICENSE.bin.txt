@@ -382,6 +382,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper-stream-storage-service-api-4.7.3.jar
     - org.apache.bookkeeper-stream-storage-service-impl-4.7.3.jar
     - org.apache.bookkeeper.http-http-server-4.7.3.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.7.3.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.7.3.jar
     - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.7.3.jar
     - org.apache.bookkeeper.tests-stream-storage-tests-common-4.7.3.jar
@@ -476,6 +477,10 @@ The Apache Software License, Version 2.0
     - io.jsonwebtoken-jjwt-jackson-0.10.5.jar
   * JavaX Injection
     - javax.inject-javax.inject-1.jar
+  * Vertx
+    - io.vertx-vertx-auth-common-3.4.1.jar 
+    - io.vertx-vertx-core-3.4.1.jar
+    - io.vertx-vertx-web-3.4.1.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
