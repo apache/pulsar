@@ -40,6 +40,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
 import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.testng.AssertJUnit.assertFalse;
 
 /**
  * Unit test of {@link FunctionActioner}.
@@ -81,12 +82,7 @@ public class FunctionActionerTest {
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
 
         // actioner should try to download file from bk-dlogNamespace and fails with exception
-        try {
-            actioner.startFunction(functionRuntimeInfo);
-            fail("should have failed with dlogNamespace open");
-        } catch (IllegalArgumentException ie) {
-            assertEquals(ie.getMessage(), exceptionMsg);
-        }
+        assertFalse(actioner.startFunction(functionRuntimeInfo));
     }
 
     @Test
@@ -140,7 +136,7 @@ public class FunctionActionerTest {
         functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
 
-        assertTrue(actioner.startFunction(functionRuntimeInfo));
+        assertFalse(actioner.startFunction(functionRuntimeInfo));
     }
 
 }
