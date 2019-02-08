@@ -151,7 +151,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><th style="text-align:left">Producer 方法</th><th style="text-align:left">支持</th><th style="text-align:left">备注</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Future&lt;RecordMetadata&gt; send(ProducerRecord&lt;K, V&gt; record)</code></td><td style="text-align:left">Yes</td><td style="text-align:left">目前不支持在发布时显式设置分区ID</td></tr>
+<tr><td style="text-align:left"><code>Future&lt;RecordMetadata&gt; send(ProducerRecord&lt;K, V&gt; record)</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>Future&lt;RecordMetadata&gt; send(ProducerRecord&lt;K, V&gt; record, Callback callback)</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>void flush()</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>List&lt;PartitionInfo&gt; partitionsFor(String topic)</code></td><td style="text-align:left">No</td><td style="text-align:left"></td></tr>
@@ -167,7 +167,7 @@ consumer.subscribe(Arrays.asList(topic));
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>acks</code></td><td style="text-align:left">Ignored</td><td style="text-align:left">Durability and quorum writes are configured at the namespace level</td></tr>
-<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Will have a default value of 'latest' if user does not give specific setting.</td></tr>
+<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Will have a default value of <code>latest</code> if user does not give specific setting.</td></tr>
 <tr><td style="text-align:left"><code>batch.size</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>block.on.buffer.full</code></td><td style="text-align:left">Yes</td><td style="text-align:left">true时会阻塞生产者，否则跑抛出异常</td></tr>
 <tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">Yes</td><td style="text-align:left">指定一个pulsar服务地址</td></tr>
@@ -184,7 +184,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>metric.reporters</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>metrics.num.samples</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>metrics.sample.window.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>partitioner.class</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>partitioner.class</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>receive.buffer.bytes</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>reconnect.backoff.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>request.timeout.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
