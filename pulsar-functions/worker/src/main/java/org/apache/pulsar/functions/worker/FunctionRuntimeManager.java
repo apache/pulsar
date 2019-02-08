@@ -87,6 +87,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionAssignmentTailer functionAssignmentTailer;
 
+    @Setter
     private FunctionActioner functionActioner;
 
     @Getter
@@ -104,6 +105,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     boolean isInitializePhase = false;
 
     private final FunctionMetaDataManager functionMetaDataManager;
+
 
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager,
@@ -307,17 +309,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
+    public void restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
             URI uri) throws Exception {
         if (runtimeFactory.externallyManaged()) {
-            return Response.status(Status.NOT_IMPLEMENTED).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Externally managed schedulers can't do per instance stop")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.NOT_IMPLEMENTED)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Externally managed schedulers can't do per instance stop")).build());
         }
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
         if (assignment == null) {
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(fullFunctionName + " doesn't exist")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " doesn't exist")).build());
         }
 
         final String assignedWorkerId = assignment.getWorkerId();
@@ -325,7 +329,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         if (assignedWorkerId.equals(workerId)) {
             stopFunction(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()), true);
-            return Response.status(Status.OK).build();
+            return;
         } else {
             // query other worker
             List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
@@ -336,8 +340,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
             if (workerInfo == null) {
-                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                        .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+                throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                        .type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
             }
 
             if (uri == null) {
@@ -349,14 +354,15 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public Response restartFunctionInstances(String tenant, String namespace, String functionName)
+    public void restartFunctionInstances(String tenant, String namespace, String functionName)
             throws Exception {
         final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
 
         if (assignments.isEmpty()) {
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+            throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
         }
         if (runtimeFactory.externallyManaged()) {
             Assignment assignment = assignments.iterator().next();
@@ -377,8 +383,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
                     }
-                    return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+                    throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
+                            .type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
                 this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
             }
@@ -408,7 +415,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
         }
-        return Response.status(Status.OK).build();
+        return;
     }
 
     /**
@@ -606,8 +613,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
         String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
         Assignment existingAssignment = this.findAssignment(assignment);
         // potential updates need to happen
+
         if (!existingAssignment.equals(assignment)) {
-            FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+            FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
 
             // for externally managed functions we don't really care about which worker the function instance is assigned to
             // and we don't really need to stop and start the function instance because the worker its assigned to changed
@@ -615,6 +623,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             // changes to the function meta data of the instance
 
             if (runtimeFactory.externallyManaged()) {
+
                 // change in metadata thus need to potentially restart
                 if (!assignment.getInstance().equals(existingAssignment.getInstance())) {
                     //stop function
@@ -627,6 +636,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             //start again
                             FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
                             newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+
                             this.insertStartAction(newFunctionRuntimeInfo);
                             this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                         }
@@ -634,7 +644,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
                     }
                 } else {
-                    deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
+                    // if assignment got transferred to me just set function runtime
+                    if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
+                        FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
+                        newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
+                        RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
+                                assignment.getInstance(),
+                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                        newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+
+                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                    } else {
+                        deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
+                    }
                 }
             } else {
                 //stop function
@@ -667,7 +689,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
    
     public synchronized void deleteAssignment(String fullyQualifiedInstanceId) {
-        FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+        FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
             Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
@@ -722,17 +744,20 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private void startFunctionInstance(Assignment assignment) {
         String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
-        if (!this.functionRuntimeInfoMap.containsKey(fullyQualifiedInstanceId)) {
-            this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, new FunctionRuntimeInfo()
-                    .setFunctionInstance(assignment.getInstance()));
+        FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
+
+        if (functionRuntimeInfo == null) {
+            functionRuntimeInfo = new FunctionRuntimeInfo()
+                    .setFunctionInstance(assignment.getInstance());
+            this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, functionRuntimeInfo);
 
         } else {
             //Somehow this function is already started
             log.warn("Function {} already running. Going to restart function.",
-                    this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId));
-            this.insertStopAction(this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId));
+                    functionRuntimeInfo);
+            this.insertStopAction(functionRuntimeInfo);
         }
-        FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+
         this.insertStartAction(functionRuntimeInfo);
     }
 
@@ -841,11 +866,20 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     public synchronized FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
-        return getFunctionRuntimeInfoInternal(fullyQualifiedInstanceId);
+        return _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
     }
 
-    private FunctionRuntimeInfo getFunctionRuntimeInfoInternal(String fullyQualifiedInstanceId) {
-        return this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+    private FunctionRuntimeInfo _getFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
+        FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+
+        // sanity check to make sure assignments and runtimeinfo is in sync
+        if (functionRuntimeInfo == null) {
+            if (this.workerIdToAssignments.containsValue(workerConfig.getWorkerId())
+                    && this.workerIdToAssignments.get(workerConfig.getWorkerId()).containsValue(fullyQualifiedInstanceId)) {
+                log.error("Assignments and RuntimeInfos are inconsistent. FunctionRuntimeInfo missing for " + fullyQualifiedInstanceId);
+            }
+        }
+        return functionRuntimeInfo;
     }
 
     private boolean needsStart(Assignment assignment) {

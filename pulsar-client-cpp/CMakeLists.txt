@@ -110,7 +110,7 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex system)
+find_package(Boost REQUIRED COMPONENTS program_options regex system)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -208,13 +208,8 @@ include_directories(
 set(COMMON_LIBS
   ${COMMON_LIBS} -lpthread -lm
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_REGEX_LIBRARY}
-  ${Boost_THREAD_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
-  ${Boost_CHRONO_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY}
-  ${Boost_ATOMIC_LIBRARY}
   ${CURL_LIBRARY_PATH}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
