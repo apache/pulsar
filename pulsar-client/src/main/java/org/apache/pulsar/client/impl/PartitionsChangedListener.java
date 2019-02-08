@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef _PULSAR_NAMED_ENTITY_HEADER_
-#define _PULSAR_NAMED_ENTITY_HEADER_
+package org.apache.pulsar.client.impl;
 
-#include <boost/regex.hpp>
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
-class NamedEntity {
-   private:
-    static const boost::regex pattern;
-
-   public:
-    static bool checkName(const std::string& name);
-};
-#endif
+/**
+ * Listener that notified when concerned topic partitions changed.
+ */
+public interface PartitionsChangedListener {
+    /**
+     * Notified when topic partitions increased.
+     * Passed in topics that have partitions increased.
+     */
+    CompletableFuture<Void> onTopicsExtended(Collection<String> topicsExtended);
+}
