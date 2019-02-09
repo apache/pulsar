@@ -111,6 +111,14 @@ processContainerFactory:
 #  # if it is not an absolute path, it is relative to `pulsarRootDir`
 #  extraFunctionDependenciesDir:
 
+## A set of the minimum amount of resources functions must request.
+## Support for this depends on function runtime.
+## Only kubernetes runtime currently supports this.
+# functionInstanceMinResources:
+#   cpu: 1
+#   ram: 1073741824
+#   disk: 10737418240
+
 ############################################
 # security settings for worker service
 ############################################

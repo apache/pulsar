@@ -36,7 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.apache.pulsar.common.stats.JvmG1GCMetricsLogger;
+import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -432,6 +432,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             + " to the init method of the secretproviderconfigurator"
     )
     private Map<String, String> secretsProviderConfiguratorConfig;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "A set of the minimum amount of resources functions must request.  Support for this depends on function runtime."
+    )
+    private Resources functionInstanceMinResources;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
