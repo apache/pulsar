@@ -19,10 +19,10 @@
 
 -->
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<suite name="Pulsar Function Process Integration Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-function-process-test-suite" preserve-order="true" >
-        <classes>
-            <class name="org.apache.pulsar.tests.integration.functions.PulsarFunctionsProcessTest" />
-        </classes>
-    </test>
+<!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
+           see {@link https://github.com/cbeust/testng/issues/508} -->
+<suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
+    <suite-files>
+        <suite-file path="./pulsar-cli.xml" />
+    </suite-files>
 </suite>
