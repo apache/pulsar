@@ -29,8 +29,11 @@
 
 #include <curl/curl.h>
 
-#include <json/value.h>
-#include <json/reader.h>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+namespace ptree = boost::property_tree;
+
+#include <sstream>
 
 #include <functional>
 
@@ -61,15 +64,16 @@ AuthAthenz::~AuthAthenz() {}
 ParamMap parseAuthParamsString(const std::string& authParamsString) {
     ParamMap params;
     if (!authParamsString.empty()) {
-        Json::Value root;
-        Json::Reader reader;
-        if (reader.parse(authParamsString, root, false)) {
-            Json::Value::Members members = root.getMemberNames();
-            for (Json::Value::Members::iterator iter = members.begin(); iter != members.end(); iter++) {
-                params[*iter] = root[*iter].asString();
+        ptree::ptree root;
+        std::stringstream stream;
+        stream << authParamsString;
+        try {
+            ptree::read_json(stream, root);
+            for (const auto& item : root) {
+                params[item.first] = item.second.get_value<std::string>();
             }
-        } else {
-            LOG_ERROR("Invalid String Error: " << reader.getFormatedErrorMessages());
+        } catch (ptree::json_parser_error& e) {
+            LOG_ERROR("Invalid String Error: " << e.what());
         }
     }
     return params;
