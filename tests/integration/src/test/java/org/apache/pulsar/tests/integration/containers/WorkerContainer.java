@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
+
 /**
  * A pulsar container that runs functions worker.
  */
@@ -34,5 +36,17 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
             -1,
             BROKER_HTTP_PORT,
             "/admin/v2/worker/cluster");
+    }
+
+    @Override
+    protected void beforeStop() {
+        super.beforeStop();
+        if (null != containerId) {
+            DockerUtils.dumpContainerDirToTargetCompressed(
+                    getDockerClient(),
+                    containerId,
+                    "/pulsar/logs/functions"
+            );
+        }
     }
 }

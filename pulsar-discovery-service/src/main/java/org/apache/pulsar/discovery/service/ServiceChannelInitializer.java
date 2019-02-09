@@ -34,26 +34,28 @@ import io.netty.handler.ssl.SslContext;
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
-    private ServiceConfig serviceConfig;
-    private DiscoveryService discoveryService;
-    private boolean enableTLS;
+    private final ServiceConfig serviceConfig;
+    private final DiscoveryService discoveryService;
+    private final SslContext sslCtx;
 
-    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig,
-            boolean enableTLS) {
+    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean enableTLS)
+            throws Exception {
         super();
         this.serviceConfig = serviceConfig;
         this.discoveryService = discoveryService;
-        this.enableTLS = enableTLS;
+        if (enableTLS) {
+            this.sslCtx = SecurityUtility.createNettySslContextForServer(serviceConfig.isTlsAllowInsecureConnection(),
+                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
+        } else {
+            this.sslCtx = null;
+        }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (enableTLS) {
-            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
-                    serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
-                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
-                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
+        if (sslCtx != null) {
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
