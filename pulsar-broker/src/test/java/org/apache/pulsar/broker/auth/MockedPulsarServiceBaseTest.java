@@ -78,9 +78,6 @@ public abstract class MockedPulsarServiceBaseTest {
     protected final int BROKER_PORT = PortManager.nextFreePort();
     protected final int BROKER_PORT_TLS = PortManager.nextFreePort();
 
-    protected final static String TLS_SERVER_CERT_FILE_PATH = "../pulsar-broker/src/test/resources/certificate/server.crt";
-    protected final static String TLS_SERVER_KEY_FILE_PATH = "../pulsar-broker/src/test/resources/certificate/server.key";
-
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
@@ -96,10 +93,8 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
-        this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
@@ -107,9 +102,6 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
         this.conf.setConfigurationStoreServers("localhost:3181");
-        this.conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        this.conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        this.conf.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
     }
 
     protected final void internalSetup() throws Exception {
