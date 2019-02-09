@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,21 +18,32 @@
 # under the License.
 #
 
-# Test tools
-add_definitions(-D_GLIBCXX_USE_NANOSLEEP)
+import pulsar
+from pulsar.schema import *
+import sys
 
-set(PERF_PRODUCER_SOURCES
-  PerfProducer.cc
-)
 
-set(PERF_CONSUMER_SOURCES
-  PerfConsumer.cc
-)
+class ReceiveExample(Record):
+    x = Integer()
+    y = Long()
 
-add_executable(perfProducer ${PERF_PRODUCER_SOURCES})
-add_executable(perfConsumer ${PERF_CONSUMER_SOURCES})
 
-set(TOOL_LIBS ${CLIENT_LIBS} ${Boost_PROGRAM_OPTIONS_LIBRARY})
+service_url = sys.argv[1]
+topic = sys.argv[2]
 
-target_link_libraries(perfProducer pulsarShared ${TOOL_LIBS})
-target_link_libraries(perfConsumer pulsarShared ${TOOL_LIBS})
+client = pulsar.Client(service_url)
+
+consumer = client.subscribe(
+                    topic=topic,
+                    subscription_name="my-subscription",
+                    schema=JsonSchema(ReceiveExample)
+                )
+
+msg = consumer.receive()
+
+obj = msg.value()
+
+assert obj.x == 1
+assert obj.y == 2
+
+client.close()

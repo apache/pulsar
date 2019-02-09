@@ -290,8 +290,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testBackoffAndReconnect(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         // Create consumer and producer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic4")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic4")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic4");
 
@@ -299,22 +301,24 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producerBuilder.enableBatching(true);
             producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerBuilder.batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
         Producer<byte[]> producer = producerBuilder.create();
+
         // Produce messages
-        CompletableFuture<MessageId> lastFuture = null;
         for (int i = 0; i < 10; i++) {
-            lastFuture = producer.sendAsync(("my-message-" + i).getBytes()).thenApply(msgId -> {
+            producer.sendAsync(("my-message-" + i).getBytes()).thenApply(msgId -> {
                 log.info("Published message id: {}", msgId);
                 return msgId;
             });
         }
 
-        lastFuture.get();
+        producer.flush();
 
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             log.info("Received: [{}]", new String(msg.getData()));
         }
 
@@ -326,7 +330,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         msg = null;
         log.info("Receiving duplicate messages..");
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             log.info("Received: [{}]", new String(msg.getData()));
             Assert.assertNotNull(msg, "Message cannot be null");
         }
