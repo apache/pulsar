@@ -93,10 +93,8 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
-        this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);

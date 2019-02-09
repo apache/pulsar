@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.client.impl;
+
+import java.security.cert.X509Certificate;
+import java.util.function.Supplier;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -33,29 +36,31 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     public static final String TLS_HANDLER = "tls";
 
-    private final PulsarService pulsar;
+    private final Supplier<ClientCnx> clientCnxSupplier;
     private final SslContext sslCtx;
 
-    /**
-     *
-     * @param brokerService
-     */
-    public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
+    public PulsarChannelInitializer(ClientConfigurationData conf, Supplier<ClientCnx> clientCnxSupplier)
+            throws Exception {
         super();
-        this.pulsar = pulsar;
-        if (enableTLS) {
-            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-            this.sslCtx = SecurityUtility.createNettySslContextForServer(serviceConfig.isTlsAllowInsecureConnection(),
-                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.isTlsRequireTrustedClientCertOnConnect());
+        this.clientCnxSupplier = clientCnxSupplier;
+        if (conf.isUseTls()) {
+            // Set client certificate if available
+            AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
+            if (authData.hasDataForTls()) {
+                this.sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                        conf.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
+                        authData.getTlsPrivateKey());
+            } else {
+                this.sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                        conf.getTlsTrustCertsFilePath());
+            }
         } else {
             this.sslCtx = null;
         }
     }
 
     @Override
-    protected void initChannel(SocketChannel ch) throws Exception {
+    public void initChannel(SocketChannel ch) throws Exception {
         if (sslCtx != null) {
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
@@ -64,6 +69,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ServerCnx(pulsar));
+        ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
 }
