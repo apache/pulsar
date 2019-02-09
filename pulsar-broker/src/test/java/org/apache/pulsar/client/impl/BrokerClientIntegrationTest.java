@@ -572,7 +572,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Ignore
     @Test(timeOut = 5000)
     public void testMaxConcurrentTopicLoading() throws Exception {
 
