@@ -33,13 +33,11 @@
 
   <modules>
     <module>proto</module>
-    <module>proto-shaded</module>
     <module>api-java</module>
     <module>java-examples</module>
     <module>utils</module>
     <module>instance</module>
     <module>runtime</module>
-    <module>runtime-shaded</module>
     <module>runtime-all</module>
     <module>worker</module>
     <module>secrets</module>
