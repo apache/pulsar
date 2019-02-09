@@ -23,6 +23,7 @@ import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.web.PulsarWebResource;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -120,10 +121,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
     	final String nonPartitionTopic = "non-partitioned-topic";
     	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
-    	List<String> subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
-        Assert.assertTrue(subscriptions.contains("test"));
-        persistentTopics.deleteSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true);
-        subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
-        Assert.assertTrue(subscriptions.isEmpty());
+    	try {
+    		persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
+    	} catch (RestException exc) {
+    		Assert.assertTrue(exc.getMessage().contains("zero partitions"));
+    	}
     }
 }

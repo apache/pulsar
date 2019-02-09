@@ -1297,7 +1297,13 @@ public class PersistentTopicsBase extends AdminResource {
                         TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
                         if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
-                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                        	final String errSrc;
+                        	if (partitionedTopicMetadata != null) {
+                        		errSrc = " has zero partitions";
+                        	} else {
+                        		errSrc = " has no metadata";
+                        	}
+                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.getLocalName() + errSrc);
                         } else if (!internalGetList().contains(topicName.toString())) {
                             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                         }
