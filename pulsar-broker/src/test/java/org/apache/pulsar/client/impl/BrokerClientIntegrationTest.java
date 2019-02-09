@@ -90,6 +90,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -571,6 +572,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @Ignore
     @Test(timeOut = 5000)
     public void testMaxConcurrentTopicLoading() throws Exception {
 
