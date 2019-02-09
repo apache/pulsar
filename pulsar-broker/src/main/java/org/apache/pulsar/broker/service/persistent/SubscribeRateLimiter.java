@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 
 import com.google.common.base.MoreObjects;
+
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -173,16 +175,34 @@ public class SubscribeRateLimiter {
      * @return
      */
     public SubscribeRate getPoliciesSubscribeRate() {
-        final NamespaceName namespace = TopicName.get(this.topicName).getNamespaceObject();
-        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
-                    .get(cacheTimeOutInSec, SECONDS);
-        } catch (Exception e) {
-            log.warn("Failed to get subscribe-rate for {}", this.topicName, e);
+        return getPoliciesSubscribeRate(brokerService, topicName);
+    }
+
+    public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
+            String topicName) {
+        ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
+        policies = policies.isPresent() ? policies : DispatchRateLimiter.getPolicies(brokerService, topicName);
+        return isDispatchRateNeeded(serviceConfig, policies, topicName);
+    }
+
+    private static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
+            final Optional<Policies> policies, final String topicName) {
+        SubscribeRate subscribeRate = getPoliciesSubscribeRate(serviceConfig.getClusterName(), policies, topicName);
+        if (subscribeRate == null) {
+            return serviceConfig.getSubscribeThrottlingRatePerConsumer() > 0
+                    || serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0;
         }
+        return true;
+    }
+
+    public static SubscribeRate getPoliciesSubscribeRate(BrokerService brokerService, final String topicName) {
+        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
+        final Optional<Policies> policies = DispatchRateLimiter.getPolicies(brokerService, topicName);
+        return getPoliciesSubscribeRate(cluster, policies, topicName);
+    }
+
+    public static SubscribeRate getPoliciesSubscribeRate(final String cluster, final Optional<Policies> policies,
+            String topicName) {
         // return policy-subscribe rate only if it's enabled in policies
         return policies.map(p -> {
             if (p.clusterSubscribeRate != null) {
@@ -191,7 +211,6 @@ public class SubscribeRateLimiter {
             } else {
                 return null;
             }
-
         }).orElse(null);
     }
 
@@ -204,7 +223,7 @@ public class SubscribeRateLimiter {
         return subscribeRateLimiter.get(consumerIdentifier) != null ? subscribeRateLimiter.get(consumerIdentifier).getRate() : -1;
     }
 
-    private boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
+    private static boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
         return subscribeRate != null && (subscribeRate.subscribeThrottlingRatePerConsumer > 0);
     }
 

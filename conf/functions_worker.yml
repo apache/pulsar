@@ -32,6 +32,8 @@ workerPortTls: 6751
 
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
+# Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
+# jvmGCMetricsLoggerClassName: 
 
 #################################################################
 # Function metadata managment (assignment, scheduling, and etc)
@@ -108,6 +110,14 @@ processContainerFactory:
 #  # the directory for dropping extra function dependencies
 #  # if it is not an absolute path, it is relative to `pulsarRootDir`
 #  extraFunctionDependenciesDir:
+
+## A set of the minimum amount of resources functions must request.
+## Support for this depends on function runtime.
+## Only kubernetes runtime currently supports this.
+# functionInstanceMinResources:
+#   cpu: 1
+#   ram: 1073741824
+#   disk: 10737418240
 
 ############################################
 # security settings for worker service

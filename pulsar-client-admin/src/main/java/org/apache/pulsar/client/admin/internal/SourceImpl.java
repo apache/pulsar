@@ -233,6 +233,27 @@ public class SourceImpl extends BaseResource implements Source {
     }
 
     @Override
+    public void startSource(String tenant, String namespace, String sourceName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
+        try {
+            request(source.path(tenant).path(namespace).path(sourceName).path("start"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException {
         try {
             Response response = request(source.path("builtinsources")).get();

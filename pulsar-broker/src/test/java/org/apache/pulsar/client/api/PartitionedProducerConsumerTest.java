@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.util.Timeout;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -666,6 +668,116 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(pulsarClient.getPartitionsForTopic(nonPartitionedTopic).join(),
                 Collections.singletonList(nonPartitionedTopic));
     }
+
+
+    /**
+     * It verifies that consumer producer auto update for partitions extend.
+     *
+     * Steps:
+     * 1. create topic with 2 partitions, and producer consumer
+     * 2. update partition from 2 to 3.
+     * 3. trigger auto update in producer, after produce, consumer will only get messages from 2 partitions.
+     * 4. trigger auto update in consumer, after produce, consumer will get all messages from 3 partitions.
+     *
+     * @throws Exception
+     */
+    @Test(timeOut = 30000)
+    public void testAutoUpdatePartitionsForProducerConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+
+        final int numPartitions = 2;
+        final String topicName = "persistent://my-property/my-ns/my-topic-" + System.currentTimeMillis();
+        final String producerMsg = "producerMsg";
+        final int totalMessages = 30;
+
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .enableBatching(false)
+            .autoUpdatePartitions(true)
+            .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+            .subscriptionName("my-partitioned-subscriber")
+            .subscriptionType(SubscriptionType.Shared)
+            .autoUpdatePartitions(true)
+            .subscribe();
+
+        // 1. produce and consume 2 partitions
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send((producerMsg + " first round " + "message index: " + i).getBytes());
+        }
+        int messageSet = 0;
+        Message<byte[]> message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, totalMessages);
+
+        // 2. update partition from 2 to 3.
+        admin.topics().updatePartitionedTopic(topicName,3);
+
+        // 3. trigger auto update in producer, after produce, consumer will get 2/3 messages.
+        log.info("trigger partitionsAutoUpdateTimerTask for producer");
+        Timeout timeout = ((PartitionedProducerImpl<byte[]>)producer).getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Thread.sleep(200);
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send((producerMsg + " second round " + "message index: " + i).getBytes());
+        }
+        messageSet = 0;
+        message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, totalMessages * 2 / 3);
+
+        // 4. trigger auto update in consumer, after produce, consumer will get all messages.
+        log.info("trigger partitionsAutoUpdateTimerTask for consumer");
+        timeout = ((MultiTopicsConsumerImpl<byte[]>)consumer).getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Thread.sleep(200);
+
+        // former produced messages
+        messageSet = 0;
+        message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, totalMessages / 3);
+
+        // former produced messages
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send((producerMsg + " third round " + "message index: " + i).getBytes());
+        }
+        messageSet = 0;
+        message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, totalMessages);
+
+        pulsarClient.close();
+        admin.topics().deletePartitionedTopic(topicName);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
 
     private class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
