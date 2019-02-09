@@ -256,8 +256,8 @@ public class Consumer {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, entry id {}", topicName, subscription,
-                            consumerId, pos.getEntryId());
+                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
+                            consumerId, pos.getLedgerId(), pos.getEntryId());
                 }
 
                 // We only want to pass the "real" promise on the last entry written

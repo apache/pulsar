@@ -157,6 +157,19 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
     </dependency>
+
+    <!-- bookkeeper http server -->
+    <dependency>
+      <groupId>org.apache.bookkeeper.http</groupId>
+      <artifactId>vertx-http-server</artifactId>
+      <version>${bookkeeper.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 
   <build>

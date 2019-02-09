@@ -48,7 +48,7 @@ pulsar_result pulsar_reader_read_next_with_timeout(pulsar_reader_t *reader, puls
 pulsar_result pulsar_reader_close(pulsar_reader_t *reader) { return (pulsar_result)reader->reader.close(); }
 
 void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback callback, void *ctx) {
-    reader->reader.closeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
+    reader->reader.closeAsync(std::bind(handle_result_callback, std::placeholders::_1, callback, ctx));
 }
 
 void pulsar_reader_free(pulsar_reader_t *reader) { delete reader; }

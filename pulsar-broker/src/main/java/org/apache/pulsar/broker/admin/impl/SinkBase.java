@@ -256,6 +256,37 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
         sink.stopFunctionInstances(tenant, namespace, sinkName);
     }
 
+    @POST
+    @ApiOperation(value = "Start sink instance", response = Void.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startSink(final @PathParam("tenant") String tenant,
+                          final @PathParam("namespace") String namespace,
+                          final @PathParam("sinkName") String sinkName,
+                          final @PathParam("instanceId") String instanceId) {
+        sink.startFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+    }
+
+    @POST
+    @ApiOperation(value = "Start all sink instances", response = Void.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{sinkName}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startSink(final @PathParam("tenant") String tenant,
+                          final @PathParam("namespace") String namespace,
+                          final @PathParam("sinkName") String sinkName) {
+        sink.startFunctionInstances(tenant, namespace, sinkName);
+    }
+
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",

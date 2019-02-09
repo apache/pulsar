@@ -191,7 +191,11 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public long getLastAddConfirmed() {
-        return lastEntry;
+        if (bk.checkReturnEmptyLedger()) {
+            return -1;
+        } else {
+            return lastEntry;
+        }
     }
 
     @Override

@@ -74,17 +74,21 @@ if (LINK_STATIC)
     find_library(LIB_ZSTD NAMES libzstd.a)
 
     if (USE_LOG4CXX)
-        find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
+        if (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH log4cxx)
+        elseif (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
-        # Libraries needed by log4cxx to link statically with
-        find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
-        find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
-        find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
-        if (APPLE)
-            find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
-        else ()
-            set(ICONV_LIBRARY_PATH )
-        endif (APPLE)
+            # Libraries needed by log4cxx to link statically with
+            find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
+            find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
+            find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
+            if (APPLE)
+                find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
+            else ()
+                set(ICONV_LIBRARY_PATH )
+            endif (APPLE)
+        endif (LOG4CXX_USE_DYNAMIC_LIBS)
     endif (USE_LOG4CXX)
 else()
     # Link to shared libraries
@@ -106,7 +110,7 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
+find_package(Boost REQUIRED COMPONENTS program_options regex system)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -203,14 +207,8 @@ include_directories(
 
 set(COMMON_LIBS
   ${COMMON_LIBS} -lpthread -lm
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_REGEX_LIBRARY}
-  ${Boost_THREAD_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
-  ${Boost_CHRONO_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY}
-  ${Boost_ATOMIC_LIBRARY}
   ${CURL_LIBRARY_PATH}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}

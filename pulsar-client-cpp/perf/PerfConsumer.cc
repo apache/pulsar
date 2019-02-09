@@ -23,12 +23,12 @@ DECLARE_LOG_OBJECT()
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <mutex>
+#include <functional>
 
 using namespace std::chrono;
 
-#include <boost/thread.hpp>
-#include <boost/bind.hpp>
-#include <boost/filesystem.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/program_options.hpp>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -130,8 +130,8 @@ void handleAckComplete(Result) {
 }
 
 
-boost::mutex mutex;
-typedef boost::unique_lock<boost::mutex> Lock;
+std::mutex mutex;
+typedef std::unique_lock<std::mutex> Lock;
 typedef accumulator_set<uint64_t, stats<tag::mean, tag::p_square_quantile> > LatencyAccumulator;
 LatencyAccumulator e2eLatencyAccumulator(quantile_probability = 0.99);
 
@@ -204,7 +204,7 @@ void startPerfConsumer(const Arguments& args) {
             }
 
             client.subscribeAsync(topic, subscriberName, consumerConf,
-                                  boost::bind(handleSubscribe, _1, _2, latch));
+                                  std::bind(handleSubscribe, std::placeholders::_1, std::placeholders::_2, latch));
         }
     }
 
@@ -241,13 +241,13 @@ int main(int argc, char** argv) {
     const std::string confFile = "conf/client.conf";
     std::string defaultServiceUrl;
 
-    if (boost::filesystem::exists(confFile)) {
+    std::ifstream file(confFile.c_str());
+    if (file) {
         po::variables_map vm;
         po::options_description confFileDesc;
         confFileDesc.add_options()  //
         ("serviceURL", po::value<std::string>()->default_value("pulsar://localhost:6650"));
 
-        std::ifstream file(confFile.c_str());
         po::store(po::parse_config_file<char>(file, confFileDesc, true), vm);
         po::notify(vm);
 
