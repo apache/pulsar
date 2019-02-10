@@ -12,9 +12,9 @@ Description of current metadata:
 | ------------- | ------------- | ------------- |
 | All ledgers  | application  | 'pulsar' |
 | All ledgers  | component  | 'managed-ledger', 'schema', 'compacted-topic' |
-| Managed ledgers | psr/managed-ledger | name of the ledger |
-| Cursor | psr/cursor | name of the cursor |
-| Compacted topic | compactedTopic | name of the original topic |
-| Compacted topic | compactedTo | id of the last compated message |
+| Managed ledgers | pulsar/managed-ledger | name of the ledger |
+| Cursor | pulsar/cursor | name of the cursor |
+| Compacted topic | pulsar/compactedTopic | name of the original topic |
+| Compacted topic | pulsar/compactedTo | id of the last compated message |
 
 
