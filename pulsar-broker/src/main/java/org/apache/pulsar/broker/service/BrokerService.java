@@ -467,7 +467,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     
     public CompletableFuture<Topic> getOrCreateTopic(String topic, boolean defaultConfig) {
-    	return getTopic(topic, defaultConfig ? pulsar.getConfiguration().isAllowAutoTopicCreation() : true).thenApply(Optional::get);
+    	boolean createIfMissing = defaultConfig ? pulsar.getConfiguration().isAllowAutoTopicCreation() : true;
+    	log.warn("The createIfMissing value had been set to {}", createIfMissing);
+    	return getTopic(topic, createIfMissing).thenApply(Optional::get);
     }
 
     private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -637,6 +639,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
+        	log.warn("createIfMissing has been set to {}", createIfMissing);
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation
@@ -1389,7 +1392,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            createPersistentTopic(topic, false, pendingFuture);
+            createPersistentTopic(topic, true, pendingFuture);
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
