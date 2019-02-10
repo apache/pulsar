@@ -39,6 +39,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,8 +200,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
             public CompletableFuture<ReadHandle> execute() {
                 return getProgrammedFailure().thenCompose(
                         (res) -> {
-                            if (validate() != Code.OK) {
-                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
+                            int rc = validate();
+                            if (rc != BKException.Code.OK) {
+                                return FutureUtils.exception(BKException.create(rc));
                             }
 
                             PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
@@ -250,6 +252,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
     }
 
+    synchronized boolean checkReturnEmptyLedger() {
+        boolean shouldFailNow = (emptyLedgerAfter == 0);
+        --emptyLedgerAfter;
+        return shouldFailNow;
+    }
+
     synchronized CompletableFuture<Void> getProgrammedFailure() {
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
     }
@@ -260,6 +268,15 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     public void failAfter(int steps, int rc) {
         promiseAfter(steps).completeExceptionally(BKException.create(rc));
+    }
+
+    private int emptyLedgerAfter = -1;
+
+    /**
+     * After N times, make a ledger to appear to be empty
+     */
+    public synchronized void returnEmptyLedgerAfter(int steps) {
+        emptyLedgerAfter = steps;
     }
 
     public synchronized CompletableFuture<Void> promiseAfter(int steps) {

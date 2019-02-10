@@ -59,6 +59,8 @@ public class PulsarConnectorCache {
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
                 .setAllowShadedLedgerManagerFactoryClass(true)
                 .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
+                .setClientTcpNoDelay(false)
+                .setUseV2WireProtocol(true)
                 .setReadEntryTimeout(60);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
@@ -72,10 +74,12 @@ public class PulsarConnectorCache {
     }
 
     public static void shutdown() throws ManagedLedgerException, InterruptedException {
-        if (instance != null) {
-            instance.managedLedgerFactory.shutdown();
-            instance.statsProvider.stop();
-            instance = null;
+        synchronized (PulsarConnectorCache.class) {
+            if (instance != null) {
+                instance.managedLedgerFactory.shutdown();
+                instance.statsProvider.stop();
+                instance = null;
+            }
         }
     }
 }

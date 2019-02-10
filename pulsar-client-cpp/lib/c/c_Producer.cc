@@ -17,8 +17,6 @@
  * under the License.
  */
 
-#include <boost/bind.hpp>
-
 #include <pulsar/c/producer.h>
 
 #include "c_structs.h"
@@ -46,7 +44,8 @@ static void handle_producer_send(pulsar::Result result, pulsar_message_t *msg, p
 void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
                                 pulsar_send_callback callback, void *ctx) {
     msg->message = msg->builder.build();
-    producer->producer.sendAsync(msg->message, boost::bind(&handle_producer_send, _1, msg, callback, ctx));
+    producer->producer.sendAsync(msg->message,
+                                 std::bind(&handle_producer_send, std::placeholders::_1, msg, callback, ctx));
 }
 
 int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer) {
@@ -58,5 +57,13 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer) {
 }
 
 void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
-    producer->producer.closeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
+    producer->producer.closeAsync(std::bind(handle_result_callback, std::placeholders::_1, callback, ctx));
+}
+
+pulsar_result pulsar_producer_flush(pulsar_producer_t *producer) {
+    return (pulsar_result)producer->producer.flush();
+}
+
+void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
+    producer->producer.flushAsync(std::bind(handle_result_callback, std::placeholders::_1, callback, ctx));
 }

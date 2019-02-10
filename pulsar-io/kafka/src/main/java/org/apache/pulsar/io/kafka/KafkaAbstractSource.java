@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.io.kafka;
 
+import java.util.Collections;
+import java.util.Objects;
 import lombok.Getter;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -31,7 +33,6 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -45,37 +46,54 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private Consumer<String, byte[]> consumer;
-    private Properties props;
+    private volatile Consumer<String, byte[]> consumer;
+    private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
-    Thread runnerThread;
+    private Thread runnerThread;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         kafkaSourceConfig = KafkaSourceConfig.load(config);
-        if (kafkaSourceConfig.getTopic() == null
-                || kafkaSourceConfig.getBootstrapServers() == null
-                || kafkaSourceConfig.getGroupId() == null
-                || kafkaSourceConfig.getFetchMinBytes() == 0
-                || kafkaSourceConfig.getAutoCommitIntervalMs() == 0
-                || kafkaSourceConfig.getSessionTimeoutMs() == 0) {
-            throw new IllegalArgumentException("Required property not set.");
+        Objects.requireNonNull(kafkaSourceConfig.getTopic(), "Kafka topic is not set");
+        Objects.requireNonNull(kafkaSourceConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
+        Objects.requireNonNull(kafkaSourceConfig.getGroupId(), "Kafka consumer group id is not set");
+        if (kafkaSourceConfig.getFetchMinBytes() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer fetchMinBytes : "
+                + kafkaSourceConfig.getFetchMinBytes());
+        }
+        if (kafkaSourceConfig.isAutoCommitEnabled() && kafkaSourceConfig.getAutoCommitIntervalMs() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer autoCommitIntervalMs : "
+                + kafkaSourceConfig.getAutoCommitIntervalMs());
+        }
+        if (kafkaSourceConfig.getSessionTimeoutMs() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer sessionTimeoutMs : "
+                + kafkaSourceConfig.getSessionTimeoutMs());
+        }
+        if (kafkaSourceConfig.getHeartbeatIntervalMs() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Consumer heartbeatIntervalMs : "
+                    + kafkaSourceConfig.getHeartbeatIntervalMs());
         }
 
-        props = new Properties();
-
+        Properties props = new Properties();
+        if (kafkaSourceConfig.getConsumerConfigProperties() != null) {
+            props.putAll(kafkaSourceConfig.getConsumerConfigProperties());
+        }
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
-        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, kafkaSourceConfig.getFetchMinBytes().toString());
-        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, kafkaSourceConfig.getAutoCommitIntervalMs().toString());
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, kafkaSourceConfig.getSessionTimeoutMs().toString());
+        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getHeartbeatIntervalMs()));
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
-
+        try {
+            consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Unable to instantiate Kafka consumer", ex);
+        }
         this.start();
-
+        running = true;
     }
 
     protected Properties beforeCreateConsumer(Properties props) {
@@ -85,12 +103,13 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     @Override
     public void close() throws InterruptedException {
         LOG.info("Stopping kafka source");
+        running = false;
         if (runnerThread != null) {
             runnerThread.interrupt();
             runnerThread.join();
             runnerThread = null;
         }
-        if(consumer != null) {
+        if (consumer != null) {
             consumer.close();
             consumer = null;
         }
@@ -100,11 +119,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     public void start() {
         runnerThread = new Thread(() -> {
             LOG.info("Starting kafka source");
-            consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
-            consumer.subscribe(Arrays.asList(kafkaSourceConfig.getTopic()));
+            consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             ConsumerRecords<String, byte[]> consumerRecords;
-            while(true){
+            while (running) {
                 consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
@@ -119,13 +137,16 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                     try {
                         CompletableFuture.allOf(futures).get();
                         consumer.commitSync();
-                    } catch (ExecutionException | InterruptedException ex) {
+                    } catch (InterruptedException ex) {
+                        break;
+                    } catch (ExecutionException ex) {
+                        LOG.error("Error while processing records", ex);
                         break;
                     }
                 }
             }
-
         });
+        runnerThread.setUncaughtExceptionHandler((t, e) -> LOG.error("[{}] Error while consuming records", t.getName(), e));
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }

@@ -17,11 +17,23 @@ $ docker run -it \
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{pulsar:version}} \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone
+```
+
+Under Windows, you should use something like the following docker command:
+
+```shell
+$ docker run -it \
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v "$PWD/data:/pulsar/data".ToLower() \
+  apachepulsar/pulsar:{{site.current_version}} \
   bin/pulsar standalone
 ```
 
 A few things to note about this command:
+ * `$PWD/data` : The docker host directory under the Windows operating system must be lowercase.`$PWD/data` can provide you with the specified directory, for example: `E:/data`.
  * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
    data and metadata in the filesystem outside the container, in order to not start "fresh" every
    time the container is restarted.
@@ -43,7 +55,7 @@ For more info, see [Topics](concepts-messaging.md#topics).
 
 ## Start publishing and consuming messages
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Python](client-libraries-python.md),
+Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
 and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
 use one of these root URLs for interacting with your cluster:
 

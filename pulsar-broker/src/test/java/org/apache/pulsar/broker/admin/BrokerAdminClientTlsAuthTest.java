@@ -77,13 +77,14 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         buildConf(conf);
         super.internalSetup();
     }
 
     private void buildConf(ServiceConfiguration conf) {
         conf.setLoadBalancerEnabled(true);
-        conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));

@@ -32,9 +32,9 @@ import lombok.ToString;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;

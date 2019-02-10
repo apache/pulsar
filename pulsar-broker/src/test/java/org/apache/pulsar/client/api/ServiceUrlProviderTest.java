@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -30,6 +31,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -104,13 +106,27 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         conf.setWebServicePort(PortManager.nextFreePort());
         startBroker();
         PulsarService pulsarService2 = pulsar;
-        System.out.println("Pulsar1=" + pulsarService1.getBrokerServiceUrl() + ", Pulsar2=" + pulsarService2.getBrokerServiceUrl());
+
+        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
         Assert.assertNotEquals(pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
-        Assert.assertEquals("pulsar://" + producer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
-        Assert.assertEquals("pulsar://" + consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
+
+        log.info("Service url : producer = {}, consumer = {}",
+            producer.getClient().getLookup().getServiceUrl(),
+            consumer.getClient().getLookup().getServiceUrl());
+
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
+
+        log.info("Changing service url from {} to {}",
+            pulsarService1.getBrokerServiceUrl(),
+            pulsarService2.getBrokerServiceUrl());
+
         serviceUrlProvider.onServiceUrlChanged(pulsarService2.getBrokerServiceUrl());
-        Assert.assertEquals("pulsar://" + producer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
-        Assert.assertEquals("pulsar://" + consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        log.info("Service url changed : producer = {}, consumer = {}",
+            producer.getClient().getLookup().getServiceUrl(),
+            consumer.getClient().getLookup().getServiceUrl());
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
         producer.close();
         consumer.close();
         client.close();

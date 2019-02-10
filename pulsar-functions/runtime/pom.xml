@@ -41,19 +41,8 @@
 
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-functions-metrics</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-secrets</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-all</artifactId>
     </dependency>
 
     <dependency>

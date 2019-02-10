@@ -30,25 +30,43 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test cases for proxy.
  */
 public class TestProxy extends PulsarTestSuite {
+    private final static Logger log = LoggerFactory.getLogger(TestProxy.class);
+    private ProxyContainer proxyViaURL;
 
-    @Test
-    public void testProxy() throws Exception {
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName,
+            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        proxyViaURL = new ProxyContainer(clusterName, "proxy-via-url")
+            .withEnv("brokerServiceURL", "pulsar://pulsar-broker-0:6650")
+            .withEnv("brokerWebServiceURL", "http://pulsar-broker-0:8080")
+            .withEnv("clusterName", clusterName);
 
-        final String tenant = "compaction-test-cli-" + randomName(4);
+        specBuilder.externalService("proxy-via-url", proxyViaURL);
+        return super.beforeSetupCluster(clusterName, specBuilder);
+    }
+
+    private void testProxy(String serviceUrl, String httpServiceUrl) throws Exception {
+        final String tenant = "proxy-test-" + randomName(10);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
-                .build();
+            .serviceHttpUrl(httpServiceUrl)
+            .build();
 
         admin.tenants().createTenant(tenant,
                 new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
@@ -57,8 +75,8 @@ public class TestProxy extends PulsarTestSuite {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(serviceUrl)
+            .build();
 
         client.newConsumer()
                 .topic(topic)
@@ -78,6 +96,16 @@ public class TestProxy extends PulsarTestSuite {
             TopicStats stats = admin.topics().getStats(topic);
             assertEquals(stats.publishers.size(), 1);
         }
+    }
+
+    @Test
+    public void testProxyWithServiceDiscovery() throws Exception {
+        testProxy(pulsarCluster.getPlainTextServiceUrl(), pulsarCluster.getHttpServiceUrl());
+    }
+
+    @Test
+    public void testProxyWithNoServiceDiscoveryProxyConnectsViaURL() throws Exception {
+        testProxy(proxyViaURL.getPlainTextServiceUrl(), proxyViaURL.getHttpServiceUrl());
     }
 
 }

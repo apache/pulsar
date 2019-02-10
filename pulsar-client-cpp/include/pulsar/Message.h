@@ -22,7 +22,7 @@
 #include <map>
 #include <string>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include "MessageId.h"
 
@@ -122,8 +122,13 @@ class Message {
      */
     uint64_t getEventTimestamp() const;
 
+    /**
+     * Get the topic Name from which this message originated from
+     */
+    const std::string& getTopicName() const;
+
    private:
-    typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
+    typedef std::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);
@@ -131,7 +136,7 @@ class Message {
             int32_t partition);
     /// Used for Batch Messages
     Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-            proto::SingleMessageMetadata& singleMetadata);
+            proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;

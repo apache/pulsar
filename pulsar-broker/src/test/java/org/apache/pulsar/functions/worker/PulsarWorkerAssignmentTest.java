@@ -23,6 +23,9 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URI;
@@ -30,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.google.gson.Gson;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -40,21 +44,17 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 /**
  * Test Pulsar sink on function
@@ -149,8 +149,8 @@ public class PulsarWorkerAssignmentTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
-        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -180,7 +180,7 @@ public class PulsarWorkerAssignmentTest {
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
         functionConfig.setParallelism(2);
@@ -214,6 +214,7 @@ public class PulsarWorkerAssignmentTest {
             }
         }, 5, 150);
         // validate pulsar sink consumer has started on the topic
+        log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
@@ -223,6 +224,7 @@ public class PulsarWorkerAssignmentTest {
         final String namespacePortion = "assignment-test";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String logTopic = "persistent://" + replNamespace + "/log-topic";
         final String baseFunctionName = "assign-restart";
         final String subscriptionName = "test-sub";
         final int totalFunctions = 5;
@@ -232,7 +234,7 @@ public class PulsarWorkerAssignmentTest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = null;
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
@@ -240,8 +242,7 @@ public class PulsarWorkerAssignmentTest {
             functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
-            // set-auto-ack prop =true
-            functionConfig.setAutoAck(true);
+            // don't set any log topic
             admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
         retryStrategically((test) -> {
@@ -263,8 +264,8 @@ public class PulsarWorkerAssignmentTest {
             functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
-            // set-auto-ack prop =false
-            functionConfig.setAutoAck(false);
+            // Now set the log topic
+            functionConfig.setLogTopic(logTopic);
             admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
 
@@ -308,7 +309,7 @@ public class PulsarWorkerAssignmentTest {
         // validate updated function prop = auto-ack=false and instnaceid
         for (int i = 0; i < (totalFunctions - totalDeletedFunction); i++) {
             String functionName = baseFunctionName + i;
-            assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).isAutoAck());
+            assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
         }
     }
 

@@ -27,26 +27,30 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.i
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.ea.agentloader.AgentLoader;
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.Arrays;
 import java.util.Optional;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
+
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.util.ReflectionUtils;
+import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -147,17 +151,17 @@ public class PulsarBrokerStarter {
                 boolean useTls = workerConfig.isUseTls();
                 String localhost = "127.0.0.1";
                 String pulsarServiceUrl = useTls
-                        ? PulsarService.brokerUrlTls(localhost, brokerConfig.getBrokerServicePortTls())
-                        : PulsarService.brokerUrl(localhost, brokerConfig.getBrokerServicePort());
+                        ? PulsarService.brokerUrlTls(localhost, brokerConfig.getBrokerServicePortTls().get())
+                        : PulsarService.brokerUrl(localhost, brokerConfig.getBrokerServicePort().get());
                 String webServiceUrl = useTls
-                        ? PulsarService.webAddressTls(localhost, brokerConfig.getWebServicePortTls())
-                        : PulsarService.webAddress(localhost, brokerConfig.getWebServicePort());
+                        ? PulsarService.webAddressTls(localhost, brokerConfig.getWebServicePortTls().get())
+                        : PulsarService.webAddress(localhost, brokerConfig.getWebServicePort().get());
                 workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
-                workerConfig.setWorkerPort(brokerConfig.getWebServicePort());
+                workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
                 workerConfig.setWorkerId(
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname
@@ -273,12 +277,10 @@ public class PulsarBrokerStarter {
 
 
     public static void main(String[] args) throws Exception {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            log.error("Uncaught exception in thread {}: {}", thread.getName(), exception.getMessage(), exception);
+            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
         });
-
-        // load aspectj-weaver agent for instrumentation
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         BrokerStarter starter = new BrokerStarter(args);
         Runtime.getRuntime().addShutdownHook(

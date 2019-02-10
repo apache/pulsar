@@ -18,7 +18,7 @@
  */
 #pragma once
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #pragma GCC visibility push(default)
 
@@ -48,6 +48,6 @@ class LoggerFactory {
     virtual Logger* getLogger(const std::string& fileName) = 0;
 };
 
-typedef boost::shared_ptr<LoggerFactory> LoggerFactoryPtr;
+typedef std::shared_ptr<LoggerFactory> LoggerFactoryPtr;
 }  // namespace pulsar
 #pragma GCC visibility pop

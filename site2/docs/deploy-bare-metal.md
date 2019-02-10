@@ -14,6 +14,10 @@ sidebar_label: Bare metal
 > 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
 > package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
 > have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+>
+> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
+> package and make sure it is installed under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
+> this feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 Deploying a Pulsar cluster involves doing the following (in order):
 
@@ -29,12 +33,15 @@ Deploying a Pulsar cluster involves doing the following (in order):
 > If you already have an existing zookeeper cluster and would like to reuse it, you don't need to prepare the machines
 > for running ZooKeeper.
 
-To run Pulsar on bare metal, you will need:
+To run Pulsar on bare metal, you are recommended to have:
 
 * At least 6 Linux machines or VMs
   * 3 running [ZooKeeper](https://zookeeper.apache.org)
   * 3 running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
+
+> However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later),
+> you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
 
@@ -134,6 +141,45 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 
+## Installing Tiered Storage Offloaders (optional)
+
+> Since release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
+> If you would like to enable tiered storage feature, you can follow the instructions as below; otherwise you can
+> skip this section for now.
+
+To get started using tiered storage offloaders, you'll need to download the offloaders tarball release on every broker node in
+one of the following ways:
+
+* by clicking the link below and downloading the release from an Apache mirror:
+
+  * <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:offloader_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders`
+in the pulsar directory:
+
+```bash
+$ tar xvfz apache-pulsar-offloaders-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-offloaders-{{pulsar:version}}` in the pulsar directory
+// then copy the offloaders
+
+$ mv apache-pulsar-offloaders-{{pulsar:version}}/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-{{pulsar:version}}.nar
+```
+
+For more details of how to configure tiered storage feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md)
+
+
 ## Deploying a ZooKeeper cluster
 
 > If you already have an exsiting zookeeper cluster and would like to use it, you can skip this section.
@@ -147,6 +193,8 @@ server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
+
+> If you have only one machine to deploy Pulsar, you just need to add one server entry in the configuration file.
 
 On each host, you need to specify the ID of the node in each node's `myid` file, which is in each server's `data/zookeeper` folder by default (this can be changed via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
@@ -165,6 +213,15 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 
 ```bash
 $ bin/pulsar-daemon start zookeeper
+```
+
+> If you are planning to deploy zookeeper with bookie on the same node, you
+> need to start zookeeper by using different stats port.
+
+Start zookeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
+
+```bash
+$ PULSAR_EXTRA_OPTS="-Dstats_server_port=8001" bin/pulsar-daemon start zookeeper
 ```
 
 ## Initializing cluster metadata
@@ -268,6 +325,19 @@ You also need to specify the cluster name (matching the name that you provided w
 clusterName=pulsar-cluster-1
 ```
 
+> If you deploy Pulsar in a one-node cluster, you should update the replication settings in `conf/broker.conf` to `1`
+>
+> ```properties
+> # Number of bookies to use when creating a ledger
+> managedLedgerDefaultEnsembleSize=1
+>
+> # Number of copies to store for each message
+> managedLedgerDefaultWriteQuorum=1
+> 
+> # Number of guaranteed copies (acks to wait before write is complete)
+> managedLedgerDefaultAckQuorum=1
+> ```
+
 ### Enabling Pulsar Functions (optional)
 
 If you want to enable [Pulsar Functions](functions-overview.md), you can follow the instructions as below:
@@ -281,7 +351,7 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
 2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata). 
 
     ```conf
-    pulsarFunctionsCluster=pulsar-cluster-1
+    pulsarFunctionsCluster: pulsar-cluster-1
     ```
 
 ### Starting Brokers
@@ -319,12 +389,27 @@ Once you've done that, you can publish a message to Pulsar topic:
 $ bin/pulsar-client produce \
   persistent://public/default/test \
   -n 1 \
-  -m "Hello, Pulsar"
+  -m "Hello Pulsar"
 ```
 
 > You may need to use a different cluster name in the topic if you specified a cluster name different from `pulsar-cluster-1`.
 
-This will publish a single message to the Pulsar topic.
+This will publish a single message to the Pulsar topic. In addition, you can subscribe the Pulsar topic in a different terminal before publishing messages as below:
+
+```bash
+$ bin/pulsar-client consume \
+  persistent://public/default/test \
+  -n 100 \
+  -s "consumer-test" \
+  -t "Exclusive"
+```
+
+Once the message above has been successfully published to the topic, you should see it in the standard output:
+
+```bash
+----- got message -----
+Hello Pulsar
+```
 
 ## Running Functions
 

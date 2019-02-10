@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
+import java.security.cert.X509Certificate;
+
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
 
@@ -33,28 +39,53 @@ import io.netty.handler.ssl.SslContext;
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
-    private ProxyConfiguration serviceConfig;
-    private ProxyService proxyService;
-    private boolean enableTLS;
+    private final ProxyService proxyService;
+    private final SslContext serverSslCtx;
+    private final SslContext clientSslCtx;
 
-    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTLS) {
+    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTLS)
+            throws Exception {
         super();
-        this.serviceConfig = serviceConfig;
         this.proxyService = proxyService;
-        this.enableTLS = enableTLS;
+
+        if (enableTLS) {
+            this.serverSslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
+                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect());
+        } else {
+            this.serverSslCtx = null;
+        }
+
+        if (serviceConfig.isTlsEnabledWithBroker()) {
+            AuthenticationDataProvider authData = null;
+
+            if (!isEmpty(serviceConfig.getBrokerClientAuthenticationPlugin())) {
+                authData = AuthenticationFactory.create(serviceConfig.getBrokerClientAuthenticationPlugin(),
+                        serviceConfig.getBrokerClientAuthenticationParameters()).getAuthData();
+            }
+
+            if (authData != null && authData.hasDataForTls()) {
+                    this.clientSslCtx = SecurityUtility.createNettySslContextForClient(
+                            serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getBrokerClientTrustCertsFilePath(),
+                            (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
+                } else {
+                    this.clientSslCtx = SecurityUtility.createNettySslContextForClient(
+                            serviceConfig.isTlsAllowInsecureConnection(),
+                            serviceConfig.getBrokerClientTrustCertsFilePath());
+            }
+        } else {
+            this.clientSslCtx = null;
+        }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (enableTLS) {
-            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
-                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
-            ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+        if (serverSslCtx != null) {
+            ch.pipeline().addLast(TLS_HANDLER, serverSslCtx.newHandler(ch.alloc()));
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ProxyConnection(proxyService));
+        ch.pipeline().addLast("handler", new ProxyConnection(proxyService, clientSslCtx));
     }
 }

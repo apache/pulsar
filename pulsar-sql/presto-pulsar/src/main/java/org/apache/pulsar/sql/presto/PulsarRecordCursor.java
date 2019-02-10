@@ -18,37 +18,6 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.RecordCursor;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
-import com.google.common.annotations.VisibleForTesting;
-import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
-import org.apache.avro.Schema;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.MessageParser;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.SchemaType;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
@@ -62,6 +31,39 @@ import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_W
 import static com.facebook.presto.spi.type.TinyintType.TINYINT;
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.facebook.presto.spi.PrestoException;
+import com.facebook.presto.spi.RecordCursor;
+import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.VarbinaryType;
+import com.facebook.presto.spi.type.VarcharType;
+import com.google.common.annotations.VisibleForTesting;
+
+import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.avro.Schema;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.api.raw.MessageParser;
+import org.apache.pulsar.common.api.raw.RawMessage;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.SpscArrayQueue;
+
 
 public class PulsarRecordCursor implements RecordCursor {
 
@@ -69,14 +71,14 @@ public class PulsarRecordCursor implements RecordCursor {
     private PulsarSplit pulsarSplit;
     private PulsarConnectorConfig pulsarConnectorConfig;
     private ReadOnlyCursor cursor;
-    private ArrayBlockingQueue<Message> messageQueue;
-    private ArrayBlockingQueue<Entry> entryQueue;
+    private SpscArrayQueue<RawMessage> messageQueue;
+    private SpscArrayQueue<Entry> entryQueue;
     private Object currentRecord;
-    private Message currentMessage;
+    private RawMessage currentMessage;
     private Map<String, PulsarInternalColumn> internalColumnMap = PulsarInternalColumn.getInternalFieldsMap();
     private SchemaHandler schemaHandler;
     private int maxBatchSize;
-    private AtomicLong completedBytes = new AtomicLong(0L);
+    private long completedBytes = 0;
     private ReadEntries readEntries;
     private DeserializeEntries deserializeEntries;
     private TopicName topicName;
@@ -85,10 +87,18 @@ public class PulsarRecordCursor implements RecordCursor {
     // Stats total execution time of split
     private long startTime;
 
+    // Used to make sure we don't finish before all entries are processed since entries that have been dequeued
+    // but not been deserialized and added messages to the message queue can be missed if we just check if the queues
+    // are empty or not
+    private final long splitSize;
+    private long entriesProcessed = 0;
+
+
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
                               PulsarConnectorConfig pulsarConnectorConfig) {
+        this.splitSize = pulsarSplit.getSplitSize();
         // Set start time for split
         this.startTime = System.nanoTime();
         PulsarConnectorCache pulsarConnectorCache;
@@ -107,6 +117,7 @@ public class PulsarRecordCursor implements RecordCursor {
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
             pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
+        this.splitSize = pulsarSplit.getSplitSize();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, pulsarConnectorMetricsTracker);
     }
 
@@ -117,8 +128,8 @@ public class PulsarRecordCursor implements RecordCursor {
         this.pulsarSplit = pulsarSplit;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
         this.maxBatchSize = pulsarConnectorConfig.getMaxEntryReadBatchSize();
-        this.messageQueue = new ArrayBlockingQueue<>(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
-        this.entryQueue = new ArrayBlockingQueue<>(pulsarConnectorConfig.getMaxSplitEntryQueueSize());
+        this.messageQueue = new SpscArrayQueue<>(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
+        this.entryQueue = new SpscArrayQueue<>(pulsarConnectorConfig.getMaxSplitEntryQueueSize());
         this.topicName = TopicName.get("persistent",
                 NamespaceName.get(pulsarSplit.getSchemaName()),
                 pulsarSplit.getTableName());
@@ -168,7 +179,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
     @Override
     public long getCompletedBytes() {
-        return this.completedBytes.get();
+        return this.completedBytes;
     }
 
     @Override
@@ -185,7 +196,7 @@ public class PulsarRecordCursor implements RecordCursor {
     @VisibleForTesting
     class DeserializeEntries implements Runnable {
 
-    protected AtomicBoolean isRunning = new AtomicBoolean(false);
+    protected boolean isRunning = false;
 
         private final Thread thread;
 
@@ -194,7 +205,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         public void interrupt() {
-            isRunning.set(false);
+            isRunning = false;
             thread.interrupt();
         }
 
@@ -204,62 +215,71 @@ public class PulsarRecordCursor implements RecordCursor {
 
         @Override
         public void run() {
-            isRunning.set(true);
-            while (isRunning.get()) {
-                Entry entry;
-                try {
-                    // start time for entry queue read
-                    metricsTracker.start_ENTRY_QUEUE_DEQUEUE_WAIT_TIME();
-                    // read from entry queue and block if empty
-                    entry = entryQueue.take();
-                    // record entry queue wait time stats
-                    metricsTracker.end_ENTRY_QUEUE_DEQUEUE_WAIT_TIME();
-                } catch (InterruptedException e) {
-                    break;
-                }
-                try {
-                    long bytes = entry.getDataBuffer().readableBytes();
-                    completedBytes.addAndGet(bytes);
-                    // register stats for bytes read
-                    metricsTracker.register_BYTES_READ(bytes);
+            isRunning = true;
+            while (isRunning) {
 
-                    // set start time for time deserializing entries for stats
-                    metricsTracker.start_ENTRY_DESERIALIZE_TIME();
+                 int read = entryQueue.drain(new MessagePassingQueue.Consumer<Entry>() {
+                    @Override
+                    public void accept(Entry entry) {
 
-                    // filter entries that is not part of my split
-                    if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) < 0) {
                         try {
-                            MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
-                                    entry.getDataBuffer(), (messageId, message, byteBuf) -> {
-                                        try {
+                            long bytes = entry.getDataBuffer().readableBytes();
+                            completedBytes += bytes;
+                            // register stats for bytes read
+                            metricsTracker.register_BYTES_READ(bytes);
 
-                                            // start time for message queue read
-                                            metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                            // check if we have processed all entries in this split
+                            if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                                return;
+                            }
 
-                                            // enqueue deserialize message from this entry
-                                            messageQueue.put(message);
+                            // set start time for time deserializing entries for stats
+                            metricsTracker.start_ENTRY_DESERIALIZE_TIME();
 
-                                            // stats for how long a read from message queue took
-                                            metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
-                                            // stats for number of messages read
-                                            metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+                            try {
+                                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
+                                        entry.getDataBuffer(), (message) -> {
+                                            try {
+                                                // start time for message queue read
+                                                metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
 
-                                        } catch (InterruptedException e) {
-                                            //no-op
-                                        }
-                                    });
-                        } catch (IOException e) {
-                            log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
-                            throw new RuntimeException(e);
+                                                // enqueue deserialize message from this entry
+                                                while (!messageQueue.offer(message)) {
+                                                    Thread.sleep(1);
+                                                }
+
+                                                // stats for how long a read from message queue took
+                                                metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                                                // stats for number of messages read
+                                                metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+
+                                            } catch (InterruptedException e) {
+                                                //no-op
+                                            }
+                                        });
+                            } catch (IOException e) {
+                                log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
+                                throw new RuntimeException(e);
+                            }
+                            // stats for time spend deserializing entries
+                            metricsTracker.end_ENTRY_DESERIALIZE_TIME();
+
+                            // stats for num messages per entry
+                            metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+
+                        } finally {
+                            entriesProcessed++;
+                            entry.release();
                         }
-                        // stats for time spend deserializing entries
-                        metricsTracker.end_ENTRY_DESERIALIZE_TIME();
-
-                        // stats for num messages per entry
-                        metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
                     }
-                } finally {
-                    entry.release();
+                });
+
+                if (read <= 0) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
                 }
             }
         }
@@ -269,7 +289,7 @@ public class PulsarRecordCursor implements RecordCursor {
     class ReadEntries implements AsyncCallbacks.ReadEntriesCallback {
 
         // indicate whether there are any additional entries left to read
-        private final AtomicBoolean isDone = new AtomicBoolean(false);
+        private boolean isDone = false;
 
         //num of outstanding read requests
         // set to 1 because we can only read one batch a time
@@ -281,10 +301,10 @@ public class PulsarRecordCursor implements RecordCursor {
 
                 if (!cursor.hasMoreEntries() || ((PositionImpl) cursor.getReadPosition())
                         .compareTo(pulsarSplit.getEndPosition()) >= 0) {
-                    isDone.set(true);
+                    isDone = true;
 
                 } else {
-                    int batchSize = Math.min(maxBatchSize, entryQueue.remainingCapacity());
+                    int batchSize = Math.min(maxBatchSize, entryQueue.capacity() - entryQueue.size());
 
                     if (batchSize > 0) {
                         outstandingReadsRequests.decrementAndGet();
@@ -302,7 +322,17 @@ public class PulsarRecordCursor implements RecordCursor {
 
         @Override
         public void readEntriesComplete(List<Entry> entries, Object ctx) {
-            entryQueue.addAll(entries);
+
+            entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
+                private int i = 0;
+                @Override
+                public Entry get() {
+                    Entry entry = entries.get(i);
+                    i++;
+                    return entry;
+                }
+            }, entries.size());
+
             outstandingReadsRequests.incrementAndGet();
 
             //set read latency stats for success
@@ -311,10 +341,9 @@ public class PulsarRecordCursor implements RecordCursor {
             metricsTracker.incr_NUM_ENTRIES_PER_BATCH_SUCCESS(entries.size());
         }
 
-        public boolean hashFinished() {
-            return messageQueue.isEmpty() && entryQueue.isEmpty() && isDone.get() && outstandingReadsRequests.get() >=1;
+        public boolean hasFinished() {
+            return messageQueue.isEmpty() && isDone && outstandingReadsRequests.get() >=1 && splitSize <= entriesProcessed;
         }
-
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
@@ -328,7 +357,6 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
-
     @Override
     public boolean advanceNextPosition() {
 
@@ -341,12 +369,17 @@ public class PulsarRecordCursor implements RecordCursor {
             readEntries.run();
         }
 
+        if (currentMessage != null) {
+            currentMessage.release();
+            currentMessage = null;
+        }
+
         while(true) {
-            if (readEntries.hashFinished()) {
+            if (readEntries.hasFinished()) {
                 return false;
             }
 
-            if (messageQueue.remainingCapacity() > 0) {
+            if ((messageQueue.capacity() - messageQueue.size()) > 0) {
                 readEntries.run();
             }
 
@@ -355,9 +388,9 @@ public class PulsarRecordCursor implements RecordCursor {
                 break;
             } else {
                 try {
-                    Thread.sleep(5);
+                    Thread.sleep(1);
                     // stats for time spent wait to read from message queue because its empty
-                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
+                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(1);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -415,7 +448,7 @@ public class PulsarRecordCursor implements RecordCursor {
         } else if (type.equals(DATE)) {
             return ((Number) record).longValue();
         } else if (type.equals(INTEGER)) {
-            return (int) record;
+            return ((Number) record).intValue();
         } else if (type.equals(REAL)) {
             return Float.floatToIntBits(((Number) record).floatValue());
         } else if (type.equals(SMALLINT)) {
@@ -468,6 +501,14 @@ public class PulsarRecordCursor implements RecordCursor {
 
     @Override
     public void close() {
+        log.info("Closing cursor record");
+
+        if (currentMessage != null) {
+            currentMessage.release();
+        }
+
+        messageQueue.drain(RawMessage::release);
+        entryQueue.drain(Entry::release);
 
         if (deserializeEntries != null) {
             deserializeEntries.interrupt();
@@ -486,6 +527,7 @@ public class PulsarRecordCursor implements RecordCursor {
             this.metricsTracker.register_TOTAL_EXECUTION_TIME(System.nanoTime() - startTime);
             this.metricsTracker.close();
         }
+
     }
 
     private void checkFieldType(int field, Class<?> expected) {

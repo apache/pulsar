@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include <boost/thread/tss.hpp>
 #include <string>
 #include <sstream>
+#include <memory>
 
 #include <pulsar/Logger.h>
 
@@ -31,7 +31,7 @@ namespace pulsar {
 
 #define DECLARE_LOG_OBJECT()                                                                     \
     static pulsar::Logger* logger() {                                                            \
-        static boost::thread_specific_ptr<pulsar::Logger> threadSpecificLogPtr;                  \
+        static thread_local std::unique_ptr<pulsar::Logger> threadSpecificLogPtr;                \
         pulsar::Logger* ptr = threadSpecificLogPtr.get();                                        \
         if (PULSAR_UNLIKELY(!ptr)) {                                                             \
             std::string logger = pulsar::LogUtils::getLoggerName(__FILE__);                      \
@@ -91,4 +91,4 @@ class LogUtils {
 };
 
 #pragma GCC visibility pop
-}
+}  // namespace pulsar

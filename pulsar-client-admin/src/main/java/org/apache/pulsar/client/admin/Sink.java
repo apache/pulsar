@@ -22,8 +22,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.io.SinkConfig;
 
 import java.util.List;
@@ -178,7 +177,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatusList getSinkStatus(String tenant, String namespace, String sink) throws PulsarAdminException;
+    SinkStatus getSinkStatus(String tenant, String namespace, String sink) throws PulsarAdminException;
 
     /**
      * Gets the current status of a sink instance.
@@ -194,7 +193,7 @@ public interface Sink {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus getSinkStatus(String tenant, String namespace, String sink, int id)
+    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant, String namespace, String sink, int id)
             throws PulsarAdminException;
 
     /**
@@ -263,6 +262,40 @@ public interface Sink {
      *             Unexpected error
      */
     void stopSink(String tenant, String namespace, String sink) throws PulsarAdminException;
+
+    /**
+     * Start sink instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param sink
+     *            Sink name
+     *
+     * @param instanceId
+     *            Sink instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSink(String tenant, String namespace, String sink, int instanceId) throws PulsarAdminException;
+
+    /**
+     * Start all sink instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param sink
+     *            Sink name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSink(String tenant, String namespace, String sink) throws PulsarAdminException;
+
 
     /**
      * Fetches a list of supported Pulsar IO sinks currently running in cluster mode

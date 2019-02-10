@@ -38,7 +38,7 @@ import java.util.*;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
+import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
 public class FunctionConfigUtils {
@@ -102,7 +102,7 @@ public class FunctionConfigUtils {
         }
 
         // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
-        Function.SubscriptionType subType = (functionConfig.isRetainOrdering()
+        Function.SubscriptionType subType = ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
                 ? Function.SubscriptionType.FAILOVER
                 : Function.SubscriptionType.SHARED;
@@ -117,6 +117,11 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+        }
+        if (functionConfig.getCleanupSubscription() != null) {
+            sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
+        } else {
+            sourceSpecBuilder.setCleanupSubscription(true);
         }
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -157,7 +162,7 @@ public class FunctionConfigUtils {
                     Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0) {
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             Function.RetryDetails.Builder retryBuilder = Function.RetryDetails.newBuilder();
             retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
             if (isNotEmpty(functionConfig.getDeadLetterTopic())) {
@@ -192,8 +197,16 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
         }
 
-        functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
-        functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+        if (functionConfig.getAutoAck() != null) {
+            functionDetailsBuilder.setAutoAck(functionConfig.getAutoAck());
+        } else {
+            functionDetailsBuilder.setAutoAck(true);
+        }
+        if (functionConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         if (functionConfig.getResources() != null) {
             Function.Resources.Builder bldr = Function.Resources.newBuilder();
             if (functionConfig.getResources().getCpu() != null) {
@@ -241,7 +254,9 @@ public class FunctionConfigUtils {
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         functionConfig.setAutoAck(functionDetails.getAutoAck());
-        functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        if (functionDetails.getSource().getTimeoutMs() != 0) {
+            functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        }
         if (!isEmpty(functionDetails.getSink().getTopic())) {
             functionConfig.setOutput(functionDetails.getSink().getTopic());
         }
@@ -270,7 +285,9 @@ public class FunctionConfigUtils {
             userConfig = new HashMap<>();
         }
         if (userConfig.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
-            WindowConfig windowConfig = (WindowConfig) userConfig.get(WindowConfig.WINDOW_CONFIG_KEY);
+            WindowConfig windowConfig = new Gson().fromJson(
+                    (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                    WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
@@ -290,9 +307,38 @@ public class FunctionConfigUtils {
             resources.setCpu(functionDetails.getResources().getCpu());
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
+            functionConfig.setResources(resources);
         }
 
         return functionConfig;
+    }
+
+    public static void inferMissingArguments(FunctionConfig functionConfig) {
+        if (StringUtils.isEmpty(functionConfig.getName())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getTenant())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+        }
+
+        if (functionConfig.getParallelism() == null) {
+            functionConfig.setParallelism(1);
+        }
+
+        if (functionConfig.getJar() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        } else if (functionConfig.getPy() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        }
+
+        WindowConfig windowConfig = functionConfig.getWindowConfig();
+        if (windowConfig != null) {
+            WindowConfigUtils.inferMissingArguments(windowConfig);
+            functionConfig.setAutoAck(false);
+        }
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
@@ -363,7 +409,7 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("There is currently no support windowing in python");
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0) {
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in python");
         }
     }
@@ -418,7 +464,7 @@ public class FunctionConfigUtils {
             }
         }
 
-        if (functionConfig.getParallelism() <= 0) {
+        if (functionConfig.getParallelism() != null && functionConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Function parallelism should positive number");
         }
         // Ensure that topics aren't being used as both input and output
@@ -428,7 +474,7 @@ public class FunctionConfigUtils {
         if (windowConfig != null) {
             // set auto ack to false since windowing framework is responsible
             // for acking and not the function framework
-            if (functionConfig.isAutoAck() == true) {
+            if (functionConfig.getAutoAck() != null && functionConfig.getAutoAck()) {
                 throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
             }
             WindowConfigUtils.validate(windowConfig);
@@ -449,21 +495,21 @@ public class FunctionConfigUtils {
                     + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0
                 && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
             throw new IllegalArgumentException("MaxMessageRetries and Effectively once don't gel well");
         }
-        if (functionConfig.getMaxMessageRetries() < 0 && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
+        if ((functionConfig.getMaxMessageRetries() == null || functionConfig.getMaxMessageRetries() < 0) && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
-        if (!isEmpty(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
+        if (!isEmpty(functionConfig.getJar()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
                 && functionConfig.getJar().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getJar()).exists()) {
                 throw new IllegalArgumentException("The supplied jar file does not exist");
             }
         }
-        if (!isEmpty(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
+        if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getPy()).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
@@ -526,5 +572,113 @@ public class FunctionConfigUtils {
             doPythonChecks(functionConfig);
             return null;
         }
+    }
+
+    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {
+        FunctionConfig mergedConfig = existingConfig.toBuilder().build();
+        if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
+            throw new IllegalArgumentException("Tenants differ");
+        }
+        if (!existingConfig.getNamespace().equals(newConfig.getNamespace())) {
+            throw new IllegalArgumentException("Namespaces differ");
+        }
+        if (!existingConfig.getName().equals(newConfig.getName())) {
+            throw new IllegalArgumentException("Function Names differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getClassName())) {
+            mergedConfig.setClassName(newConfig.getClassName());
+        }
+        if (newConfig.getInputs() != null) {
+            newConfig.getInputs().forEach((topicName -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder().isRegexPattern(false).build());
+            }));
+        }
+        if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
+            newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),
+                    ConsumerConfig.builder()
+                            .isRegexPattern(true)
+                            .build());
+        }
+        if (newConfig.getCustomSerdeInputs() != null) {
+            newConfig.getCustomSerdeInputs().forEach((topicName, serdeClassName) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .serdeClassName(serdeClassName)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (newConfig.getCustomSchemaInputs() != null) {
+            newConfig.getCustomSchemaInputs().forEach((topicName, schemaClassname) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .schemaType(schemaClassname)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (!newConfig.getInputSpecs().isEmpty()) {
+            newConfig.getInputSpecs().forEach((topicName, consumerConfig) -> {
+                if (!existingConfig.getInputSpecs().containsKey(topicName)) {
+                    throw new IllegalArgumentException("Input Topics cannot be altered");
+                }
+                if (!consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
+                    throw new IllegalArgumentException("Input Specs mismatch");
+                }
+            });
+        }
+        if (!StringUtils.isEmpty(newConfig.getOutput()) && !newConfig.getOutput().equals(existingConfig.getOutput())) {
+            throw new IllegalArgumentException("Output topics differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
+            throw new IllegalArgumentException("Output Serde mismatch");
+        }
+        if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
+            throw new IllegalArgumentException("Output Schema mismatch");
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
+            mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+        }
+        if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
+            throw new IllegalArgumentException("Retain Orderning cannot be altered");
+        }
+        if (newConfig.getUserConfig() != null) {
+            mergedConfig.setUserConfig(newConfig.getUserConfig());
+        }
+        if (newConfig.getSecrets() != null) {
+            mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (newConfig.getRuntime() != null && !newConfig.getRuntime().equals(existingConfig.getRuntime())) {
+            throw new IllegalArgumentException("Runtime cannot be altered");
+        }
+        if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
+            throw new IllegalArgumentException("AutoAck cannot be altered");
+        }
+        if (newConfig.getMaxMessageRetries() != null) {
+            mergedConfig.setMaxMessageRetries(newConfig.getMaxMessageRetries());
+        }
+        if (!StringUtils.isEmpty(newConfig.getDeadLetterTopic())) {
+            mergedConfig.setDeadLetterTopic(newConfig.getDeadLetterTopic());
+        }
+        if (!StringUtils.isEmpty(newConfig.getSubName()) && !newConfig.getSubName().equals(existingConfig.getSubName())) {
+            throw new IllegalArgumentException("Subscription Name cannot be altered");
+        }
+        if (newConfig.getParallelism() != null) {
+            mergedConfig.setParallelism(newConfig.getParallelism());
+        }
+        if (newConfig.getResources() != null) {
+            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+        }
+        if (newConfig.getWindowConfig() != null) {
+            mergedConfig.setWindowConfig(newConfig.getWindowConfig());
+        }
+        if (newConfig.getTimeoutMs() != null) {
+            mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
+        }
+        return mergedConfig;
     }
 }

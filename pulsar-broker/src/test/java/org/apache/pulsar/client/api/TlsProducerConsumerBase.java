@@ -58,7 +58,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     }
 
     protected void internalSetUpForBroker() throws Exception {
-        conf.setTlsEnabled(true);
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);

@@ -21,6 +21,7 @@
 #include <pulsar/Authentication.h>
 #include "auth/AuthTls.h"
 #include "auth/AuthAthenz.h"
+#include "auth/AuthToken.h"
 #include <lib/LogUtils.h>
 
 #include <string>
@@ -28,8 +29,7 @@
 #include <iostream>
 #include <dlfcn.h>
 #include <cstdlib>
-#include <boost/make_shared.hpp>
-#include <boost/thread.hpp>
+#include <mutex>
 #include <boost/algorithm/string.hpp>
 
 DECLARE_LOG_OBJECT()
@@ -103,12 +103,12 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
     return AuthFactory::create(pluginNameOrDynamicLibPath, params);
 }
 
-boost::mutex mutex;
+std::mutex mutex;
 std::vector<void*> AuthFactory::loadedLibrariesHandles_;
 bool AuthFactory::isShutdownHookRegistered_ = false;
 
 void AuthFactory::release_handles() {
-    boost::lock_guard<boost::mutex> lock(mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     for (std::vector<void*>::iterator ite = AuthFactory::loadedLibrariesHandles_.begin();
          ite != AuthFactory::loadedLibrariesHandles_.end(); ite++) {
         dlclose(*ite);
@@ -119,6 +119,9 @@ void AuthFactory::release_handles() {
 AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& paramMap) {
     if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
         return AuthTls::create(paramMap);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(paramMap);
     } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
                boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
         return AuthAthenz::create(paramMap);
@@ -130,6 +133,9 @@ AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& 
 AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, const std::string& authParamsString) {
     if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
         return AuthTls::create(authParamsString);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(authParamsString);
     } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
                boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
         return AuthAthenz::create(authParamsString);
@@ -141,7 +147,7 @@ AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, const std:
 AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath,
                                       const std::string& authParamsString) {
     {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         if (!AuthFactory::isShutdownHookRegistered_) {
             atexit(release_handles);
             AuthFactory::isShutdownHookRegistered_ = true;
@@ -157,7 +163,7 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
     void* handle = dlopen(pluginNameOrDynamicLibPath.c_str(), RTLD_LAZY);
     if (handle != NULL) {
         {
-            boost::lock_guard<boost::mutex> lock(mutex);
+            std::lock_guard<std::mutex> lock(mutex);
             loadedLibrariesHandles_.push_back(handle);
         }
         Authentication* (*createAuthentication)(const std::string&);
@@ -177,7 +183,7 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
 
 AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath, ParamMap& params) {
     {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         if (!AuthFactory::isShutdownHookRegistered_) {
             atexit(release_handles);
             AuthFactory::isShutdownHookRegistered_ = true;
@@ -192,7 +198,7 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
     Authentication* auth = NULL;
     void* handle = dlopen(pluginNameOrDynamicLibPath.c_str(), RTLD_LAZY);
     if (handle != NULL) {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         loadedLibrariesHandles_.push_back(handle);
         Authentication* (*createAuthentication)(ParamMap&);
         *(void**)(&createAuthentication) = dlsym(handle, "createFromMap");

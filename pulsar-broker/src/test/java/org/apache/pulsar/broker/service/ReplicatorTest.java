@@ -39,7 +39,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -52,7 +51,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -419,11 +417,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     log.info("--- Starting Consumer --- " + url3);
 
                     // Produce a message that isn't replicated
-                    producer1.produce(1, MessageBuilder.create().disableReplication());
+                    producer1.produce(1, producer1.newMessage().disableReplication());
 
                     // Produce a message not replicated to r2
-                    producer1.produce(1,
-                            MessageBuilder.create().setReplicationClusters(Lists.newArrayList("r1", "r3")));
+                    producer1.produce(1, producer1.newMessage().replicationClusters(Lists.newArrayList("r1", "r3")));
 
                     // Produce a default replicated message
                     producer1.produce(1);

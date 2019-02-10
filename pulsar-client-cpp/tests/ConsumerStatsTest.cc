@@ -18,12 +18,9 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
 #include <lib/Commands.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "PulsarFriend.h"
@@ -32,12 +29,14 @@
 #include <lib/Latch.h>
 #include <lib/PartitionedConsumerImpl.h>
 #include <lib/TopicName.h>
+
+#include <functional>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-static std::string lookupUrl = "http://localhost:8765";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string lookupUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 
 void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog,
                                  Latch& latch, int index) {
@@ -58,9 +57,9 @@ void simpleCallbackFunction(Result result, BrokerConsumerStats brokerConsumerSta
 }
 TEST(ConsumerStatsTest, testBacklogInfo) {
     long epochTime = time(NULL);
-    std::string testName = "testBacklogInfo-" + boost::lexical_cast<std::string>(epochTime);
+    std::string testName = "testBacklogInfo-" + std::to_string(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     ConsumerConfiguration conf;
     conf.setBrokerConsumerStatsCacheTimeInMs(3 * 1000);
@@ -86,17 +85,18 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
 
     std::string prefix = testName + "-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
 
     LOG_DEBUG("Calling consumer.getBrokerConsumerStats");
-    consumer.getBrokerConsumerStatsAsync(
-        boost::bind(simpleCallbackFunction, _1, _2, ResultOk, numOfMessages, ConsumerExclusive));
+    consumer.getBrokerConsumerStatsAsync(std::bind(simpleCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, ResultOk, numOfMessages,
+                                                   ConsumerExclusive));
 
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
@@ -113,9 +113,9 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
 
 TEST(ConsumerStatsTest, testFailure) {
     long epochTime = time(NULL);
-    std::string testName = "testFailure-" + boost::lexical_cast<std::string>(epochTime);
+    std::string testName = "testFailure-" + std::to_string(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
@@ -142,7 +142,7 @@ TEST(ConsumerStatsTest, testFailure) {
 
     std::string prefix = testName + "-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
@@ -158,9 +158,9 @@ TEST(ConsumerStatsTest, testFailure) {
 
 TEST(ConsumerStatsTest, testCachingMechanism) {
     long epochTime = time(NULL);
-    std::string testName = "testCachingMechanism-" + boost::lexical_cast<std::string>(epochTime);
+    std::string testName = "testCachingMechanism-" + std::to_string(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     ConsumerConfiguration conf;
     conf.setBrokerConsumerStatsCacheTimeInMs(3.5 * 1000);
@@ -189,7 +189,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
 
     std::string prefix = testName + "-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
@@ -200,7 +200,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
@@ -233,13 +233,13 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
 
 TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     long epochTime = time(NULL);
-    std::string testName = "testAsyncCallOnPartitionedTopic-" + boost::lexical_cast<std::string>(epochTime);
+    std::string testName = "testAsyncCallOnPartitionedTopic-" + std::to_string(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
 
     // call admin api to create partitioned topics
-    std::string url = adminUrl + "admin/persistent/property/cluster/namespace/" + testName + "/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + testName + "/partitions";
     int res = makePutRequest(url, "7");
 
     LOG_INFO("res = " << res);
@@ -266,6 +266,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     int numOfMessages = 7 * 5;  // 5 message per partition
     Promise<Result, Producer> producerPromise;
     ProducerConfiguration config;
+    config.setBatchingEnabled(false);
     config.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
     client.createProducerAsync(topicName, config, WaitForCallbackValue<Producer>(producerPromise));
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
@@ -274,28 +275,31 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
 
     std::string prefix = testName + "-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
 
     // Expecting return from 4 callbacks
     Latch latch(4);
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
 
     // Now we have 10 messages per partition
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string messageContent = prefix + std::to_string(i);
         Message msg = MessageBuilder().build();
         producer.send(msg);
     }
 
     // Expecting cached result
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
 
     usleep(4.5 * 1000 * 1000);
     // Expecting fresh results
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 2));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 2));
 
     Message msg;
     while (consumer.receive(msg)) {
@@ -303,8 +307,9 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting the backlog to be the same since we didn't acknowledge the messages
-    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
+    consumer.getBrokerConsumerStatsAsync(
+        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 3));
 
     // Wait for ten seconds only
-    ASSERT_TRUE(latch.wait(milliseconds(10 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(10)));
 }

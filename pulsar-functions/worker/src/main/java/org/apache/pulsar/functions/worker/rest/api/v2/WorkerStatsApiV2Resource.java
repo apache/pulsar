@@ -24,7 +24,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
+import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
@@ -36,9 +36,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -77,18 +76,33 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics", response = org.apache.pulsar.common.stats.Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission") })
-    public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
-        return worker.getWorkerMetrcis(clientAppId());
+    @ApiOperation(
+            value = "Gets the metrics for Monitoring",
+            notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics",
+            response = org.apache.pulsar.common.stats.Metrics.class,
+            responseContainer = "List")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
+        return worker.getWorkerMetrics(clientAppId());
     }
 
     @GET
     @Path("/functionsmetrics")
-    @ApiOperation(value = "Get metrics for all functions owned by worker", notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics", response = Metrics.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running") })
-    public Response getFunctionsMetrics() throws IOException {
+    @ApiOperation(
+            value = "Get metrics for all functions owned by worker",
+            notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics",
+            response = WorkerFunctionInstanceStats.class,
+            responseContainer = "List")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "Worker service is not running")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<WorkerFunctionInstanceStats> getStats() throws IOException {
         return worker.getFunctionsMetrics(clientAppId());
     }
 }

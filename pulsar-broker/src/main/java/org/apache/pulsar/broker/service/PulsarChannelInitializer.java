@@ -34,28 +34,29 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     public static final String TLS_HANDLER = "tls";
 
     private final PulsarService pulsar;
-    private final boolean enableTLS;
+    private final SslContext sslCtx;
 
     /**
      *
      * @param brokerService
      */
-    public PulsarChannelInitializer(PulsarService pulsar,
-            boolean enableTLS) {
+    public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
         super();
         this.pulsar = pulsar;
-        this.enableTLS = enableTLS;
+        if (enableTLS) {
+            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+            this.sslCtx = SecurityUtility.createNettySslContextForServer(serviceConfig.isTlsAllowInsecureConnection(),
+                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect());
+        } else {
+            this.sslCtx = null;
+        }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-        if (enableTLS) {
-            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
-                    serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
-                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
-                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
+        if (sslCtx != null) {
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
         } else {

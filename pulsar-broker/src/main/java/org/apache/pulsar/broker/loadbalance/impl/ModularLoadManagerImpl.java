@@ -561,6 +561,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         if (StringUtils.isNotEmpty(brokerZnodePath)) {
             try {
                 pulsar.getZkClient().delete(brokerZnodePath, -1);
+            } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+                throw new PulsarServerException.NotFoundException(e);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
@@ -781,7 +783,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
+            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort().get();
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();

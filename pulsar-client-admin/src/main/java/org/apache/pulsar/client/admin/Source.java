@@ -22,9 +22,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 
 import java.util.List;
 
@@ -178,7 +177,7 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatusList getSourceStatus(String tenant, String namespace, String source) throws PulsarAdminException;
+    SourceStatus getSourceStatus(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
      * Gets the current status of a source instance.
@@ -194,7 +193,7 @@ public interface Source {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus getSourceStatus(String tenant, String namespace, String source, int id)
+    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant, String namespace, String source, int id)
             throws PulsarAdminException;
 
     /**
@@ -263,6 +262,40 @@ public interface Source {
      *             Unexpected error
      */
     void stopSource(String tenant, String namespace, String source) throws PulsarAdminException;
+
+    /**
+     * Start source instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @param instanceId
+     *            Source instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSource(String tenant, String namespace, String source, int instanceId) throws PulsarAdminException;
+
+    /**
+     * Start all source instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startSource(String tenant, String namespace, String source) throws PulsarAdminException;
+
 
     /**
      * Fetches a list of supported Pulsar IO sources currently running in cluster mode

@@ -20,7 +20,7 @@
 #define PRODUCER_HPP_
 
 #include <pulsar/ProducerConfiguration.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <stdint.h>
 
 #pragma GCC visibility push(default)
@@ -29,6 +29,10 @@ namespace pulsar {
 class ProducerImplBase;
 class PulsarWrapper;
 class PulsarFriend;
+
+typedef std::function<void(Result)> FlushCallback;
+typedef std::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
+
 class Producer {
    public:
     /**
@@ -81,6 +85,18 @@ class Producer {
     void sendAsync(const Message& msg, SendCallback callback);
 
     /**
+     * Flush all the messages buffered in the client and wait until all messages have been successfully
+     * persisted.
+     */
+    Result flush();
+
+    /**
+     * Flush all the messages buffered in the client and wait until all messages have been successfully
+     * persisted.
+     */
+    void flushAsync(FlushCallback callback);
+
+    /**
      * Get the last sequence id that was published by this producer.
      *
      * This represent either the automatically assigned or custom sequence id (set on the MessageBuilder) that
@@ -93,6 +109,16 @@ class Producer {
      * @return the last sequence id published by this producer
      */
     int64_t getLastSequenceId() const;
+
+    /**
+     * Return an identifier for the schema version that this producer was created with.
+     *
+     * When the producer is created, if a schema info was passed, the broker will
+     * determine the version of the passed schema. This identifier should be treated
+     * as an opaque identifier. In particular, even though this is represented as a string, the
+     * version might not be ascii printable.
+     */
+    const std::string& getSchemaVersion() const;
 
     /**
      * Close the producer and release resources allocated.
@@ -115,7 +141,6 @@ class Producer {
     void closeAsync(CloseCallback callback);
 
    private:
-    typedef boost::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
     explicit Producer(ProducerImplBasePtr);
 
     friend class ClientImpl;

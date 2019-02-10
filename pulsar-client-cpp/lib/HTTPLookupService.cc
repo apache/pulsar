@@ -18,6 +18,12 @@
  */
 #include <lib/HTTPLookupService.h>
 
+#include <curl/curl.h>
+
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+namespace ptree = boost::property_tree;
+
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
@@ -32,12 +38,18 @@ const static int MAX_HTTP_REDIRECTS = 20;
 const static std::string PARTITION_METHOD_NAME = "partitions";
 const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
+HTTPLookupService::CurlInitializer::CurlInitializer() {
+    // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
+    curl_global_init(CURL_GLOBAL_ALL);
+}
+HTTPLookupService::CurlInitializer::~CurlInitializer() { curl_global_cleanup(); }
+
 HTTPLookupService::CurlInitializer HTTPLookupService::curlInitializer;
 
 HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
                                      const ClientConfiguration &clientConfiguration,
                                      const AuthenticationPtr &authData)
-    : executorProvider_(boost::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
+    : executorProvider_(std::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
       authenticationPtr_(authData),
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
       isUseTls_(clientConfiguration.isUseTls()),
@@ -53,7 +65,7 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
 
 Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &topic) {
     LookupPromise promise;
-    boost::shared_ptr<TopicName> topicName = TopicName::get(topic);
+    std::shared_ptr<TopicName> topicName = TopicName::get(topic);
     if (!topicName) {
         LOG_ERROR("Unable to parse topic - " << topic);
         promise.setFailed(ResultInvalidTopicName);
@@ -71,9 +83,9 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::st
                           << topicName->getEncodedLocalName();
     }
 
-    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleLookupHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str(),
-                                                   Lookup));
+    executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
+                                                 shared_from_this(), promise, completeUrlStream.str(),
+                                                 Lookup));
     return promise.getFuture();
 }
 
@@ -93,9 +105,9 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
                           << '/' << PARTITION_METHOD_NAME;
     }
 
-    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleLookupHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str(),
-                                                   PartitionMetaData));
+    executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
+                                                 shared_from_this(), promise, completeUrlStream.str(),
+                                                 PartitionMetaData));
     return promise.getFuture();
 }
 
@@ -112,8 +124,8 @@ Future<Result, NamespaceTopicsPtr> HTTPLookupService::getTopicsOfNamespaceAsync(
                           << "destinations";
     }
 
-    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleNamespaceTopicsHTTPRequest,
-                                                   shared_from_this(), promise, completeUrlStream.str()));
+    executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleNamespaceTopicsHTTPRequest,
+                                                 shared_from_this(), promise, completeUrlStream.str()));
     return promise.getFuture();
 }
 
@@ -265,41 +277,47 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
 }
 
 LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
-    Json::Value root;
-    Json::Reader reader;
-    if (!reader.parse(json, root, false)) {
-        LOG_ERROR("Failed to parse json of Partition Metadata: " << reader.getFormatedErrorMessages()
-                                                                 << "\nInput Json = " << json);
+    ptree::ptree root;
+    std::stringstream stream;
+    stream << json;
+    try {
+        ptree::read_json(stream, root);
+    } catch (ptree::json_parser_error &e) {
+        LOG_ERROR("Failed to parse json of Partition Metadata: " << e.what() << "\nInput Json = " << json);
         return LookupDataResultPtr();
     }
-    LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
-    lookupDataResultPtr->setPartitions(root.get("partitions", 0).asInt());
+
+    LookupDataResultPtr lookupDataResultPtr = std::make_shared<LookupDataResult>();
+    lookupDataResultPtr->setPartitions(root.get<int>("partitions", 0));
     LOG_INFO("parsePartitionData = " << *lookupDataResultPtr);
     return lookupDataResultPtr;
 }
 
 LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) {
-    Json::Value root;
-    Json::Reader reader;
-    if (!reader.parse(json, root, false)) {
-        LOG_ERROR("Failed to parse json : " << reader.getFormatedErrorMessages()
-                                            << "\nInput Json = " << json);
+    ptree::ptree root;
+    std::stringstream stream;
+    stream << json;
+    try {
+        ptree::read_json(stream, root);
+    } catch (ptree::json_parser_error &e) {
+        LOG_ERROR("Failed to parse json : " << e.what() << "\nInput Json = " << json);
         return LookupDataResultPtr();
     }
+
     const std::string defaultNotFoundString = "Url Not found";
-    const std::string brokerUrl = root.get("brokerUrl", defaultNotFoundString).asString();
+    const std::string brokerUrl = root.get<std::string>("brokerUrl", defaultNotFoundString);
     if (brokerUrl == defaultNotFoundString) {
         LOG_ERROR("malformed json! - brokerUrl not present" << json);
         return LookupDataResultPtr();
     }
 
-    const std::string brokerUrlTls = root.get("brokerUrlTls", defaultNotFoundString).asString();
+    const std::string brokerUrlTls = root.get<std::string>("brokerUrlTls", defaultNotFoundString);
     if (brokerUrlTls == defaultNotFoundString) {
         LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
         return LookupDataResultPtr();
     }
 
-    LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
+    LookupDataResultPtr lookupDataResultPtr = std::make_shared<LookupDataResult>();
     lookupDataResultPtr->setBrokerUrl(brokerUrl);
     lookupDataResultPtr->setBrokerUrlTls(brokerUrlTls);
 
@@ -308,20 +326,24 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
 }
 
 NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string &json) {
-    Json::Value root;
-    Json::Reader reader;
-    if (!reader.parse(json, root, false)) {
-        LOG_ERROR("Failed to parse json of Topics of Namespace: " << reader.getFormatedErrorMessages()
-                                                                  << "\nInput Json = " << json);
+    LOG_DEBUG("GetNamespaceTopics json = " << json);
+    ptree::ptree root;
+    std::stringstream stream;
+    stream << json;
+    try {
+        ptree::read_json(stream, root);
+    } catch (ptree::json_parser_error &e) {
+        LOG_ERROR("Failed to parse json of Topics of Namespace: " << e.what() << "\nInput Json = " << json);
         return NamespaceTopicsPtr();
     }
 
-    Json::Value topicsArray = root["topics"];
+    // passed in json is like: ["topic1", "topic2"...]
+    // root will be an array of topics
     std::set<std::string> topicSet;
     // get all topics
-    for (int i = 0; i < topicsArray.size(); i++) {
+    for (const auto &item : root) {
         // remove partition part
-        const std::string &topicName = topicsArray[i].asString();
+        const std::string topicName = item.second.get_value<std::string>();
         int pos = topicName.find("-partition-");
         std::string filteredName = topicName.substr(0, pos);
 
@@ -332,7 +354,7 @@ NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string
     }
 
     NamespaceTopicsPtr topicsResultPtr =
-        boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+        std::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
 
     return topicsResultPtr;
 }

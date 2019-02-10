@@ -50,6 +50,21 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_message_key(self):
+    """Return the key of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_eventtime(self):
+    """Return the event time of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_properties(self):
+    """Return the message properties kv map of the current message that we are processing"""
+    pass
+
+  @abstractmethod
   def get_current_message_topic_name(self):
     """Returns the topic name of the message that we are processing"""
     pass

@@ -27,6 +27,12 @@
     <format>tar.gz</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>${basedir}/../../distribution/io/target/conf</directory>
+      <outputDirectory>conf</outputDirectory>
+    </fileSet>
+  </fileSets>
   <files>
     <file>
       <source>${basedir}/../../LICENSE</source>
@@ -77,7 +83,7 @@
     </file>
 
     <file>
-      <source>${basedir}/../../pulsar-io/data-genenator/target/pulsar-io-data-generator-${project.version}.nar</source>
+      <source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source>
       <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
@@ -96,6 +102,12 @@
 
     <file>
       <source>${basedir}/../../pulsar-io/kafka-connect-adaptor/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source>
+      <outputDirectory>connectors</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+
+    <file>
+      <source>${basedir}/../../pulsar-io/hbase/target/pulsar-io-hbase-${project.version}.nar</source>
       <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>

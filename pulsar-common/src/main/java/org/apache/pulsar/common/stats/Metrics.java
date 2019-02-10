@@ -23,7 +23,6 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 
@@ -47,7 +46,7 @@ public class Metrics {
         metrics = Maps.newTreeMap();
         dimensions = Maps.newHashMap();
     }
-    
+
     // hide constructor
     protected Metrics(Map<String, String> unmodifiableDimensionMap) {
         this.metrics = Maps.newTreeMap();

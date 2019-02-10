@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -51,16 +50,14 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
 /**
  * Utils used for runtime.
  */
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Utils {
-
-    public static String HTTP = "http";
-    public static String FILE = "file";
-    public static String BUILTIN = "builtin";
 
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
@@ -95,19 +92,28 @@ public class Utils {
         Class<?>[] typeArgs;
         // if window function
         if (isWindowConfigPresent) {
-            java.util.function.Function function = (java.util.function.Function) userClass;
-            if (function == null) {
-                throw new IllegalArgumentException(
-                        String.format("The Java util function class %s could not be instantiated", userClass));
+            if (userClass instanceof WindowFunction) {
+                WindowFunction function = (WindowFunction) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(
+                            String.format("The WindowFunction class %s could not be instantiated", userClass));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, function.getClass());
+            } else {
+                java.util.function.Function function = (java.util.function.Function) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(
+                            String.format("The Java util function class %s could not be instantiated", userClass));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                if (!typeArgs[0].equals(Collection.class)) {
+                    throw new IllegalArgumentException("Window function must take a collection as input");
+                }
+                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
+                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+                typeArgs[0] = (Class<?>) actualInputType;
             }
-            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-            if (!typeArgs[0].equals(Collection.class)) {
-                throw new IllegalArgumentException("Window function must take a collection as input");
-            }
-            Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
-            Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
-            Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
-            typeArgs[0] = (Class<?>) actualInputType;
         } else {
             if (userClass instanceof Function) {
                 Function pulsarFunction = (Function) userClass;
@@ -217,13 +223,17 @@ public class Utils {
         return typeArg;
     }
 
-    public static boolean fileExists(String file) {
-        return new File(file).exists();
-    }
-
-    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
-                || functionPkgUrl.startsWith(Utils.FILE));
+    public static ClassLoader extractClassLoader(Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) throws Exception {
+        if (!isEmpty(functionPkgUrl)) {
+            return extractClassLoader(functionPkgUrl);
+        }
+        if (archivePath != null) {
+            return loadJar(archivePath.toFile());
+        }
+        if (uploadedInputStreamAsFile != null) {
+            return loadJar(uploadedInputStreamAsFile);
+        }
+        return null;
     }
 
     /**
@@ -248,7 +258,7 @@ public class Utils {
     }
 
     public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(FILE)) {
+        if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {
@@ -308,8 +318,8 @@ public class Utils {
                 throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
             }
         }
-        if (!StringUtils.isEmpty(pkgUrl)) {
-            if (pkgUrl.startsWith(FILE)) {
+        if (!isEmpty(pkgUrl)) {
+            if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                 try {
                     URL url = new URL(pkgUrl);
                     File file = new File(url.toURI());
@@ -350,5 +360,35 @@ public class Utils {
             }
         }
         return null;
+    }
+
+    public static String getFullyQualifiedInstanceId(org.apache.pulsar.functions.proto.Function.Instance instance) {
+        return getFullyQualifiedInstanceId(
+                instance.getFunctionMetaData().getFunctionDetails().getTenant(),
+                instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
+                instance.getFunctionMetaData().getFunctionDetails().getName(),
+                instance.getInstanceId());
+    }
+
+    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
+                                                     String functionName, int instanceId) {
+        return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
+    }
+
+    public enum ComponentType {
+        FUNCTION("Function"),
+        SOURCE("Source"),
+        SINK("Sink");
+
+        private final String componentName;
+
+        ComponentType(String componentName) {
+            this.componentName = componentName;
+        }
+
+        @Override
+        public String toString() {
+            return componentName;
+        }
     }
 }

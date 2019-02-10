@@ -18,47 +18,41 @@
  */
 package org.apache.pulsar.common.stats;
 
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-
-import org.apache.pulsar.common.stats.Metrics;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class JvmMetrics {
 
-    private volatile long accumulatedYoungGcCount = 0;
-    private volatile long currentYoungGcCount = 0;
-    private volatile long accumulatedYoungGcTime = 0;
-    private volatile long currentYoungGcTime = 0;
-
-    private volatile long accumulatedOldGcCount = 0;
-    private volatile long currentOldGcCount = 0;
-    private volatile long accumulatedOldGcTime = 0;
-    private volatile long currentOldGcTime = 0;
-    
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
     private static Field directMemoryUsage = null;
-    
+    private final JvmGCMetricsLogger gcLogger;
+
     private final String componentName;
+    private final static Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
     static {
         try {
             directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
@@ -66,16 +60,46 @@ public class JvmMetrics {
         } catch (Exception e) {
             log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
         }
+        // GC type and implementation mapping
+        gcLoggerMap.put("-XX:+UseG1GC", JvmG1GCMetricsLogger.class);
     }
 
-    public JvmMetrics(ScheduledExecutorService executor, String componentName) {
+    public static JvmMetrics create(ScheduledExecutorService executor, String componentName,
+            String jvmGCMetricsLoggerClassName) {
+        String gcLoggerImplClassName = StringUtils.isNotBlank(jvmGCMetricsLoggerClassName) ? jvmGCMetricsLoggerClassName
+                : detectGCType();
+        JvmGCMetricsLogger gcLoggerImpl = null;
+        if (StringUtils.isNotBlank(gcLoggerImplClassName)) {
+            try {
+                gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName).newInstance();
+            } catch (Exception e) {
+                log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
+                        e.getMessage(), e);
+            }
+        }
+        return new JvmMetrics(executor, componentName,
+                gcLoggerImpl != null ? gcLoggerImpl : new JvmDefaultGCMetricsLogger());
+    }
+
+    private static String detectGCType() {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        Set<String> arguments = Sets.newHashSet(runtimeMxBean.getInputArguments());
+        for (Entry<String, Class<? extends JvmGCMetricsLogger>> gc : gcLoggerMap.entrySet()) {
+            if (arguments.contains(gc.getKey())) {
+                return gc.getValue().getName();
+            }
+        }
+        return null;
+    }
+
+    public JvmMetrics(ScheduledExecutorService executor, String componentName, JvmGCMetricsLogger gcLogger) {
+        this.gcLogger = gcLogger;
         if (executor != null) {
-            executor.scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+            executor.scheduleAtFixedRate(gcLogger::refresh, 0, 1, TimeUnit.MINUTES);
         }
         this.componentName = componentName;
     }
 
-    @SuppressWarnings("restriction")
     public List<Metrics> generate() {
 
         Metrics m = createMetrics();
@@ -87,13 +111,10 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", sun.misc.VM.maxDirectMemory());
+        m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
-
-        m.put("jvm_gc_young_pause", currentYoungGcTime);
-        m.put("jvm_gc_young_count", currentYoungGcCount);
-        m.put("jvm_gc_old_pause", currentOldGcTime);
-        m.put("jvm_gc_old_count", currentOldGcCount);
+        
+        this.gcLogger.logMetrics(m);
 
         long totalAllocated = 0;
         long totalUsed = 0;
@@ -116,7 +137,6 @@ public class JvmMetrics {
         return Lists.newArrayList(m);
     }
 
-    @SuppressWarnings("restriction")
     public static long getJvmDirectMemoryUsed() {
         if (directMemoryUsage != null) {
             try {
@@ -127,45 +147,16 @@ public class JvmMetrics {
                 }
             }
         }
-        return sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed();
-    }
 
-    private static ObjectName youngGenName = null;
-    private static ObjectName oldGenName = null;
-
-    static {
-        try {
-            youngGenName = new ObjectName("java.lang:type=GarbageCollector,name=G1 Young Generation");
-            oldGenName = new ObjectName("java.lang:type=GarbageCollector,name=G1 Old Generation");
-        } catch (MalformedObjectNameException e) {
-            // Ok, no G1GC used
+        List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+        for (BufferPoolMXBean pool : pools) {
+            if (pool.getName().equals("direct")) {
+                return pool.getMemoryUsed();
+            }
         }
-    }
 
-    private void updateGcStats() {
-        MBeanServer s = ManagementFactory.getPlatformMBeanServer();
-
-        try {
-            long newValueYoungGcCount = (Long) s.getAttribute(youngGenName, "CollectionCount");
-            long newValueYoungGcTime = (Long) s.getAttribute(youngGenName, "CollectionTime");
-
-            currentYoungGcCount = newValueYoungGcCount - accumulatedYoungGcCount;
-            currentYoungGcTime = newValueYoungGcTime - accumulatedYoungGcTime;
-
-            accumulatedYoungGcCount = newValueYoungGcCount;
-            accumulatedYoungGcTime = newValueYoungGcTime;
-
-            long newValueOldGcCount = (Long) s.getAttribute(oldGenName, "CollectionCount");
-            long newValueOldGcTime = (Long) s.getAttribute(oldGenName, "CollectionTime");
-
-            currentOldGcCount = newValueOldGcCount - accumulatedOldGcCount;
-            currentOldGcTime = newValueOldGcTime - accumulatedOldGcTime;
-
-            accumulatedOldGcCount = newValueOldGcCount;
-            accumulatedOldGcTime = newValueOldGcTime;
-        } catch (Exception e) {
-            log.error("Failed to collect GC stats: {}", e.getMessage());
-        }
+        // Couldnt get direct memory usage
+        return -1;
     }
 
     private long getThreadCount() {
@@ -178,7 +169,7 @@ public class JvmMetrics {
 
         return parentThreadGroup.activeCount();
     }
-    
+
     private Metrics createMetrics() {
         return createMetrics(Collections.singletonMap("metric", "jvm_metrics"));
     }

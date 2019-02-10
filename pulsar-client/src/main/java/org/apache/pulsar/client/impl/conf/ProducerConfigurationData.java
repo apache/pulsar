@@ -50,7 +50,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private int maxPendingMessagesAcrossPartitions = 50000;
-    private MessageRoutingMode messageRoutingMode = MessageRoutingMode.RoundRobinPartition;
+    private MessageRoutingMode messageRoutingMode = null;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -72,6 +72,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
+
+    private boolean autoUpdatePartitions = true;
 
     private SortedMap<String, String> properties = new TreeMap<>();
 

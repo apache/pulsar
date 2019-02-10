@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.kubernetes.client.apis.AppsV1Api;
+import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -32,11 +34,11 @@ import java.util.Map;
  * This file defines the SecretsProviderConfigurator that will be used by default for running in Kubernetes.
  * As such this implementation is strictly when workers are configured to use kubernetes runtime.
  * We use kubernetes in built secrets and bind them as environment variables within the function container
- * to ensure that the secrets are availble to the function at runtime. Then we plug in the
+ * to ensure that the secrets are available to the function at runtime. Then we plug in the
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
-    private static String ID_KEY = "id";
+    private static String ID_KEY = "path";
     private static String KEY_KEY = "key";
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
@@ -99,21 +101,27 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
 
     // The secret object should be of type Map<String, String> and it should contain "id" and "key"
     @Override
-    public void validateSecretMap(Map<String, Object> secretMap) {
-        for (Object object : secretMap.values()) {
-            if (object instanceof Map) {
-                Map<String, String> kubernetesSecret = (Map<String, String>) object;
-                if (kubernetesSecret.size() < 2) {
-                    throw new IllegalArgumentException("Kubernetes Secret should contain id and key");
+    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, Function.FunctionDetails functionDetails) {
+        if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+
+            for (Object object : secretsMap.values()) {
+                if (object instanceof Map) {
+                    Map<String, String> kubernetesSecret = (Map<String, String>) object;
+                    if (kubernetesSecret.size() < 2) {
+                        throw new IllegalArgumentException("Kubernetes Secret should contain id and key");
+                    }
+                    if (!kubernetesSecret.containsKey(ID_KEY)) {
+                        throw new IllegalArgumentException("Kubernetes Secret should contain id information");
+                    }
+                    if (!kubernetesSecret.containsKey(KEY_KEY)) {
+                        throw new IllegalArgumentException("Kubernetes Secret should contain key information");
+                    }
+                } else {
+                    throw new IllegalArgumentException("Kubernetes Secret should be a Map containing id/key pairs");
                 }
-                if (!kubernetesSecret.containsKey(ID_KEY)) {
-                    throw new IllegalArgumentException("Kubernetes Secret should contain id information");
-                }
-                if (!kubernetesSecret.containsKey(KEY_KEY)) {
-                    throw new IllegalArgumentException("Kubernetes Secret should contain key information");
-                }
-            } else {
-                throw new IllegalArgumentException("Kubernetes Secret should be a Map containing id/key pairs");
             }
         }
     }

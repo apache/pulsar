@@ -19,7 +19,7 @@
 
 FROM apachepulsar/pulsar-all:latest
 
-RUN apt-get update && apt-get install -y supervisor
+RUN apt-get update && apt-get install -y supervisor vim
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
@@ -28,8 +28,23 @@ COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf co
      conf/proxy.conf conf/presto_worker.conf /etc/supervisord/conf.d/
 
 COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
-     ssl/admin.key-pk8.pem ssl/admin.cert.pem /pulsar/ssl/
+     ssl/admin.key-pk8.pem ssl/admin.cert.pem \
+     ssl/user1.key-pk8.pem ssl/user1.cert.pem \
+     ssl/proxy.key-pk8.pem ssl/proxy.cert.pem \
+     ssl/superproxy.key-pk8.pem ssl/superproxy.cert.pem \
+     /pulsar/ssl/
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
+     scripts/run-standalone.sh \
      /pulsar/bin/
+
+# copy python test examples
+
+RUN mkdir -p /pulsar/instances/deps
+
+COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
+COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/
+COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
+COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
+COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/

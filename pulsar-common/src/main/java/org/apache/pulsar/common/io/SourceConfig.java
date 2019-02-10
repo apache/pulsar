@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.common.io;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
@@ -33,6 +29,9 @@ import java.util.Map;
 @Data
 @EqualsAndHashCode
 @ToString
+@Builder(toBuilder=true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class SourceConfig {
     private String tenant;
     private String namespace;
@@ -52,7 +51,7 @@ public class SourceConfig {
     // secrets provider. The type of an value here can be found by the
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
-    private int parallelism = 1;
+    private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;
 

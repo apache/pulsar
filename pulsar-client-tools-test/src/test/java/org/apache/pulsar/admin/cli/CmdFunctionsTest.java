@@ -18,40 +18,18 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.google.gson.Gson;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.GetFunctionStatus;
-import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
-import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
-import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
-import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
-import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
-import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
-import org.testng.annotations.Test;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -59,25 +37,34 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertNull;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.GetFunctionStatus;
+import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
+import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.StateGetter;
+import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.IObjectFactory;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.ObjectFactory;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -113,12 +100,6 @@ public class CmdFunctionsTest {
         }
     }
 
-    private String generateCustomSerdeInputs(String topic, String serde) {
-        Map<String, String> map = new HashMap<>();
-        map.put(topic, serde);
-        return new Gson().toJson(map);
-    }
-
     @BeforeMethod
     public void setup() throws Exception {
         this.admin = mock(PulsarAdmin.class);
@@ -138,7 +119,6 @@ public class CmdFunctionsTest {
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
         when(Reflections.createInstance(eq(DummyFunction.class.getName()), any(File.class))).thenReturn(new DummyFunction());
-        PowerMockito.stub(PowerMockito.method(Utils.class, "fileExists")).toReturn(true);
     }
 
 //    @Test
@@ -211,7 +191,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
-        assertEquals(false, creater.isAutoAck());
+        assertEquals(new Boolean(false), creater.getAutoAck());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
@@ -274,36 +254,33 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateFunctionWithHttpUrl() throws Exception {
+    public void startFunction() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
+        String tenant = "sample";
+        String namespace = "ns1";
+        int instanceId = 0;
+        cmd.run(new String[] { "start", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
+                "--instance-id", Integer.toString(instanceId)});
 
-        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
-        consoleOutputCapturer.start();
+        CmdFunctions.StartFunction stop = cmd.getStarter();
+        assertEquals(fnName, stop.getFunctionName());
 
-        final String url = "http://localhost:1234/test";
-        cmd.run(new String[] {
-            "create",
-            "--name", fnName,
-            "--inputs", inputTopicName,
-            "--output", outputTopicName,
-            "--jar", url,
-            "--tenant", "sample",
-            "--namespace", "ns1",
-            "--className", DummyFunction.class.getName(),
-        });
-
-        CreateFunction creater = cmd.getCreater();
-
-        consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
-
-        assertTrue(output.contains("Corrupted Jar File"));
-        assertEquals(fnName, creater.getFunctionName());
-        assertEquals(inputTopicName, creater.getInputs());
-        assertEquals(outputTopicName, creater.getOutput());
+        verify(functions, times(1)).startFunction(tenant, namespace, fnName, instanceId);
     }
+
+    @Test
+    public void startFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "start", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        CmdFunctions.StartFunction stop = cmd.getStarter();
+        assertEquals(fnName, stop.getFunctionName());
+
+        verify(functions, times(1)).startFunction(tenant, namespace, fnName);
+    }
+
 
     @Test
     public void testGetFunctionStatus() throws Exception {
@@ -347,57 +324,29 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateSink() throws Exception {
+    public void testCreateFunctionWithoutBasicArguments() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
 
-
-        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
-        consoleOutputCapturer.start();
-
-        final String url = "http://localhost:1234/test";
-        cmdSinks.run(new String[] {
-            "create",
-            "--name", fnName,
-            "--inputs", inputTopicName,
-            "--archive", url,
-            "--tenant", "sample",
-            "--namespace", "ns1"
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--className", IdentityFunction.class.getName(),
         });
 
-        CreateSink creater = cmdSinks.getCreateSink();
+        CreateFunction creater = cmd.getCreater();
 
-        consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
+        assertEquals("IdentityFunction", creater.getFunctionConfig().getName());
+        assertEquals("public", creater.getFunctionConfig().getTenant());
+        assertEquals("default", creater.getFunctionConfig().getNamespace());
 
-        assertTrue(output.contains("Corrupt User PackageFile " + url));
-        assertEquals(url, creater.archive);
-    }
-
-    @Test
-    public void testCreateSource() throws Exception {
-        String fnName = TEST_NAME + "-function";
-
-        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
-        consoleOutputCapturer.start();
-
-        final String url = "http://localhost:1234/test";
-        cmdSources.run(new String[] {
-            "create",
-            "--name", fnName,
-            "--archive", url,
-            "--tenant", "sample",
-            "--namespace", "ns1",
-            "--destination-topic-name", "input",
-        });
-
-        CreateSource creater = cmdSources.getCreateSource();
-
-        consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
-
-        assertTrue(output.contains("Corrupt User PackageFile " + url));
-        assertEquals(url, creater.archive);
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -426,46 +375,6 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateWithoutTenant() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
-        cmd.run(new String[] {
-                "create",
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        });
-
-        CreateFunction creater = cmd.getCreater();
-        assertEquals("public", creater.getFunctionConfig().getTenant());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
-    }
-
-    @Test
-    public void testCreateWithoutNamespace() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
-        cmd.run(new String[] {
-                "create",
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--className", DummyFunction.class.getName(),
-        });
-
-        CreateFunction creater = cmd.getCreater();
-        assertEquals("public", creater.getFunctionConfig().getTenant());
-        assertEquals("default", creater.getFunctionConfig().getNamespace());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
-    }
-
-    @Test
     public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
@@ -487,25 +396,6 @@ public class CmdFunctionsTest {
         assertEquals(tenant, creater.getFunctionConfig().getTenant());
         assertEquals(namespace, creater.getFunctionConfig().getNamespace());
         assertEquals(functionName, creater.getFunctionConfig().getName());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
-    }
-
-    @Test
-    public void testCreateWithoutFunctionName() throws Exception {
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
-        cmd.run(new String[] {
-                "create",
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        });
-
-        CreateFunction creater = cmd.getCreater();
-        assertEquals("CmdFunctionsTest$DummyFunction", creater.getFunctionConfig().getName());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -637,42 +527,26 @@ public class CmdFunctionsTest {
 
     @Test
     public void testStateGetter() throws Exception {
-        String tenant = TEST_NAME + "_tenant";
-        String namespace = TEST_NAME + "_namespace";
-        String fnName = TEST_NAME + "_function";
-
-        mockStatic(StorageClientBuilder.class);
-
-        StorageClientBuilder builder = mock(StorageClientBuilder.class);
-        when(builder.withSettings(any(StorageClientSettings.class))).thenReturn(builder);
-        when(builder.withNamespace(eq(tenant + "_" + namespace))).thenReturn(builder);
-        StorageClient client = mock(StorageClient.class);
-        when(builder.build()).thenReturn(client);
-
-        PowerMockito.when(StorageClientBuilder.class, "newBuilder")
-            .thenReturn(builder);
-
-        Table<ByteBuf, ByteBuf> table = mock(Table.class);
-        when(client.openTable(eq(fnName))).thenReturn(FutureUtils.value(table));
-        AtomicReference<ByteBuf> keyHolder = new AtomicReference<>();
-        doAnswer(invocationOnMock -> {
-            ByteBuf buf = invocationOnMock.getArgumentAt(0, ByteBuf.class);
-            keyHolder.set(buf);
-            return FutureUtils.value(null);
-        }).when(table).getKv(any(ByteBuf.class));
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
+        String key = TEST_NAME + "-key";
 
         cmd.run(new String[] {
             "querystate",
             "--tenant", tenant,
             "--namespace", namespace,
             "--name", fnName,
-            "--key", "test-key",
-            "--storage-service-url", "bk://127.0.0.1:4181"
+            "--key", key
         });
 
-        assertEquals(
-            "test-key",
-            new String(ByteBufUtil.getBytes(keyHolder.get()), UTF_8));
+        StateGetter stateGetter = cmd.getStateGetter();
+
+        assertEquals(tenant, stateGetter.getTenant());
+        assertEquals(namespace, stateGetter.getNamespace());
+        assertEquals(fnName, stateGetter.getFunctionName());
+
+        verify(functions, times(1)).getFunctionState(eq(tenant), eq(namespace), eq(fnName), eq(key));
     }
 
     private static final String fnName = TEST_NAME + "-function";
@@ -726,89 +600,6 @@ public class CmdFunctionsTest {
             String output = consoleOutputCapturer.getStderr();
             assertTrue(output.replace("\n", "").contains(errMessageCheck));
         }
-    }
-
-    @Test
-    public void TestCreateFunctionParallelism() throws Exception{
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-                "--parallelism", "1"
-        };
-
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-                "--parallelism", "-1"
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Function parallelism should positive number");
-
-    }
-
-    @Test
-    public void TestCreateTopicName() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String wrongOutputTopicName = TEST_NAME + "-output-topic/test:";
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", wrongOutputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Output topic " + wrongOutputTopicName + " is invalid");
-    }
-
-    @Test
-    public void TestCreateClassName() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String cannotLoadClass = "com.test.Function";
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", cannotLoadClass,
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "User class must be in class path");
     }
 
     @Test
@@ -996,35 +787,6 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
-    }
-
-    @Test
-    public void TestCreateSameInOutTopic() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", inputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs,
-                "Output topic " + inputTopicName
-                        + " is also being used as an input topic (topics must be one or the other)");
-
     }
 
 

@@ -18,14 +18,22 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import java.net.BindException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -35,10 +43,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.Slf4jRequestLog;
-
-import java.net.BindException;
-import java.net.URI;
-import java.security.GeneralSecurityException;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -47,11 +51,8 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-
-import com.google.common.annotations.VisibleForTesting;
 
 @Slf4j
 public class WorkerServer {
@@ -60,7 +61,7 @@ public class WorkerServer {
     private final WorkerService workerService;
     private static final String MATCH_ALL = "/*";
     private static final int MAX_CONCURRENT_REQUESTS = 1024;
-    private final ExecutorThreadPool webServerExecutor;
+    private final WebExecutorThreadPool webServerExecutor;
     private Server server;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
@@ -75,8 +76,7 @@ public class WorkerServer {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
-        this.webServerExecutor = new ExecutorThreadPool();
-        this.webServerExecutor.setName("function-web");
+        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web");
         init();
     }
 
@@ -84,7 +84,7 @@ public class WorkerServer {
         server.start();
         log.info("Worker Server started at {}", server.getURI());
     }
-    
+
     private void init() {
         server = new Server(webServerExecutor);
 
@@ -93,11 +93,13 @@ public class WorkerServer {
         connector.setPort(this.workerConfig.getWorkerPort());
         connectors.add(connector);
 
-        List<Handler> handlers = new ArrayList<>(3);
+        List<Handler> handlers = new ArrayList<>(4);
         handlers.add(
-                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
-                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiResources()), workerService));
+                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
         handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
@@ -115,7 +117,7 @@ public class WorkerServer {
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
         server.setHandler(handlerCollection);
 
-        if (this.workerConfig.isTlsEnabled()) {
+        if (this.workerConfig.getWorkerPortTls() != null) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
@@ -153,7 +155,7 @@ public class WorkerServer {
 
         return contextHandler;
     }
-    
+
     @VisibleForTesting
     public void stop() {
         if (this.server != null) {
@@ -171,5 +173,5 @@ public class WorkerServer {
             }
         }
     }
-    
+
 }

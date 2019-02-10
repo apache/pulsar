@@ -22,7 +22,7 @@ namespace pulsar {
 
 const static std::string emptyString;
 
-ProducerConfiguration::ProducerConfiguration() : impl_(boost::make_shared<ProducerConfigurationImpl>()) {}
+ProducerConfiguration::ProducerConfiguration() : impl_(std::make_shared<ProducerConfigurationImpl>()) {}
 
 ProducerConfiguration::~ProducerConfiguration() {}
 
@@ -186,6 +186,13 @@ ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) 
     impl_->encryptionKeys.insert(key);
     return *this;
 }
+
+ProducerConfiguration& ProducerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ProducerConfiguration::getSchema() const { return impl_->schemaInfo; }
 
 bool ProducerConfiguration::hasProperty(const std::string& name) const {
     const std::map<std::string, std::string>& m = impl_->properties;

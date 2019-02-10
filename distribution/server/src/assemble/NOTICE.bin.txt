@@ -1,6 +1,6 @@
 
 Apache Pulsar
-Copyright 2017 The Apache Software Foundation
+Copyright 2017-2019 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -200,3 +200,18 @@ http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
     * Providing benchmark suite
   * Alec Wysoker
     * Performance and memory usage improvement
+
+------------------------------------------------------------------------------------
+- org.checkerframework-checker-compat-qual-2.5.2.jar
+
+A few parts of the Checker Framework have more permissive licenses.
+
+ * The annotations are licensed under the MIT License.  (The text of this
+   license appears below.)  More specifically, all the parts of the Checker
+   Framework that you might want to include with your own program use the
+   MIT License.  This is the checker-qual.jar file and all the files that
+   appear in it:  every file in a qual/ directory, plus utility files such
+   as NullnessUtil.java, RegexUtil.java, SignednessUtil.java, etc.
+   In addition, the cleanroom implementations of third-party annotations,
+   which the Checker Framework recognizes as aliases for its own
+   annotations, are licensed under the MIT License.

@@ -20,7 +20,7 @@
 FROM apachepulsar/pulsar-all:latest
 
 RUN apt-get update
-RUN apt-get -y install postgresql sudo nginx supervisor
+RUN apt-get -y install postgresql-9.6 sudo nginx supervisor
 
 # Python dependencies
 RUN pip install uwsgi 'Django<2.0' psycopg2 pytz requests

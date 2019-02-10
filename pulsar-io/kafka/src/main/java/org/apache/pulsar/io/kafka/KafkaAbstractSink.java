@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
@@ -77,25 +78,31 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
-        if (kafkaSinkConfig.getTopic() == null
-                || kafkaSinkConfig.getBootstrapServers() == null
-                || kafkaSinkConfig.getAcks() == null
-                || kafkaSinkConfig.getBatchSize() == 0
-                || kafkaSinkConfig.getMaxRequestSize() == 0) {
-            throw new IllegalArgumentException("Required property not set.");
+        Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
+        Objects.requireNonNull(kafkaSinkConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
+        Objects.requireNonNull(kafkaSinkConfig.getAcks(), "Kafka acks mode is not set");
+        if (kafkaSinkConfig.getBatchSize() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Producer batchSize : "
+                + kafkaSinkConfig.getBatchSize());
+        }
+        if (kafkaSinkConfig.getMaxRequestSize() <= 0) {
+            throw new IllegalArgumentException("Invalid Kafka Producer maxRequestSize : "
+                + kafkaSinkConfig.getMaxRequestSize());
+        }
+        if (kafkaSinkConfig.getProducerConfigProperties() != null) {
+            props.putAll(kafkaSinkConfig.getProducerConfigProperties());
         }
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSinkConfig.getBootstrapServers());
         props.put(ProducerConfig.ACKS_CONFIG, kafkaSinkConfig.getAcks());
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, kafkaSinkConfig.getBatchSize().toString());
-        props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, kafkaSinkConfig.getMaxRequestSize().toString());
-
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getBatchSize()));
+        props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getMaxRequestSize()));
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getKeySerializerClass());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getValueSerializerClass());
 
         producer = new KafkaProducer<>(beforeCreateProducer(props));
 
-        log.info("Kafka sink started.");
+        log.info("Kafka sink started : {}.", props);
     }
 
     public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);

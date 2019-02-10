@@ -20,16 +20,18 @@ package org.apache.pulsar.storm;
 
 import static java.lang.String.format;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -38,7 +40,6 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.storm.metric.api.IMetric;
-import org.apache.storm.shade.com.google.common.collect.Sets;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -48,11 +49,6 @@ import org.apache.storm.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-
-@SuppressWarnings("deprecation")
 public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     private static final long serialVersionUID = 1L;
@@ -70,9 +66,9 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private final PulsarSpoutConfiguration pulsarSpoutConf;
     private final long failedRetriesTimeoutNano;
     private final int maxFailedRetries;
-    private final ConcurrentMap<MessageId, MessageRetries> pendingMessageRetries = Maps.newConcurrentMap();
-    private final Queue<Message<byte[]>> failedMessages = Queues.newConcurrentLinkedQueue();
-    private final ConcurrentMap<String, Object> metricsMap = Maps.newConcurrentMap();
+    private final ConcurrentMap<MessageId, MessageRetries> pendingMessageRetries = new ConcurrentHashMap<>();
+    private final Queue<Message<byte[]>> failedMessages = new ConcurrentLinkedQueue<>();
+    private final ConcurrentMap<String, Object> metricsMap = new ConcurrentHashMap<>();
 
     private SharedPulsarClient sharedPulsarClient;
     private String componentId;
@@ -85,40 +81,17 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private volatile long messageSizeReceived = 0;
 
     public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientBuilder clientBuilder) {
-        Preconditions.checkNotNull(pulsarSpoutConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarSpoutConf.getTopic());
-        Preconditions.checkNotNull(pulsarSpoutConf.getSubscriptionName());
-        Preconditions.checkNotNull(pulsarSpoutConf.getMessageToValuesMapper());
+        Objects.requireNonNull(pulsarSpoutConf.getServiceUrl());
+        Objects.requireNonNull(pulsarSpoutConf.getTopic());
+        Objects.requireNonNull(pulsarSpoutConf.getSubscriptionName());
+        Objects.requireNonNull(pulsarSpoutConf.getMessageToValuesMapper());
 
         this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
         this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
         this.consumerConf = new ConsumerConfigurationData<>();
-        this.consumerConf.setTopicNames(Sets.newHashSet(pulsarSpoutConf.getTopic()));
+        this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
-
-        this.pulsarSpoutConf = pulsarSpoutConf;
-        this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
-        this.maxFailedRetries = pulsarSpoutConf.getMaxFailedRetries();
-    }
-
-    @Deprecated
-    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfiguration clientConf) {
-        this(pulsarSpoutConf, clientConf, new ConsumerConfiguration());
-    }
-
-    @Deprecated
-    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfiguration clientConf,
-            ConsumerConfiguration consumerConf) {
-        this.clientConf = clientConf.getConfigurationData().clone();
-        this.consumerConf = consumerConf.getConfigurationData().clone();
-        Preconditions.checkNotNull(pulsarSpoutConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarSpoutConf.getTopic());
-        Preconditions.checkNotNull(pulsarSpoutConf.getSubscriptionName());
-        Preconditions.checkNotNull(pulsarSpoutConf.getMessageToValuesMapper());
-
-        this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
-        this.consumerConf.setTopicNames(Sets.newHashSet(pulsarSpoutConf.getTopic()));
-        this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
+        this.consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
 
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);

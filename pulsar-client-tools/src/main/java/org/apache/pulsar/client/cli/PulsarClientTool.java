@@ -134,8 +134,9 @@ public class PulsarClientTool {
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
+            String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage();
+                commandParser.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }
@@ -152,14 +153,8 @@ public class PulsarClientTool {
         Properties properties = new Properties();
 
         if (configFile != null) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(configFile);
+            try (FileInputStream fis = new FileInputStream(configFile)) {
                 properties.load(fis);
-            } finally {
-                if (fis != null) {
-                    fis.close();
-                }
             }
         }
 

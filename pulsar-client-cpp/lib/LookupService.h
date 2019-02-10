@@ -25,10 +25,12 @@
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 
+#include <vector>
+
 namespace pulsar {
-typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 typedef Promise<Result, NamespaceTopicsPtr> NamespaceTopicsPromise;
-typedef boost::shared_ptr<Promise<Result, NamespaceTopicsPtr>> NamespaceTopicsPromisePtr;
+typedef std::shared_ptr<Promise<Result, NamespaceTopicsPtr>> NamespaceTopicsPromisePtr;
 
 class LookupService {
    public:
@@ -56,7 +58,7 @@ class LookupService {
     virtual ~LookupService() {}
 };
 
-typedef boost::shared_ptr<LookupService> LookupServicePtr;
+typedef std::shared_ptr<LookupService> LookupServicePtr;
 
 }  // namespace pulsar
 #endif  // PULSAR_CPP_LOOKUPSERVICE_H

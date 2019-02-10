@@ -25,6 +25,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
@@ -38,8 +39,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LogEvent;
@@ -52,7 +55,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -77,6 +84,31 @@ public class PulsarAppenderTest {
 
     private LoggerContext ctx;
 
+    private class MockedMessageBuilder extends TypedMessageBuilderImpl<byte[]> {
+
+        public MockedMessageBuilder() {
+            super(null, Schema.BYTES);
+        }
+
+        @Override
+        public MessageId send() throws PulsarClientException {
+            synchronized (history) {
+                history.add(getMessage());
+            }
+
+            return mock(MessageId.class);
+        }
+
+        @Override
+        public CompletableFuture<MessageId> sendAsync() {
+            synchronized (history) {
+                history.add(getMessage());
+            }
+
+            return CompletableFuture.completedFuture(mock(MessageId.class));
+        }
+    }
+
     @BeforeMethod
     public void setUp() throws Exception {
         history = new LinkedList<>();
@@ -97,33 +129,9 @@ public class PulsarAppenderTest {
         doReturn(producerBuilder).when(producerBuilder).blockIfQueueFull(anyBoolean());
         doReturn(producer).when(producerBuilder).create();
 
-        when(producer.send(any(Message.class)))
-            .thenAnswer(invocationOnMock -> {
-                Message<byte[]> msg = invocationOnMock.getArgumentAt(0, Message.class);
-                synchronized (history) {
-                    history.add(msg);
-                }
-                return null;
-            });
-
-        when(producer.sendAsync(any(Message.class)))
-            .thenAnswer(invocationOnMock -> {
-                Message<byte[]> msg = invocationOnMock.getArgumentAt(0, Message.class);
-                synchronized (history) {
-                    history.add(msg);
-                }
-                CompletableFuture<MessageId> future = new CompletableFuture<>();
-                future.complete(mock(MessageId.class));
-                return future;
-            });
+        when(producer.newMessage()).then(invocation -> new MockedMessageBuilder());
 
         PulsarManager.PULSAR_CLIENT_BUILDER = () -> clientBuilder;
-        PulsarManager.MESSAGE_BUILDER = (key, data) -> {
-            Message<byte[]> msg = mock(Message.class);
-            when(msg.getKey()).thenReturn(key);
-            when(msg.getData()).thenReturn(data);
-            return msg;
-        };
 
         ctx = Configurator.initialize(
             "PulsarAppenderTest",
@@ -141,7 +149,7 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals("[" + LOG_MESSAGE + "]", new String(item.getData(), StandardCharsets.UTF_8));
     }
 
@@ -156,7 +164,7 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals(LOG_MESSAGE, deserializeLogEvent(item.getData()).getMessage().getFormattedMessage());
     }
 
@@ -170,7 +178,7 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals(LOG_MESSAGE, new String(item.getData(), StandardCharsets.UTF_8));
     }
 

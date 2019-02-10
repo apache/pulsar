@@ -20,26 +20,25 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
+import java.nio.file.Paths;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -59,11 +58,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String k8Uri;
         private String jobNamespace;
         private String pulsarDockerImageName;
+        private String imagePullPolicy;
         private String pulsarRootDir;
         private String pulsarAdminUrl;
         private String pulsarServiceUrl;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
+        private String extraDependenciesDir;
         private String changeConfigMap;
         private String changeConfigMapNamespace;
     }
@@ -76,22 +77,25 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final AuthenticationConfig authConfig;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
-    private final String prometheusMetricsServerJarFile;
+    private final String extraDependenciesDir;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
     private Timer changeConfigMapTimer;
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
+    private Resources functionInstanceMinResources;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
                                     String jobNamespace,
                                     String pulsarDockerImageName,
+                                    String imagePullPolicy,
                                     String pulsarRootDir,
                                     Boolean submittingInsidePod,
                                     Boolean installUserCodeDependencies,
                                     String pythonDependencyRepository,
                                     String pythonExtraDependencyRepository,
+                                    String extraDependenciesDir,
                                     Map<String, String> customLabels,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
@@ -100,6 +104,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     Integer expectedMetricsCollectionInterval,
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
+                                    Resources functionInstanceMinResources,
                                     SecretsProviderConfigurator secretsProviderConfigurator) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
@@ -113,11 +118,27 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.kubernetesInfo.setPulsarDockerImageName("apachepulsar/pulsar");
         }
+        if (!isEmpty(imagePullPolicy)) {
+            this.kubernetesInfo.setImagePullPolicy(imagePullPolicy);
+        } else {
+            this.kubernetesInfo.setImagePullPolicy("IfNotPresent");
+        }
         if (!isEmpty(pulsarRootDir)) {
             this.kubernetesInfo.setPulsarRootDir(pulsarRootDir);
         } else {
             this.kubernetesInfo.setPulsarRootDir("/pulsar");
         }
+        if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+            if (Paths.get(extraDependenciesDir).isAbsolute()) {
+                this.extraDependenciesDir = extraDependenciesDir;
+            } else {
+                this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir()
+                    + "/" + extraDependenciesDir;
+            }
+        } else {
+            this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir() + "/instances/deps";
+        }
+        this.kubernetesInfo.setExtraDependenciesDir(extraDependenciesDir);
         this.kubernetesInfo.setPythonDependencyRepository(pythonDependencyRepository);
         this.kubernetesInfo.setPythonExtraDependencyRepository(pythonExtraDependencyRepository);
         this.kubernetesInfo.setPulsarServiceUrl(pulsarServiceUri);
@@ -131,9 +152,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.authConfig = authConfig;
         this.javaInstanceJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/java-instance.jar";
         this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
-        this.prometheusMetricsServerJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/PrometheusMetricsServer.jar";
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.functionInstanceMinResources = functionInstanceMinResources;
     }
 
     @Override
@@ -166,10 +187,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPythonDependencyRepository(),
             this.kubernetesInfo.getPythonExtraDependencyRepository(),
             this.kubernetesInfo.getPulsarDockerImageName(),
+            this.kubernetesInfo.imagePullPolicy,
             this.kubernetesInfo.getPulsarRootDir(),
             instanceConfig,
             instanceFile,
-            prometheusMetricsServerJarFile,
+            extraDependenciesDir,
             logDirectory,
             codePkgUrl,
             originalCodeFileName,
@@ -188,12 +210,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
-        if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
-            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
-            secretsProviderConfigurator.validateSecretMap(secretsMap);
+        validateMinResourcesRequired(functionDetails);
+        try {
+            setupClient();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
     }
 
     @VisibleForTesting
@@ -250,6 +273,35 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (data.containsKey(field.getName()) && !data.get(field.getName()).equals(field.get(kubernetesInfo))) {
                 log.info("Kubernetes Config {} changed from {} to {}", field.getName(), field.get(kubernetesInfo), data.get(field.getName()));
                 field.set(kubernetesInfo, data.get(field.getName()));
+            }
+        }
+    }
+
+    void validateMinResourcesRequired(Function.FunctionDetails functionDetails) {
+        if (functionInstanceMinResources != null) {
+            Double minCpu = functionInstanceMinResources.getCpu();
+            Long minRam = functionInstanceMinResources.getRam();
+
+            if (minCpu != null) {
+                if (functionDetails.getResources() == null) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance CPU requested is not specified. Must specify CPU requested for function to be at least %s", minCpu));
+                } else if (functionDetails.getResources().getCpu() < minCpu) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance CPU requested, %s, for function is less than the minimum required, %s",
+                                    functionDetails.getResources().getCpu(), minCpu));
+                }
+            }
+
+            if (minRam != null) {
+                if (functionDetails.getResources() == null) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance RAM requested is not specified. Must specify RAM requested for function to be at least %s", minRam));
+                } else if (functionDetails.getResources().getRam() < minRam) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance RAM requested, %s, for function is less than the minimum required, %s",
+                                    functionDetails.getResources().getRam(), minRam));
+                }
             }
         }
     }

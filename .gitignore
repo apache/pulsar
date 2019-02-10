@@ -8,6 +8,7 @@ logs
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
 pulsar-functions/worker/test-tenant/
+pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 *.log
 *.nar
 
@@ -19,6 +20,7 @@ pulsar-functions/worker/test-tenant/
 .project
 .settings/
 .recommenders/
+.factorypath
 
 # Intellij
 .idea/
@@ -76,3 +78,7 @@ docker.debug-info
 
 **/website/i18n/*
 **/website/translated_docs*
+
+# Avro
+examples/flink/src/main/java/org/apache/flink/avro/generated
+pulsar-flink/src/test/java/org/apache/flink/avro/generated
