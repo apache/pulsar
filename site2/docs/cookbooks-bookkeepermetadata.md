@@ -9,7 +9,7 @@ Such metadata are stored on ZooKeeper and they are readable using BookKeeper API
 Description of current metadata:
 
 | Scope  | Metadata name | Metadata value |
-| ------------- | ------------- |
+| ------------- | ------------- | ------------- |
 | All ledgers  | application  | 'pulsar' |
 | All ledgers  | component  | 'managed-ledger', 'schema', 'compacted-topic' |
 | Managed ledgers | psr/managed-ledger | name of the ledger |
