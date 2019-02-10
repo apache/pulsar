@@ -27,9 +27,9 @@ fi
 
 DEST_PATH=$1
 
-pushd $(dirname "$0")/..
+pushd $(dirname "$0")
 PULSAR_PATH=$(git rev-parse --show-toplevel)
-VERSION=`cat pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
+VERSION=`./get-project-version.py`
 popd
 
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
