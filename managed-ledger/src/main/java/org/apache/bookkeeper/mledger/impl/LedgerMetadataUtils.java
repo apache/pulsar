@@ -74,7 +74,7 @@ public final class LedgerMetadataUtils {
      *
      * @param compactedTopic reference to the compacted topic.
      * @param compactedToMessageId last mesasgeId.
-     * @return an immutable map which describes the cursor
+     * @return an immutable map which describes the compacted ledger
      */
     public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic, byte[] compactedToMessageId) {
         return ImmutableMap.of(
