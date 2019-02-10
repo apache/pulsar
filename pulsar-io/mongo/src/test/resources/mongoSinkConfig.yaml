@@ -1,0 +1,5 @@
+{
+   "mongoUri": "mongodb://localhost",
+   "database": "pulsar",
+   "collection": "messages"
+}
