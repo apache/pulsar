@@ -48,7 +48,7 @@ public final class LedgerMetadataUtils {
     /**
      * Build base metadata for every ManagedLedger.
      *
-     * @param name
+     * @param name the name of the ledger
      * @return an immutable map which describes a ManagedLedger
      */
     static Map<String, byte[]> buildBaseManagedLedgerMetadata(String name) {
@@ -61,7 +61,7 @@ public final class LedgerMetadataUtils {
     /**
      * Build additional metadata for a Cursor.
      *
-     * @param name
+     * @param name the name of the cursor
      * @return an immutable map which describes the cursor
      * @see #buildBaseManagedLedgerMetadata(java.lang.String)
      */
@@ -89,7 +89,7 @@ public final class LedgerMetadataUtils {
      * Build additional metadata for a Schema
      *
      * @param schemaId id of the schema
-     * @return an immutable map which describes the cursor
+     * @return an immutable map which describes the schema
      */
     public static Map<String, byte[]> buildMetadataForSchema(String schemaId) {
         return ImmutableMap.of(
