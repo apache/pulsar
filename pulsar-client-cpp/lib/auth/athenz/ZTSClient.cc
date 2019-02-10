@@ -30,8 +30,9 @@
 
 #include <curl/curl.h>
 
-#include <json/value.h>
-#include <json/reader.h>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+namespace ptree = boost::property_tree;
 
 #include <boost/regex.hpp>
 #include <boost/xpressive/xpressive.hpp>
@@ -321,15 +322,19 @@ const std::string ZTSClient::getRoleToken() const {
             curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
             LOG_DEBUG("Response received for url " << completeUrl << " code " << response_code);
             if (response_code == 200) {
-                Json::Reader reader;
-                Json::Value root;
-                if (!reader.parse(responseData, root)) {
-                    LOG_ERROR("Failed to parse json of ZTS response: " << reader.getFormatedErrorMessages()
+                ptree::ptree root;
+                std::stringstream stream;
+                stream << responseData;
+                try {
+                    ptree::read_json(stream, root);
+                } catch (ptree::json_parser_error &e) {
+                    LOG_ERROR("Failed to parse json of ZTS response: " << e.what()
                                                                        << "\nInput Json = " << responseData);
                     break;
                 }
-                roleToken.token = root["token"].asString();
-                roleToken.expiryTime = root["expiryTime"].asUInt();
+
+                roleToken.token = root.get<std::string>("token");
+                roleToken.expiryTime = root.get<uint32_t>("expiryTime");
                 std::lock_guard<std::mutex> lock(cacheMtx_);
                 roleTokenCache_[cacheKey] = roleToken;
                 LOG_DEBUG("Got role token " << roleToken.token)
