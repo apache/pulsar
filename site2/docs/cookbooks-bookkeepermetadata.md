@@ -15,6 +15,6 @@ Description of current metadata:
 | Managed ledgers | pulsar/managed-ledger | name of the ledger |
 | Cursor | pulsar/cursor | name of the cursor |
 | Compacted topic | pulsar/compactedTopic | name of the original topic |
-| Compacted topic | pulsar/compactedTo | id of the last compated message |
+| Compacted topic | pulsar/compactedTo | id of the last compacted message |
 
 
