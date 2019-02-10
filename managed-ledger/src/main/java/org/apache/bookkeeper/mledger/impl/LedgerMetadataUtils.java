@@ -39,11 +39,11 @@ public final class LedgerMetadataUtils {
     private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA
             = "schema".getBytes(StandardCharsets.UTF_8);
 
-    private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "psr/managed-ledger";
-    private static final String METADATA_PROPERTY_CURSOR_NAME = "psr/cursor";
-    private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "compactedTopic";
-    private static final String METADATA_PROPERTY_COMPACTEDTO = "compactedTo";
-    private static final String METADATA_PROPERTY_SCHEMAID = "schemaId";
+    private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
+    private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
+    private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
+    private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
+    private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
 
     /**
      * Build base metadata for every ManagedLedger.
