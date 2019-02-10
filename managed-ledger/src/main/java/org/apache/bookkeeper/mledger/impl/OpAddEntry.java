@@ -95,15 +95,10 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void initiate() {
         ByteBuf duplicateBuffer = data.retainedDuplicate();
-        // duplicatedBuffer has refCnt=1 at this point
 
+        // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
         lastInitTime = System.nanoTime();
         ledger.asyncAddEntry(duplicateBuffer, this, ctx);
-
-        // Internally, asyncAddEntry() is refCnt neutral to respect to the passed buffer and it will keep a ref on it
-        // until is done using it. We need to release this buffer here to balance the 1 refCnt added at the creation
-        // time.
-        duplicateBuffer.release();
     }
 
     public void failed(ManagedLedgerException e) {

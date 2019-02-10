@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -245,6 +246,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         private final DigestType digestType;
         private final long ctime;
         private final boolean isClosed;
+        private final int metadataFormatVersion;
+        private final State state;
+        private final byte[] password;
         private final Map<String, byte[]> customMetadata;
 
         MockMetadata(LedgerMetadata toCopy) {
@@ -256,9 +260,20 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             digestType = toCopy.getDigestType();
             ctime = toCopy.getCtime();
             isClosed = toCopy.isClosed();
-
+            metadataFormatVersion = toCopy.getMetadataFormatVersion();
+            state = toCopy.getState();
+            password = Arrays.copyOf(toCopy.getPassword(), toCopy.getPassword().length);
             customMetadata = ImmutableMap.copyOf(toCopy.getCustomMetadata());
         }
+
+        @Override
+        public boolean hasPassword() { return true; }
+
+        @Override
+        public State getState() { return state; }
+
+        @Override
+        public int getMetadataFormatVersion() { return metadataFormatVersion; }
 
         @Override
         public int getEnsembleSize() { return ensembleSize; }
@@ -279,6 +294,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         public DigestType getDigestType() { return digestType; }
 
         @Override
+        public byte[] getPassword() { return password; }
+
+        @Override
         public long getCtime() { return ctime; }
 
         @Override
@@ -295,6 +313,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         @Override
         public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
             throw new UnsupportedOperationException("Pulsar shouldn't look at this");
+        }
+
+        @Override
+        public String toSafeString() {
+            return toString();
         }
     }
 }
