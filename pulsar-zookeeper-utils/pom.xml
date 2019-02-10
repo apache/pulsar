@@ -47,6 +47,18 @@
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>stream-storage-server</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- `grpc-all` is excluded from `stream-storage-server` at root pom file -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-all</artifactId>
     </dependency>
 
     <dependency>
