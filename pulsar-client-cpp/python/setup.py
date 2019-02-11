@@ -63,11 +63,13 @@ class my_build_ext(build_ext.build_ext):
 
 
 dependencies = [
-    'grpcio', 'protobuf',
-    'six',
     'fastavro',
+    'grpcio',
+    'protobuf',
+    'six',
 
     # functions dependencies
+    "apache-bookkeeper-client",
     "prometheus_client",
     "ratelimit"
 ]

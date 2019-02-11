@@ -38,13 +38,14 @@ class ContextImpl(pulsar.Context):
   # add label to indicate user metric
   user_metrics_label_names = Stats.metrics_label_names + ["metric"]
 
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels, state_context):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
     self.secrets_provider = secrets_provider
+    self.state_context = state_context
     self.publish_producers = {}
     self.publish_serializers = {}
     self.message = None
@@ -186,3 +187,15 @@ class ContextImpl(pulsar.Context):
       metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._count.get()
 
     return metrics_map
+
+  def incr_counter(self, key, amount):
+    return self.state_context.incr(key, amount)
+
+  def get_counter(self, key):
+    return self.state_context.get_amount(key)
+
+  def put_state(self, key, value):
+    return self.state_context.put(key, value)
+
+  def get_state(self, key):
+    return self.state_context.get_value(key)
