@@ -621,6 +621,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable bookie isolation by specifying a list of bookie groups to choose from. \n\n"
             + "Any bookie outside the specified groups will not be used by the broker")
     private String bookkeeperClientIsolationGroups;
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
+            + "a single bookie.\n" +
+            "If this flag is enabled, the client will use one single bookie (by " +
+            "preference) to read all entries for a ledger.")
+    private boolean bookkeeperEnableStickyReads = true;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -765,8 +770,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(0 to disable it)"
         )
     private long managedLedgerReadEntryTimeoutSeconds = 120;
-        
-    @FieldContext(category = CATEGORY_STORAGE_ML, 
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
     private long managedLedgerAddEntryTimeoutSeconds = 120;
 
@@ -1029,7 +1034,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
-            category = CATEGORY_METRICS, 
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
