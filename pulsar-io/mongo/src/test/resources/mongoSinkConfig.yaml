@@ -20,5 +20,7 @@
 {
    "mongoUri": "mongodb://localhost",
    "database": "pulsar",
-   "collection": "messages"
+   "collection": "messages",
+   "batchSize": 2,
+   "batchTimeMs": 500
 }

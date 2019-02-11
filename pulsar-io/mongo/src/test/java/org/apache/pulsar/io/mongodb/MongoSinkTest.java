@@ -19,13 +19,16 @@
 
 package org.apache.pulsar.io.mongodb;
 
+import com.mongodb.MongoBulkWriteException;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
+import com.mongodb.bulk.BulkWriteError;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
+import org.bson.BsonDocument;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -36,6 +39,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Matchers.anyObject;
@@ -89,14 +94,22 @@ public class MongoSinkTest {
         when(mockMongoDb.getCollection(anyString())).thenReturn(mockMongoColl);
     }
 
-    private void initAckContext() {
+    private void initContext(boolean throwBulkError) {
         when(mockRecord.getValue()).thenReturn("{\"hello\":\"pulsar\"}".getBytes());
 
         doAnswer((invocation) -> {
             SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
-            cb.onResult(null, null);
+            MongoBulkWriteException exc = null;
+
+            if (throwBulkError) {
+                List<BulkWriteError > writeErrors = Arrays.asList(
+                        new BulkWriteError(0, "error", new BsonDocument(), 1));
+                exc = new MongoBulkWriteException(null, writeErrors, null, null);
+            }
+
+            cb.onResult(null, exc);
             return null;
-        }).when(mockMongoColl).insertOne(anyObject(), anyObject());
+        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
     }
 
     private void initFailContext(String msg) {
@@ -106,7 +119,7 @@ public class MongoSinkTest {
             SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
             cb.onResult(null, new Exception("Oops"));
             return null;
-        }).when(mockMongoColl).insertOne(anyObject(), anyObject());
+        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
     }
 
     @AfterMethod
@@ -127,17 +140,36 @@ public class MongoSinkTest {
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
 
+        Thread.sleep(1000);
+
         verify(mockRecord, times(1)).fail();
     }
 
     @Test
     public void testWriteGoodMessage() throws Exception {
-        initAckContext();
+        initContext(false);
 
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
 
+        Thread.sleep(1000);
+
         verify(mockRecord, times(1)).ack();
+    }
+
+    @Test
+    public void testWriteMultipleMessages() throws Exception {
+        initContext(true);
+
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
+        sink.write(mockRecord);
+        sink.write(mockRecord);
+
+        Thread.sleep(1000);
+
+        verify(mockRecord, times(2)).ack();
+        verify(mockRecord, times(1)).fail();
     }
 
     @Test
@@ -146,6 +178,8 @@ public class MongoSinkTest {
 
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
+
+        Thread.sleep(1000);
 
         verify(mockRecord, times(1)).fail();
     }
@@ -156,6 +190,8 @@ public class MongoSinkTest {
 
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
+
+        Thread.sleep(1000);
 
         verify(mockRecord, times(1)).fail();
     }
