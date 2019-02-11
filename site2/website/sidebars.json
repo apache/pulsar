@@ -99,7 +99,8 @@
       "cookbooks-partitioned",
       "cookbooks-retention-expiry",
       "cookbooks-encryption",
-      "cookbooks-message-queue"
+      "cookbooks-message-queue",
+      "cookbooks-bookkeepermetadata"
     ],
     "Development": [
       "develop-tools",
