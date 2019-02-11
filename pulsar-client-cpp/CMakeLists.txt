@@ -68,7 +68,7 @@ if (LINK_STATIC)
     SET(OPENSSL_USE_STATIC_LIBS TRUE)
 
     find_library(ZLIB_LIBRARY_PATH REQUIRED NAMES libz.a z)
-    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
+    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf-lite.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
     find_library(LIB_ZSTD NAMES libzstd.a)
 
@@ -96,7 +96,7 @@ else()
     if (NOT PROTOBUF_LIBRARIES)
       find_package(ProtoBuf QUIET)
       if (NOT ProtoBuf_FOUND)
-        find_library(PROTOBUF_LIBRARIES protobuf)
+        find_library(PROTOBUF_LIBRARIES protobuf-lite)
       endif (NOT ProtoBuf_FOUND)
     endif (NOT PROTOBUF_LIBRARIES)
 
