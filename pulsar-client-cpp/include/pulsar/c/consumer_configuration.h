@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include "consumer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,6 +45,17 @@ typedef enum {
      */
     pulsar_ConsumerFailover
 } pulsar_consumer_type;
+
+typedef enum {
+    /**
+     * the latest position which means the start consuming position will be the last message
+     */
+    multi_topic_latest,
+    /**
+     * the earliest position which means the start consuming position will be the first message
+     */
+    multi_topic_earliest
+} multi_topic_position;
 
 /// Callback definition for MessageListener
 typedef void (*pulsar_message_listener)(pulsar_consumer_t *consumer, pulsar_message_t *msg, void *ctx);
@@ -151,6 +164,13 @@ int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_
 
 void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consumer_configuration,
                                         int compacted);
+
+int pulsar_consumer_get_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
+void pulsar_consumer_set_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration,
+    multi_topic_position subscriptionInitialPosition);
 
 void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf, const char *name,
                                                 const char *value);

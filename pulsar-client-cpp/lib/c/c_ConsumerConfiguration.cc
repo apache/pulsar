@@ -118,3 +118,15 @@ void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t 
                                                 const char *value) {
     conf->consumerConfiguration.setProperty(name, value);
 }
+
+void pulsar_consumer_set_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration,
+    multi_topic_position subscriptionInitialPosition) {
+    consumer_configuration->consumerConfiguration.setSubscriptionInitialPosition(
+        (pulsar::InitialPosition)subscriptionInitialPosition);
+}
+
+int pulsar_consumer_get_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getSubscriptionInitialPosition();
+}

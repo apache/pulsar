@@ -78,6 +78,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
+    inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
     void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
