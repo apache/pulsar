@@ -623,6 +623,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable bookie isolation by specifying a list of bookie groups to choose from. \n\n"
             + "Any bookie outside the specified groups will not be used by the broker")
     private String bookkeeperClientIsolationGroups;
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
+            + "a single bookie.\n" +
+            "If this flag is enabled, the client will use one single bookie (by " +
+            "preference) to read all entries for a ledger.")
+    private boolean bookkeeperEnableStickyReads = true;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
