@@ -171,7 +171,7 @@ public class PulsarAdmin implements Closeable {
                 SSLContext sslCtx = null;
 
                 X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
+                        .loadClientTrustCerts(clientConfigData.getTlsTrustCertsFilePath());
 
                 // Set private key and certificate if available
                 AuthenticationDataProvider authData = auth.getAuthData();

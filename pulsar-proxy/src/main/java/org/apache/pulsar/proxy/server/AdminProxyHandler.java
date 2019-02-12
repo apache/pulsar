@@ -145,7 +145,7 @@ class AdminProxyHandler extends ProxyServlet {
             if (config.isTlsEnabledWithBroker()) {
                 try {
                     X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(config.getTlsTrustCertsFilePath());
+                            .loadClientTrustCerts(config.getTlsTrustCertsFilePath());
 
                     SSLContext sslCtx;
                     AuthenticationDataProvider authData = auth.getAuthData();

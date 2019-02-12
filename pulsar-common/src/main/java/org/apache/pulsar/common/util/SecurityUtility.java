@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -49,12 +55,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class SecurityUtility {
 
@@ -62,7 +64,9 @@ public class SecurityUtility {
         // Fixes loading PKCS8Key file: https://stackoverflow.com/a/18912362
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
-    
+
+    private static final String DEFAULT_CAS_PEM_PATH = "org/apache/pulsar/default-CAs.pem";
+
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
@@ -94,7 +98,7 @@ public class SecurityUtility {
             Certificate[] certificates, PrivateKey privateKey)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextBuilder builder = SslContextBuilder.forClient();
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath, true);
         setupKeyManager(builder, privateKey, (X509Certificate[]) certificates);
         return builder.build();
     }
@@ -109,7 +113,7 @@ public class SecurityUtility {
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath, false);
         setupKeyManager(builder, privateKey, certificates);
         setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
         return builder.build();
@@ -212,19 +216,45 @@ public class SecurityUtility {
         return privateKey;
     }
 
-    private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-            String trustCertsFilePath) throws IOException, FileNotFoundException {
-        if (allowInsecureConnection) {
-            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+    public static X509Certificate[] loadClientTrustCerts(String trustCertsFilePath) throws KeyManagementException {
+        if (StringUtils.isNotEmpty(trustCertsFilePath)) {
+            // User did specify a trust certs path, so we'll use it
+            return loadCertificatesFromPemFile(trustCertsFilePath);
         } else {
-            if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
-                    builder.trustManager(input);
-                }
-            } else {
-                builder.trustManager((File) null);
+            // Read default CAs trust certs
+            try (InputStream input = openDefaultCAsFile()) {
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(input);
+                return collection.toArray(new X509Certificate[collection.size()]);
+            } catch (GeneralSecurityException | IOException e) {
+                throw new KeyManagementException("Certificate loading error", e);
             }
         }
+    }
+
+    private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
+            String trustCertsFilePath, boolean allowDefaultTrustStoreIfEmpty)
+            throws IOException, FileNotFoundException {
+        if (allowInsecureConnection) {
+            // Dummy trust manager that validates all certificates
+            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else if (StringUtils.isNotEmpty(trustCertsFilePath)) {
+            // User did specify a trust certs path, so we'll use it
+            try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
+                builder.trustManager(input);
+            }
+        } else if (allowDefaultTrustStoreIfEmpty) {
+            // Use default trust store
+            try (InputStream input = openDefaultCAsFile()) {
+                builder.trustManager(input);
+            }
+        } else {
+            builder.trustManager((File) null);
+        }
+    }
+
+    private static InputStream openDefaultCAsFile() {
+        return SecurityUtility.class.getClassLoader().getResourceAsStream(DEFAULT_CAS_PEM_PATH);
     }
 
     private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
