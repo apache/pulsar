@@ -141,7 +141,6 @@ public class MetaStoreImplZookeeper implements MetaStore {
                         }
                     } else if (rc == Code.NONODE.intValue()) {
                         // Z-node doesn't exist
-                    	log.warn("createIfMissing has value of {}", createIfMissing);
                         if (createIfMissing) {
                             log.info("Creating '{}{}'", prefix, ledgerName);
 
