@@ -142,7 +142,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Optional<MessageId> clearReceiveQueue();
 
-    boost::mutex mutexForReceiveWithZeroQueueSize;
+    std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
     const std::string subscription_;
     std::string originalSubscriptionName_;
@@ -163,7 +163,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     bool messageListenerRunning_;
-    boost::mutex messageListenerMutex_;
+    std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

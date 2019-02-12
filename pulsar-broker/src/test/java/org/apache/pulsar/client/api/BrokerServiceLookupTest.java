@@ -142,9 +142,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -222,9 +220,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(newCluster); // Broker2 serves newCluster
         conf2.setZookeeperServers("localhost:2181");
@@ -313,9 +309,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -401,6 +395,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarService pulsar2 = startBroker(conf2);
 
         // restart broker1 with tls enabled
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsAllowInsecureConnection(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
@@ -529,6 +525,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
         // (1) restart broker1 with tls enabled
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsAllowInsecureConnection(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
@@ -804,9 +802,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -909,9 +905,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             ServiceConfiguration conf2 = new ServiceConfiguration();
             conf2.setAdvertisedAddress("localhost");
             conf2.setBrokerServicePort(PortManager.nextFreePort());
-            conf2.setBrokerServicePortTls(PortManager.nextFreePort());
             conf2.setWebServicePort(PortManager.nextFreePort());
-            conf2.setWebServicePortTls(PortManager.nextFreePort());
             conf2.setAdvertisedAddress("localhost");
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());

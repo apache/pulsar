@@ -223,7 +223,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testSimple() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
-        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1);
+        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setWriteQuorumSize(1);
         // set the data ledger size
         mlConfig.setMaxEntriesPerLedger(100);
         // set the metadata ledger size to 1 to kick off many ledger switching cases
@@ -238,7 +238,9 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testConcurrentMarkDelete() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
-        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataAckQuorumSize(1);
+        mlConfig.setEnsembleSize(1).setWriteQuorumSize(1)
+            .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
+            .setMetadataAckQuorumSize(1);
         // set the data ledger size
         mlConfig.setMaxEntriesPerLedger(100);
         // set the metadata ledger size to 1 to kick off many ledger switching cases

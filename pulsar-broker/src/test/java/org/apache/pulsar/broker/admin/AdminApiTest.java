@@ -140,6 +140,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 

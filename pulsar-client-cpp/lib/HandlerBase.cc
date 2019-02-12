@@ -17,7 +17,6 @@
  * under the License.
  */
 #include "HandlerBase.h"
-#include <boost/bind.hpp>
 
 #include <cassert>
 

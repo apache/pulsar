@@ -226,6 +226,8 @@ public class NonPersistentTopic implements Topic {
 
         lock.readLock().lock();
         try {
+            brokerService.checkTopicNsOwnership(getName());
+            
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -310,6 +312,13 @@ public class NonPersistentTopic implements Topic {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
+        
+        try {
+            brokerService.checkTopicNsOwnership(getName());
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
 
         if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
             if (log.isDebugEnabled()) {

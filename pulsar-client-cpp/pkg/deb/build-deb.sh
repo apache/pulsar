@@ -39,7 +39,6 @@ pushd $CPP_DIR
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarStatic -j 3
-strip lib/libpulsar.*
 popd
 
 DEST_DIR=apache-pulsar-client

@@ -21,10 +21,12 @@
 
 #include <lib/LogUtils.h>
 
+#include <array>
+
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
-static const boost::array<double, 4> probs = {0.5, 0.9, 0.99, 0.999};
+static const std::array<double, 4> probs = {0.5, 0.9, 0.99, 0.999};
 
 std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
     boost::accumulators::detail::extractor_result<
@@ -52,8 +54,7 @@ ProducerStatsImpl::ProducerStatsImpl(std::string producerStr, DeadlineTimerPtr t
       latencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
       totalLatencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs) {
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(
-        boost::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
+    timer_->async_wait(std::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, std::placeholders::_1));
 }
 
 ProducerStatsImpl::ProducerStatsImpl(const ProducerStatsImpl& stats)
@@ -86,8 +87,7 @@ void ProducerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     lock.unlock();
 
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(
-        boost::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
+    timer_->async_wait(std::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, std::placeholders::_1));
     LOG_INFO(tmp);
 }
 

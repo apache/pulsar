@@ -143,3 +143,23 @@ class Context(object):
   def ack(self, msgid, topic):
     """ack this message id"""
     pass
+
+  @abstractmethod
+  def incr_counter(self, key, amount):
+    """incr the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_counter(self, key):
+    """get the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def put_state(self, key, value):
+    """update the value of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_state(self, key):
+    """get the value of a given key in the managed state"""
+    pass
