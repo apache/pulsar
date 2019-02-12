@@ -126,3 +126,29 @@ func TestTokenAuthSupplier(t *testing.T) {
 		}
 	}
 }
+
+var (
+	caPath               = "cacert.pem"
+	clientPublicKeyPath  = "client-cert.pem"
+	clientPrivateKeyPath = "client-key.pem"
+)
+
+func TestClient_ValidationHostName(t *testing.T) {
+	conf := &ClientOptions{
+		URL:                        "https://localhost:8443",
+		TLSAllowInsecureConnection: false,
+		ValidationHostName:         true,
+		TLSTrustCertsFilePath:      caPath,
+		Authentication:             NewAuthenticationTLS(clientPublicKeyPath, clientPrivateKeyPath),
+	}
+
+	client, err := NewClient(*conf)
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "persistent://private/auth/test-tls-detect-https"
+	_, err = client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.NotNil(t, err)
+}
