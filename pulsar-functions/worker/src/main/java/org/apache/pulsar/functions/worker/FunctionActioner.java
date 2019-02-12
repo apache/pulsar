@@ -92,7 +92,7 @@ public class FunctionActioner {
         this.pulsarAdmin = pulsarAdmin;
     }
 
-    public boolean startFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         try {
             FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
             FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
@@ -132,14 +132,14 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
-            return true;
+            return;
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
             log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
-            return false;
+            return;
         }
     }
 

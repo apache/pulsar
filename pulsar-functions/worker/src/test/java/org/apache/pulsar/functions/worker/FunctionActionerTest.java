@@ -25,11 +25,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
-import java.net.UnknownHostException;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -40,6 +35,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
 import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.testng.Assert.*;
 import static org.testng.AssertJUnit.assertFalse;
 
 /**
@@ -80,9 +76,15 @@ public class FunctionActionerTest {
                 .build();
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
 
         // actioner should try to download file from bk-dlogNamespace and fails with exception
-        assertFalse(actioner.startFunction(functionRuntimeInfo));
+        try {
+            actioner.startFunction(functionRuntimeInfo);
+            assertFalse(true);
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
+        }
     }
 
     @Test
@@ -135,8 +137,14 @@ public class FunctionActionerTest {
         instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0).build();
         functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
 
-        assertFalse(actioner.startFunction(functionRuntimeInfo));
+        try {
+            actioner.startFunction(functionRuntimeInfo);
+            assertFalse(true);
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
+        }
     }
 
 }

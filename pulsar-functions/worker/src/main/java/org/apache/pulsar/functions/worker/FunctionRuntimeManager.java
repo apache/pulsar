@@ -840,11 +840,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return toStart;
     }
 
-    private boolean conditionallyStartFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    private void conditionallyStartFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase) {
-            return this.functionActioner.startFunction(functionRuntimeInfo);
+            this.functionActioner.startFunction(functionRuntimeInfo);
         }
-        return false;
     }
 
     private void conditionallyStopFunction(FunctionRuntimeInfo functionRuntimeInfo) {

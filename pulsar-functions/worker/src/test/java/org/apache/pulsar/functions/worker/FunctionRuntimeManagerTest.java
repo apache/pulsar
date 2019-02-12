@@ -83,7 +83,7 @@ public class FunctionRuntimeManagerTest {
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -174,7 +174,7 @@ public class FunctionRuntimeManagerTest {
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -268,7 +268,7 @@ public class FunctionRuntimeManagerTest {
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -432,7 +432,7 @@ public class FunctionRuntimeManagerTest {
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -481,7 +481,7 @@ public class FunctionRuntimeManagerTest {
         /** Test transfer from other worker to me **/
         reset(functionRuntimeManager);
         reset(functionActioner);
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -609,7 +609,7 @@ public class FunctionRuntimeManagerTest {
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
-        doReturn(true).when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
@@ -651,6 +651,12 @@ public class FunctionRuntimeManagerTest {
                 return false;
             }
         }));
+
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+                new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                .build()));
     }
 
     @Test
