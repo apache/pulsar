@@ -1490,7 +1490,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private void validatePolicies(NamespaceName ns, Policies policies) {
-        if (ns.isGlobal() && policies.replication_clusters.isEmpty()) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
             // Default to local cluster
             policies.replication_clusters = Collections.singleton(config().getClusterName());
         }
