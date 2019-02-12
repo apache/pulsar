@@ -440,6 +440,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean tlsEnabled = false;
     @FieldContext(
         category = CATEGORY_TLS,
+        doc = "Time Interval in Mins between checks for Cert Refresh."
+    )
+    private long certRefreshCheckDurationInMins = 0;
+    @FieldContext(
+        category = CATEGORY_TLS,
         doc = "Path for the TLS certificate file"
     )
     private String tlsCertificateFilePath;

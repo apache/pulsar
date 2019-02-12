@@ -36,7 +36,6 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     public static final String TLS_HANDLER = "tls";
     private final DiscoveryService discoveryService;
-    // private final SslContext sslCtx;
     private final boolean enableTls;
     private final SslContextRefresher sslCtxRefresher;
 

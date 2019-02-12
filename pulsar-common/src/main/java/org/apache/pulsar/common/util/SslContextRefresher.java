@@ -29,6 +29,7 @@ import java.nio.file.WatchService;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -39,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
-import io.netty.channel.EventLoopGroup;
 import io.netty.handler.ssl.SslContext;
 
 public class SslContextRefresher implements Runnable {
@@ -50,7 +50,7 @@ public class SslContextRefresher implements Runnable {
     private final Set<String> tlsCiphers;
     private final Set<String> tlsProtocols;
     private final boolean tlsRequireTrustedClientCertOnConnect;
-    private final EventLoopGroup eventLoopGroup;
+    private final ScheduledExecutorService eventLoopGroup;
     private final Set<String> files;
     private final Set<WatchKey> watchKeys;
     private final long delay;
@@ -59,7 +59,7 @@ public class SslContextRefresher implements Runnable {
 
     public SslContextRefresher(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
             String keyFilePath, Set<String> ciphers, Set<String> protocols, boolean requireTrustedClientCertOnConnect,
-            EventLoopGroup eventLoopGroup, long delay, TimeUnit timeunit)
+            ScheduledExecutorService eventLoopGroup, long delay, TimeUnit timeunit)
             throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = trustCertsFilePath;
@@ -77,10 +77,10 @@ public class SslContextRefresher implements Runnable {
         files.add(trustCertsFilePath);
         files.add(certificateFilePath);
         files.add(keyFilePath);
-        
+
         // Remove all Null Or Empty Files
         files.removeIf(file -> Strings.isNullOrEmpty(file));
-        
+
         this.sslContext = SecurityUtility.createNettySslContextForServer(tlsAllowInsecureConnection,
                 tlsTrustCertsFilePath, tlsCertificateFilePath, tlsKeyFilePath, tlsCiphers, tlsProtocols,
                 tlsRequireTrustedClientCertOnConnect);
@@ -98,7 +98,7 @@ public class SslContextRefresher implements Runnable {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Certs will be refreshed every {} minutes", delay);
         }
-        
+
         if (delay > 0) {
             run();
         }
