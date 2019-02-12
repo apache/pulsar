@@ -86,16 +86,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Semaphore semaphore;
     private volatile Timeout sendTimeout = null;
     private volatile Timeout batchMessageAndSendTimeout = null;
-    private long createProducerTimeout;
+    private final long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
     private String producerName;
-
     private String connectionId;
     private String connectedSince;
+
     private final int partitionIndex;
 
     private final ProducerStatsRecorder stats;
@@ -103,9 +103,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final CompressionCodec compressor;
 
     private volatile long lastSequenceIdPublished;
-    private MessageCrypto msgCrypto = null;
 
-    private ScheduledFuture<?> keyGeneratorTask = null;
+    private final MessageCrypto msgCrypto;
+
+    private final ScheduledFuture<?> keyGeneratorTask;
 
     private final Map<String, String> metadata;
 
@@ -144,7 +145,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.msgCrypto = new MessageCrypto(logCtx, true);
 
             // Regenerate data key cipher at fixed interval
-            keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(() -> {
+            this.keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(() -> {
                 try {
                     msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
                 } catch (CryptoException e) {
@@ -154,7 +155,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
-
+        } else {
+            this.msgCrypto = null;
+            this.keyGeneratorTask = null;
         }
 
         if (conf.getSendTimeoutMs() > 0) {
@@ -803,12 +806,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected static final class OpSendMsg {
-        MessageImpl<?> msg;
-        List<MessageImpl<?>> msgs;
-        ByteBufPair cmd;
-        SendCallback callback;
-        long sequenceId;
-        long createdAt;
+        volatile MessageImpl<?> msg;
+        volatile List<MessageImpl<?>> msgs;
+        volatile ByteBufPair cmd;
+        volatile SendCallback callback;
+        volatile long sequenceId;
+        volatile long createdAt;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
 
@@ -942,7 +945,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             // to update the id generator the first time the producer gets established, and ignore the
                             // sequence id sent by broker in subsequent producer reconnects
                             this.lastSequenceIdPublished = lastSequenceId;
-                            this.msgIdGenerator = lastSequenceId + 1;
+                            this.msgIdGeneratorUpdater.compareAndSet(this, 0, lastSequenceId + 1);
                         }
 
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
