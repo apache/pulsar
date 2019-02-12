@@ -41,6 +41,7 @@
     <module>runtime-all</module>
     <module>worker</module>
     <module>secrets</module>
+    <module>windowing</module>
   </modules>
 
 </project>
