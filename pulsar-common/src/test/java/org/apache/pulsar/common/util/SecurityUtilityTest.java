@@ -55,6 +55,6 @@ public class SecurityUtilityTest {
         assertNotNull(certs);
         assertTrue(certs.length >= 1);
         X509Certificate leCert = certs[0];
-        assertTrue(leCert.getIssuerDN().getName().contains("ISRG Root X1"));
+        assertTrue(leCert.getIssuerDN().getName().contains("DST Root CA X3"));
     }
 }
