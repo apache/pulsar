@@ -37,6 +37,7 @@
 #include "ProducerImpl.h"
 #include "ConsumerImpl.h"
 #include "checksum/ChecksumProvider.h"
+#include "DefaultCAs.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -159,7 +160,9 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         } else {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
             std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
-            if (file_exists(trustCertFilePath)) {
+            if (trustCertFilePath.empty()) {
+                loadDefaultCertificateAuthorities(ctx);
+            } else if (file_exists(trustCertFilePath)) {
                 ctx.load_verify_file(trustCertFilePath);
             } else {
                 LOG_ERROR(trustCertFilePath << ": No such trustCertFile");

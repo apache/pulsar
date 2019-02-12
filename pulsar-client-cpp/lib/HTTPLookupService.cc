@@ -18,6 +18,9 @@
  */
 #include <lib/HTTPLookupService.h>
 
+#include "DefaultCAs.h"
+#include <cstdio>
+
 #include <curl/curl.h>
 
 #include <boost/property_tree/json_parser.hpp>
@@ -54,12 +57,25 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
       isUseTls_(clientConfiguration.isUseTls()),
       tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
-      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()) {
+      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
+      deleteTempTrustStoreFile_(false) {
     if (lookupUrl[lookupUrl.length() - 1] == '/') {
         // Remove trailing '/'
         adminUrl_ = lookupUrl.substr(0, lookupUrl.length() - 1);
     } else {
         adminUrl_ = lookupUrl;
+    }
+
+    if (isUseTls_ && tlsTrustCertsFilePath_.empty()) {
+        // No specified CA trust store, use the default one.
+        tlsTrustCertsFilePath_ = writeDefaultTrustStoreOnFile();
+        deleteTempTrustStoreFile_ = true;
+    }
+}
+
+HTTPLookupService::~HTTPLookupService() {
+    if (deleteTempTrustStoreFile_) {
+        std::remove(tlsTrustCertsFilePath_.c_str());
     }
 }
 
