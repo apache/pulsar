@@ -722,12 +722,12 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 }
 
 inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
-    InitialPosition type = config_.getSubscriptionInitialPosition();
-    switch (type) {
-        case Latest:
+    InitialPosition initialPosition = config_.getSubscriptionInitialPosition();
+    switch (initialPosition) {
+        case InitialPositionLatest:
             return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Latest;
 
-        case Earliest:
+        case InitialPositionEarliest:
             return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Earliest;
     }
 }

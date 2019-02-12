@@ -120,8 +120,7 @@ void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t 
 }
 
 void pulsar_consumer_set_subscription_initial_position(
-    pulsar_consumer_configuration_t *consumer_configuration,
-    multi_topic_position subscriptionInitialPosition) {
+    pulsar_consumer_configuration_t *consumer_configuration, initial_position subscriptionInitialPosition) {
     consumer_configuration->consumerConfiguration.setSubscriptionInitialPosition(
         (pulsar::InitialPosition)subscriptionInitialPosition);
 }

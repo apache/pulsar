@@ -137,7 +137,7 @@ TEST(ConsumerConfigurationTest, testSubscriptionInitialPosition) {
 
     Consumer consumer;
     ConsumerConfiguration config;
-    config.setSubscriptionInitialPosition(InitialPosition::Earliest);
+    config.setSubscriptionInitialPosition(InitialPosition::InitialPositionEarliest);
     result = client.subscribe(topicName, subName, config, consumer);
     ASSERT_EQ(ResultOk, result);
 

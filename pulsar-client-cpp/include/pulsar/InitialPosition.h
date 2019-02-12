@@ -23,8 +23,8 @@
 namespace pulsar {
 enum InitialPosition
 {
-    Latest,
-    Earliest
+    InitialPositionLatest,
+    InitialPositionEarliest
 };
 }
 #pragma GCC visibility pop

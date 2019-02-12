@@ -50,7 +50,7 @@ struct ConsumerConfigurationImpl {
           cryptoKeyReader(),
           cryptoFailureAction(ConsumerCryptoFailureAction::FAIL),
           readCompacted(false),
-          subscriptionInitialPosition(InitialPosition::Latest),
+          subscriptionInitialPosition(InitialPosition::InitialPositionLatest),
           patternAutoDiscoveryPeriod(60),
           properties() {}
 };
