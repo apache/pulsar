@@ -25,7 +25,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -74,19 +73,9 @@ public class CmdTenants extends CmdBase {
                 adminRoles = Collections.emptyList();
             }
 
-            java.util.List<String> availableClusters = admin.clusters().getClusters();
-
             if (allowedClusters == null || allowedClusters.isEmpty()) {
                 // Default to all available cluster
-                allowedClusters = availableClusters;
-            } else {
-                java.util.List<String> nonexistentClusters = allowedClusters.stream()
-                    .filter(cluster -> !availableClusters.contains(cluster))
-                    .collect(Collectors.toList());
-                if (nonexistentClusters.size() > 0) {
-                    System.err.println(String.format("Clusters %s do not exist", nonexistentClusters));
-                    return;
-                }
+                allowedClusters = admin.clusters().getClusters();
             }
 
             TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
@@ -115,18 +104,8 @@ public class CmdTenants extends CmdBase {
                 adminRoles = new ArrayList<>(admin.tenants().getTenantInfo(tenant).getAdminRoles());
             }
 
-            java.util.List<String> availableClusters = admin.clusters().getClusters();
-
-            if (allowedClusters == null || allowedClusters.isEmpty()) {
+            if (allowedClusters == null) {
                 allowedClusters = new ArrayList<>(admin.tenants().getTenantInfo(tenant).getAllowedClusters());
-            } else {
-                java.util.List<String> nonexistentClusters = allowedClusters.stream()
-                    .filter(cluster -> !availableClusters.contains(cluster))
-                    .collect(Collectors.toList());
-                if (nonexistentClusters.size() > 0) {
-                    System.err.println(String.format("Clusters %s do not exist", nonexistentClusters));
-                    return;
-                }
             }
 
             TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));

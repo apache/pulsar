@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -84,10 +86,12 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
-            @ApiResponse(code = 412, message = "Tenant name is not valid") })
+            @ApiResponse(code = 412, message = "Tenant name is not valid"),
+            @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void createTenant(@PathParam("tenant") String tenant, TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        validateClusters(config);
 
         try {
             NamedEntity.checkName(tenant);
@@ -110,10 +114,12 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 409, message = "Tenant already exists") })
+            @ApiResponse(code = 409, message = "Tenant already exists"),
+            @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void updateTenant(@PathParam("tenant") String tenant, TenantInfo newTenantAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        validateClusters(newTenantAdmin);
 
         Stat nodeStat = new Stat();
         try {
@@ -196,6 +202,24 @@ public class TenantsBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
+        }
+    }
+
+    private void validateClusters(TenantInfo info) {
+        List<String> nonexistentClusters;
+        try {
+            Set<String> availableClusters = clustersListCache().get();
+            Set<String> allowedClusters = info.getAllowedClusters();
+            nonexistentClusters = allowedClusters.stream()
+                .filter(cluster -> !availableClusters.contains(cluster))
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("[{}] Failed to get available clusters", clientAppId(), e);
+            throw new RestException(e);
+        }
+        if (nonexistentClusters.size() > 0) {
+            log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);
+            throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
         }
     }
 
