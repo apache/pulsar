@@ -87,7 +87,7 @@ type ClientOptions struct {
 	TLSAllowInsecureConnection bool
 
 	// Configure whether the Pulsar client verify the validity of the host name from broker (default: false)
-	ValidationHostName bool
+	TLSValidateHostname bool
 
 	// Configure the authentication provider. (default: no authentication)
 	// Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")`

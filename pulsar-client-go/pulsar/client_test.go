@@ -137,7 +137,7 @@ func TestClient_ValidationHostName(t *testing.T) {
 	conf := &ClientOptions{
 		URL:                        "https://localhost:8443",
 		TLSAllowInsecureConnection: false,
-		ValidationHostName:         true,
+		TLSValidateHostname:        true,
 		TLSTrustCertsFilePath:      caPath,
 		Authentication:             NewAuthenticationTLS(clientPublicKeyPath, clientPrivateKeyPath),
 	}
