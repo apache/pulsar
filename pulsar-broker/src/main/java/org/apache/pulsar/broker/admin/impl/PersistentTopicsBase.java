@@ -1303,7 +1303,7 @@ public class PersistentTopicsBase extends AdminResource {
                         	} else {
                         		errSrc = " has no metadata";
                         	}
-                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.getLocalName() + errSrc);
+                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.toString() + errSrc);
                         } else if (!internalGetList().contains(topicName.toString())) {
                             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                         }
