@@ -24,20 +24,19 @@ import sys
 
 from distutils.command import build_ext
 
+import xml.etree.ElementTree as ET
+from os.path import dirname, realpath, join
 
 def get_version():
     # Get the pulsar version from pom.xml
-    command = '''cat ../../pom.xml | xmllint --format - | \\
-        sed "s/xmlns=\\".*\\"//g" | xmllint --stream --pattern /project/version --debug - | \\
-        grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"'''
-    process = subprocess.Popen(['bash', '-c', command], stdout=subprocess.PIPE)
-    output, error = process.communicate()
-    if error:
-        raise 'Failed to get version: ' + error
+    TOP_LEVEL_PATH = dirname(dirname(dirname(realpath(__file__))))
+    POM_PATH = join(TOP_LEVEL_PATH, 'pom.xml')
+    root = ET.XML(open(POM_PATH).read())
+    version = root.find('{http://maven.apache.org/POM/4.0.0}version').text.strip()
 
     # Strip the '-incubating' suffix, since it prevents the packages
     # from being uploaded into PyPI
-    return output.strip().decode('utf-8', 'strict').split('-')[0]
+    return version.split('-')[0]
 
 
 VERSION = get_version()
