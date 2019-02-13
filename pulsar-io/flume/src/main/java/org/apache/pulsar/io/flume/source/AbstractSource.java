@@ -99,7 +99,7 @@ public abstract class AbstractSource<V> extends PushSource<V> {
                 log.info("start flume receive from sink process");
                 while (running) {
                     BlockingQueue<Map<String, Object>> blockingQueue = SinkOfFlume.getQueue();
-                    while (!blockingQueue.isEmpty()) {
+                    while (blockingQueue != null && !blockingQueue.isEmpty()) {
                         ByteArrayOutputStream bos = new ByteArrayOutputStream();
                         ObjectOutput out = null;
                         out = new ObjectOutputStream(bos);
