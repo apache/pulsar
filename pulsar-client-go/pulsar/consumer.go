@@ -51,6 +51,7 @@ type InitialPosition int
 const (
 	// Latest position which means the start consuming position will be the last message
 	Latest InitialPosition = iota
+
 	// Earliest position which means the start consuming position will be the first message
 	Earliest
 )
@@ -86,6 +87,7 @@ type ConsumerOptions struct {
 	// Default is `Exclusive`
 	Type SubscriptionType
 
+	// InitialPosition at which the cursor will be set when subscribe
 	// Default is `Latest`
 	SubscriptionInitPos InitialPosition
 
