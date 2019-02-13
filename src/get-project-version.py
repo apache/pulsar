@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +18,12 @@
 # under the License.
 #
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+import xml.etree.ElementTree as ET
+from os.path import dirname, realpath, join
 
-pushd $ROOT_DIR > /dev/null
+# Derive the POM path from the current script location
+TOP_LEVEL_PATH = dirname(dirname(realpath(__file__)))
+POM_PATH = join(TOP_LEVEL_PATH, 'pom.xml')
 
-# Get the project version from the Maven pom.xml
-src/get-project-version.py
-
-popd > /dev/null
+root = ET.XML(open(POM_PATH).read())
+print(root.find('{http://maven.apache.org/POM/4.0.0}version').text)
