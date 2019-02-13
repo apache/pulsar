@@ -25,11 +25,16 @@ import java.security.cert.X509Certificate;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.SecurityUtility;
 
+import lombok.Getter;
+
 public class AuthenticationDataTls implements AuthenticationDataProvider {
 
-    protected final X509Certificate[] certificates;
-    protected final PrivateKey privateKey;
-
+    @Getter
+    protected final X509Certificate[] tlsCertificates;
+    @Getter
+    protected final PrivateKey tlsPrivateKey;
+    @Getter
+    private String certFilePath, keyFilePath;
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
             throw new IllegalArgumentException("certFilePath must not be null");
@@ -37,8 +42,10 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         if (keyFilePath == null) {
             throw new IllegalArgumentException("keyFilePath must not be null");
         }
-        certificates = SecurityUtility.loadCertificatesFromPemFile(certFilePath);
-        privateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
+        this.certFilePath = certFilePath;
+        this.keyFilePath = keyFilePath;
+        this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFilePath);
+        this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
     }
 
     /*
@@ -48,16 +55,6 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     @Override
     public boolean hasDataForTls() {
         return true;
-    }
-
-    @Override
-    public X509Certificate[] getTlsCertificates() {
-        return certificates;
-    }
-
-    @Override
-    public PrivateKey getTlsPrivateKey() {
-        return privateKey;
     }
 
 }

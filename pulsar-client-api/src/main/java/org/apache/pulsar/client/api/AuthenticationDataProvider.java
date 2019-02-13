@@ -40,6 +40,22 @@ public interface AuthenticationDataProvider extends Serializable {
     default boolean hasDataForTls() {
         return false;
     }
+    
+    /**
+     * 
+     * @return a Client Certificate File Path, or null if data is not available
+     */
+    default String getCertFilePath() {
+        return null;
+    }
+    
+    /**
+     * 
+     * @return a Client Key Certificate File Path, or null if data is not available
+     */
+    default String getKeyFilePath() {
+        return null;
+    }
 
     /**
      * 

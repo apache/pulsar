@@ -24,7 +24,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SslContextRefresher;
+import org.apache.pulsar.common.util.ServerSslContextRefresher;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -36,7 +36,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     private final PulsarService pulsar;
     private final boolean enableTls;
-    private final SslContextRefresher sslCtxRefresher;
+    private final ServerSslContextRefresher sslCtxRefresher;
 
     /**
      *
@@ -48,7 +48,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.enableTls = enableTLS;
         if (this.enableTls) {
             ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-            sslCtxRefresher = new SslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
+            sslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
                     serviceConfig.isTlsRequireTrustedClientCertOnConnect(), pulsar.getExecutor(),

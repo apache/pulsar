@@ -21,7 +21,7 @@ package org.apache.pulsar.discovery.service;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SslContextRefresher;
+import org.apache.pulsar.common.util.ServerSslContextRefresher;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
@@ -37,7 +37,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     public static final String TLS_HANDLER = "tls";
     private final DiscoveryService discoveryService;
     private final boolean enableTls;
-    private final SslContextRefresher sslCtxRefresher;
+    private final ServerSslContextRefresher sslCtxRefresher;
 
     public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean e)
             throws Exception {
@@ -45,7 +45,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.discoveryService = discoveryService;
         this.enableTls = e;
         if (this.enableTls) {
-            sslCtxRefresher = new SslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
+            sslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
                     serviceConfig.getTlsRequireTrustedClientCertOnConnect(), discoveryService.getWorkerGroup(),
