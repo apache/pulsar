@@ -449,6 +449,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Path for the file used to determine the rotation status for the broker"
             + " when responding to service discovery health checks")
     private String statusFilePath;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Dedicated status-check service port if broker is not listening on non-tls port"
+        )
+    private Optional<Integer> statusCheckServicePort;
+
 
     @FieldContext(
         category = CATEGORY_POLICIES,

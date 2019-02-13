@@ -31,9 +31,10 @@ import javax.ws.rs.core.Response.Status;
 /**
  * Web resource used by the VIP service to check to availability of the service instance.
  */
-@Path("/status.html")
+@Path(VipStatus.VIP_STATUS_PATH)
 public class VipStatus {
 
+    public static final String VIP_STATUS_PATH = "/status.html";
     public static final String ATTRIBUTE_STATUS_FILE_PATH = "statusFilePath";
     public static final String ATTRIBUTE_IS_READY_PROBE = "isReadyProbe";
 

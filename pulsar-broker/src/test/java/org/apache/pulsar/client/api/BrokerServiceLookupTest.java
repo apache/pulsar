@@ -1152,7 +1152,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         return future.get();
     }
 
-    private AsyncHttpClient getHttpClient(String version) {
+    public static AsyncHttpClient getHttpClient(String version) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
         confBuilder.setUserAgent(version);

@@ -53,6 +53,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.servlet.Filter;
 
 /**
  * Web Service embedded into Pulsar
@@ -91,7 +92,7 @@ public class WebService implements AutoCloseable {
         } else {
             httpConnector = null;
         }
-
+        
         Optional<Integer> tlsPort = pulsar.getConfiguration().getWebServicePortTls();
         if (tlsPort.isPresent()) {
             try {
@@ -135,17 +136,43 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
+    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Filter vipFilter,
+            Map<String, Object> attributeMap) {
+        FilterHolder[] filters = new FilterHolder[2];
+        int count = 0;
+        if (vipFilter != null) {
+            filters[count++] = new FilterHolder(vipFilter);
+        }
+        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
+            filters[count++] = new FilterHolder(
+                    new AuthenticationFilter(pulsar.getBrokerService().getAuthenticationService()));
+        }
+        addRestResources(basePath, javaPackages, filters, attributeMap);
+    }
+    
+    private void addRestResources(String basePath, String javaPackages, FilterHolder[] filters, Map<String,Object> attributeMap) {
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(JsonMapperProvider.class);
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
+        addServlet(basePath, servletHolder, attributeMap, filters);
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication, Map<String,Object> attributeMap) {
+    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
+            Map<String, Object> attributeMap) {
+        FilterHolder[] filters = null;
+        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
+            filters = new FilterHolder[1]; 
+            filters[0] = new FilterHolder(
+                    new AuthenticationFilter(pulsar.getBrokerService().getAuthenticationService()));
+        }
+        addServlet(path, servletHolder, attributeMap, filters);
+    }
+
+    private void addServlet(String path, ServletHolder servletHolder, Map<String, Object> attributeMap,
+            FilterHolder[] filters) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
@@ -161,10 +188,12 @@ public class WebService implements AutoCloseable {
                 MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
-        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(
-                                                           pulsar.getBrokerService().getAuthenticationService()));
-            context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        if (filters != null) {
+            for (FilterHolder filter : filters) {
+                if (filter != null) {
+                    context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                }
+            }
         }
 
         if (pulsar.getConfiguration().isHttpRequestsLimitEnabled()) {
@@ -183,6 +212,20 @@ public class WebService implements AutoCloseable {
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         handlers.add(context);
+    }
+
+    public void addRestResourceWithFilter(int port, String path, String javaPackages, Filter filter,
+            Map<String, Object> attributeMap) {
+        ServerConnector connector = new PulsarServerConnector(server, 1, 1);
+        connector.setPort(port);
+        connector.setHost(pulsar.getBindAddress());
+        server.addConnector(connector);
+        FilterHolder[] filterHolders = null;
+        if (filter != null) {
+            filterHolders = new FilterHolder[1];
+            filterHolders[0] = new FilterHolder(filter);
+        }
+        addRestResources(path, javaPackages, filterHolders, attributeMap);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {

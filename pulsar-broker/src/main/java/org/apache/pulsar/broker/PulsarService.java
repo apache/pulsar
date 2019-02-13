@@ -96,9 +96,9 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
+import org.apache.pulsar.broker.web.VipStatusCheckerFilter;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -488,12 +488,28 @@ public class PulsarService implements AutoCloseable {
                     return state == State.Started;
                 }
             });
-            this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipAttributeMap);
-            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, attributeMap);
-            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, attributeMap);
-            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true, attributeMap);
-            this.webService.addRestResources("/admin/v3", "org.apache.pulsar.broker.admin.v3", true, attributeMap);
-            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true, attributeMap);
+            // listen on port to serve vip health-status check when broker is not serving on non-tls port
+            Optional<Integer> statusCheckServicePort = this.config.getStatusCheckServicePort();
+            VipStatusCheckerFilter vipFilter = null;
+            if (statusCheckServicePort.isPresent() && (!config.getWebServicePort().isPresent()
+                    || !config.getWebServicePort().get().equals(statusCheckServicePort.get()))) {
+                vipFilter = new VipStatusCheckerFilter(VipStatus.VIP_STATUS_PATH,
+                        statusCheckServicePort.get());
+                this.webService.addRestResourceWithFilter(statusCheckServicePort.get(), "/",
+                        VipStatus.class.getPackage().getName(), vipFilter, vipAttributeMap);
+            }
+            this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipFilter,
+                    vipAttributeMap);
+            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, vipFilter, attributeMap);
+            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, vipFilter,
+                    attributeMap);
+            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true, vipFilter,
+                    attributeMap);
+            this.webService.addRestResources("/admin/v3", "org.apache.pulsar.broker.admin.v3", true, vipFilter,
+                    attributeMap);
+            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true, vipFilter,
+                    attributeMap);
+            
 
             this.webService.addServlet("/metrics",
                     new ServletHolder(new PrometheusMetricsServlet(this, config.isExposeTopicLevelMetricsInPrometheus(), config.isExposeConsumerLevelMetricsInPrometheus())),
