@@ -24,13 +24,15 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
 /**
- * Builder interface that is used to construct a {@link PulsarClient} instance.
+ * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
  * @since 2.0.0
  */
 public interface ClientBuilder extends Cloneable {
 
     /**
+     * Construct the final {@link PulsarClient} instance
+     *
      * @return the new {@link PulsarClient} instance
      */
     PulsarClient build() throws PulsarClientException;
@@ -38,20 +40,25 @@ public interface ClientBuilder extends Cloneable {
     /**
      * Load the configuration from provided <tt>config</tt> map.
      *
-     * <p>Example:
+     * <p>
+     * Example:
+     *
      * <pre>
-     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
-     * config.put("serviceUrl", "pulsar://localhost:5550");
+     * {@code
+     * Map<String, Object> config = new HashMap<>();
+     * config.put("serviceUrl", "pulsar://localhost:6650");
      * config.put("numIoThreads", 20);
      *
      * ClientBuilder builder = ...;
      * builder = builder.loadConf(config);
      *
      * PulsarClient client = builder.build();
+     * }
      * </pre>
      *
-     * @param config configuration to load
-     * @return client builder instance
+     * @param config
+     *            configuration to load
+     * @return the client builder instance
      */
     ClientBuilder loadConf(Map<String, Object> config);
 
@@ -61,29 +68,47 @@ public interface ClientBuilder extends Cloneable {
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
-     * <pre>
-     * ClientBuilder builder = PulsarClient.builder().ioThreads(8).listenerThreads(4);
+     * <pre>{@code
+     * ClientBuilder builder = PulsarClient.builder()
+     *               .ioThreads(8)
+     *               .listenerThreads(4);
      *
-     * PulsarClient client1 = builder.clone().serviceUrl(URL_1).build();
-     * PulsarClient client2 = builder.clone().serviceUrl(URL_2).build();
-     * </pre>
+     * PulsarClient client1 = builder.clone()
+     *                  .serviceUrl("pulsar://localhost:6650").build();
+     * PulsarClient client2 = builder.clone()
+     *                  .serviceUrl("pulsar://other-host:6650").build();
+     * }</pre>
+     *
+     * @return a clone of the client builder instance
      */
     ClientBuilder clone();
 
     /**
      * Configure the service URL for the Pulsar service.
      * <p>
-     * This parameter is required
+     * This parameter is required.
+     * <p>
+     * Examples:
+     * <ul>
+     * <li>{@code pulsar://my-broker:6650} for regular endpoint</li>
+     * <li>{@code pulsar+ssl://my-broker:6651} for TLS encrypted endpoint</li>
+     * </ul>
      *
      * @param serviceUrl
-     * @return
+     *            the URL of the Pulsar service that the client should connect to
+     * @return the client builder instance
      */
     ClientBuilder serviceUrl(String serviceUrl);
 
     /**
      * Configure the service URL provider for Pulsar service
+     * <p>
+     * Instead of specifying a static service URL string (with {@link #serviceUrl(String)}), an application can pass a
+     * {@link ServiceUrlProvider} instance that dynamically provide a service URL.
+     *
      * @param serviceUrlProvider
-     * @return
+     *            the provider instance
+     * @return the client builder instance
      */
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
@@ -91,47 +116,38 @@ public interface ClientBuilder extends Cloneable {
      * Set the authentication provider to use in the Pulsar client instance.
      * <p>
      * Example:
-     * <p>
-     *
-     * <pre>
-     * <code>
-     * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-     *
-     * Map<String, String> conf = new TreeMap<>();
-     * conf.put("tlsCertFile", "/my/cert/file");
-     * conf.put("tlsKeyFile", "/my/key/file");
-     *
-     * Authentication auth = AuthenticationFactor.create(AUTH_CLASS, conf);
-     *
+     * <pre>{@code
      * PulsarClient client = PulsarClient.builder()
-     *          .serviceUrl(SERVICE_URL)
-     *          .authentication(auth)
-     *          .build();
-     * ....
-     * </code>
-     * </pre>
+     *         .serviceUrl("pulsar+ssl://broker.example.com:6651/")
+     *         .authentication(
+     *               AuthenticationFactory.TLS("/my/cert/file", "/my/key/file")
+     *         .build();
+     * }</pre>
+     *
+     * For token based authentication, this will look like:
+     * <pre>{@code
+     * AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+     * }</pre>
      *
      * @param authentication
      *            an instance of the {@link Authentication} provider already constructed
+     * @return the client builder instance
      */
     ClientBuilder authentication(Authentication authentication);
 
     /**
-     * Set the authentication provider to use in the Pulsar client instance.
+     * Configure the authentication provider to use in the Pulsar client instance.
      * <p>
      * Example:
-     * <p>
      *
      * <pre>
      * <code>
-     * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-     * String AUTH_PARAMS = "tlsCertFile:/my/cert/file,tlsKeyFile:/my/key/file";
-     *
      * PulsarClient client = PulsarClient.builder()
-     *          .serviceUrl(SERVICE_URL)
-     *          .authentication(AUTH_CLASS, AUTH_PARAMS)
+     *          .serviceUrl("pulsar+ssl://broker.example.com:6651/)
+     *          .authentication(
+     *              "org.apache.pulsar.client.impl.auth.AuthenticationTls",
+     *              "tlsCertFile:/my/cert/file,tlsKeyFile:/my/key/file")
      *          .build();
-     * ....
      * </code>
      * </pre>
      *
@@ -139,6 +155,7 @@ public interface ClientBuilder extends Cloneable {
      *            name of the Authentication-Plugin you want to use
      * @param authParamsString
      *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @return the client builder instance
      * @throws UnsupportedAuthenticationException
      *             failed to instantiate specified Authentication-Plugin
      */
@@ -146,30 +163,28 @@ public interface ClientBuilder extends Cloneable {
             throws UnsupportedAuthenticationException;
 
     /**
-     * Set the authentication provider to use in the Pulsar client instance.
+     * Configure the authentication provider to use in the Pulsar client instance
+     * using a config map.
      * <p>
      * Example:
-     * <p>
      *
-     * <pre>
-     * <code>
-     * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-     *
+     * <pre>{@code
      * Map<String, String> conf = new TreeMap<>();
      * conf.put("tlsCertFile", "/my/cert/file");
      * conf.put("tlsKeyFile", "/my/key/file");
      *
      * PulsarClient client = PulsarClient.builder()
-     *          .serviceUrl(SERVICE_URL)
-     *          .authentication(AUTH_CLASS, conf)
+     *          .serviceUrl("pulsar+ssl://broker.example.com:6651/)
+     *          .authentication(
+     *              "org.apache.pulsar.client.impl.auth.AuthenticationTls", conf)
      *          .build();
-     * ....
-     * </code>
+     * }</pre>
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
      * @param authParams
      *            map which represents parameters for the Authentication-Plugin
+     * @return the client builder instance
      * @throws UnsupportedAuthenticationException
      *             failed to instantiate specified Authentication-Plugin
      */
@@ -186,20 +201,27 @@ public interface ClientBuilder extends Cloneable {
      *            operation timeout
      * @param unit
      *            time unit for {@code operationTimeout}
+     * @return the client builder instance
      */
     ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit);
 
     /**
      * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>
      *
-     * @param numIoThreads
+     * @param numIoThreads the number of IO threads
+     * @return the client builder instance
      */
     ClientBuilder ioThreads(int numIoThreads);
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>
+     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * <p>
+     * The listener thread pool is shared across all the consumers and readers that are
+     * using a "listener" model to get messages. For a given consumer, the listener will be
+     * always invoked from the same thread, to ensure ordering.
      *
-     * @param numListenerThreads
+     * @param numListenerThreads the number of listener threads
+     * @return the client builder instance
      */
     ClientBuilder listenerThreads(int numListenerThreads);
 
@@ -208,10 +230,10 @@ public interface ClientBuilder extends Cloneable {
      * <p>
      * By default, the connection pool will use a single connection for all the producers and consumers. Increasing this
      * parameter may improve throughput when using many producers over a high latency connection.
-     * <p>
      *
      * @param connectionsPerBroker
      *            max number of connections per broker (needs to be greater than 0)
+     * @return the client builder instance
      */
     ClientBuilder connectionsPerBroker(int connectionsPerBroker);
 
@@ -222,9 +244,10 @@ public interface ClientBuilder extends Cloneable {
      * low latency publishes. On the other hand, sending out a huge number of small packets might limit the overall
      * throughput, so if latency is not a concern, it's advisable to set the <code>useTcpNoDelay</code> flag to false.
      * <p>
-     * Default value is true
+     * Default value is true.
      *
-     * @param enableTcpNoDelay
+     * @param enableTcpNoDelay whether to enable TCP no-delay feature
+     * @return the client builder instance
      */
     ClientBuilder enableTcpNoDelay(boolean enableTcpNoDelay);
 
@@ -234,6 +257,7 @@ public interface ClientBuilder extends Cloneable {
      *
      * @param enableTls
      * @deprecated use "pulsar+ssl://" in serviceUrl to enable
+     * @return the client builder instance
      */
     @Deprecated
     ClientBuilder enableTls(boolean enableTls);
@@ -242,13 +266,15 @@ public interface ClientBuilder extends Cloneable {
      * Set the path to the trusted TLS certificate file
      *
      * @param tlsTrustCertsFilePath
+     * @return the client builder instance
      */
     ClientBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath);
 
     /**
      * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>
      *
-     * @param allowTlsInsecureConnection
+     * @param allowTlsInsecureConnection whether to accept a untrusted TLS certificate
+     * @return the client builder instance
      */
     ClientBuilder allowTlsInsecureConnection(boolean allowTlsInsecureConnection);
 
@@ -257,9 +283,10 @@ public interface ClientBuilder extends Cloneable {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
-     * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
+     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 818</a>
      *
-     * @param enableTlsHostnameVerification
+     * @param enableTlsHostnameVerification whether to enable TLS hostname verification
+     * @return the client builder instance
      */
     ClientBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
 
@@ -271,6 +298,7 @@ public interface ClientBuilder extends Cloneable {
      *            the interval between each stat info
      * @param unit
      *            time unit for {@code statsInterval}
+     * @return the client builder instance
      */
     ClientBuilder statsInterval(long statsInterval, TimeUnit unit);
 
@@ -280,6 +308,7 @@ public interface ClientBuilder extends Cloneable {
      * on thousands of topic using created {@link PulsarClient}
      *
      * @param maxConcurrentLookupRequests
+     * @return the client builder instance
      */
     ClientBuilder maxConcurrentLookupRequests(int maxConcurrentLookupRequests);
 
@@ -290,6 +319,7 @@ public interface ClientBuilder extends Cloneable {
      * maxConcurrentLookupRequests and under maxLookupRequests will wait in each client cnx.
      *
      * @param maxLookupRequests
+     * @return the client builder instance
      */
     ClientBuilder maxLookupRequests(int maxLookupRequests);
 
@@ -299,6 +329,7 @@ public interface ClientBuilder extends Cloneable {
      * 50)</i>
      *
      * @param maxNumberOfRejectedRequestPerConnection
+     * @return the client builder instance
      */
     ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection);
 
@@ -307,16 +338,20 @@ public interface ClientBuilder extends Cloneable {
      *
      * @param keepAliveIntervalSeconds
      * @param unit time unit for {@code statsInterval}
+     * @return the client builder instance
      */
     ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit);
 
     /**
-     * Set the duration of time to wait for a connection to a broker to be established. If the duration
-     * passes without a response from the broker, the connection attempt is dropped.
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration passes without a
+     * response from the broker, the connection attempt is dropped.
      *
      * @since 2.3.0
-     * @param duration the duration to wait
-     * @param unit the time unit in which the duration is defined
+     * @param duration
+     *            the duration to wait
+     * @param unit
+     *            the time unit in which the duration is defined
+     * @return the client builder instance
      */
     ClientBuilder connectionTimeout(int duration, TimeUnit unit);
 }

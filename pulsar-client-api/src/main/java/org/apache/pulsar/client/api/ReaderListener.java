@@ -26,11 +26,11 @@ import java.io.Serializable;
 public interface ReaderListener<T> extends Serializable {
     /**
      * This method is called whenever a new message is received.
-     *
+     * <p>
      * Messages are guaranteed to be delivered in order and from the same thread for a single consumer
-     *
+     * <p>
      * This method will only be called once for each message, unless either application or broker crashes.
-     *
+     * <p>
      * Application is responsible of handling any exception that could be thrown while processing the message.
      *
      * @param reader
