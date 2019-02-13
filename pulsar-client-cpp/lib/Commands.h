@@ -80,7 +80,8 @@ class Commands {
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
-                                     const SchemaInfo& schemaInfo);
+                                     const SchemaInfo& schemaInfo,
+                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 

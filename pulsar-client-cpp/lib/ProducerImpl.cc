@@ -22,7 +22,6 @@
 #include "PulsarApi.pb.h"
 #include "Commands.h"
 #include "BatchMessageContainer.h"
-#include <boost/bind.hpp>
 #include <boost/date_time/local_time/local_time.hpp>
 #include <lib/TopicName.h>
 
@@ -60,9 +59,9 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
     lastSequenceIdPublished_ = initialSequenceId;
     msgSequenceGenerator_ = initialSequenceId + 1;
 
-    // boost::ref is used to drop the constantness constraint of make_shared
+    // std::ref is used to drop the constantness constraint of make_shared
     if (conf_.getBatchingEnabled()) {
-        batchMessageContainer = std::make_shared<BatchMessageContainer>(boost::ref(*this));
+        batchMessageContainer = std::make_shared<BatchMessageContainer>(std::ref(*this));
     }
 
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
@@ -83,7 +82,7 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
         dataKeyGenTImer_ = executor_->createDeadlineTimer();
         dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
         dataKeyGenTImer_->async_wait(
-            boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, boost::asio::placeholders::error));
+            std::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, std::placeholders::_1));
     }
 }
 
@@ -113,8 +112,8 @@ void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
     msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
 
     dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-    dataKeyGenTImer_->async_wait(boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(),
-                                             boost::asio::placeholders::error));
+    dataKeyGenTImer_->async_wait(
+        std::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(), std::placeholders::_1));
 }
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
@@ -180,7 +179,8 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         if (!sendTimer_ && conf_.getSendTimeout() > 0) {
             sendTimer_ = executor_->createDeadlineTimer();
             sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
-            sendTimer_->async_wait(boost::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), _1));
+            sendTimer_->async_wait(
+                std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
         }
 
         producerCreatedPromise_.setValue(shared_from_this());
@@ -559,7 +559,8 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     }
 
     // Asynchronously wait for the timeout to trigger
-    sendTimer_->async_wait(boost::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), _1));
+    sendTimer_->async_wait(
+        std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
 }
 
 bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {

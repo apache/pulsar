@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -94,6 +95,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The port for serving worker https requests"
     )
     private Integer workerPortTls;
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+    private String jvmGCMetricsLoggerClassName;
+    @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "Number of threads to use for HTTP requests processing"
+    )
+    private int numHttpServerThreads = 8;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -263,14 +273,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
-    
+
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
-    
-    
+
+
     @Data
     @Setter
     @Getter
@@ -339,10 +349,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
         )
         private String pulsarDockerImageName;
+
         @FieldContext(
-            doc = "The root directory of pulsar home directory in the pulsar docker image specified"
-                + " `pulsarDockerImageName`. By default it is under `/pulsar`. If you are using your own"
-                + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
+                doc = "The image pull policy for image used to run function instance. By default it is `IfNotPresent`"
+        )
+        private String imagePullPolicy;
+        @FieldContext(
+                doc = "The root directory of pulsar home directory in the pulsar docker image specified"
+                        + " `pulsarDockerImageName`. By default it is under `/pulsar`. If you are using your own"
+                        + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
         )
         private String pulsarRootDir;
         @FieldContext(
@@ -417,6 +432,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             + " to the init method of the secretproviderconfigurator"
     )
     private Map<String, String> secretsProviderConfiguratorConfig;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "A set of the minimum amount of resources functions must request.  Support for this depends on function runtime."
+    )
+    private Resources functionInstanceMinResources;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
@@ -460,7 +480,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
     }
-  
+
     @Override
     public void setProperties(Properties properties) {
         this.properties = properties;

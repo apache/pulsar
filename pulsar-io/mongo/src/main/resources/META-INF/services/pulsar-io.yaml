@@ -1,0 +1,3 @@
+name: mongo
+description: Writes data into MongoDB
+sinkClass: org.apache.pulsar.io.mongodb.MongoSink

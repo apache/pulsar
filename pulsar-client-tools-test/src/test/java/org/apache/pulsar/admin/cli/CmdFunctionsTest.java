@@ -254,6 +254,35 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void startFunction() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        int instanceId = 0;
+        cmd.run(new String[] { "start", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
+                "--instance-id", Integer.toString(instanceId)});
+
+        CmdFunctions.StartFunction stop = cmd.getStarter();
+        assertEquals(fnName, stop.getFunctionName());
+
+        verify(functions, times(1)).startFunction(tenant, namespace, fnName, instanceId);
+    }
+
+    @Test
+    public void startFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "start", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        CmdFunctions.StartFunction stop = cmd.getStarter();
+        assertEquals(fnName, stop.getFunctionName());
+
+        verify(functions, times(1)).startFunction(tenant, namespace, fnName);
+    }
+
+
+    @Test
     public void testGetFunctionStatus() throws Exception {
         String fnName = TEST_NAME + "-function";
         String tenant = "sample";

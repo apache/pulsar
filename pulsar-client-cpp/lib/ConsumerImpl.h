@@ -78,6 +78,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
+    inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
     void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
@@ -142,7 +143,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Optional<MessageId> clearReceiveQueue();
 
-    boost::mutex mutexForReceiveWithZeroQueueSize;
+    std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
     const std::string subscription_;
     std::string originalSubscriptionName_;
@@ -163,7 +164,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     bool messageListenerRunning_;
-    boost::mutex messageListenerMutex_;
+    std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

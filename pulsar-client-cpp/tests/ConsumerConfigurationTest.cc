@@ -18,6 +18,11 @@
  */
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
+#include <boost/date_time/posix_time/ptime.hpp>
+#include <boost/bind.hpp>
+#include <lib/LogUtils.h>
+
+DECLARE_LOG_OBJECT()
 
 #include "../lib/Future.h"
 #include "../lib/Utils.h"
@@ -102,4 +107,48 @@ TEST(ConsumerConfigurationTest, testReadCompactNonPersistentExclusive) {
     result = client.subscribe(topicName, subName, config, consumer);
     ASSERT_EQ(ResultInvalidConfiguration, result);
     consumer.close();
+}
+
+TEST(ConsumerConfigurationTest, testSubscriptionInitialPosition) {
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "persist-topic-test-position";
+    std::string subName = "test-subscription-initial-earliest-position";
+
+    ClientConfiguration clientConfig;
+    Client client(lookupUrl, clientConfig);
+
+    LOG_INFO("create 1 producer...");
+    Producer producer;
+    Result result;
+    ProducerConfiguration conf;
+    result = client.createProducer(topicName, conf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send synchronously
+    std::string content1 = "msg-1-content-1";
+    Message msg = MessageBuilder().setContent(content1).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    std::string content2 = "msg-2-content-2";
+    msg = MessageBuilder().setContent(content2).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration config;
+    config.setSubscriptionInitialPosition(InitialPosition::InitialPositionEarliest);
+    result = client.subscribe(topicName, subName, config, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg;
+
+    result = consumer.receive(receivedMsg, 2000);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(content1, receivedMsg.getDataAsString());
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(ResultOk, client.close());
 }

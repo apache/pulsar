@@ -19,14 +19,10 @@
 
 -->
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<suite name="Pulsar (Process Function Worker) Integration Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-test-suite" preserve-order="true" >
+<suite name="Pulsar Function Process Integration Tests" verbose="2" annotations="JDK">
+    <test name="pulsar-function-process-test-suite" preserve-order="true" >
         <classes>
-            <class name="org.apache.pulsar.tests.integration.cli.CLITest" />
-            <class name="org.apache.pulsar.tests.integration.compaction.TestCompaction" />
             <class name="org.apache.pulsar.tests.integration.functions.PulsarFunctionsProcessTest" />
-            <class name="org.apache.pulsar.tests.integration.presto.TestBasicPresto" />
-            <class name="org.apache.pulsar.tests.integration.cli.HealthcheckTest" />
         </classes>
     </test>
 </suite>

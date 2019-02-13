@@ -19,9 +19,9 @@
 #ifndef LIB_SHARED_BUFFER_H_
 #define LIB_SHARED_BUFFER_H_
 
-#include <boost/array.hpp>
 #include <boost/asio.hpp>
 
+#include <array>
 #include <vector>
 
 namespace pulsar {
@@ -223,8 +223,8 @@ class CompositeSharedBuffer {
     const boost::asio::const_buffer* end() const { return begin() + Size; }
 
    private:
-    boost::array<SharedBuffer, Size> sharedBuffers_;
-    boost::array<boost::asio::const_buffer, Size> asioBuffers_;
+    std::array<SharedBuffer, Size> sharedBuffers_;
+    std::array<boost::asio::const_buffer, Size> asioBuffers_;
 };
 
 typedef CompositeSharedBuffer<2> PairSharedBuffer;

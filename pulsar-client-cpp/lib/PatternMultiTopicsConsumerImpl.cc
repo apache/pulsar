@@ -41,7 +41,7 @@ void PatternMultiTopicsConsumerImpl::resetAutoDiscoveryTimer() {
     autoDiscoveryRunning_ = false;
     autoDiscoveryTimer_->expires_from_now(seconds(conf_.getPatternAutoDiscoveryPeriod()));
     autoDiscoveryTimer_->async_wait(
-        boost::bind(&PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask, this, _1));
+        std::bind(&PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask, this, std::placeholders::_1));
 }
 
 void PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask(const boost::system::error_code& err) {
@@ -70,7 +70,8 @@ void PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask(const boost::system:
     assert(namespaceName_);
 
     lookupServicePtr_->getTopicsOfNamespaceAsync(namespaceName_)
-        .addListener(boost::bind(&PatternMultiTopicsConsumerImpl::timerGetTopicsOfNamespace, this, _1, _2));
+        .addListener(std::bind(&PatternMultiTopicsConsumerImpl::timerGetTopicsOfNamespace, this,
+                               std::placeholders::_1, std::placeholders::_2));
 }
 
 void PatternMultiTopicsConsumerImpl::timerGetTopicsOfNamespace(const Result result,
@@ -128,8 +129,8 @@ void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopic
     for (std::vector<std::string>::const_iterator itr = addedTopics->begin(); itr != addedTopics->end();
          itr++) {
         MultiTopicsConsumerImpl::subscribeOneTopicAsync(*itr).addListener(
-            boost::bind(&PatternMultiTopicsConsumerImpl::handleOneTopicAdded, this, _1, *itr,
-                        topicsNeedCreate, callback));
+            std::bind(&PatternMultiTopicsConsumerImpl::handleOneTopicAdded, this, std::placeholders::_1, *itr,
+                      topicsNeedCreate, callback));
     }
 }
 
@@ -218,7 +219,7 @@ void PatternMultiTopicsConsumerImpl::start() {
         autoDiscoveryTimer_ = client_->getIOExecutorProvider()->get()->createDeadlineTimer();
         autoDiscoveryTimer_->expires_from_now(seconds(conf_.getPatternAutoDiscoveryPeriod()));
         autoDiscoveryTimer_->async_wait(
-            boost::bind(&PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask, this, _1));
+            std::bind(&PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask, this, std::placeholders::_1));
     }
 }
 
