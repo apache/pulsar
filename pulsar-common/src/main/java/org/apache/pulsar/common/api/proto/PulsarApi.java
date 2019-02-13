@@ -13,11 +13,13 @@ public final class PulsarApi {
     NONE(0, 0),
     LZ4(1, 1),
     ZLIB(2, 2),
+    ZSTD(3, 3),
     ;
     
     public static final int NONE_VALUE = 0;
     public static final int LZ4_VALUE = 1;
     public static final int ZLIB_VALUE = 2;
+    public static final int ZSTD_VALUE = 3;
     
     
     public final int getNumber() { return value; }
@@ -27,6 +29,7 @@ public final class PulsarApi {
         case 0: return NONE;
         case 1: return LZ4;
         case 2: return ZLIB;
+        case 3: return ZSTD;
         default: return null;
       }
     }
@@ -72,6 +75,7 @@ public final class PulsarApi {
     TopicTerminatedError(15, 15),
     ProducerBusy(16, 16),
     InvalidTopicName(17, 17),
+    IncompatibleSchema(18, 18),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -92,6 +96,7 @@ public final class PulsarApi {
     public static final int TopicTerminatedError_VALUE = 15;
     public static final int ProducerBusy_VALUE = 16;
     public static final int InvalidTopicName_VALUE = 17;
+    public static final int IncompatibleSchema_VALUE = 18;
     
     
     public final int getNumber() { return value; }
@@ -116,6 +121,7 @@ public final class PulsarApi {
         case 15: return TopicTerminatedError;
         case 16: return ProducerBusy;
         case 17: return InvalidTopicName;
+        case 18: return IncompatibleSchema;
         default: return null;
       }
     }

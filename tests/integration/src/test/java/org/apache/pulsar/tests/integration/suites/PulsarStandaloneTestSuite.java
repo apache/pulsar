@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
 import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
@@ -27,14 +28,13 @@ public class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase implemen
 
     @BeforeSuite
     public void setUpCluster() throws Exception {
-        super.startCluster();
+        super.startCluster(PulsarContainer.DEFAULT_IMAGE_NAME);
     }
 
     @AfterSuite
     public void tearDownCluster() throws Exception {
         super.stopCluster();
     }
-
 
     @Override
     public String getTestName() {

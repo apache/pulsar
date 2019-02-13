@@ -61,6 +61,7 @@ public class PulsarConnectorCache {
                 .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
                 .setClientTcpNoDelay(false)
                 .setUseV2WireProtocol(true)
+                .setStickyReadsEnabled(true)
                 .setReadEntryTimeout(60);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }

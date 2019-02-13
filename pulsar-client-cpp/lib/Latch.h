@@ -19,9 +19,9 @@
 #ifndef LIB_LATCH_H_
 #define LIB_LATCH_H_
 
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
+#include <memory>
+#include <mutex>
+#include <condition_variable>
 
 #pragma GCC visibility push(default)
 
@@ -35,21 +35,33 @@ class Latch {
 
     void wait();
 
-    bool wait(const boost::posix_time::time_duration& timeout);
+    template <typename Duration>
+    bool wait(const Duration& timeout) {
+        Lock lock(state_->mutex);
+        return state_->condition.wait_for(lock, timeout, CountIsZero(state_->count));
+    }
 
     int getCount();
 
    private:
     struct InternalState {
-        boost::mutex mutex;
-        boost::condition_variable condition;
+        std::mutex mutex;
+        std::condition_variable condition;
         int count;
     };
 
-    typedef boost::unique_lock<boost::mutex> Lock;
-    boost::shared_ptr<InternalState> state_;
+    struct CountIsZero {
+        const int& count_;
+
+        CountIsZero(const int& count) : count_(count) {}
+
+        bool operator()() const { return count_ == 0; }
+    };
+
+    typedef std::unique_lock<std::mutex> Lock;
+    std::shared_ptr<InternalState> state_;
 };
-typedef boost::shared_ptr<Latch> LatchPtr;
+typedef std::shared_ptr<Latch> LatchPtr;
 } /* namespace pulsar */
 
 #pragma GCC visibility pop

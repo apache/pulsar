@@ -368,4 +368,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * then the ack timeout will be set to 30000 millisecond
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
+
+    /**
+     * If enabled, the consumer will auto subscribe for partitions increasement.
+     * This is only for partitioned consumer.
+     *
+     * @param autoUpdate
+     *            whether to auto update partition increasement
+     */
+    ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 }

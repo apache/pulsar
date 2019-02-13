@@ -100,8 +100,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
-    private MessageId lastDequeuedMessage = MessageId.earliest;
-    private MessageId lastMessageIdInBroker = MessageId.earliest;
+    private volatile MessageId lastDequeuedMessage = MessageId.earliest;
+    private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
     private long subscribeTimeout;
     private final int partitionIndex;
@@ -120,11 +120,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected final ConsumerStatsRecorder stats;
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
-    private BatchMessageIdImpl startMessageId;
+    private volatile BatchMessageIdImpl startMessageId;
 
     private volatile boolean hasReachedEndOfTopic;
 
-    private MessageCrypto msgCrypto = null;
+    private final MessageCrypto msgCrypto;
 
     private final Map<String, String> metadata;
 
@@ -136,9 +136,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final TopicName topicName;
     private final String topicNameWithoutPartition;
 
-    private ConcurrentHashMap<MessageIdImpl, List<MessageImpl<T>>> possibleSendToDeadLetterTopicMessages;
+    private final Map<MessageIdImpl, List<MessageImpl<T>>> possibleSendToDeadLetterTopicMessages;
 
-    private DeadLetterPolicy deadLetterPolicy;
+    private final DeadLetterPolicy deadLetterPolicy;
 
     private Producer<T> deadLetterProducer;
 
@@ -199,8 +199,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Create msgCrypto if not created already
         if (conf.getCryptoKeyReader() != null) {
-            String logCtx = "[" + topic + "] [" + subscription + "]";
-            this.msgCrypto = new MessageCrypto(logCtx, false);
+            this.msgCrypto = new MessageCrypto(String.format("[%s] [%s]", topic, subscription), false);
+        } else {
+            this.msgCrypto = null;
         }
 
         if (conf.getProperties().isEmpty()) {
@@ -235,6 +236,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription))
                         .build();
             }
+        } else {
+            deadLetterPolicy = null;
+            possibleSendToDeadLetterTopicMessages = null;
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
@@ -912,27 +916,44 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * @param message
      */
     void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
-        if (!pendingReceives.isEmpty()) {
-            // fetch receivedCallback from queue
-            CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
-            if (exception == null) {
-                checkNotNull(message, "received message can't be null");
-                if (receivedFuture != null) {
-                    if (conf.getReceiverQueueSize() == 0) {
-                        // return message to receivedCallback
-                        receivedFuture.complete(message);
-                    } else {
-                        // increase permits for available message-queue
-                        Message<T> interceptMsg = beforeConsume(message);
-                        messageProcessed(interceptMsg);
-                        // return message to receivedCallback
-                        listenerExecutor.execute(() -> receivedFuture.complete(interceptMsg));
-                    }
-                }
-            } else {
-                listenerExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
-            }
+        if (pendingReceives.isEmpty()) {
+            return;
         }
+
+        // fetch receivedCallback from queue
+        final CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
+        if (receivedFuture == null) {
+            return;
+        }
+
+        if (exception != null) {
+            listenerExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
+            return;
+        }
+
+        if (message == null) {
+            IllegalStateException e = new IllegalStateException("received message can't be null");
+            listenerExecutor.execute(() -> receivedFuture.completeExceptionally(e));
+            return;
+        }
+
+        if (conf.getReceiverQueueSize() == 0) {
+            // call interceptor and complete received callback
+            interceptAndComplete(message, receivedFuture);
+            return;
+        }
+
+        // increase permits for available message-queue
+        messageProcessed(message);
+        // call interceptor and complete received callback
+        interceptAndComplete(message, receivedFuture);
+    }
+
+    private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
+        // call proper interceptor
+        final Message<T> interceptMessage = beforeConsume(message);
+        // return message to receivedCallback
+        listenerExecutor.execute(() -> receivedFuture.complete(interceptMessage));
     }
 
     private void triggerZeroQueueSizeListener(final Message<T> message) {

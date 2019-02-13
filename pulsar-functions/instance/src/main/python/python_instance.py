@@ -40,9 +40,11 @@ import log
 import util
 import InstanceCommunication_pb2
 
+# state dependencies
+import state_context
+
 from functools import partial
 from collections import namedtuple
-from threading import Timer
 from function_stats import Stats
 
 Log = log.Log
@@ -68,8 +70,18 @@ def base64ify(bytes_or_str):
         return output_bytes
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples,
-               expected_healthcheck_interval, user_code, pulsar_client, secrets_provider, cluster_name):
+  def __init__(self,
+               instance_id,
+               function_id,
+               function_version,
+               function_details,
+               max_buffered_tuples,
+               expected_healthcheck_interval,
+               user_code,
+               pulsar_client,
+               secrets_provider,
+               cluster_name,
+               state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = queue.Queue(max_buffered_tuples)
@@ -77,6 +89,7 @@ class PythonInstance(object):
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
+    self.state_storage_serviceurl = state_storage_serviceurl
     self.input_serdes = {}
     self.consumers = {}
     self.output_serde = None
@@ -92,6 +105,7 @@ class PythonInstance(object):
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
+    self.state_context = state_context.NullStateContext()
     self.metrics_labels = [function_details.tenant,
                            "%s/%s" % (function_details.tenant, function_details.namespace),
                            function_details.name,
@@ -111,9 +125,10 @@ class PythonInstance(object):
       os.kill(os.getpid(), signal.SIGKILL)
       sys.exit(1)
 
-    Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
-
   def run(self):
+    # Setup state
+    self.state_context = self.setup_state()
+
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
@@ -179,7 +194,7 @@ class PythonInstance(object):
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client,
                                                self.user_code, self.consumers,
-                                               self.secrets_provider, self.metrics_labels)
+                                               self.secrets_provider, self.metrics_labels, self.state_context)
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()
@@ -187,7 +202,8 @@ class PythonInstance(object):
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
     if self.expected_healthcheck_interval > 0:
-      Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
+      timer = util.FixedTimer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer, name="health-check-timer")
+      timer.start()
 
   def actual_execution(self):
     Log.debug("Started Thread for executing the function")
@@ -289,10 +305,16 @@ class PythonInstance(object):
                         self.instance_config.instance_id)
       )
 
+  def setup_state(self):
+    table_ns = "%s_%s" % (str(self.instance_config.function_details.tenant),
+                          str(self.instance_config.function_details.namespace))
+    table_name = str(self.instance_config.function_details.name)
+    return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
+
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, consumer.topic(), serde, consumer)
+    item = InternalMessage(message, message.topic_name(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
@@ -384,3 +406,19 @@ class PythonInstance(object):
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
     self.execution_thread.join()
+    self.close()
+
+  def close(self):
+    Log.info("Closing python instance...")
+    if self.producer:
+      self.producer.close()
+
+    if self.consumers:
+      for consumer in self.consumers.values():
+        try:
+          consumer.close()
+        except:
+          pass
+
+    if self.pulsar_client:
+      self.pulsar_client.close()

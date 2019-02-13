@@ -1,0 +1,120 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+version: '2.1'
+networks:
+  pulsar:
+    driver: bridge
+
+services:
+  zk:
+    hostname: zk
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-local-zk.sh
+    environment:
+      ZOOKEEPER_SERVERS: zk
+    networks:
+      pulsar:
+
+  init:
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/init-cluster.sh
+    environment:
+      clusterName: test
+      zkServers: zk
+      configurationStore: zk:2181
+      pulsarNode: pulsar1
+    networks:
+      pulsar:
+
+  bk1:
+    hostname: bk1
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: test
+      zkServers: zk
+    networks:
+      pulsar:
+
+  bk2:
+    hostname: bk2
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: test
+      zkServers: zk
+    networks:
+      pulsar:
+
+  bk3:
+    hostname: bk3
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: test
+      zkServers: zk
+    networks:
+      pulsar:
+
+  pulsar1:
+    hostname: pulsar1
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-broker.sh
+    environment:
+      clusterName: test
+      zookeeperServers: zk
+      configurationStoreServers: zk:2181
+      brokerServicePortTls: 6651
+      webServicePortTls: 8443
+      tlsCertificateFilePath: /pulsar/ssl/broker.cert.pem
+      tlsKeyFilePath: /pulsar/ssl/broker.key-pk8.pem
+      tlsTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
+      authenticationEnabled: "true"
+      authenticationProviders: org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+      authorizationEnabled: "true"
+      authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
+      superUserRoles: admin,superproxy
+      proxyRoles: superproxy
+    networks:
+      pulsar:
+
+  proxy1:
+    hostname: proxy1
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-proxy.sh
+    environment:
+      clusterName: test
+      zookeeperServers: zk
+      configurationStoreServers: zk:2181
+      servicePortTls: 6651
+      webServicePortTls: 8443
+      tlsCertificateFilePath: /pulsar/ssl/broker.cert.pem
+      tlsKeyFilePath: /pulsar/ssl/broker.key-pk8.pem
+      tlsTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
+      brokerClientTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
+      authenticationEnabled: "true"
+      authenticationProviders: org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+      tlsEnabledWithBroker: "true"
+      brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
+      brokerClientAuthenticationParameters: tlsCertFile:/pulsar/ssl/superproxy.cert.pem,tlsKeyFile:/pulsar/ssl/superproxy.key-pk8.pem
+    networks:
+      pulsar:
+
+

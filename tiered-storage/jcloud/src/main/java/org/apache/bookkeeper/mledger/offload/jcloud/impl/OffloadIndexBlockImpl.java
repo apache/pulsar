@@ -45,7 +45,6 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.slf4j.Logger;
@@ -214,6 +213,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private long length;
         private DataFormats.LedgerMetadataFormat.DigestType digestType;
         private long ctime;
+        private byte[] password;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
         private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
@@ -226,7 +226,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             this.length = ledgerMetadataFormat.getLength();
             this.digestType = ledgerMetadataFormat.getDigestType();
             this.ctime = ledgerMetadataFormat.getCtime();
-            this.state = ledgerMetadataFormat.getState();
+            this.state = State.CLOSED;
+            this.password = ledgerMetadataFormat.getPassword().toByteArray();
 
             if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
                 ledgerMetadataFormat.getCustomMetadataList().forEach(
@@ -245,6 +246,18 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                 this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
             });
         }
+
+        @Override
+        public boolean hasPassword() { return true; }
+
+        @Override
+        public byte[] getPassword() { return password; }
+
+        @Override
+        public State getState() { return state; }
+
+        @Override
+        public int getMetadataFormatVersion() { return 2; }
 
         @Override
         public int getEnsembleSize() {
@@ -310,6 +323,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         @Override
         public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
             return this.ensembles;
+        }
+
+        @Override
+        public String toSafeString() {
+            return toString();
         }
     }
 

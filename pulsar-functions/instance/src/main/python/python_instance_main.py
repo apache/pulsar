@@ -31,6 +31,7 @@ import time
 import zipfile
 import json
 import inspect
+import threading
 
 import pulsar
 
@@ -43,6 +44,7 @@ import util
 import prometheus_client_fix
 
 from google.protobuf import json_format
+from bookkeeper.kv.client import Client
 
 to_run = True
 Log = log.Log
@@ -83,6 +85,7 @@ def main():
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
   parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
+  parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
   parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
 
   args = parser.parse_args()
@@ -157,6 +160,10 @@ def main():
      tls_trust_cert_path =  args.tls_trust_cert_path
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
 
+  state_storage_serviceurl = None
+  if args.state_storage_serviceurl is not None:
+    state_storage_serviceurl = str(args.state_storage_serviceurl)
+
   secrets_provider = None
   if args.secrets_provider is not None:
     secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), str(args.secrets_provider))
@@ -177,7 +184,11 @@ def main():
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples),
                                               int(args.expected_healthcheck_interval),
-                                              str(args.py), pulsar_client, secrets_provider, args.cluster_name)
+                                              str(args.py),
+                                              pulsar_client,
+                                              secrets_provider,
+                                              args.cluster_name,
+                                              state_storage_serviceurl)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 
@@ -193,7 +204,8 @@ def main():
     time.sleep(1)
 
   pyinstance.join()
-  sys.exit(1)
+  # make sure to close all non-daemon threads before this!
+  sys.exit(0)
 
 if __name__ == '__main__':
   main()

@@ -22,9 +22,10 @@
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
-#include <boost/function.hpp>
+#include <functional>
 #include <pulsar/ProducerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
+#include <pulsar/Schema.h>
 
 #include <set>
 
@@ -32,8 +33,8 @@
 
 namespace pulsar {
 
-typedef boost::function<void(Result, const Message& msg)> SendCallback;
-typedef boost::function<void(Result)> CloseCallback;
+typedef std::function<void(Result, const Message& msg)> SendCallback;
+typedef std::function<void(Result)> CloseCallback;
 
 class ProducerConfigurationImpl;
 class PulsarWrapper;
@@ -55,6 +56,7 @@ class ProducerConfiguration {
         BoostHash,
         JavaStringHash
     };
+
     ProducerConfiguration();
     ~ProducerConfiguration();
     ProducerConfiguration(const ProducerConfiguration&);
@@ -63,12 +65,44 @@ class ProducerConfiguration {
     ProducerConfiguration& setProducerName(const std::string& producerName);
     const std::string& getProducerName() const;
 
+    /**
+     * Declare the schema of the data that will be published by this producer.
+     *
+     * The schema will be checked against the schema of the topic, and it
+     * will fail if it's not compatible, though the client library will
+     * not perform any validation that the actual message payload are
+     * conforming to the specified schema.
+     *
+     * For all purposes, this
+     * @param schemaInfo
+     * @return
+     */
+    ProducerConfiguration& setSchema(const SchemaInfo& schemaInfo);
+
+    /**
+     * @return the schema information declared for this producer
+     */
+    const SchemaInfo& getSchema() const;
+
     ProducerConfiguration& setSendTimeout(int sendTimeoutMs);
     int getSendTimeout() const;
 
     ProducerConfiguration& setInitialSequenceId(int64_t initialSequenceId);
     int64_t getInitialSequenceId() const;
 
+    /**
+     * Set the compression type for the producer.
+     * <p>
+     * By default, message payloads are not compressed. Supported compression types are:
+     * <ul>
+     *
+     * <li>{@link CompressionNone}: No compression</li>
+     * <li>{@link CompressionLZ4}: LZ4 Compression https://lz4.github.io/lz4/
+     * <li>{@link CompressionZLib}: ZLib Compression http://zlib.net/</li>
+     * <li>{@link CompressionZSTD}: Zstandard Compression  https://facebook.github.io/zstd/ (Since Pulsar 2.3.
+     * Zstd cannot be used if consumer applications are not in version >= 2.3 as well)</li>
+     * </ul>
+     */
     ProducerConfiguration& setCompressionType(CompressionType compressionType);
     CompressionType getCompressionType() const;
 
@@ -166,7 +200,7 @@ class ProducerConfiguration {
 
    private:
     struct Impl;
-    boost::shared_ptr<ProducerConfigurationImpl> impl_;
+    std::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 #pragma GCC visibility pop

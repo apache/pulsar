@@ -26,18 +26,21 @@ from kazoo.retry import KazooRetry
 logging.getLogger('kazoo.client').addHandler(logging.StreamHandler())
 
 def usage():
-    print >> sys.stderr, "\n%s -z <zookeeper> -p <path> [-w|-c|-e]" % (sys.argv[0])
-    print >> sys.stderr, "\nWait for, or create znode"
-    print >> sys.stderr, "\n-z Specify zookeeper connect string"
-    print >> sys.stderr, "\n-p Znode path to watch or create"
-    print >> sys.stderr, "\n-w Watch for path creation"
-    print >> sys.stderr, "\n-c Create path"
-    print >> sys.stderr, "\n-e Check if znode exists"
+    sys.stderr.write('''
+%s -z <zookeeper> -p <path> [-w|-c|-e]
+
+Wait for, or create znode
+  -z Specify zookeeper connect string
+  -p Znode path to watch or create
+  -w Watch for path creation
+  -c Create path
+  -e Check if znode exists
+''' % (sys.argv[0]))
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], "z:p:cweh")
 except getopt.GetoptError as err:
-    print >> sys.stderr, str(err)
+    sys.stderr.write(str(err) + '\n')
     usage()
     sys.exit(2)
 
@@ -67,17 +70,17 @@ for o, a in opts:
         sys.exit(2)
 
 if not zookeeper:
-    print >> sys.stderr, "Zookeeper must be specified"
+    sys.stderr.write("Zookeeper must be specified\n")
     usage()
     sys.exit(3)
 
 if not znode:
-    print >> sys.stderr, "Znode must be specified"
+    sys.stderr.write("Znode must be specified\n")
     usage()
     sys.exit(4)
 
 if (not watch and not create and not exists):
-    print >> sys.stderr, "Exactly one of watch (-w), create (-c) or exists (-e) must be specified"
+    sys.stderr.write("Exactly one of watch (-w), create (-c) or exists (-e) must be specified\n")
     usage()
     sys.exit(5)
 
@@ -93,7 +96,7 @@ while True:
             sys.exit(0)
         elif watch:
             while not zk.exists(znode):
-                print "Waiting for %s" % znode
+                print("Waiting for %s" % znode)
                 time.sleep(1)
             sys.exit(0)
         elif exists:

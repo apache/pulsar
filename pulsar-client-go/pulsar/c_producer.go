@@ -141,7 +141,7 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	defer C.free(unsafe.Pointer(topicName))
 
 	C._pulsar_client_create_producer_async(client.ptr, topicName, conf,
-		savePointer(createProducerCtx{client,callback, conf}))
+		savePointer(createProducerCtx{client, callback, conf}))
 }
 
 type topicMetadata struct {
@@ -178,6 +178,10 @@ func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 
+func (p *producer) LastSequenceID() int64 {
+	return int64(C.pulsar_producer_get_last_sequence_id(p.ptr))
+}
+
 func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
 	c := make(chan error)
 	p.SendAsync(ctx, msg, func(msg ProducerMessage, err error) { c <- err; close(c) })
@@ -192,7 +196,7 @@ func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
 }
 
 type sendCallback struct {
-	message ProducerMessage
+	message  ProducerMessage
 	callback func(ProducerMessage, error)
 }
 
@@ -230,6 +234,31 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to close Producer"))
+	} else {
+		callback(nil)
+	}
+}
+
+func (p *producer) Flush() error {
+	f := make(chan error)
+	p.FlushAsync(func(err error) {
+		f <- err
+		close(f)
+	})
+	return <-f
+}
+
+func (p *producer) FlushAsync(callback func(error)) {
+	C._pulsar_producer_flush_async(p.ptr, savePointer(callback))
+}
+
+
+//export pulsarProducerFlushCallbackProxy
+func pulsarProducerFlushCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func(error))
+
+	if res != C.pulsar_result_Ok {
+		callback(newError(res, "Failed to flush Producer"))
 	} else {
 		callback(nil)
 	}

@@ -20,6 +20,9 @@ package org.apache.pulsar.broker;
 
 
 import com.google.common.collect.Sets;
+
+import io.netty.util.internal.PlatformDependent;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -620,6 +623,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable bookie isolation by specifying a list of bookie groups to choose from. \n\n"
             + "Any bookie outside the specified groups will not be used by the broker")
     private String bookkeeperClientIsolationGroups;
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
+            + "a single bookie.\n" +
+            "If this flag is enabled, the client will use one single bookie (by " +
+            "preference) to read all entries for a ledger.")
+    private boolean bookkeeperEnableStickyReads = true;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -672,8 +680,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Amount of memory to use for caching data payload in managed ledger. \n\nThis"
             + " memory is allocated from JVM direct memory and it's shared across all the topics"
-            + " running in the same broker")
-    private int managedLedgerCacheSizeMB = 1024;
+            + " running in the same broker. By default, uses 1/5th of available direct memory")
+    private int managedLedgerCacheSizeMB = Math.max(64,
+            (int) (PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
@@ -757,14 +766,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "operation timeout while updating managed-ledger metadata."
     )
     private long managedLedgerMetadataOperationsTimeoutSeconds = 60;
+
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Read entries timeout when broker tries to read messages from bookkeeper "
-                    + "(disable timeout by setting readTimeoutSeconds <= 0)"
+                    + "(0 to disable it)"
         )
-    private long managedLedgerReadEntryTimeoutSeconds = 60;
-        
-    
+    private long managedLedgerReadEntryTimeoutSeconds = 120;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
+    private long managedLedgerAddEntryTimeoutSeconds = 120;
 
     /*** --- Load balancer --- ****/
     @FieldContext(
@@ -1024,6 +1036,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
+    private String jvmGCMetricsLoggerClassName;
 
     /**** --- Functions --- ****/
     @FieldContext(

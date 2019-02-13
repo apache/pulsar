@@ -402,13 +402,22 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     public static class TestAuthorizationProvider implements AuthorizationProvider {
 
+        public ServiceConfiguration conf;
+
         @Override
         public void close() throws IOException {
             // No-op
         }
 
         @Override
+        public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+            Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+            return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        }
+
+        @Override
         public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+            this.conf = conf;
             // No-op
         }
 

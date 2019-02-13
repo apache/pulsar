@@ -22,6 +22,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -34,8 +35,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -46,10 +49,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -57,6 +62,12 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteFlag;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -2323,5 +2334,75 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(responseException2.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
 
         ledger.close();
+    }
+
+    /**
+     * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enought
+     * to create new ledger and add entry successfully.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 20000)
+    public void testManagedLedgerWithAddEntryTimeOut() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setAddEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
+
+        BookKeeper bk = mock(BookKeeper.class);
+        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+
+        PulsarMockBookKeeper bkClient = mock(PulsarMockBookKeeper.class);
+        ClientConfiguration conf = new ClientConfiguration();
+        doReturn(conf).when(bkClient).getConf();
+        class MockLedgerHandle extends PulsarMockLedgerHandle {
+            public MockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
+                    throws GeneralSecurityException {
+                super(bk, id, digest, passwd);
+            }
+
+            @Override
+            public void asyncAddEntry(final byte[] data, final AddCallback cb, final Object ctx) {
+                // do nothing
+            }
+
+            @Override
+            public void asyncClose(org.apache.bookkeeper.client.AsyncCallback.CloseCallback cb, Object ctx) {
+                cb.closeComplete(BKException.Code.OK, this, ctx);
+            }
+        }
+        MockLedgerHandle ledgerHandle = mock(MockLedgerHandle.class);
+        final String data = "data";
+        doNothing().when(ledgerHandle).asyncAddEntry(data.getBytes(), null, null);
+        AtomicBoolean addSuccess = new AtomicBoolean();
+
+        setFieldValue(ManagedLedgerImpl.class, ledger, "currentLedger", ledgerHandle);
+
+        final int totalAddEntries = 1;
+        CountDownLatch latch = new CountDownLatch(totalAddEntries);
+        ledger.asyncAddEntry(data.getBytes(), new AddEntryCallback() {
+
+            @Override
+            public void addComplete(Position position, Object ctx) {
+                addSuccess.set(true);
+                latch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                latch.countDown();
+            }
+        }, null);
+
+        latch.await();
+
+        assertTrue(addSuccess.get());
+
+        setFieldValue(ManagedLedgerImpl.class, ledger, "currentLedger", null);
+    }
+
+    private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(classObj, fieldValue);
     }
 }

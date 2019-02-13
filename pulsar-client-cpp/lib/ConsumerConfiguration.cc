@@ -22,7 +22,7 @@ namespace pulsar {
 
 const static std::string emptyString;
 
-ConsumerConfiguration::ConsumerConfiguration() : impl_(boost::make_shared<ConsumerConfigurationImpl>()) {}
+ConsumerConfiguration::ConsumerConfiguration() : impl_(std::make_shared<ConsumerConfigurationImpl>()) {}
 
 ConsumerConfiguration::~ConsumerConfiguration() {}
 
@@ -32,6 +32,13 @@ ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfigurat
     impl_ = x.impl_;
     return *this;
 }
+
+ConsumerConfiguration& ConsumerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ConsumerConfiguration::getSchema() const { return impl_->schemaInfo; }
 
 long ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs() const {
     return impl_->brokerConsumerStatsCacheTimeInMs;
@@ -106,6 +113,14 @@ ConsumerConfiguration& ConsumerConfiguration::setCryptoFailureAction(ConsumerCry
 bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacted; }
 
 void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+
+void ConsumerConfiguration::setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition) {
+    impl_->subscriptionInitialPosition = subscriptionInitialPosition;
+}
+
+InitialPosition ConsumerConfiguration::getSubscriptionInitialPosition() const {
+    return impl_->subscriptionInitialPosition;
+}
 
 void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
     impl_->patternAutoDiscoveryPeriod = periodInSeconds;

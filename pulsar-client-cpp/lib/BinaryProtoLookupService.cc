@@ -19,10 +19,8 @@
 #include "BinaryProtoLookupService.h"
 #include "SharedBuffer.h"
 
-#include <boost/shared_ptr.hpp>
 #include <lib/TopicName.h>
 
-#include <boost/bind.hpp>
 #include "ConnectionPool.h"
 
 #include <string>
@@ -47,15 +45,15 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(const 
     TopicNamePtr topicName = TopicName::get(topic);
     if (!topicName) {
         LOG_ERROR("Unable to parse topic - " << topic);
-        LookupDataResultPromisePtr promise = boost::make_shared<LookupDataResultPromise>();
+        LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
         promise->setFailed(ResultInvalidTopicName);
         return promise->getFuture();
     }
     std::string lookupName = topicName->toString();
-    LookupDataResultPromisePtr promise = boost::make_shared<LookupDataResultPromise>();
+    LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(boost::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, lookupName, false,
-                                   _1, _2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, lookupName, false,
+                                 std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -65,15 +63,15 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(const 
  */
 Future<Result, LookupDataResultPtr> BinaryProtoLookupService::getPartitionMetadataAsync(
     const TopicNamePtr& topicName) {
-    LookupDataResultPromisePtr promise = boost::make_shared<LookupDataResultPromise>();
+    LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
     if (!topicName) {
         promise->setFailed(ResultInvalidTopicName);
         return promise->getFuture();
     }
     std::string lookupName = topicName->toString();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(boost::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this,
-                                   lookupName, _1, _2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this,
+                                 lookupName, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -84,12 +82,13 @@ void BinaryProtoLookupService::sendTopicLookupRequest(const std::string& topicNa
         promise->setFailed(ResultConnectError);
         return;
     }
-    LookupDataResultPromisePtr lookupPromise = boost::make_shared<LookupDataResultPromise>();
+    LookupDataResultPromisePtr lookupPromise = std::make_shared<LookupDataResultPromise>();
     ClientConnectionPtr conn = clientCnx.lock();
     uint64_t requestId = newRequestId();
     conn->newTopicLookup(topicName, authoritative, requestId, lookupPromise);
-    lookupPromise->getFuture().addListener(
-        boost::bind(&BinaryProtoLookupService::handleLookup, this, topicName, _1, _2, clientCnx, promise));
+    lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handleLookup, this, topicName,
+                                                     std::placeholders::_1, std::placeholders::_2, clientCnx,
+                                                     promise));
 }
 
 void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result result,
@@ -105,8 +104,9 @@ void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result
                 data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
             Future<Result, ClientConnectionWeakPtr> future =
                 cnxPool_.getConnectionAsync(logicalAddress, physicalAddress);
-            future.addListener(boost::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, topicName,
-                                           data->isAuthoritative(), _1, _2, promise));
+            future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, topicName,
+                                         data->isAuthoritative(), std::placeholders::_1,
+                                         std::placeholders::_2, promise));
         } else {
             LOG_DEBUG("Lookup response for " << topicName << ", lookup-broker-url " << data->getBrokerUrl());
             promise->setValue(data);
@@ -125,13 +125,13 @@ void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::str
         Future<Result, LookupDataResultPtr> future = promise->getFuture();
         return;
     }
-    LookupDataResultPromisePtr lookupPromise = boost::make_shared<LookupDataResultPromise>();
+    LookupDataResultPromisePtr lookupPromise = std::make_shared<LookupDataResultPromise>();
     ClientConnectionPtr conn = clientCnx.lock();
     uint64_t requestId = newRequestId();
     conn->newPartitionedMetadataLookup(topicName, requestId, lookupPromise);
-    lookupPromise->getFuture().addListener(
-        boost::bind(&BinaryProtoLookupService::handlePartitionMetadataLookup, this, topicName, _1, _2,
-                    clientCnx, promise));
+    lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handlePartitionMetadataLookup,
+                                                     this, topicName, std::placeholders::_1,
+                                                     std::placeholders::_2, clientCnx, promise));
 }
 
 void BinaryProtoLookupService::handlePartitionMetadataLookup(const std::string& topicName, Result result,
@@ -155,15 +155,15 @@ uint64_t BinaryProtoLookupService::newRequestId() {
 
 Future<Result, NamespaceTopicsPtr> BinaryProtoLookupService::getTopicsOfNamespaceAsync(
     const NamespaceNamePtr& nsName) {
-    NamespaceTopicsPromisePtr promise = boost::make_shared<Promise<Result, NamespaceTopicsPtr>>();
+    NamespaceTopicsPromisePtr promise = std::make_shared<Promise<Result, NamespaceTopicsPtr>>();
     if (!nsName) {
         promise->setFailed(ResultInvalidTopicName);
         return promise->getFuture();
     }
     std::string namespaceName = nsName->toString();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(boost::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, this,
-                                   namespaceName, _1, _2, promise));
+    future.addListener(std::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, this,
+                                 namespaceName, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -180,8 +180,8 @@ void BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest(const std::string
     LOG_DEBUG("sendGetTopicsOfNamespaceRequest. requestId: " << requestId << " nsName: " << nsName);
 
     conn->newGetTopicsOfNamespace(nsName, requestId)
-        .addListener(
-            boost::bind(&BinaryProtoLookupService::getTopicsOfNamespaceListener, this, _1, _2, promise));
+        .addListener(std::bind(&BinaryProtoLookupService::getTopicsOfNamespaceListener, this,
+                               std::placeholders::_1, std::placeholders::_2, promise));
 }
 
 void BinaryProtoLookupService::getTopicsOfNamespaceListener(Result result, NamespaceTopicsPtr topicsPtr,

@@ -24,12 +24,16 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 ./pulsar-test-service-start.sh
-
 pushd tests
 
 if [ -f /gtest-parallel/gtest-parallel ]; then
     echo "---- Run unit tests in parallel"
-    /gtest-parallel/gtest-parallel ./main --workers=10
+    tests=""
+    if [ $# -eq 1 ]; then
+        tests="--gtest_filter=$1"
+        echo "Running tests: $1"
+    fi
+    /gtest-parallel/gtest-parallel ./main $tests --workers=10
     RES=$?
 else
     ./main
@@ -50,7 +54,7 @@ if [ $RES -eq 0 ]; then
 
     # Running tests from a different directory to avoid importing directly
     # from the current dir, but rather using the installed wheel file
-    cp pulsar_test.py /tmp
+    cp *_test.py /tmp
     pushd /tmp
 
     python pulsar_test.py

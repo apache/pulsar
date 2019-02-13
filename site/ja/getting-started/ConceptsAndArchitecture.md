@@ -150,7 +150,7 @@ Exclusiveはデフォルトのサブスクリプションモードです。
 
 Pulsarクラスタ内で:
 
-* 1つ以上の{% popover_ja Broker %}は{% popover_ja Producer %}から送信されるメッセージを処理し、ロードバランシングし、{% popover_ja Consumer %}にメッセージを送信します。また、様々な調整タスクを処理するため{% popover_ja Global ZooKeeper %}と通信し、{% popover_ja BookKeeper %}インスタンス ({% popover_ja Bookie %}) にメッセージを永続化します。クラスタ特有の情報は{% popover_ja ZooKeeper %}クラスタから取得します。
+* 1つ以上の{% popover_ja Broker %}は{% popover_ja Producer %}から送信されるメッセージを処理し、ロードバランシングし、{% popover_ja Consumer %}にメッセージを送信します。また、様々な調整タスクを処理するため{% popover_ja Configuration Store %}と通信し、{% popover_ja BookKeeper %}インスタンス ({% popover_ja Bookie %}) にメッセージを永続化します。クラスタ特有の情報は{% popover_ja ZooKeeper %}クラスタから取得します。
 * {% popover_ja BookKeeper %}クラスタは1つ以上の{% popover_ja Bookie %}で構成され、メッセージの[永続ストレージ](#永続ストレージ)を制御します。
 * {% popover_ja ZooKeeper %}クラスタはそのクラスタの固有の情報を制御します。
 
@@ -158,7 +158,7 @@ Pulsarクラスタ内で:
 
 ![アーキテクチャ略図](/img/pulsar_system_architecture.png)
 
-より広範な{% popover_ja インスタンス %}レベルでは、{% popover_ja Global ZooKeeper %}と呼ばれるインスタンス全体のZooKeeperクラスタは、[ジオレプリケーション](#レプリケーション)などの複数のクラスタを横断した調整タスクを処理します。
+より広範な{% popover_ja インスタンス %}レベルでは、{% popover_ja Configuration Store %}と呼ばれるインスタンス全体のZooKeeperクラスタは、[ジオレプリケーション](#レプリケーション)などの複数のクラスタを横断した調整タスクを処理します。
 
 ## Broker
 
@@ -197,7 +197,7 @@ Pulsarの{% popover_ja インスタンス %}は1つ以上のクラスタで構�
 
 Pulsarはメタデータストレージ、クラスタの設定と協調のために[Apache Zookeeper](https://zookeeper.apache.org/)を利用しています。Pulsarのインスタンスで:
 
-* {% popover_ja Global ZooKeeper %}は{% popover_ja プロパティ %}、{% popover_ja ネームスペース %}、グローバルに一貫性が求められるその他のエンティティの情報を保存します。
+* {% popover_ja Configuration Store %}は{% popover_ja プロパティ %}、{% popover_ja ネームスペース %}、グローバルに一貫性が求められるその他のエンティティの情報を保存します。
 * 各クラスタはそのクラスタ自身のLocal ZooKeeperアンサンブルにオーナーシップのメタデータ、Brokerのロードレポート、BookKeeperの{% popover_ja Ledger %}のメタデータなどの{% popover_ja クラスタ %}特有の情報を保存します。
 
 [新しいクラスタ](../../admin/ClustersBrokers#クラスタメタデータの初期化)を作る時

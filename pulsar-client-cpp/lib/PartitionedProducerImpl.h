@@ -19,9 +19,8 @@
 #include "ProducerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
-#include <boost/shared_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/thread/mutex.hpp>
+
+#include <mutex>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/TopicMetadata.h>
 #include <lib/TopicName.h>
@@ -29,7 +28,7 @@
 namespace pulsar {
 
 class PartitionedProducerImpl : public ProducerImplBase,
-                                public boost::enable_shared_from_this<PartitionedProducerImpl> {
+                                public std::enable_shared_from_this<PartitionedProducerImpl> {
    public:
     enum PartitionedProducerState
     {
@@ -41,7 +40,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     };
     const static std::string PARTITION_NAME_SUFFIX;
 
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
 
     PartitionedProducerImpl(ClientImplPtr ptr, const TopicNamePtr topicName, const unsigned int numPartitions,
                             const ProducerConfiguration& config);
@@ -58,6 +57,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
     virtual const std::string& getProducerName() const;
 
     virtual int64_t getLastSequenceId() const;
+
+    virtual const std::string& getSchemaVersion() const;
 
     virtual void start();
 
@@ -91,7 +92,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     const TopicNamePtr topicName_;
     const std::string topic_;
 
-    boost::scoped_ptr<TopicMetadata> topicMetadata_;
+    std::unique_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 
@@ -109,7 +110,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr routerPolicy_;
 
     // mutex_ is used to share state_, and numProducersCreated_
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     PartitionedProducerState state_;
 
@@ -119,7 +120,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr getMessageRouter();
 
     std::atomic<int> flushedPartitions_;
-    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
+    std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 }  // namespace pulsar

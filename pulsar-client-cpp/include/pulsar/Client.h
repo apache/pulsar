@@ -26,16 +26,17 @@
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/ClientConfiguration.h>
+#include <pulsar/Schema.h>
 #include <string>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-typedef boost::function<void(Result, Producer)> CreateProducerCallback;
-typedef boost::function<void(Result, Consumer)> SubscribeCallback;
-typedef boost::function<void(Result, Reader)> ReaderCallback;
-typedef boost::function<void(Result, const std::vector<std::string>&)> GetPartitionsCallback;
-typedef boost::function<void(Result)> CloseCallback;
+typedef std::function<void(Result, Producer)> CreateProducerCallback;
+typedef std::function<void(Result, Consumer)> SubscribeCallback;
+typedef std::function<void(Result, Reader)> ReaderCallback;
+typedef std::function<void(Result, const std::vector<std::string>&)> GetPartitionsCallback;
+typedef std::function<void(Result)> CloseCallback;
 
 class ClientImpl;
 class PulsarFriend;
@@ -205,11 +206,11 @@ class Client {
    private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
            bool poolConnections);
-    Client(const boost::shared_ptr<ClientImpl>);
+    Client(const std::shared_ptr<ClientImpl>);
 
     friend class PulsarFriend;
     friend class PulsarWrapper;
-    boost::shared_ptr<ClientImpl> impl_;
+    std::shared_ptr<ClientImpl> impl_;
 };
 }  // namespace pulsar
 

@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.io.netty;
 
+import java.util.Map;
+
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.netty.server.NettyServer;
-import java.util.Map;
 
 /**
- * A simple Netty Tcp or Udp Source connector to listen Tcp/Udp messages and write to user-defined Pulsar topic
+ * A simple Netty Source connector to listen for incoming messages and write to user-defined Pulsar topic.
  */
 @Connector(
     name = "netty",
     type = IOType.SOURCE,
-    help = "A simple Netty Tcp or Udp Source connector to listen Tcp/Udp messages and write to user-defined Pulsar topic",
+    help = "A simple Netty Source connector to listen for incoming messages and write to user-defined Pulsar topic",
     configClass = NettySourceConfig.class)
 public class NettySource extends PushSource<byte[]> {
 

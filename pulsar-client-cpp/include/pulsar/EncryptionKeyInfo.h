@@ -19,7 +19,7 @@
 #ifndef ENCRYPTIONKEYINFO_H_
 #define ENCRYPTIONKEYINFO_H_
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <iostream>
 #include <map>
 
@@ -30,7 +30,7 @@ namespace pulsar {
 class EncryptionKeyInfoImpl;
 class PulsarWrapper;
 
-typedef boost::shared_ptr<EncryptionKeyInfoImpl> EncryptionKeyInfoImplPtr;
+typedef std::shared_ptr<EncryptionKeyInfoImpl> EncryptionKeyInfoImplPtr;
 
 class EncryptionKeyInfo {
     /*

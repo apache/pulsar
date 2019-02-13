@@ -32,6 +32,7 @@ void export_enums() {
             .value("NONE", CompressionNone) // Don't use 'None' since it's a keyword in py3
             .value("LZ4", CompressionLZ4)
             .value("ZLib", CompressionZLib)
+            .value("ZSTD", CompressionZSTD)
             ;
 
     enum_<ConsumerType>("ConsumerType")
@@ -73,6 +74,24 @@ void export_enums() {
             .value("SubscriptionNotFound", ResultSubscriptionNotFound)
             .value("ConsumerNotFound", ResultConsumerNotFound)
             .value("UnsupportedVersionError", ResultUnsupportedVersionError)
+            ;
+
+    enum_<SchemaType>("SchemaType", "Supported schema types")
+            .value("NONE", NONE)
+            .value("STRING", STRING)
+            .value("INT8", INT8)
+            .value("INT16", INT16)
+            .value("INT32", INT32)
+            .value("INT64", INT64)
+            .value("FLOAT", FLOAT)
+            .value("DOUBLE", DOUBLE)
+            .value("BYTES", BYTES)
+            .value("JSON", JSON)
+            .value("PROTOBUF", PROTOBUF)
+            .value("AVRO", AVRO)
+            .value("AUTO_CONSUME", AUTO_CONSUME)
+            .value("AUTO_PUBLISH", AUTO_PUBLISH)
+            .value("KEY_VALUE", KEY_VALUE)
             ;
 
 }
