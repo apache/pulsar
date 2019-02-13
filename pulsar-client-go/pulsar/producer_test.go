@@ -22,7 +22,6 @@ package pulsar
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
