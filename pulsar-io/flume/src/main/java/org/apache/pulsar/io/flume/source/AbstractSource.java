@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.io.flume.source;
 
 import lombok.Getter;
@@ -80,27 +98,24 @@ public abstract class AbstractSource<V> extends PushSource<V> {
             try {
                 log.info("start flume receive from sink process");
                 while (running) {
-                    Thread.sleep(1000);
                     BlockingQueue<Map<String, Object>> blockingQueue = SinkOfFlume.getQueue();
                     while (!blockingQueue.isEmpty()) {
                         ByteArrayOutputStream bos = new ByteArrayOutputStream();
                         ObjectOutput out = null;
                         out = new ObjectOutputStream(bos);
                         Map<String, Object> message = blockingQueue.take();
-                        System.out.println(message);
-                        System.out.println();
                         out.writeObject(message.get("body"));
                         out.flush();
                         byte[] m = bos.toByteArray();
                         String m1 = new String(m);
-                        System.out.println(m1);
                         bos.close();
-//                        consume(new FlumeRecord<>());
+                        FlumeRecord flumeRecord = new FlumeRecord<>();
+                        flumeRecord.setRecord(extractValue(m1));
+                        consume(flumeRecord);
                     }
                 }
             } catch (Exception e) {
                 log.error("process error!", e);
-            } finally {
             }
         }
     }
