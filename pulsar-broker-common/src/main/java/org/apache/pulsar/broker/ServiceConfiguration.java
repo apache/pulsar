@@ -239,10 +239,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Disable subscription message redelivery tracker to reduce in-memory "
-                    + "message-id footprints (default is false)"
+            doc = "Enable subscription message redelivery tracker to send redelivery "
+                    + "count to consumer (default is enabled)"
         )
-    private boolean subscriptionRedeliveryTrackerDisable = false;
+    private boolean subscriptionRedeliveryTrackerEnabled = true;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"

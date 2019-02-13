@@ -103,9 +103,9 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
-        this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerDisable()
-                ? RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED
-                : new InMemoryRedeliveryTracker();
+        this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
+                ? new InMemoryRedeliveryTracker()
+                : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
