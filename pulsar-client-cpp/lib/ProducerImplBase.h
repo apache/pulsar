@@ -24,8 +24,7 @@
 namespace pulsar {
 class ProducerImplBase;
 
-typedef boost::weak_ptr<ProducerImplBase> ProducerImplBaseWeakPtr;
-typedef boost::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
+typedef std::weak_ptr<ProducerImplBase> ProducerImplBaseWeakPtr;
 
 class ProducerImplBase {
    public:

@@ -135,6 +135,9 @@ class ClientConfiguration {
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
     bool isTlsAllowInsecureConnection() const;
 
+    ClientConfiguration& setValidateHostName(bool validateHostName);
+    bool isValidateHostName() const;
+
     /*
      * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
      * Set to 0 in order to disable stats collection.
@@ -151,7 +154,7 @@ class ClientConfiguration {
 
    private:
     const AuthenticationPtr& getAuthPtr() const;
-    boost::shared_ptr<ClientConfigurationImpl> impl_;
+    std::shared_ptr<ClientConfigurationImpl> impl_;
 };
 }  // namespace pulsar
 

@@ -20,7 +20,7 @@
 #define LIB_PRODUCERCONFIGURATIONIMPL_H_
 
 #include <pulsar/ProducerConfiguration.h>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include "Utils.h"
 

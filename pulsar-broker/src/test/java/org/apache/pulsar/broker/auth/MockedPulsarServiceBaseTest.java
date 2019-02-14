@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -92,10 +93,8 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
-        this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
@@ -111,7 +110,11 @@ public abstract class MockedPulsarServiceBaseTest {
         if (isTcpLookup) {
             lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT);
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).statsInterval(0, TimeUnit.SECONDS).build();
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
+        return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
@@ -120,7 +123,7 @@ public abstract class MockedPulsarServiceBaseTest {
         if (isTcpLookup) {
             lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).statsInterval(1, TimeUnit.SECONDS).build();
+        pulsarClient = newPulsarClient(lookupUrl, 1);
     }
 
     protected final void init() throws Exception {

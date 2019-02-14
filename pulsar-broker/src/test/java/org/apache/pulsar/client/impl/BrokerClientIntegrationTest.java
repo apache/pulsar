@@ -310,15 +310,23 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name" + subType;
 
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).subscriptionType(subType).subscribe();
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subType)
+                .subscribe();
 
         final int numMessagesPerBatch = 10;
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName).enableBatching(true)
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .create();
+        Producer<byte[]> batchProducer = pulsarClient.newProducer()
+                .topic(topicName).enableBatching(true)
                 .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMessagesPerBatch).create();
+                .batchingMaxMessages(numMessagesPerBatch)
+                .create();
 
         // update consumer's version to incompatible batch-message version = Version.V3
         Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -357,11 +365,15 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         batchProducer.flush();
 
         // consumer should have not received any message as it should have been disconnected
-        msg = consumer1.receive(2, TimeUnit.SECONDS);
+        msg = consumer1.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
-        // subscrie consumer2 with supporting batch version
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        // subscribe consumer2 with supporting batch version
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subType)
                 .subscribe();
 
         messageSet.clear();
@@ -377,6 +389,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer2.close();
         producer.close();
         batchProducer.close();
+        newPulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -749,7 +762,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     /**
      * It verifies that if broker fails to complete producer/consumer operation then client times out rather waiting
      * forever.
-     * 
+     *
      * @throws PulsarClientException
      */
     @Test(expectedExceptions = PulsarClientException.TimeoutException.class, timeOut = 10000)
@@ -830,5 +843,5 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
-    
+
 }

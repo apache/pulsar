@@ -71,6 +71,14 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz 
     make && make install && \
     rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
+# Zstandard
+RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
+    tar xvfz zstd-1.3.7.tar.gz && \
+    cd zstd-1.3.7 && \
+    CFLAGS="-fPIC -O3" make -j8 && \
+    make install && \
+    rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
+
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
     tar xvfz curl-7.61.0.tar.gz && \

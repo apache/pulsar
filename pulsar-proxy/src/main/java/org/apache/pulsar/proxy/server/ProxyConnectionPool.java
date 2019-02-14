@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -32,7 +33,7 @@ import io.netty.channel.EventLoopGroup;
 
 public class ProxyConnectionPool extends ConnectionPool {
     public ProxyConnectionPool(ClientConfigurationData clientConfig, EventLoopGroup eventLoopGroup,
-            Supplier<ClientCnx> clientCnxSupplier) {
+            Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
         super(clientConfig, eventLoopGroup, clientCnxSupplier);
     }
 
