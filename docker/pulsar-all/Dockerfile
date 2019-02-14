@@ -19,11 +19,10 @@
 
 FROM apachepulsar/pulsar:latest
 
-ARG PULSAR_IO_TARBALL
+ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
 
-ADD ${PULSAR_IO_TARBALL} /
-RUN mv /apache-pulsar-io-connectors-*/connectors /pulsar/connectors
+ADD ${PULSAR_IO_DIR} /pulsar/connectors
 
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /pulsar/offloaders
