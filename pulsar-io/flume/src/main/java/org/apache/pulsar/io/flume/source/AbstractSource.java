@@ -34,6 +34,9 @@ import org.apache.pulsar.io.core.SourceContext;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
+/**
+ * A Simple abstract source class for flume to pulsar.
+ */
 public abstract class AbstractSource<V> extends PushSource<V> {
 
     private static final Logger log = LoggerFactory

@@ -31,6 +31,9 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * A Simple abstract sink class for pulsar to flume.
+ */
 public abstract class AbstractSink<T> implements Sink<T> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractSink.class);
