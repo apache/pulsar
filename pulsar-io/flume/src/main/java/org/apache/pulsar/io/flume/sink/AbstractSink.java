@@ -33,7 +33,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public abstract class AbstractSink<T> implements Sink<T> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractSink.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractSink.class);
 
 
     public abstract T extractValue(Record<T> record);
@@ -67,7 +67,7 @@ public abstract class AbstractSink<T> implements Sink<T> {
             record.ack();
         } catch (InterruptedException e) {
             record.fail();
-            LOG.error("error", e);
+            log.error("error", e);
         }
     }
 
