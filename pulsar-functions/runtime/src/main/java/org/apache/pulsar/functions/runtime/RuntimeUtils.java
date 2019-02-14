@@ -169,8 +169,7 @@ class RuntimeUtils {
         args.add(String.valueOf(metricsPort));
 
         // state storage configs
-        if (null != stateStorageServiceUrl
-                && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");
             args.add(stateStorageServiceUrl);
         }

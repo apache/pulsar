@@ -51,6 +51,7 @@
     <module>file</module>
     <module>netty</module>
     <module>hbase</module>
+    <module>mongo</module>
   </modules>
 
 </project>

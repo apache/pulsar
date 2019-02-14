@@ -162,6 +162,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMap(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),
+                    workerConfig.getFunctionInstanceMinResources(),
                     secretsProviderConfigurator);
         } else {
             throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");

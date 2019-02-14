@@ -46,6 +46,7 @@ public abstract class AbstractReplicator {
     protected final PulsarClientImpl client;
 
     protected volatile ProducerImpl producer;
+    public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
 
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;

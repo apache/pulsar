@@ -68,9 +68,8 @@ if (LINK_STATIC)
     SET(OPENSSL_USE_STATIC_LIBS TRUE)
 
     find_library(ZLIB_LIBRARY_PATH REQUIRED NAMES libz.a z)
-    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
+    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf-lite.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
-    find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
     find_library(LIB_ZSTD NAMES libzstd.a)
 
     if (USE_LOG4CXX)
@@ -97,11 +96,10 @@ else()
     if (NOT PROTOBUF_LIBRARIES)
       find_package(ProtoBuf QUIET)
       if (NOT ProtoBuf_FOUND)
-        find_library(PROTOBUF_LIBRARIES protobuf)
+        find_library(PROTOBUF_LIBRARIES protobuf-lite)
       endif (NOT ProtoBuf_FOUND)
     endif (NOT PROTOBUF_LIBRARIES)
 
-    find_library(LIB_JSON jsoncpp)
     find_library(LIB_ZSTD zstd)
     find_library(CURL_LIBRARY_PATH curl)
     if (USE_LOG4CXX)
@@ -156,23 +154,10 @@ if (BUILD_TESTS)
     find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
 endif ()
 
-find_path(JSON_INCLUDE_PATH jsoncpp)
-
 if (USE_LOG4CXX)
     set(CMAKE_CXX_FLAGS " -DUSE_LOG4CXX ${CMAKE_CXX_FLAGS}")
     find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 endif (USE_LOG4CXX)
-
-if (NOT LIB_JSON)
-    find_library(LIB_JSON json_cpp)
-endif (NOT LIB_JSON)
-
-
-if (NOT JSON_INCLUDE_PATH)
-    find_path(JSON_INCLUDE_PATH json)
-else (NOT JSON_INCLUDE_PATH)
-    set(JSON_INCLUDE_PATH ${JSON_INCLUDE_PATH}/jsoncpp/)
-endif (NOT JSON_INCLUDE_PATH)
 
 if (NOT APPLE)
     # we don't set options below to build _pulsar.so
@@ -202,12 +187,10 @@ include_directories(
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
   ${GMOCK_INCLUDE_PATH}
-  ${JSON_INCLUDE_PATH}
 )
 
 set(COMMON_LIBS
   ${COMMON_LIBS} -lpthread -lm
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_REGEX_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARY_PATH}
@@ -215,7 +198,6 @@ set(COMMON_LIBS
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
-  ${LIB_JSON}
   dl
   pthread
 )

@@ -46,6 +46,16 @@ const (
 	Failover
 )
 
+type InitialPosition int
+
+const (
+	// Latest position which means the start consuming position will be the last message
+	Latest InitialPosition = iota
+
+	// Earliest position which means the start consuming position will be the first message
+	Earliest
+)
+
 // ConsumerBuilder is used to configure and create instances of Consumer
 type ConsumerOptions struct {
 	// Specify the topic this consumer will subscribe on.
@@ -76,6 +86,10 @@ type ConsumerOptions struct {
 	// Select the subscription type to be used when subscribing to the topic.
 	// Default is `Exclusive`
 	Type SubscriptionType
+
+	// InitialPosition at which the cursor will be set when subscribe
+	// Default is `Latest`
+	SubscriptionInitPos InitialPosition
 
 	// Sets a `MessageChannel` for the consumer
 	// When a message is received, it will be pushed to the channel for consumption

@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
@@ -129,7 +130,7 @@ public class TwoPhaseCompactor extends Compactor {
                             Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
                             if (keyAndSize != null) {
                                 if(keyAndSize.getRight() > 0) {
-                                    latestForKey.put(keyAndSize.getLeft(), id);    
+                                    latestForKey.put(keyAndSize.getLeft(), id);
                                 } else {
                                     deletedMessage = true;
                                     latestForKey.remove(keyAndSize.getLeft());
@@ -165,8 +166,7 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
             Map<String, MessageId> latestForKey, BookKeeper bk) {
-        Map<String, byte[]> metadata = ImmutableMap.of("compactedTopic", reader.getTopic().getBytes(UTF_8),
-                "compactedTo", to.toByteArray());
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
         return createLedger(bk, metadata).thenCompose((ledger) -> {
             log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
                     reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
@@ -228,7 +228,7 @@ public class TwoPhaseCompactor extends Compactor {
                         MessageId msg;
                         if (keyAndSize == null) { // pass through messages without a key
                             messageToAdd = Optional.of(m);
-                        } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null 
+                        } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
                                 && msg.equals(id)) { // consider message only if present into latestForKey map
                             if (keyAndSize.getRight() <= 0) {
                                 promise.completeExceptionally(new IllegalArgumentException(
@@ -324,7 +324,6 @@ public class TwoPhaseCompactor extends Compactor {
                                  bkf.complete(null);
                              }
                          }, null);
-        serialized.release();
         return bkf;
     }
 

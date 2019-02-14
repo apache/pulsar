@@ -155,7 +155,7 @@ public class KubernetesRuntimeTest {
             null,
             null,
             null,
-            new TestSecretProviderConfigurator()));
+                null, new TestSecretProviderConfigurator()));
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -316,7 +316,7 @@ public class KubernetesRuntimeTest {
             pythonPath = "";
             metricsPortArg = 31;
         } else {
-            totalArgs = 37;
+            totalArgs = 39;
             portArg = 30;
             configArg = 10;
             metricsPortArg = 32;
@@ -342,6 +342,7 @@ public class KubernetesRuntimeTest {
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --state_storage_serviceurl bk://localhost:4181"
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
             expectedArgs += " --secrets_provider secretsprovider.ClearTextSecretsProvider"
