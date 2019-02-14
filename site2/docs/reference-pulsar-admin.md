@@ -119,6 +119,7 @@ Subcommands
 * `list-dynamic-config`
 * `get-all-dynamic-config`
 * `get-internal-config`
+* `healthcheck`
 
 ### `list`
 List active brokers of the cluster
@@ -181,6 +182,14 @@ Usage
 $ pulsar-admin brokers get-internal-config
 ```
 
+### `healthcheck`
+Run a health check against the broker
+
+Usage
+```bash
+$ pulsar-admin brokers healthcheck
+```
+
 
 ## `clusters`
 Operations about clusters
@@ -197,6 +206,12 @@ Subcommands
 * `delete`
 * `list`
 * `update-peer-clusters`
+* `get-peer-clusters`
+* `get-failure-domain`
+* `create-failure-domain`
+* `update-failure-domain`
+* `delete-failure-domain`
+* `list-failure-domains`
 
 
 ### `get`
@@ -262,8 +277,84 @@ Update peer cluster names
 
 Usage
 ```bash
-$ pulsar-admin clusters update-peer-clusters peer-cluster-names
+$ pulsar-admin clusters update-peer-clusters cluster-name options
 ```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--peer-clusters`|Comma separated peer cluster names (Pass empty string "" to delete list)||
+
+### `get-peer-clusters`
+Get list of peer clusters
+
+Usage
+```bash
+$ pulsar-admin clusters get-peer-clusters
+```
+
+### `get-failure-domain`
+Get the configuration brokers of a failure domain
+
+Usage
+```bash
+$ pulsar-admin clusters get-failure-domain cluster-name options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
+
+### `create-failure-domain`
+Create a new failure domain for a cluster (updates it if already created)
+
+Usage
+```bash
+$ pulsar-admin clusters create-failure-domain cluster-name options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--broker-list`|Comma separated broker list||
+|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
+
+### `update-failure-domain`
+Update failure domain for a cluster (creates a new one if not exist)
+
+Usage
+```bash
+$ pulsar-admin clusters update-failure-domain cluster-name options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--broker-list`|Comma separated broker list||
+|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
+
+### `delete-failure-domain`
+Delete an existing failure domain
+
+Usage
+```bash
+$ pulsar-admin clusters delete-failure-domain cluster-name options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
+
+### `list-failure-domains`
+List the existing failure domains for a cluster
+
+Usage
+```bash
+$ pulsar-admin clusters list-failure-domains cluster-name
+```
+
 
 ## `functions`
 
@@ -920,6 +1011,8 @@ Subcommands
 * `get`
 * `list`
 * `delete`
+* `brokers`
+* `broker`
 
 ### `set`
 Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.
@@ -962,6 +1055,27 @@ Usage
 ```bash
 $ pulsar-admin ns-isolation-policy delete
 ```
+
+### `brokers`
+List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.
+
+Usage
+```bash
+$ pulsar-admin ns-isolation-policy brokers cluster-name
+```
+
+### `broker`
+Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.
+
+Usage
+```bash
+$ pulsar-admin ns-isolation-policy broker cluster-name options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 
 ## `sink`
@@ -1752,6 +1866,7 @@ Subcommands
 * `upload`
 * `delete`
 * `get`
+* `extract`
 
 
 ### `upload`
@@ -1789,5 +1904,20 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`--version`|The version of the schema definition to retrive for a topic.||
+
+### `extract`
+Provide the schema definition for a topic via Java class name contained in a JAR file
+
+Usage
+```bash
+$ pulsar-admin schemas extract persistent://tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--classname`|The Java class name||
+|`-j`, `--jar`|A path to the JAR file which contains the above Java class||
+|`-t`, `--type`|The type of the schema (avro or json)||
 
 
