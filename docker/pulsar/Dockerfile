@@ -24,10 +24,8 @@ RUN echo "deb http://ftp.de.debian.org/debian testing main" >> /etc/apt/sources.
 # Install some utilities
 RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3.7 python3-pip
 
-ARG PULSAR_TARBALL
-
-ADD ${PULSAR_TARBALL} /
-RUN mv /apache-pulsar-* /pulsar
+ARG PULSAR_DIR
+ADD ${PULSAR_DIR} /pulsar
 
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/gen-yml-from-env.py /pulsar/bin

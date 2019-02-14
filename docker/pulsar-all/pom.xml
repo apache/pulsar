@@ -81,22 +81,20 @@
                   </resources>
                 </configuration>
               </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-dependency-plugin</artifactId>
-            <executions>
               <execution>
-                <id>copy-offloader-tarball</id>
-                <goals>
-                  <goal>copy-dependencies</goal>
-                </goals>
+                <id>copy-offloader-archives</id>
                 <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
                 <configuration>
-                  <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includeArtifactIds>pulsar-offloader-distribution</includeArtifactIds>
-                  <excludeTransitive>true</excludeTransitive>
+                  <outputDirectory>${basedir}/target/apache-pulsar-offloaders-${project.version}-bin</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${basedir}/../../distribution/offloaders/target/apache-pulsar-offloaders-${project.version}-bin/apache-pulsar-offloaders-${project.version}</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
                 </configuration>
               </execution>
             </executions>
@@ -130,7 +128,7 @@
               <tag>${project.version}</tag>
               <buildArgs>
                 <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
-                <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
+                <PULSAR_OFFLOADER_DIR>target/apache-pulsar-offloaders-${project.version}-bin</PULSAR_OFFLOADER_DIR>
               </buildArgs>
             </configuration>
           </plugin>

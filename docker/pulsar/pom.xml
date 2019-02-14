@@ -26,7 +26,6 @@
     <version>2.3.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-docker-image</artifactId>
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
@@ -155,24 +154,28 @@
               <pullNewerImage>false</pullNewerImage>
               <tag>${project.version}</tag>
               <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                <PULSAR_DIR>target/apache-pulsar-${project.version}-bin</PULSAR_DIR>
               </buildArgs>
             </configuration>
           </plugin>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-dependency-plugin</artifactId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <version>3.1.0</version>
             <executions>
               <execution>
-                <id>copy-tarball</id>
-                <goals>
-                  <goal>copy-dependencies</goal>
-                </goals>
+                <id>copy-server-dir</id>
                 <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
                 <configuration>
-                  <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includeArtifactIds>pulsar-server-distribution</includeArtifactIds>
-                  <excludeTransitive>true</excludeTransitive>
+                  <outputDirectory>${basedir}/target/apache-pulsar-${project.version}-bin</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${basedir}/../../distribution/server/target/apache-pulsar-${project.version}-bin/apache-pulsar-${project.version}</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
                 </configuration>
               </execution>
             </executions>
