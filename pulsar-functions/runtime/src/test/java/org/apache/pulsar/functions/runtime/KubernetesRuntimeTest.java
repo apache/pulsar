@@ -199,11 +199,6 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
-    public void testDeleteStatefulSet() {
-
-    }
-
-    @Test
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
