@@ -41,91 +41,91 @@ import java.util.Set;
 
 public abstract class TestAbstractZooKeeperConfigurationProvider {
 
-  private static final String FLUME_CONF_FILE = "flume-conf.properties";
+    private static final String FLUME_CONF_FILE = "flume-conf.properties";
 
-  protected static final String AGENT_NAME = "a1";
+    protected static final String AGENT_NAME = "a1";
 
-  protected static final String AGENT_PATH =
-      AbstractZooKeeperConfigurationProvider.DEFAULT_ZK_BASE_PATH + "/" + AGENT_NAME;
+    protected static final String AGENT_PATH =
+            AbstractZooKeeperConfigurationProvider.DEFAULT_ZK_BASE_PATH + "/" + AGENT_NAME;
 
-  protected TestingServer zkServer;
-  protected CuratorFramework client;
+    protected TestingServer zkServer;
+    protected CuratorFramework client;
 
-  @Before
-  public void setUp() throws Exception {
-    zkServer = new TestingServer();
-    client = CuratorFrameworkFactory
-        .newClient("localhost:" + zkServer.getPort(),
-            new ExponentialBackoffRetry(1000, 3));
-    client.start();
+    @Before
+    public void setUp() throws Exception {
+        zkServer = new TestingServer();
+        client = CuratorFrameworkFactory
+                .newClient("localhost:" + zkServer.getPort(),
+                        new ExponentialBackoffRetry(1000, 3));
+        client.start();
 
-    EnsurePath ensurePath = new EnsurePath(AGENT_PATH);
-    ensurePath.ensure(client.getZookeeperClient());
-    doSetUp();
-  }
-
-  protected abstract void doSetUp() throws Exception;
-
-  @After
-  public void tearDown() throws Exception {
-    doTearDown();
-    zkServer.close();
-    client.close();
-  }
-
-  protected abstract void doTearDown() throws Exception;
-
-  protected void addData() throws Exception {
-    Reader in = new InputStreamReader(getClass().getClassLoader()
-        .getResourceAsStream(FLUME_CONF_FILE), Charsets.UTF_8);
-    try {
-      String config = IOUtils.toString(in);
-      client.setData().forPath(AGENT_PATH, config.getBytes());
-    } finally {
-      in.close();
+        EnsurePath ensurePath = new EnsurePath(AGENT_PATH);
+        ensurePath.ensure(client.getZookeeperClient());
+        doSetUp();
     }
-  }
 
-  protected void verifyProperties(AbstractConfigurationProvider cp) {
-    FlumeConfiguration configuration = cp.getFlumeConfiguration();
-    Assert.assertNotNull(configuration);
+    protected abstract void doSetUp() throws Exception;
+
+    @After
+    public void tearDown() throws Exception {
+        doTearDown();
+        zkServer.close();
+        client.close();
+    }
+
+    protected abstract void doTearDown() throws Exception;
+
+    protected void addData() throws Exception {
+        Reader in = new InputStreamReader(getClass().getClassLoader()
+                .getResourceAsStream(FLUME_CONF_FILE), Charsets.UTF_8);
+        try {
+            String config = IOUtils.toString(in);
+            client.setData().forPath(AGENT_PATH, config.getBytes());
+        } finally {
+            in.close();
+        }
+    }
+
+    protected void verifyProperties(AbstractConfigurationProvider cp) {
+        FlumeConfiguration configuration = cp.getFlumeConfiguration();
+        Assert.assertNotNull(configuration);
 
     /*
      * Test the known errors in the file
      */
-    List<String> expected = Lists.newArrayList();
-    expected.add("host5 CONFIG_ERROR");
-    expected.add("host5 INVALID_PROPERTY");
-    expected.add("host4 CONFIG_ERROR");
-    expected.add("host4 CONFIG_ERROR");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 AGENT_CONFIGURATION_INVALID");
-    expected.add("ch2 ATTRS_MISSING");
-    expected.add("host3 CONFIG_ERROR");
-    expected.add("host3 PROPERTY_VALUE_NULL");
-    expected.add("host3 AGENT_CONFIGURATION_INVALID");
-    expected.add("host2 PROPERTY_VALUE_NULL");
-    expected.add("host2 AGENT_CONFIGURATION_INVALID");
-    List<String> actual = Lists.newArrayList();
-    for (FlumeConfigurationError error : configuration.getConfigurationErrors()) {
-      actual.add(error.getComponentName() + " " + error.getErrorType().toString());
+        List<String> expected = Lists.newArrayList();
+        expected.add("host5 CONFIG_ERROR");
+        expected.add("host5 INVALID_PROPERTY");
+        expected.add("host4 CONFIG_ERROR");
+        expected.add("host4 CONFIG_ERROR");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 AGENT_CONFIGURATION_INVALID");
+        expected.add("ch2 ATTRS_MISSING");
+        expected.add("host3 CONFIG_ERROR");
+        expected.add("host3 PROPERTY_VALUE_NULL");
+        expected.add("host3 AGENT_CONFIGURATION_INVALID");
+        expected.add("host2 PROPERTY_VALUE_NULL");
+        expected.add("host2 AGENT_CONFIGURATION_INVALID");
+        List<String> actual = Lists.newArrayList();
+        for (FlumeConfigurationError error : configuration.getConfigurationErrors()) {
+            actual.add(error.getComponentName() + " " + error.getErrorType().toString());
+        }
+        Collections.sort(expected);
+        Collections.sort(actual);
+        Assert.assertEquals(expected, actual);
+
+        FlumeConfiguration.AgentConfiguration agentConfiguration = configuration
+                .getConfigurationFor("host1");
+        Assert.assertNotNull(agentConfiguration);
+
+        Set<String> sources = Sets.newHashSet("source1");
+        Set<String> sinks = Sets.newHashSet("sink1");
+        Set<String> channels = Sets.newHashSet("channel1");
+
+        Assert.assertEquals(sources, agentConfiguration.getSourceSet());
+        Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
+        Assert.assertEquals(channels, agentConfiguration.getChannelSet());
     }
-    Collections.sort(expected);
-    Collections.sort(actual);
-    Assert.assertEquals(expected, actual);
-
-    FlumeConfiguration.AgentConfiguration agentConfiguration = configuration
-        .getConfigurationFor("host1");
-    Assert.assertNotNull(agentConfiguration);
-
-    Set<String> sources = Sets.newHashSet("source1");
-    Set<String> sinks = Sets.newHashSet("sink1");
-    Set<String> channels = Sets.newHashSet("channel1");
-
-    Assert.assertEquals(sources, agentConfiguration.getSourceSet());
-    Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
-    Assert.assertEquals(channels, agentConfiguration.getChannelSet());
-  }
 }

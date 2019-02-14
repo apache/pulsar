@@ -21,24 +21,24 @@ package org.apache.pulsar.io.flume.node;
 import org.junit.Test;
 
 public class TestStaticZooKeeperConfigurationProvider extends
-    TestAbstractZooKeeperConfigurationProvider {
+        TestAbstractZooKeeperConfigurationProvider {
 
-  private StaticZooKeeperConfigurationProvider configurationProvider;
+    private StaticZooKeeperConfigurationProvider configurationProvider;
 
-  @Override
-  protected void doSetUp() throws Exception {
-    addData();
-    configurationProvider = new StaticZooKeeperConfigurationProvider(
-        AGENT_NAME, "localhost:" + zkServer.getPort(), null);
-  }
+    @Override
+    protected void doSetUp() throws Exception {
+        addData();
+        configurationProvider = new StaticZooKeeperConfigurationProvider(
+                AGENT_NAME, "localhost:" + zkServer.getPort(), null);
+    }
 
-  @Override
-  protected void doTearDown() throws Exception {
-    // do nothing
-  }
+    @Override
+    protected void doTearDown() throws Exception {
+        // do nothing
+    }
 
-  @Test
-  public void testPropertyRead() throws Exception {
-    verifyProperties(configurationProvider);
-  }
+    @Test
+    public void testPropertyRead() throws Exception {
+        verifyProperties(configurationProvider);
+    }
 }

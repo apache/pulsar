@@ -69,7 +69,7 @@ public class StringSourceTests extends AbstractFlumeTests {
 
     @AfterMethod
     public void tearDown() throws Exception {
-
+        sink.stop();
     }
 
 
@@ -101,8 +101,6 @@ public class StringSourceTests extends AbstractFlumeTests {
         }
 
         Assert.assertEquals(Sink.Status.BACKOFF, sink.process());
-
-        sink.stop();
         stringSource.close();
     }
 }

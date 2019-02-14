@@ -19,5 +19,5 @@
 package org.apache.pulsar.io.flume.node;
 
 public interface ConfigurationProvider {
-  MaterializedConfiguration getConfiguration();
+    MaterializedConfiguration getConfiguration();
 }

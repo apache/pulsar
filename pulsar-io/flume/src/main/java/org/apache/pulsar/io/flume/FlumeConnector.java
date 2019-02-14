@@ -39,7 +39,7 @@ public class FlumeConnector {
 
     protected Application application;
 
-    public void StartConnector(FlumeConfig flumeConfig) throws Exception  {
+    public void StartConnector(FlumeConfig flumeConfig) throws Exception {
         SSLUtil.initGlobalSSLParameters();
         String agentName = flumeConfig.getName();
         boolean reload = !flumeConfig.getNoReloadConf();

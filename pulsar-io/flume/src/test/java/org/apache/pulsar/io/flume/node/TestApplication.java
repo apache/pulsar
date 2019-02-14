@@ -43,156 +43,156 @@ import com.google.common.io.Files;
 
 public class TestApplication {
 
-  private File baseDir;
+    private File baseDir;
 
-  @Before
-  public void setup() throws Exception {
-    baseDir = Files.createTempDir();
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    FileUtils.deleteDirectory(baseDir);
-  }
-
-  private <T extends LifecycleAware> T mockLifeCycle(Class<T> klass) {
-
-    T lifeCycleAware = mock(klass);
-
-    final AtomicReference<LifecycleState> state =
-        new AtomicReference<LifecycleState>();
-
-    state.set(LifecycleState.IDLE);
-
-    when(lifeCycleAware.getLifecycleState()).then(new Answer<LifecycleState>() {
-      @Override
-      public LifecycleState answer(InvocationOnMock invocation)
-          throws Throwable {
-        return state.get();
-      }
-    });
-
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
-        state.set(LifecycleState.START);
-        return null;
-      }
-    }).when(lifeCycleAware).start();
-
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
-        state.set(LifecycleState.STOP);
-        return null;
-      }
-    }).when(lifeCycleAware).stop();
-
-    return lifeCycleAware;
-  }
-
-  @Test
-  public void testBasicConfiguration() throws Exception {
-
-    EventBus eventBus = new EventBus("test-event-bus");
-
-    MaterializedConfiguration materializedConfiguration = new
-        SimpleMaterializedConfiguration();
-
-    SourceRunner sourceRunner = mockLifeCycle(SourceRunner.class);
-    materializedConfiguration.addSourceRunner("test", sourceRunner);
-
-    SinkRunner sinkRunner = mockLifeCycle(SinkRunner.class);
-    materializedConfiguration.addSinkRunner("test", sinkRunner);
-
-    Channel channel = mockLifeCycle(Channel.class);
-    materializedConfiguration.addChannel("test", channel);
-
-
-    ConfigurationProvider configurationProvider = mock(ConfigurationProvider.class);
-    when(configurationProvider.getConfiguration()).thenReturn(materializedConfiguration);
-
-    Application application = new Application();
-    eventBus.register(application);
-    eventBus.post(materializedConfiguration);
-    application.start();
-
-    Thread.sleep(1000L);
-
-    verify(sourceRunner).start();
-    verify(sinkRunner).start();
-    verify(channel).start();
-
-    application.stop();
-
-    Thread.sleep(1000L);
-
-    verify(sourceRunner).stop();
-    verify(sinkRunner).stop();
-    verify(channel).stop();
-  }
-
-  @Test
-  public void testFLUME1854() throws Exception {
-    File configFile = new File(baseDir, "flume-conf.properties");
-    Files.copy(new File(getClass().getClassLoader()
-            .getResource("flume-conf.properties").getFile()), configFile);
-    Random random = new Random();
-    for (int i = 0; i < 3; i++) {
-      EventBus eventBus = new EventBus("test-event-bus");
-      PollingPropertiesFileConfigurationProvider configurationProvider =
-              new PollingPropertiesFileConfigurationProvider("host1",
-                      configFile, eventBus, 1);
-      List<LifecycleAware> components = Lists.newArrayList();
-      components.add(configurationProvider);
-      Application application = new Application(components);
-      eventBus.register(application);
-      application.start();
-      Thread.sleep(random.nextInt(10000));
-      application.stop();
+    @Before
+    public void setup() throws Exception {
+        baseDir = Files.createTempDir();
     }
-  }
 
-  @Test(timeout = 10000L)
-  public void testFLUME2786() throws Exception {
-    final String agentName = "test";
-    final int interval = 1;
-    final long intervalMs = 1000L;
+    @After
+    public void tearDown() throws Exception {
+        FileUtils.deleteDirectory(baseDir);
+    }
 
-    File configFile = new File(baseDir, "flume-conf.properties");
-    Files.copy(new File(getClass().getClassLoader()
-            .getResource("flume-conf.properties.2786").getFile()), configFile);
-    File mockConfigFile = spy(configFile);
-    when(mockConfigFile.lastModified()).then(new Answer<Long>() {
-      @Override
-      public Long answer(InvocationOnMock invocation) throws Throwable {
-        Thread.sleep(intervalMs);
-        return System.currentTimeMillis();
-      }
-    });
+    private <T extends LifecycleAware> T mockLifeCycle(Class<T> klass) {
 
-    EventBus eventBus = new EventBus(agentName + "-event-bus");
-    PollingPropertiesFileConfigurationProvider configurationProvider =
-            new PollingPropertiesFileConfigurationProvider(agentName,
-                    mockConfigFile, eventBus, interval);
-    PollingPropertiesFileConfigurationProvider mockConfigurationProvider =
-            spy(configurationProvider);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
-        Thread.sleep(intervalMs);
-        invocation.callRealMethod();
-        return null;
-      }
-    }).when(mockConfigurationProvider).stop();
+        T lifeCycleAware = mock(klass);
 
-    List<LifecycleAware> components = Lists.newArrayList();
-    components.add(mockConfigurationProvider);
-    Application application = new Application(components);
-    eventBus.register(application);
-    application.start();
-    Thread.sleep(1500L);
-    application.stop();
-  }
+        final AtomicReference<LifecycleState> state =
+                new AtomicReference<LifecycleState>();
+
+        state.set(LifecycleState.IDLE);
+
+        when(lifeCycleAware.getLifecycleState()).then(new Answer<LifecycleState>() {
+            @Override
+            public LifecycleState answer(InvocationOnMock invocation)
+                    throws Throwable {
+                return state.get();
+            }
+        });
+
+        doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                state.set(LifecycleState.START);
+                return null;
+            }
+        }).when(lifeCycleAware).start();
+
+        doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                state.set(LifecycleState.STOP);
+                return null;
+            }
+        }).when(lifeCycleAware).stop();
+
+        return lifeCycleAware;
+    }
+
+    @Test
+    public void testBasicConfiguration() throws Exception {
+
+        EventBus eventBus = new EventBus("test-event-bus");
+
+        MaterializedConfiguration materializedConfiguration = new
+                SimpleMaterializedConfiguration();
+
+        SourceRunner sourceRunner = mockLifeCycle(SourceRunner.class);
+        materializedConfiguration.addSourceRunner("test", sourceRunner);
+
+        SinkRunner sinkRunner = mockLifeCycle(SinkRunner.class);
+        materializedConfiguration.addSinkRunner("test", sinkRunner);
+
+        Channel channel = mockLifeCycle(Channel.class);
+        materializedConfiguration.addChannel("test", channel);
+
+
+        ConfigurationProvider configurationProvider = mock(ConfigurationProvider.class);
+        when(configurationProvider.getConfiguration()).thenReturn(materializedConfiguration);
+
+        Application application = new Application();
+        eventBus.register(application);
+        eventBus.post(materializedConfiguration);
+        application.start();
+
+        Thread.sleep(1000L);
+
+        verify(sourceRunner).start();
+        verify(sinkRunner).start();
+        verify(channel).start();
+
+        application.stop();
+
+        Thread.sleep(1000L);
+
+        verify(sourceRunner).stop();
+        verify(sinkRunner).stop();
+        verify(channel).stop();
+    }
+
+    @Test
+    public void testFLUME1854() throws Exception {
+        File configFile = new File(baseDir, "flume-conf.properties");
+        Files.copy(new File(getClass().getClassLoader()
+                .getResource("flume-conf.properties").getFile()), configFile);
+        Random random = new Random();
+        for (int i = 0; i < 3; i++) {
+            EventBus eventBus = new EventBus("test-event-bus");
+            PollingPropertiesFileConfigurationProvider configurationProvider =
+                    new PollingPropertiesFileConfigurationProvider("host1",
+                            configFile, eventBus, 1);
+            List<LifecycleAware> components = Lists.newArrayList();
+            components.add(configurationProvider);
+            Application application = new Application(components);
+            eventBus.register(application);
+            application.start();
+            Thread.sleep(random.nextInt(10000));
+            application.stop();
+        }
+    }
+
+    @Test(timeout = 10000L)
+    public void testFLUME2786() throws Exception {
+        final String agentName = "test";
+        final int interval = 1;
+        final long intervalMs = 1000L;
+
+        File configFile = new File(baseDir, "flume-conf.properties");
+        Files.copy(new File(getClass().getClassLoader()
+                .getResource("flume-conf.properties.2786").getFile()), configFile);
+        File mockConfigFile = spy(configFile);
+        when(mockConfigFile.lastModified()).then(new Answer<Long>() {
+            @Override
+            public Long answer(InvocationOnMock invocation) throws Throwable {
+                Thread.sleep(intervalMs);
+                return System.currentTimeMillis();
+            }
+        });
+
+        EventBus eventBus = new EventBus(agentName + "-event-bus");
+        PollingPropertiesFileConfigurationProvider configurationProvider =
+                new PollingPropertiesFileConfigurationProvider(agentName,
+                        mockConfigFile, eventBus, interval);
+        PollingPropertiesFileConfigurationProvider mockConfigurationProvider =
+                spy(configurationProvider);
+        doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                Thread.sleep(intervalMs);
+                invocation.callRealMethod();
+                return null;
+            }
+        }).when(mockConfigurationProvider).stop();
+
+        List<LifecycleAware> components = Lists.newArrayList();
+        components.add(mockConfigurationProvider);
+        Application application = new Application(components);
+        eventBus.register(application);
+        application.start();
+        Thread.sleep(1500L);
+        application.stop();
+    }
 
 }

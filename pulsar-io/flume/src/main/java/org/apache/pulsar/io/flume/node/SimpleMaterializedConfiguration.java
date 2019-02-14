@@ -29,49 +29,50 @@ import com.google.common.collect.ImmutableMap;
 
 public class SimpleMaterializedConfiguration implements MaterializedConfiguration {
 
-  private final Map<String, Channel> channels;
-  private final Map<String, SourceRunner> sourceRunners;
-  private final Map<String, SinkRunner> sinkRunners;
+    private final Map<String, Channel> channels;
+    private final Map<String, SourceRunner> sourceRunners;
+    private final Map<String, SinkRunner> sinkRunners;
 
-  public SimpleMaterializedConfiguration() {
-    channels = new HashMap<String, Channel>();
-    sourceRunners = new HashMap<String, SourceRunner>();
-    sinkRunners = new HashMap<String, SinkRunner>();
-  }
+    public SimpleMaterializedConfiguration() {
+        channels = new HashMap<String, Channel>();
+        sourceRunners = new HashMap<String, SourceRunner>();
+        sinkRunners = new HashMap<String, SinkRunner>();
+    }
 
-  @Override
-  public String toString() {
-    return "{ sourceRunners:" + sourceRunners + " sinkRunners:" + sinkRunners
-        + " channels:" + channels + " }";
-  }
-  @Override
-  public void addSourceRunner(String name, SourceRunner sourceRunner) {
-    sourceRunners.put(name, sourceRunner);
-  }
+    @Override
+    public String toString() {
+        return "{ sourceRunners:" + sourceRunners + " sinkRunners:" + sinkRunners
+                + " channels:" + channels + " }";
+    }
 
-  @Override
-  public void addSinkRunner(String name, SinkRunner sinkRunner) {
-    sinkRunners.put(name, sinkRunner);
-  }
+    @Override
+    public void addSourceRunner(String name, SourceRunner sourceRunner) {
+        sourceRunners.put(name, sourceRunner);
+    }
 
-  @Override
-  public void addChannel(String name, Channel channel) {
-    channels.put(name, channel);
-  }
+    @Override
+    public void addSinkRunner(String name, SinkRunner sinkRunner) {
+        sinkRunners.put(name, sinkRunner);
+    }
 
-  @Override
-  public ImmutableMap<String, Channel> getChannels() {
-    return ImmutableMap.copyOf(channels);
-  }
+    @Override
+    public void addChannel(String name, Channel channel) {
+        channels.put(name, channel);
+    }
 
-  @Override
-  public ImmutableMap<String, SourceRunner> getSourceRunners() {
-    return ImmutableMap.copyOf(sourceRunners);
-  }
+    @Override
+    public ImmutableMap<String, Channel> getChannels() {
+        return ImmutableMap.copyOf(channels);
+    }
 
-  @Override
-  public ImmutableMap<String, SinkRunner> getSinkRunners() {
-    return ImmutableMap.copyOf(sinkRunners);
-  }
+    @Override
+    public ImmutableMap<String, SourceRunner> getSourceRunners() {
+        return ImmutableMap.copyOf(sourceRunners);
+    }
+
+    @Override
+    public ImmutableMap<String, SinkRunner> getSinkRunners() {
+        return ImmutableMap.copyOf(sinkRunners);
+    }
 
 }

@@ -52,6 +52,7 @@ public class StringSinkTests extends AbstractFlumeTests {
     @Mock
     protected Record<String> mockRecord;
 
+
     private AvroSource source;
     private Channel channel;
     private InetAddress localhost;
@@ -82,20 +83,24 @@ public class StringSinkTests extends AbstractFlumeTests {
 
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             long sequenceCounter = 0;
+
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return Optional.of( "key-" + sequenceCounter++);
-            }});
+                return Optional.of("key-" + sequenceCounter++);
+            }
+        });
 
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             long sequenceCounter = 0;
+
             public String answer(InvocationOnMock invocation) throws Throwable {
-                return new String( "value-" + sequenceCounter++);
-            }});
+                return new String("value-" + sequenceCounter++);
+            }
+        });
     }
 
     @AfterMethod
     public void tearDown() throws Exception {
-
+        source.stop();
     }
 
     protected final void send(StringSink stringSink, int numRecords) throws Exception {
@@ -127,6 +132,5 @@ public class StringSinkTests extends AbstractFlumeTests {
         verify(mockRecord, times(100)).ack();
         transaction.commit();
         transaction.close();
-        source.stop();
     }
 }

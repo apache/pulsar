@@ -25,31 +25,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StaticZooKeeperConfigurationProvider extends
-    AbstractZooKeeperConfigurationProvider {
+        AbstractZooKeeperConfigurationProvider {
 
-  private static final Logger LOGGER = LoggerFactory
-      .getLogger(StaticZooKeeperConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory
+            .getLogger(StaticZooKeeperConfigurationProvider.class);
 
-  public StaticZooKeeperConfigurationProvider(String agentName,
-      String zkConnString, String basePath) {
-    super(agentName, zkConnString, basePath);
-  }
-
-  @Override
-  protected FlumeConfiguration getFlumeConfiguration() {
-    try {
-      CuratorFramework cf = createClient();
-      cf.start();
-      try {
-        byte[] data = cf.getData().forPath(basePath + "/" + getAgentName());
-        return configFromBytes(data);
-      } finally {
-        cf.close();
-      }
-    } catch (Exception e) {
-      LOGGER.error("Error getting configuration info from Zookeeper", e);
-      throw new FlumeException(e);
+    public StaticZooKeeperConfigurationProvider(String agentName,
+                                                String zkConnString, String basePath) {
+        super(agentName, zkConnString, basePath);
     }
-  }
+
+    @Override
+    protected FlumeConfiguration getFlumeConfiguration() {
+        try {
+            CuratorFramework cf = createClient();
+            cf.start();
+            try {
+                byte[] data = cf.getData().forPath(basePath + "/" + getAgentName());
+                return configFromBytes(data);
+            } finally {
+                cf.close();
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error getting configuration info from Zookeeper", e);
+            throw new FlumeException(e);
+        }
+    }
 
 }

@@ -31,16 +31,16 @@ import com.google.common.collect.ImmutableMap;
  */
 public interface MaterializedConfiguration {
 
-  public void addSourceRunner(String name, SourceRunner sourceRunner);
+    public void addSourceRunner(String name, SourceRunner sourceRunner);
 
-  public void addSinkRunner(String name, SinkRunner sinkRunner);
+    public void addSinkRunner(String name, SinkRunner sinkRunner);
 
-  public void addChannel(String name, Channel channel);
+    public void addChannel(String name, Channel channel);
 
-  public ImmutableMap<String, SourceRunner> getSourceRunners();
+    public ImmutableMap<String, SourceRunner> getSourceRunners();
 
-  public ImmutableMap<String, SinkRunner> getSinkRunners();
+    public ImmutableMap<String, SinkRunner> getSinkRunners();
 
-  public ImmutableMap<String, Channel> getChannels();
+    public ImmutableMap<String, Channel> getChannels();
 
 }

@@ -66,7 +66,7 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
     }
 
     @Override
-    public void doStop () {
+    public void doStop() {
         log.info("stop source of flume ...");
         this.counter.stop();
     }

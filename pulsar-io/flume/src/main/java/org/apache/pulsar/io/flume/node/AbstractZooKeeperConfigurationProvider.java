@@ -35,70 +35,70 @@ import com.google.common.base.Strings;
 
 /**
  * ZooKeeper based configuration implementation provider.
- * 
+ *
  * The Agent configuration can be uploaded in ZooKeeper under a base name, which
  * defaults to /flume
- * 
+ *
  * Currently the agent configuration is stored under the agent name node in
  * ZooKeeper
- * 
+ *
  * <PRE>
  *   /flume
  *       /a1 [agent config file]
  *       /a2 [agent config file]
  *       /a3 [agent config file]
  * </PRE>
- * 
+ *
  * Configuration format is same as PropertiesFileConfigurationProvider
- * 
+ *
  * Configuration properties
- * 
+ *
  * agentName - Name of Agent for which configuration needs to be pulled
- * 
+ *
  * zkConnString - Connection string to ZooKeeper Ensemble
  * (host:port,host1:port1)
- * 
+ *
  * basePath - Base Path where agent configuration needs to be stored. Defaults
  * to /flume
  */
 public abstract class AbstractZooKeeperConfigurationProvider extends
-    AbstractConfigurationProvider {
+        AbstractConfigurationProvider {
 
-  static final String DEFAULT_ZK_BASE_PATH = "/flume";
+    static final String DEFAULT_ZK_BASE_PATH = "/flume";
 
-  protected final String basePath;
+    protected final String basePath;
 
-  protected final String zkConnString;
+    protected final String zkConnString;
 
-  protected AbstractZooKeeperConfigurationProvider(String agentName,
-      String zkConnString, String basePath) {
-    super(agentName);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(zkConnString),
-        "Invalid Zookeeper Connection String %s", zkConnString);
-    this.zkConnString = zkConnString;
-    if (basePath == null || basePath.isEmpty()) {
-      this.basePath = DEFAULT_ZK_BASE_PATH;
-    } else {
-      this.basePath = basePath;
+    protected AbstractZooKeeperConfigurationProvider(String agentName,
+                                                     String zkConnString, String basePath) {
+        super(agentName);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(zkConnString),
+                "Invalid Zookeeper Connection String %s", zkConnString);
+        this.zkConnString = zkConnString;
+        if (basePath == null || basePath.isEmpty()) {
+            this.basePath = DEFAULT_ZK_BASE_PATH;
+        } else {
+            this.basePath = basePath;
+        }
     }
-  }
 
-  protected CuratorFramework createClient() {
-    return CuratorFrameworkFactory.newClient(zkConnString,
-        new ExponentialBackoffRetry(1000, 1));
-  }
-
-  protected FlumeConfiguration configFromBytes(byte[] configData)
-      throws IOException {
-    Map<String, String> configMap;
-    if (configData == null || configData.length == 0) {
-      configMap = Collections.emptyMap();
-    } else {
-      String fileContent = new String(configData, Charsets.UTF_8);
-      Properties properties = new Properties();
-      properties.load(new StringReader(fileContent));
-      configMap = toMap(properties);
+    protected CuratorFramework createClient() {
+        return CuratorFrameworkFactory.newClient(zkConnString,
+                new ExponentialBackoffRetry(1000, 1));
     }
-    return new FlumeConfiguration(configMap);
-  }
+
+    protected FlumeConfiguration configFromBytes(byte[] configData)
+            throws IOException {
+        Map<String, String> configMap;
+        if (configData == null || configData.length == 0) {
+            configMap = Collections.emptyMap();
+        } else {
+            String fileContent = new String(configData, Charsets.UTF_8);
+            Properties properties = new Properties();
+            properties.load(new StringReader(fileContent));
+            configMap = toMap(properties);
+        }
+        return new FlumeConfiguration(configMap);
+    }
 }

@@ -31,31 +31,31 @@ import java.util.regex.Pattern;
  * variable inclusions
  */
 public class EnvVarResolverProperties extends Properties {
-  /**
-   * @param input The input string with ${ENV_VAR_NAME}-style environment variable names
-   * @return The output string with ${ENV_VAR_NAME} replaced with their environment variable values
-   */
-  protected static String resolveEnvVars(String input) {
-    Preconditions.checkNotNull(input);
-    // match ${ENV_VAR_NAME}
-    Pattern p = Pattern.compile("\\$\\{(\\w+)\\}");
-    Matcher m = p.matcher(input);
-    StringBuffer sb = new StringBuffer();
-    while (m.find()) {
-      String envVarName = m.group(1);
-      String envVarValue = System.getenv(envVarName);
-      m.appendReplacement(sb, null == envVarValue ? "" : envVarValue);
+    /**
+     * @param input The input string with ${ENV_VAR_NAME}-style environment variable names
+     * @return The output string with ${ENV_VAR_NAME} replaced with their environment variable values
+     */
+    protected static String resolveEnvVars(String input) {
+        Preconditions.checkNotNull(input);
+        // match ${ENV_VAR_NAME}
+        Pattern p = Pattern.compile("\\$\\{(\\w+)\\}");
+        Matcher m = p.matcher(input);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String envVarName = m.group(1);
+            String envVarValue = System.getenv(envVarName);
+            m.appendReplacement(sb, null == envVarValue ? "" : envVarValue);
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
-    m.appendTail(sb);
-    return sb.toString();
-  }
 
-  /**
-   * @param key the property key
-   * @return the value of the property key with ${ENV_VAR_NAME}-style environment variables replaced
-   */
-  @Override
-  public String getProperty(String key) {
-    return resolveEnvVars(super.getProperty(key));
-  }
+    /**
+     * @param key the property key
+     * @return the value of the property key with ${ENV_VAR_NAME}-style environment variables replaced
+     */
+    @Override
+    public String getProperty(String key) {
+        return resolveEnvVars(super.getProperty(key));
+    }
 }

@@ -118,7 +118,6 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
 
     @Override
     public synchronized void stop() {
-
     }
 
 }

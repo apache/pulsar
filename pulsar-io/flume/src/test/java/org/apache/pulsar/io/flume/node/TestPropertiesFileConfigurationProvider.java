@@ -35,72 +35,72 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-public class TestPropertiesFileConfigurationProvider  {
+public class TestPropertiesFileConfigurationProvider {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(TestPropertiesFileConfigurationProvider.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(TestPropertiesFileConfigurationProvider.class);
 
-  private static final File TESTFILE = new File(
-      TestPropertiesFileConfigurationProvider.class.getClassLoader()
-          .getResource("flume-conf.properties").getFile());
+    private static final File TESTFILE = new File(
+            TestPropertiesFileConfigurationProvider.class.getClassLoader()
+                    .getResource("flume-conf.properties").getFile());
 
-  private PropertiesFileConfigurationProvider provider;
+    private PropertiesFileConfigurationProvider provider;
 
-  @Before
-  public void setUp() throws Exception {
-    provider = new PropertiesFileConfigurationProvider("test", TESTFILE);
-  }
+    @Before
+    public void setUp() throws Exception {
+        provider = new PropertiesFileConfigurationProvider("test", TESTFILE);
+    }
 
-  @After
-  public void tearDown() throws Exception {
+    @After
+    public void tearDown() throws Exception {
 
-  }
+    }
 
-  @Test
-  public void testPropertyRead() throws Exception {
+    @Test
+    public void testPropertyRead() throws Exception {
 
-    FlumeConfiguration configuration = provider.getFlumeConfiguration();
-    Assert.assertNotNull(configuration);
+        FlumeConfiguration configuration = provider.getFlumeConfiguration();
+        Assert.assertNotNull(configuration);
 
     /*
      * Test the known errors in the file
      */
-    List<String> expected = Lists.newArrayList();
-    expected.add("host5 CONFIG_ERROR");
-    expected.add("host5 INVALID_PROPERTY");
-    expected.add("host4 CONFIG_ERROR");
-    expected.add("host4 CONFIG_ERROR");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 PROPERTY_VALUE_NULL");
-    expected.add("host4 AGENT_CONFIGURATION_INVALID");
-    expected.add("ch2 ATTRS_MISSING");
-    expected.add("host3 CONFIG_ERROR");
-    expected.add("host3 PROPERTY_VALUE_NULL");
-    expected.add("host3 AGENT_CONFIGURATION_INVALID");
-    expected.add("host2 PROPERTY_VALUE_NULL");
-    expected.add("host2 AGENT_CONFIGURATION_INVALID");
-    List<String> actual = Lists.newArrayList();
-    for (FlumeConfigurationError error : configuration.getConfigurationErrors()) {
-      actual.add(error.getComponentName() + " " + error.getErrorType().toString());
+        List<String> expected = Lists.newArrayList();
+        expected.add("host5 CONFIG_ERROR");
+        expected.add("host5 INVALID_PROPERTY");
+        expected.add("host4 CONFIG_ERROR");
+        expected.add("host4 CONFIG_ERROR");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 PROPERTY_VALUE_NULL");
+        expected.add("host4 AGENT_CONFIGURATION_INVALID");
+        expected.add("ch2 ATTRS_MISSING");
+        expected.add("host3 CONFIG_ERROR");
+        expected.add("host3 PROPERTY_VALUE_NULL");
+        expected.add("host3 AGENT_CONFIGURATION_INVALID");
+        expected.add("host2 PROPERTY_VALUE_NULL");
+        expected.add("host2 AGENT_CONFIGURATION_INVALID");
+        List<String> actual = Lists.newArrayList();
+        for (FlumeConfigurationError error : configuration.getConfigurationErrors()) {
+            actual.add(error.getComponentName() + " " + error.getErrorType().toString());
+        }
+        Collections.sort(expected);
+        Collections.sort(actual);
+        Assert.assertEquals(expected, actual);
+
+        AgentConfiguration agentConfiguration =
+                configuration.getConfigurationFor("host1");
+        Assert.assertNotNull(agentConfiguration);
+
+        LOGGER.info(agentConfiguration.getPrevalidationConfig());
+        LOGGER.info(agentConfiguration.getPostvalidationConfig());
+
+        Set<String> sources = Sets.newHashSet("source1");
+        Set<String> sinks = Sets.newHashSet("sink1");
+        Set<String> channels = Sets.newHashSet("channel1");
+
+        Assert.assertEquals(sources, agentConfiguration.getSourceSet());
+        Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
+        Assert.assertEquals(channels, agentConfiguration.getChannelSet());
     }
-    Collections.sort(expected);
-    Collections.sort(actual);
-    Assert.assertEquals(expected, actual);
-
-    AgentConfiguration agentConfiguration =
-        configuration.getConfigurationFor("host1");
-    Assert.assertNotNull(agentConfiguration);
-
-    LOGGER.info(agentConfiguration.getPrevalidationConfig());
-    LOGGER.info(agentConfiguration.getPostvalidationConfig());
-
-    Set<String> sources = Sets.newHashSet("source1");
-    Set<String> sinks = Sets.newHashSet("sink1");
-    Set<String> channels = Sets.newHashSet("channel1");
-
-    Assert.assertEquals(sources, agentConfiguration.getSourceSet());
-    Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
-    Assert.assertEquals(channels, agentConfiguration.getChannelSet());
-  }
 }
