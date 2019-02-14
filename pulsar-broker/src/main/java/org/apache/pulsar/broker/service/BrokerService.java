@@ -462,16 +462,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return getTopic(topic, false /* createIfMissing */);
     }
 
-    public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-    	return getOrCreateTopic(topic, true /* use allowAutoTopicCreation */);
-    }
-    
-    public CompletableFuture<Topic> getOrCreateTopic(String topic, boolean useAllowAutoTopicCreationSetting) {
-    	boolean createIfMissing = useAllowAutoTopicCreationSetting ? pulsar.getConfiguration().isAllowAutoTopicCreation() : true;
-    	return getTopic(topic, createIfMissing).thenApply(Optional::get);
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic) { 
+        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get); 
     }
 
-    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+    public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
