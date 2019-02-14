@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
+ * <p>
+ * All the operations on the consumer instance are thread safe.
  */
 public interface Consumer<T> extends Closeable {
 
@@ -45,15 +47,22 @@ public interface Consumer<T> extends Closeable {
      * Unsubscribe the consumer
      * <p>
      * This call blocks until the consumer is unsubscribed.
+     * <p>
+     * Unsubscribing will the subscription to be deleted and all the
+     * data retained can potentially be deleted as well.
+     * <p>
+     * The operation will fail when performed on a shared subscription
+     * where multiple consumers are currently connected.
      *
-     * @throws PulsarClientException
+     * @throws PulsarClientException if the operation fails
      */
     void unsubscribe() throws PulsarClientException;
 
     /**
      * Asynchronously unsubscribe the consumer
      *
-     * @return {@link CompletableFuture} for this operation
+     * @see Consumer#unsubscribe()
+     * @return {@link CompletableFuture} to track the operation
      */
     CompletableFuture<Void> unsubscribeAsync();
 
@@ -111,10 +120,10 @@ public interface Consumer<T> extends Closeable {
     void acknowledge(Message<?> message) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of a single message, identified by its MessageId
+     * Acknowledge the consumption of a single message, identified by its {@link MessageId}.
      *
      * @param messageId
-     *            The {@code MessageId} to be acknowledged
+     *            The {@link MessageId} to be acknowledged
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */

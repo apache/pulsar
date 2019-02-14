@@ -55,12 +55,12 @@ public class KafkaSinkConfig implements Serializable {
           + "before considering a request complete. This controls the durability of records that are sent.")
     private String acks;
     @FieldDoc(
-        defaultValue = "16384",
+        defaultValue = "16384L",
         help =
             "The batch size that Kafka producer will attempt to batch records together before sending them to brokers.")
     private long batchSize = 16384L;
     @FieldDoc(
-        defaultValue = "16384",
+        defaultValue = "1048576L",
         help =
             "The maximum size of a Kafka request in bytes.")
     private long maxRequestSize = 1048576L;
@@ -81,6 +81,12 @@ public class KafkaSinkConfig implements Serializable {
             "The serializer class for Kafka producer to serialize values. You typically shouldn't care this. "
           + "Since the serializer will be set by a specific implementation of `KafkaAbstractSink`.")
     private String valueSerializerClass = "org.apache.kafka.common.serialization.ByteArraySerializer";
+    @FieldDoc(
+        defaultValue = "",
+        help =
+            "The producer config properties to be passed to Producer. Note that other properties specified "
+          + "in the connector config file take precedence over this config.")
+    private Map<String, Object> producerConfigProperties;
 
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

@@ -25,19 +25,27 @@ package org.apache.pulsar.client.api;
  */
 public enum SubscriptionType {
     /**
-     * There can be only 1 consumer on the same topic with the same subscription name
+     * There can be only 1 consumer on the same topic with the same subscription name.
      */
     Exclusive,
 
     /**
      * Multiple consumer will be able to use the same subscription name and the messages will be dispatched according to
-     * a round-robin rotation between the connected consumers
+     * a round-robin rotation between the connected consumers.
+     * <p>
+     * In this mode, the consumption order is not guaranteed.
      */
     Shared,
 
     /**
      * Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
      * If that consumer disconnects, one of the other connected consumers will start receiving messages.
+     * <p>
+     * In failover mode, the consumption ordering is guaranteed.
+     * <p>
+     * In case of partitioned topics, the ordering is guaranteed on a per-partition basis. The partitions assignments will
+     * be split across the available consumers. On each partition, at most one consumer will be active at a given point
+     * in time.
      */
     Failover
 }

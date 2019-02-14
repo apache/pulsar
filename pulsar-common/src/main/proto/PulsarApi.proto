@@ -65,6 +65,7 @@ enum CompressionType {
 	NONE   = 0;
 	LZ4    = 1;
 	ZLIB   = 2;
+	ZSTD   = 3;
 }
 
 message MessageMetadata {

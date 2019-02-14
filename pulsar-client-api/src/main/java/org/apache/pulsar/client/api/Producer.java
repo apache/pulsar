@@ -22,11 +22,9 @@ import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Producer object.
+ * Producer is used to publish messages on a topic.
  *
- * The producer is used to publish messages on a topic
- *
- *
+ * A single producer instance can be used across multiple threads.
  */
 public interface Producer<T> extends Closeable {
 
@@ -97,15 +95,13 @@ public interface Producer<T> extends Closeable {
      *
      * This message builder allows to specify additional properties on the message. For example:
      *
-     * <pre>
-     * <code>
+     * <pre>{@code
      * producer.newMessage()
      *       .key(messageKey)
      *       .value(myValue)
      *       .property("user-defined-property", "value")
      *       .send();
-     * </code>
-     * </pre>
+     * }</pre>
      *
      * @return a typed message builder that can be used to construct the message to be sent through this producer
      */
@@ -165,7 +161,7 @@ public interface Producer<T> extends Closeable {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * @return Whether the producer is connected to the broker
+     * @return Whether the producer is currently connected to the broker
      */
     boolean isConnected();
 }

@@ -24,9 +24,7 @@
 #include "pulsar/Result.h"
 #include "UnboundedBlockingQueue.h"
 #include "HandlerBase.h"
-#include "boost/enable_shared_from_this.hpp"
 #include "ClientConnection.h"
-#include <boost/shared_ptr.hpp>
 #include "lib/UnAckedMessageTrackerEnabled.h"
 #include "Commands.h"
 #include "ExecutorService.h"
@@ -51,11 +49,8 @@ class UnAckedMessageTracker;
 class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
-typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef boost::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
-typedef boost::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
+typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
+typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {
@@ -65,7 +60,7 @@ enum ConsumerTopicType
 
 class ConsumerImpl : public ConsumerImplBase,
                      public HandlerBase,
-                     public boost::enable_shared_from_this<ConsumerImpl> {
+                     public std::enable_shared_from_this<ConsumerImpl> {
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscription,
                  const ConsumerConfiguration&,
@@ -83,6 +78,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
+    inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
     void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
@@ -147,7 +143,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
     Optional<MessageId> clearReceiveQueue();
 
-    boost::mutex mutexForReceiveWithZeroQueueSize;
+    std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
     const std::string subscription_;
     std::string originalSubscriptionName_;
@@ -168,7 +164,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     bool messageListenerRunning_;
-    boost::mutex messageListenerMutex_;
+    std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

@@ -24,7 +24,7 @@ cd /pulsar
 SRC_ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $SRC_ROOT_DIR/pulsar-client-cpp/pkg/deb
 
-POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
+POM_VERSION=`$SRC_ROOT_DIR/src/get-project-version.py`
 # Sanitize VERSION by removing `SNAPSHOT` if any since it's not legal in DEB
 VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
@@ -39,7 +39,6 @@ pushd $CPP_DIR
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarStatic -j 3
-strip lib/libpulsar.*
 popd
 
 DEST_DIR=apache-pulsar-client

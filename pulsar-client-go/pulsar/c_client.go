@@ -25,17 +25,18 @@ package pulsar
 */
 import "C"
 import (
-	"log"
 	"runtime"
 	"strings"
 	"unsafe"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
 )
 
 //export pulsarClientLoggerProxy
 func pulsarClientLoggerProxy(level C.pulsar_logger_level_t, file *C.char, line C.int, message *C.char, ctx unsafe.Pointer) {
-	logger := restorePointerNoDelete(ctx).(func(LoggerLevel, string, int, string))
+	logger := restorePointerNoDelete(ctx).(func(log.LoggerLevel, string, int, string))
 
-	logger(LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
+	logger(log.LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
 }
 
 func newClient(options ClientOptions) (Client, error) {
@@ -63,8 +64,8 @@ func newClient(options ClientOptions) (Client, error) {
 
 	if options.Logger == nil {
 		// Configure a default logger with same date format as Go logs
-		options.Logger = func(level LoggerLevel, file string, line int, message string) {
-			log.Printf("%-5s | %s:%d | %s", level, file, line, message)
+		options.Logger = func(level log.LoggerLevel, file string, line int, message string) {
+			log.Infof("%-5s | %s:%d | %s", level, file, line, message)
 		}
 	}
 
@@ -87,6 +88,10 @@ func newClient(options ClientOptions) (Client, error) {
 
 	if options.TLSAllowInsecureConnection {
 		C.pulsar_client_configuration_set_tls_allow_insecure_connection(conf, cBool(options.TLSAllowInsecureConnection))
+	}
+
+	if options.TLSValidateHostname {
+		C.pulsar_client_configuration_set_validate_hostname(conf, cBool(options.TLSValidateHostname))
 	}
 
 	if options.StatsIntervalInSeconds != 0 {
@@ -144,7 +149,7 @@ func pulsarClientTokenSupplierProxy(ctx unsafe.Pointer) *C.char {
 	tokenSupplier := restorePointerNoDelete(ctx).(func() string)
 	token := tokenSupplier()
 	// The C string will be freed from within the C wrapper itself
-	return C.CString(token);
+	return C.CString(token)
 }
 
 func newAuthenticationTokenSupplier(tokenSupplier func() string) Authentication {

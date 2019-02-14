@@ -352,7 +352,6 @@ public class LocalBookkeeperEnsemble {
     public void start() throws Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();
-        conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         // Use minimal configuration requiring less memory for unit tests
         conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
@@ -376,7 +375,6 @@ public class LocalBookkeeperEnsemble {
 
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         LOG.debug("Local ZK/BK starting ...");
-        conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         conf.setAdvertisedAddress(advertisedAddress);
 
         runZookeeper(1000);
