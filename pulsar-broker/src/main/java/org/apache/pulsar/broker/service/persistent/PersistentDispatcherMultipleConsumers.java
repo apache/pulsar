@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -97,15 +98,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
+        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
-        this.redeliveryTracker = new InMemoryRedeliveryTracker();
+        this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
+                ? new InMemoryRedeliveryTracker()
+                : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 

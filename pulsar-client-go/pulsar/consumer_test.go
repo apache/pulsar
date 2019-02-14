@@ -454,7 +454,53 @@ func TestConsumer_Seek(t *testing.T) {
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
 	t.Logf("again received message:%+v", msg.ID())
-	assert.Equal(t,string(msg.Payload()),"msg-content-0")
+	assert.Equal(t, "msg-content-0", string(msg.Payload()))
 
 	consumer.Unsubscribe()
+}
+
+func TestConsumer_SubscriptionInitPos(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "persistent://public/default/testSeek"
+	subName := "test-subscription-initial-earliest-position"
+
+	// create producer
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	//sent message
+	ctx := context.Background()
+
+	err = producer.Send(ctx, ProducerMessage{
+		Payload: []byte("msg-1-content-1"),
+	})
+	assert.Nil(t, err)
+
+	err = producer.Send(ctx, ProducerMessage{
+		Payload: []byte("msg-1-content-2"),
+	})
+	assert.Nil(t, err)
+
+	// create consumer
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:               topicName,
+		SubscriptionName:    subName,
+		SubscriptionInitPos: Earliest,
+	})
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	msg, err := consumer.Receive(ctx)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "msg-1-content-1", string(msg.Payload()))
 }

@@ -237,6 +237,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable subscription message redelivery tracker to send redelivery "
+                    + "count to consumer (default is enabled)"
+        )
+    private boolean subscriptionRedeliveryTrackerEnabled = true;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"
     )

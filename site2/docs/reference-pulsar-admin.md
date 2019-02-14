@@ -35,10 +35,10 @@ $ pulsar-admin broker-stats subcommand
 
 Subcommands
 * `allocator-stats`
-* `destinations`
+* `topics(destinations)`
 * `mbeans`
 * `monitoring-metrics`
-* `topics`
+* `load-report`
 
 
 ### `allocator-stats`
@@ -50,13 +50,13 @@ Usage
 $ pulsar-admin broker-stats allocator-stats allocator-name
 ```
 
-### `desinations`
+### `topics(destinations)`
 
 Dump topic stats
 
 Usage
 ```bash
-$ pulsar-admin broker-stats destinations options
+$ pulsar-admin broker-stats topics options
 ```
 
 Options
@@ -94,19 +94,14 @@ Options
 |`-i`, `--indent`|Indent JSON output|false|
 
 
-### `topics`
+### `load-report`
 
-Dump topic stats
+Dump broker load-report
 
 Usage
 ```bash
-$ pulsar-admin broker-stats topics options
+$ pulsar-admin broker-stats load-report
 ```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-i`, `--indent`|Indent JSON output|false|
 
 
 ## `brokers`
