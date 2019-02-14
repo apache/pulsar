@@ -80,14 +80,32 @@ public interface Schema<T> {
      */
     Schema<String> STRING = DefaultImplementation.newStringSchema();
 
+    /**
+     * Create a Protobuf schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the Protobuf generated class to be used to extract the schema
+     * @return a Schema instance
+     */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
         return DefaultImplementation.newProtobufSchema(clazz);
     }
 
+    /**
+     * Create a Avro schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the POJO class to be used to extract the Avro schema
+     * @return a Schema instance
+     */
     static <T> Schema<T> AVRO(Class<T> clazz) {
         return DefaultImplementation.newAvroSchema(clazz);
     }
 
+    /**
+     * Create a JSON schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the POJO class to be used to extract the JSON schema
+     * @return a Schema instance
+     */
     static <T> Schema<T> JSON(Class<T> clazz) {
         return DefaultImplementation.newJSONSchema(clazz);
     }
@@ -123,10 +141,31 @@ public interface Schema<T> {
         return AUTO_CONSUME();
     }
 
+    /**
+     * Create a schema instance that automatically deserialize messages
+     * based on the current topic schema.
+     * <p>
+     * The messages values are deserialized into a {@link GenericRecord} object.
+     * <p>
+     * Currently this is only supported with Avro and JSON schema types.
+     *
+     * @return the auto schema instance
+     */
     static Schema<GenericRecord> AUTO_CONSUME() {
         return DefaultImplementation.newAutoConsumeSchema();
     }
 
+    /**
+     * Create a schema instance that accepts a serialized payload
+     * and validates it against the topic schema.
+     * <p>
+     * Currently this is only supported with Avro and JSON schema types.
+     * <p>
+     * This method can be used when publishing a raw JSON payload,
+     * for which the format is known and a POJO class is not avaialable.
+     *
+     * @return the auto schema instance
+     */
     static Schema<byte[]> AUTO_PRODUCE_BYTES() {
         return DefaultImplementation.newAutoProduceSchema();
     }
