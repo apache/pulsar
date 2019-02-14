@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.ServerSslContextRefresher;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
@@ -48,8 +46,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             sslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect(), discoveryService.getWorkerGroup(),
-                    serviceConfig.getCertRefreshCheckDurationInMins(), TimeUnit.MINUTES);
+                    serviceConfig.getTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getCertRefreshCheckDurationInMins());
         } else {
             this.sslCtxRefresher = null;
         }

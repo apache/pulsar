@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.ByteBufPair;
@@ -51,8 +49,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             sslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(), pulsar.getExecutor(),
-                    serviceConfig.getCertRefreshCheckDurationInMins(), TimeUnit.MINUTES);
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getCertRefreshCheckDurationInMins());
         } else {
             this.sslCtxRefresher = null;
         }

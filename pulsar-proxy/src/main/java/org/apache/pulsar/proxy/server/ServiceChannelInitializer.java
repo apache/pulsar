@@ -20,8 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -54,8 +52,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             serverSslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(), proxyService.getWorkerGroup(),
-                    serviceConfig.getCertRefreshCheckDurationInMins(), TimeUnit.MINUTES);
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getCertRefreshCheckDurationInMins());
         } else {
             this.serverSslCtxRefresher = null;
         }
@@ -69,8 +67,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             }
 
             clientSslCtxRefresher = new ClientSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
-                    serviceConfig.getBrokerClientTrustCertsFilePath(), authData, proxyService.getWorkerGroup(),
-                    serviceConfig.getCertRefreshCheckDurationInMins(), TimeUnit.MINUTES);
+                    serviceConfig.getBrokerClientTrustCertsFilePath(), authData);
 
         } else {
             this.clientSslCtxRefresher = null;
