@@ -557,7 +557,7 @@ public class KubernetesRuntime implements Runtime {
 
                     V1PodList response;
                     try {
-                        response = coreClient.listNamespacedPod("default", null, null,
+                        response = coreClient.listNamespacedPod(jobNamespace, null, null,
                                 null, null, labels,
                                 null, null, null, null);
                     } catch (ApiException e) {
