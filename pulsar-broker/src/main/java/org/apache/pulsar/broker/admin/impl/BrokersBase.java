@@ -150,6 +150,13 @@ public class BrokersBase extends AdminResource {
         return BrokerService.getDynamicConfiguration();
     }
 
+    @GET
+    @Path("/configuration/runtime")
+    @ApiOperation(value = "Get all runtime configurations")
+    public List<String> getRuntimeConfiguration() {
+        return pulsar().getBrokerService().getRuntimeConfiguration();
+    }
+
     /**
      * if {@link ServiceConfiguration}-field is allowed to be modified dynamically, update configuration-map into zk, so
      * all other brokers get the watch and can see the change and take appropriate action on the change.

@@ -62,6 +62,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -1336,6 +1337,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return dynamicConfigurationMap.keys();
     }
 
+    public List<String> getRuntimeConfiguration() {
+        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = getRuntimeConfigurationMap();
+        return runtimeConfigurationMap.keys().stream()
+            .map(key -> key + "=" + runtimeConfigurationMap.get(key))
+            .collect(Collectors.toList());
+    }
+
     public static boolean isDynamicConfiguration(String key) {
         return dynamicConfigurationMap.containsKey(key);
     }
@@ -1358,6 +1366,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         }
         return dynamicConfigurationMap;
+    }
+
+    private ConcurrentOpenHashMap<String, Object> getRuntimeConfigurationMap() {
+        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = new ConcurrentOpenHashMap<>();
+        for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
+            if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                field.setAccessible(true);
+                try {
+                    Object configValue = field.get(pulsar.getConfiguration());
+                    runtimeConfigurationMap.put(field.getName(), configValue == null ? "" : configValue);
+                } catch (Exception e) {
+                    log.error("Failed to get value of field {}, {}", field.getName(), e.getMessage());
+                }
+            }
+        }
+        return runtimeConfigurationMap;
     }
 
     /**

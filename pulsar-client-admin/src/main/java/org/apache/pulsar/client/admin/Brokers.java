@@ -92,6 +92,14 @@ public interface Brokers {
     List<String> getDynamicConfigurationNames() throws PulsarAdminException;
 
     /**
+     * Get list of runtime configuration values
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<String> getRuntimeConfigurations() throws PulsarAdminException;
+
+    /**
      * Get values of all overridden dynamic-configs
      * 
      * @return
