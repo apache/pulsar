@@ -1237,6 +1237,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
+            <!-- These files are generated automatically by the Avro compiler
+                 and are included in source tree for convenience -->
+            <exclude>**/avro/generated/*.java</exclude>
+
+            <!-- Avro schema definitions - JSON format -->
+            <exclude>**/*.avsc</exclude>
+
             <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
