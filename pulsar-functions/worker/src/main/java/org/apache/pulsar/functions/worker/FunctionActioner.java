@@ -332,7 +332,7 @@ public class FunctionActioner implements AutoCloseable {
                                 .addAction(
                                         RuntimeUtils.Actions.Action.builder()
                                                 .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
-                                                .numRetries(5)
+                                                .numRetries(10)
                                                 .sleepBetweenInvocationsMs(1000)
                                                 .supplier(() -> {
                                                     try {
