@@ -40,6 +40,7 @@ import io.kubernetes.client.models.V1EnvVarSource;
 import io.kubernetes.client.models.V1LabelSelector;
 import io.kubernetes.client.models.V1ObjectFieldSelector;
 import io.kubernetes.client.models.V1ObjectMeta;
+import io.kubernetes.client.models.V1PodList;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodTemplateSpec;
 import io.kubernetes.client.models.V1ResourceRequirements;
@@ -48,7 +49,6 @@ import io.kubernetes.client.models.V1ServicePort;
 import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
-import io.kubernetes.client.models.V1Status;
 import io.kubernetes.client.models.V1Toleration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -544,6 +544,45 @@ public class KubernetesRuntime implements Runtime {
                 })
                 .build();
 
+        // Need to wait for all pods to die so we can cleanup subscriptions.
+        RuntimeUtils.Actions.Action waitForStatefulPodsToTerminate = RuntimeUtils.Actions.Action.builder()
+                .actionName(String.format("Waiting for pods for function %s to terminate", fqfn))
+                .numRetries(NUM_RETRIES * 2)
+                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS * 2)
+                .supplier(() -> {
+                    String labels = String.format("tenant=%s,namespace=%s,name=%s",
+                            instanceConfig.getFunctionDetails().getTenant(),
+                            instanceConfig.getFunctionDetails().getNamespace(),
+                            instanceConfig.getFunctionDetails().getName());
+
+                    V1PodList response;
+                    try {
+                        response = coreClient.listNamespacedPod("default", null, null,
+                                null, null, labels,
+                                null, null, null, null);
+                    } catch (ApiException e) {
+
+                        String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(errorMsg)
+                                .build();
+                    }
+
+                    if (response.getItems().size() > 0) {
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(response.getItems().size() + " pods still alive.")
+                                .build();
+                    } else {
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(true)
+                                .build();
+                    }
+                })
+                .build();
+
+
         AtomicBoolean success = new AtomicBoolean(false);
         RuntimeUtils.Actions.newBuilder()
                 .addAction(deleteStatefulSet.toBuilder()
@@ -563,6 +602,11 @@ public class KubernetesRuntime implements Runtime {
 
         if (!success.get()) {
             throw new RuntimeException(String.format("Failed to delete statefulset for function %s", fqfn));
+        } else {
+            // wait for pods to terminate
+            RuntimeUtils.Actions.newBuilder()
+                    .addAction(waitForStatefulPodsToTerminate)
+                    .run();
         }
     }
 

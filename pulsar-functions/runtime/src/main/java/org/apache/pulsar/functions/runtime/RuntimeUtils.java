@@ -50,7 +50,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
  * Util class for common runtime functionality
  */
 @Slf4j
-class RuntimeUtils {
+public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
 
