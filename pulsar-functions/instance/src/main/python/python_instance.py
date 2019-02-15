@@ -172,6 +172,7 @@ class PythonInstance(object):
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          receiver_queue_size=int(consumer_conf.receiverQueueSize.receiverQueueSize) if consumer_conf.receiverQueueSize else 1000,
           properties=properties
         )
       else:
@@ -180,6 +181,7 @@ class PythonInstance(object):
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+          receiver_queue_size=int(consumer_conf.receiverQueueSize.receiverQueueSize) if consumer_conf.receiverQueueSize else 1000,
           properties=properties
         )
 

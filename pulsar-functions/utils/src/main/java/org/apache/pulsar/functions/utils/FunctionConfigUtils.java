@@ -97,6 +97,10 @@ public class FunctionConfigUtils {
                 } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
                     bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                 }
+                if (consumerConf.getReceiverQueueSize() != null) {
+                    bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
+                            .setReceiverQueueSize(consumerConf.getReceiverQueueSize()).build());
+                }
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -238,6 +242,9 @@ public class FunctionConfigUtils {
             }
             if (!isEmpty(input.getValue().getSchemaType())) {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            if (input.getValue().hasReceiverQueueSize()) {
+                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getReceiverQueueSize());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfigMap.put(input.getKey(), consumerConfig);
@@ -514,6 +521,16 @@ public class FunctionConfigUtils {
             if (!new File(functionConfig.getPy()).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
+        }
+
+        if (functionConfig.getInputSpecs() != null) {
+            functionConfig.getInputSpecs().forEach((topicName, conf) -> {
+                // receiver queue size should be >= 0
+                if (conf.getReceiverQueueSize() != null && conf.getReceiverQueueSize() < 0) {
+                    throw new IllegalArgumentException(
+                            String.format("Receiver queue size should be >= zero"));
+                }
+            });
         }
     }
 
