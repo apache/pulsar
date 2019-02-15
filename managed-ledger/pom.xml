@@ -41,7 +41,6 @@
     <dependency>
       <groupId>org.apache.bookkeeper.stats</groupId>
       <artifactId>prometheus-metrics-provider</artifactId>
-      <version>${bookkeeper.version}</version>
     </dependency>
 
     <dependency>
@@ -133,6 +132,7 @@
         </configuration>
         <executions>
           <execution>
+            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
