@@ -523,7 +523,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
-                        response = appsClient.readNamespacedStatefulSet(jobNamespace, statefulSetName,
+                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace,
                                 null, null, null);
                     } catch (ApiException e) {
                         // statefulset is gone
