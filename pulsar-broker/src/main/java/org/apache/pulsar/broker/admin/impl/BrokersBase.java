@@ -152,8 +152,10 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration/runtime")
-    @ApiOperation(value = "Get all runtime configurations")
+    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public List<String> getRuntimeConfiguration() {
+        validateSuperUserAccess();
         return pulsar().getBrokerService().getRuntimeConfiguration();
     }
 

@@ -1340,6 +1340,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public List<String> getRuntimeConfiguration() {
         ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = getRuntimeConfigurationMap();
         return runtimeConfigurationMap.keys().stream()
+            .sorted()
             .map(key -> key + "=" + runtimeConfigurationMap.get(key))
             .collect(Collectors.toList());
     }
