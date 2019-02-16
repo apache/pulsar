@@ -22,7 +22,9 @@ package org.apache.pulsar.functions.runtime;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.models.V1Container;
 import io.kubernetes.client.models.V1PodSpec;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -31,21 +33,27 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link ThreadRuntime}.
  */
+@Slf4j
 public class KubernetesRuntimeTest {
 
     private static final String TEST_TENANT = "tenant";
@@ -53,6 +61,9 @@ public class KubernetesRuntimeTest {
     private static final String TEST_NAME = "container";
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
+    private static final Function.Resources RESOURCES = Function.Resources.newBuilder()
+            .setRam(1000L).setCpu(1).setDisk(10000L).build();
+
     static {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
         topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
@@ -135,7 +146,7 @@ public class KubernetesRuntimeTest {
         }
     }
 
-    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir) throws Exception {
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
             null,
             null,
@@ -148,7 +159,8 @@ public class KubernetesRuntimeTest {
             "anotherrepo",
             extraDepsDir,
             null,
-            pulsarServiceUrl,
+                percentMemoryPadding,
+                pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUrl,
             null,
@@ -182,6 +194,7 @@ public class KubernetesRuntimeTest {
         if (addSecrets) {
             functionDetailsBuilder.setSecretsMap("SomeMap");
         }
+        functionDetailsBuilder.setResources(RESOURCES);
         return functionDetailsBuilder.build();
     }
 
@@ -199,10 +212,32 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
+    public void testRamPadding() throws Exception {
+        verifyRamPadding(0, 1000, 1000);
+        verifyRamPadding(5, 1000, 1050);
+        verifyRamPadding(10, 1000, 1100);
+    }
+
+    private void verifyRamPadding(int percentMemoryPadding, long ram, long expectedRamWithPadding) throws Exception {
+        factory = createKubernetesRuntimeFactory(null, percentMemoryPadding);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
+
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+
+        Function.Resources resources = Function.Resources.newBuilder().setRam(ram).build();
+
+        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), resources);
+        Assert.assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(), expectedRamWithPadding);
+        Assert.assertEquals(containerSpec.getResources().getRequests().get("memory").getNumber().longValue(), expectedRamWithPadding);
+    }
+
+
+
+    @Test
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
-        factory = createKubernetesRuntimeFactory(null);
+        factory = createKubernetesRuntimeFactory(null, 10);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
     }
@@ -211,7 +246,7 @@ public class KubernetesRuntimeTest {
     public void testJavaConstructorWithSecrets() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
-        factory = createKubernetesRuntimeFactory(null);
+        factory = createKubernetesRuntimeFactory(null, 10);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", true);
     }
@@ -222,7 +257,7 @@ public class KubernetesRuntimeTest {
 
         String extraDepsDir = "/path/to/deps/dir";
 
-        factory = createKubernetesRuntimeFactory(extraDepsDir);
+        factory = createKubernetesRuntimeFactory(extraDepsDir, 10);
 
         verifyJavaInstance(config, extraDepsDir, false);
     }
@@ -240,14 +275,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 33;
-            portArg = 24;
-            metricsPortArg = 26;
+            totalArgs = 34;
+            portArg = 25;
+            metricsPortArg = 27;
         } else {
             extraDepsEnv = "";
-            portArg = 23;
-            metricsPortArg = 25;
-            totalArgs = 32;
+            portArg = 24;
+            metricsPortArg = 26;
+            totalArgs = 33;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -262,6 +297,7 @@ public class KubernetesRuntimeTest {
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.yml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
+                + " -Xmx" + String.valueOf(RESOURCES.getRam())
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + pulsarRootDir + "/" + userJarFile + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
@@ -278,13 +314,23 @@ public class KubernetesRuntimeTest {
         expectedArgs += " --cluster_name standalone";
 
         assertEquals(String.join(" ", args), expectedArgs);
+
+        // check padding and xmx
+        long heap = Long.parseLong(args.stream().filter(s -> s.startsWith("-Xmx")).collect(Collectors.toList()).get(0).replace("-Xmx", ""));
+        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
+        assertEquals(heap, RESOURCES.getRam());
+        assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(), Math.round(heap + (heap * 0.1)));
+
+        // check cpu
+        assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+        assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
 
     @Test
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON, false);
 
-        factory = createKubernetesRuntimeFactory(null);
+        factory = createKubernetesRuntimeFactory(null, 10);
 
         verifyPythonInstance(config, pulsarRootDir + "/instances/deps", false);
     }
@@ -295,7 +341,7 @@ public class KubernetesRuntimeTest {
 
         String extraDepsDir = "/path/to/deps/dir";
 
-        factory = createKubernetesRuntimeFactory(extraDepsDir);
+        factory = createKubernetesRuntimeFactory(extraDepsDir, 10);
 
         verifyPythonInstance(config, extraDepsDir, false);
     }
@@ -350,6 +396,15 @@ public class KubernetesRuntimeTest {
         }
         expectedArgs += " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
+
+        // check padding and xmx
+        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
+        assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(),
+                Math.round(RESOURCES.getRam() + (RESOURCES.getRam() * 0.1)));
+
+        // check cpu
+        assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
+        assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
 
 }

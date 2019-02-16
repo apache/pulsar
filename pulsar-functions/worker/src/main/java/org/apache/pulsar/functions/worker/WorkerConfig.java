@@ -414,6 +414,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The namespace for storing change config map"
         )
         private String changeConfigMapNamespace;
+
+
+        private int percentMemoryPadding;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
