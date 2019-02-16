@@ -462,11 +462,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return getTopic(topic, false /* createIfMissing */);
     }
 
-    public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, true /* createIfMissing */).thenApply(Optional::get);
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic) { 
+        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get); 
     }
 
-    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+    public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -618,7 +618,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return topicFuture;
     }
 
-    private void createPersistentTopic(final String topic, boolean createIfMissing, CompletableFuture<Optional<Topic>> topicFuture) {
+    private void createPersistentTopic(final String topic, boolean createIfMissing, 
+    		CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
