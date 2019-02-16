@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -67,6 +68,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -1296,7 +1298,13 @@ public class PersistentTopicsBase extends AdminResource {
                         TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
                         if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
-                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                        	final String errSrc;
+                        	if (partitionedTopicMetadata != null) {
+                        		errSrc = " has zero partitions";
+                        	} else {
+                        		errSrc = " has no metadata";
+                        	}
+                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.toString() + errSrc);
                         } else if (!internalGetList().contains(topicName.toString())) {
                             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                         }
@@ -1306,7 +1314,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
+        return pulsar().getBrokerService().getTopic(topicName.toString(), true).thenApply(Optional::get).join();
     }
 
     /**
