@@ -83,7 +83,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get list of runtime configuration values")
+    @Parameters(commandDescription = "Get runtime configuration values")
     private class GetRuntimeConfigCmd extends CliCommand {
 
         @Override

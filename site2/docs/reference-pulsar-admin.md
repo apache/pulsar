@@ -184,7 +184,7 @@ $ pulsar-admin brokers get-internal-config
 ```
 
 ### `get-runtime-config`
-Get list of runtime configuration values
+Get runtime configuration values
 
 Usage
 ```bash
