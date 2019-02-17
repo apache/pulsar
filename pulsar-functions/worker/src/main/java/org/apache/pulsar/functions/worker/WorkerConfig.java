@@ -414,6 +414,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The namespace for storing change config map"
         )
         private String changeConfigMapNamespace;
+
+        @FieldContext(
+                doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
+        )
+        private int percentMemoryPadding;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
