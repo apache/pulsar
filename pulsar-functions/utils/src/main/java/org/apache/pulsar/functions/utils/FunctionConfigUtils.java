@@ -99,7 +99,7 @@ public class FunctionConfigUtils {
                 }
                 if (consumerConf.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
-                            .setReceiverQueueSize(consumerConf.getReceiverQueueSize()).build());
+                            .setValue(consumerConf.getReceiverQueueSize()).build());
                 }
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
@@ -244,7 +244,7 @@ public class FunctionConfigUtils {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
             }
             if (input.getValue().hasReceiverQueueSize()) {
-                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getReceiverQueueSize());
+                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfigMap.put(input.getKey(), consumerConfig);

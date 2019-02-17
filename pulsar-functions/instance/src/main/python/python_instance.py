@@ -84,7 +84,9 @@ class PythonInstance(object):
                state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = queue.Queue(max_buffered_tuples)
+    # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
+    # consumers to processing thread
+    self.queue = queue.Queue(1)
     self.log_topic_handler = None
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
@@ -151,6 +153,7 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
@@ -166,23 +169,25 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
+      consumer_args = {
+        "consumer_type": mode,
+        "message_listener": partial(self.message_listener, self.input_serdes[topic]),
+        "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
+        "properties": properties
+      }
+      if consumer_conf.HasField("receiverQueueSize"):
+        consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
+
       if consumer_conf.isRegexPattern:
         self.consumers[topic] = self.pulsar_client.subscribe(
           re.compile(str(topic)), subscription_name,
-          consumer_type=mode,
-          message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
-          receiver_queue_size=int(consumer_conf.receiverQueueSize.receiverQueueSize) if consumer_conf.receiverQueueSize else 1000,
-          properties=properties
+          **consumer_args
         )
       else:
         self.consumers[topic] = self.pulsar_client.subscribe(
           str(topic), subscription_name,
-          consumer_type=mode,
-          message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
-          receiver_queue_size=int(consumer_conf.receiverQueueSize.receiverQueueSize) if consumer_conf.receiverQueueSize else 1000,
-          properties=properties
+          **consumer_args
         )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
