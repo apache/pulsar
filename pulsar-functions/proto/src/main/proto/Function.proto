@@ -72,6 +72,10 @@ message ConsumerSpec {
 	string schemaType   = 1;
     string serdeClassName = 2;
 	bool isRegexPattern = 3;
+    message ReceiverQueueSize {
+        int32 value = 1;
+    }
+    ReceiverQueueSize receiverQueueSize = 4;
 }
 
 message SourceSpec {
