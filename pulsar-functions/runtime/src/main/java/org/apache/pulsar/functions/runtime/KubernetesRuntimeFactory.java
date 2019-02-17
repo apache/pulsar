@@ -67,6 +67,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String extraDependenciesDir;
         private String changeConfigMap;
         private String changeConfigMapNamespace;
+        private int percentMemoryPadding;
     }
     private final KubernetesInfo kubernetesInfo;
     private final Boolean submittingInsidePod;
@@ -97,6 +98,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pythonExtraDependencyRepository,
                                     String extraDependenciesDir,
                                     Map<String, String> customLabels,
+                                    int percentMemoryPadding,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
@@ -145,6 +147,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.kubernetesInfo.setPulsarAdminUrl(pulsarAdminUri);
         this.kubernetesInfo.setChangeConfigMap(changeConfigMap);
         this.kubernetesInfo.setChangeConfigMapNamespace(changeConfigMapNamespace);
+        this.kubernetesInfo.setPercentMemoryPadding(percentMemoryPadding);
         this.submittingInsidePod = submittingInsidePod;
         this.installUserCodeDependencies = installUserCodeDependencies;
         this.customLabels = customLabels;
@@ -200,7 +203,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             stateStorageServiceUri,
             authConfig,
             secretsProviderConfigurator,
-            expectedMetricsCollectionInterval);
+            expectedMetricsCollectionInterval,
+            this.kubernetesInfo.getPercentMemoryPadding());
     }
 
     @Override

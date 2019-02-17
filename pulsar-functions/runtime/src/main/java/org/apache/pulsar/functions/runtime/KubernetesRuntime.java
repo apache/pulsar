@@ -132,6 +132,7 @@ public class KubernetesRuntime implements Runtime {
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
+    private int percentMemoryPadding;
 
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -155,7 +156,8 @@ public class KubernetesRuntime implements Runtime {
                       String stateStorageServiceUrl,
                       AuthenticationConfig authConfig,
                       SecretsProviderConfigurator secretsProviderConfigurator,
-                      Integer expectedMetricsInterval) throws Exception {
+                      Integer expectedMetricsCollectionInterval,
+                      int percentMemoryPadding) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -168,6 +170,7 @@ public class KubernetesRuntime implements Runtime {
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.percentMemoryPadding = percentMemoryPadding;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -855,7 +858,8 @@ public class KubernetesRuntime implements Runtime {
         return tolerations;
     }
 
-    private V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
+    @VisibleForTesting
+    V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
         // set up the container images
@@ -876,7 +880,14 @@ public class KubernetesRuntime implements Runtime {
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
         final Map<String, Quantity> requests = new HashMap<>();
-        requests.put("memory", Quantity.fromString(Long.toString(resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824)));
+
+        long ram = resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824;
+
+        // add memory padding
+        long padding = Math.round(ram * (percentMemoryPadding / 100.0));
+        long ramWithPadding = ram + padding;
+
+        requests.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
         requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
         resourceRequirements.setLimits(requests);
