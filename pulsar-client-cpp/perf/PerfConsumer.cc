@@ -24,12 +24,11 @@ DECLARE_LOG_OBJECT()
 #include <iostream>
 #include <fstream>
 #include <mutex>
+#include <functional>
 
 using namespace std::chrono;
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/bind.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -205,7 +204,7 @@ void startPerfConsumer(const Arguments& args) {
             }
 
             client.subscribeAsync(topic, subscriberName, consumerConf,
-                                  boost::bind(handleSubscribe, _1, _2, latch));
+                                  std::bind(handleSubscribe, std::placeholders::_1, std::placeholders::_2, latch));
         }
     }
 
@@ -242,13 +241,13 @@ int main(int argc, char** argv) {
     const std::string confFile = "conf/client.conf";
     std::string defaultServiceUrl;
 
-    if (boost::filesystem::exists(confFile)) {
+    std::ifstream file(confFile.c_str());
+    if (file) {
         po::variables_map vm;
         po::options_description confFileDesc;
         confFileDesc.add_options()  //
         ("serviceURL", po::value<std::string>()->default_value("pulsar://localhost:6650"));
 
-        std::ifstream file(confFile.c_str());
         po::store(po::parse_config_file<char>(file, confFileDesc, true), vm);
         po::notify(vm);
 

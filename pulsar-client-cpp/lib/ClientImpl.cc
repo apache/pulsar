@@ -27,7 +27,6 @@
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
-#include <boost/bind.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <openssl/sha.h>
@@ -115,12 +114,11 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     if (serviceUrl_.compare(0, 4, "http") == 0) {
         LOG_DEBUG("Using HTTP Lookup");
         lookupServicePtr_ =
-            std::make_shared<HTTPLookupService>(boost::cref(serviceUrl_), boost::cref(clientConfiguration_),
-                                                boost::cref(clientConfiguration_.getAuthPtr()));
+            std::make_shared<HTTPLookupService>(std::cref(serviceUrl_), std::cref(clientConfiguration_),
+                                                std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ =
-            std::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl));
+        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(std::ref(pool_), std::ref(serviceUrl));
     }
 }
 
@@ -344,10 +342,11 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
             return;
         } else if (conf.getConsumerType() == ConsumerShared) {
             ConsumersList consumers(consumers_);
-            for (ConsumersList::iterator it = consumers.begin(); it != consumers.end(); ++it) {
-                ConsumerImplBasePtr consumer = it->lock();
+            for (auto& weakPtr : consumers) {
+                ConsumerImplBasePtr consumer = weakPtr.lock();
                 if (consumer && consumer->getSubscriptionName() == consumerName && !consumer->isClosed()) {
                     lock.unlock();
+                    LOG_INFO("Reusing existing consumer instance for " << topic << " -- " << consumerName);
                     callback(ResultOk, Consumer(consumer));
                     return;
                 }

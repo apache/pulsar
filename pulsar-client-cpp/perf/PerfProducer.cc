@@ -21,9 +21,6 @@ DECLARE_LOG_OBJECT()
 
 #include <mutex>
 
-#include <boost/bind.hpp>
-#include <boost/filesystem.hpp>
-
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -31,6 +28,7 @@ DECLARE_LOG_OBJECT()
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options.hpp>
 #include <thread>
+#include <functional>
 namespace po = boost::program_options;
 
 #include <atomic>
@@ -152,7 +150,7 @@ void runProducer(const Arguments& args, std::string topicName, int threadIndex,
         }
         pulsar::Message msg = builder.create().setAllocatedContent(payload.get(), args.msgSize).build();
 
-        producer.sendAsync(msg, boost::bind(sendCallback, _1, _2, Clock::now()));
+        producer.sendAsync(msg, std::bind(sendCallback, std::placeholders::_1, std::placeholders::_2, Clock::now()));
         if (exitCondition) {
             LOG_INFO("Thread interrupted. Exiting producer thread.");
             break;
@@ -185,7 +183,7 @@ void startPerfProducer(const Arguments& args, pulsar::ProducerConfiguration &pro
 
             for (int k = 0; k < args.numOfThreadsPerProducer; k++) {
                 threadList.push_back(std::thread(
-                        boost::bind(runProducer, args, topic, k, limiter, producerList[i * args.numProducers + j],
+                        std::bind(runProducer, args, topic, k, limiter, producerList[i * args.numProducers + j],
                                     std::cref(exitCondition))));
             }
         }
@@ -198,13 +196,13 @@ int main(int argc, char** argv) {
     // First try to read default values from config file if present
     const std::string confFile = "conf/client.conf";
 
-    if (boost::filesystem::exists(confFile)) {
+    std::ifstream file(confFile.c_str());
+    if (file) {
         po::variables_map vm;
         po::options_description confFileDesc;
         confFileDesc.add_options()  //
         ("serviceURL", po::value<std::string>()->default_value("pulsar://localhost:6650"));
 
-        std::ifstream file(confFile.c_str());
         po::store(po::parse_config_file<char>(file, confFileDesc, true), vm);
         po::notify(vm);
 

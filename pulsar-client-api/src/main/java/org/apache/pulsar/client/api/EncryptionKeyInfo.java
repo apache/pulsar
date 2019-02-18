@@ -20,13 +20,13 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 
+/**
+ * EncryptionKeyInfo contains the encryption key and corresponding metadata which contains additional information about
+ * the key such as version, timestamp.
+ */
 public class EncryptionKeyInfo {
 
-    /* 
-     * This object contains the encryption key and corresponding metadata which contains 
-     * additional information about the key such as version, timestammp
-     */
-    private Map<String,String> metadata = null;
+    private Map<String, String> metadata = null;
     private byte[] key = null;
 
     public EncryptionKeyInfo() {
@@ -42,15 +42,15 @@ public class EncryptionKeyInfo {
     public byte[] getKey() {
         return key;
     }
-    
+
     public void setKey(byte[] key) {
         this.key = key;
     }
-    
+
     public Map<String, String> getMetadata() {
         return metadata;
     }
-    
+
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
     }

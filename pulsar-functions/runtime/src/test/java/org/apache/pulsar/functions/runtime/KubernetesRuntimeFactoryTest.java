@@ -19,24 +19,20 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1PodSpec;
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Mockito.times;
@@ -44,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link ThreadRuntime}.
@@ -126,7 +123,7 @@ public class KubernetesRuntimeFactoryTest {
         }
     }
 
-    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir) throws Exception {
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
             null,
             null,
@@ -139,14 +136,16 @@ public class KubernetesRuntimeFactoryTest {
             "anotherrepo",
             extraDepsDir,
             null,
-            pulsarServiceUrl,
+                0,
+                pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUrl,
             null,
             null,
             null,
             null,
-            new TestSecretProviderConfigurator()));
+                minResources,
+                new TestSecretProviderConfigurator()));
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -163,11 +162,65 @@ public class KubernetesRuntimeFactoryTest {
 
     @Test
     public void testAdmissionChecks() throws Exception {
-        factory = createKubernetesRuntimeFactory(null);
+        factory = createKubernetesRuntimeFactory(null, null);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
         verify(factory, times(1)).setupClient();
 
     }
 
+    @Test
+    public void testValidateMinResourcesRequired() throws Exception {
+        factory = createKubernetesRuntimeFactory(null, null);
+
+        FunctionDetails functionDetailsBase = createFunctionDetails();
+
+        // min resources are not set
+        try {
+            factory.validateMinResourcesRequired(functionDetailsBase);
+        } catch (Exception e) {
+            fail();
+        }
+
+        testMinResource(0.2, 2048L, false, null);
+        testMinResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(0.2,512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinResource(0.05,512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
+
+        testMinResource(0.05, null, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, 2048L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(null, 512L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+    }
+
+    private void testMinResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
+
+        factory = createKubernetesRuntimeFactory(null, Resources.builder().cpu(0.1).ram(1024L).build());
+        FunctionDetails functionDetailsBase = createFunctionDetails();
+
+        Function.Resources.Builder resources = Function.Resources.newBuilder();
+        if (cpu != null) {
+            resources.setCpu(cpu);
+        }
+        if (ram != null) {
+            resources.setRam(ram);
+        }
+        FunctionDetails functionDetails;
+        if (ram != null || cpu != null) {
+            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
+        } else {
+            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).build();
+        }
+
+        try {
+            factory.validateMinResourcesRequired(functionDetails);
+            if (fail) fail();
+        } catch (IllegalArgumentException e) {
+            if (!fail) fail();
+            if (failError != null) {
+                assertEquals(e.getMessage(), failError);
+            }
+        }
+    }
 }

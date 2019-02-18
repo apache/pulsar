@@ -20,7 +20,6 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
-#include <boost/bind.hpp>
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -138,9 +137,9 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(),
-                                              consumerName_, subscriptionMode_, startMessageId_,
-                                              readCompacted_, config_.getProperties(), config_.getSchema());
+    SharedBuffer cmd = Commands::newSubscribe(
+        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
+        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -304,8 +303,8 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         lock.unlock();
 
         if (asyncReceivedWaiting) {
-            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                    shared_from_this(), ResultOk, m, callback));
+            listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                  shared_from_this(), ResultOk, m, callback));
             return;
         }
 
@@ -341,8 +340,8 @@ void ConsumerImpl::failPendingReceiveCallback() {
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
-        listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                shared_from_this(), ResultAlreadyClosed, msg, callback));
+        listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                              shared_from_this(), ResultAlreadyClosed, msg, callback));
     }
     lock.unlock();
 }
@@ -391,8 +390,8 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
             ReceiveCallback callback = pendingReceives_.front();
             pendingReceives_.pop();
             lock.unlock();
-            listenerExecutor_->postWork(boost::bind(&ConsumerImpl::notifyPendingReceivedCallback,
-                                                    shared_from_this(), ResultOk, msg, callback));
+            listenerExecutor_->postWork(std::bind(&ConsumerImpl::notifyPendingReceivedCallback,
+                                                  shared_from_this(), ResultOk, msg, callback));
         } else {
             // Regular path, append individual message to incoming messages queue
             incomingMessages_.push(msg);
@@ -718,6 +717,17 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 
         case ConsumerFailover:
             return proto::CommandSubscribe::Failover;
+    }
+}
+
+inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
+    InitialPosition initialPosition = config_.getSubscriptionInitialPosition();
+    switch (initialPosition) {
+        case InitialPositionLatest:
+            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Latest;
+
+        case InitialPositionEarliest:
+            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Earliest;
     }
 }
 

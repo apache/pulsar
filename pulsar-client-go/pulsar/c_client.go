@@ -90,6 +90,10 @@ func newClient(options ClientOptions) (Client, error) {
 		C.pulsar_client_configuration_set_tls_allow_insecure_connection(conf, cBool(options.TLSAllowInsecureConnection))
 	}
 
+	if options.TLSValidateHostname {
+		C.pulsar_client_configuration_set_validate_hostname(conf, cBool(options.TLSValidateHostname))
+	}
+
 	if options.StatsIntervalInSeconds != 0 {
 		C.pulsar_client_configuration_set_stats_interval_in_seconds(conf, C.uint(options.StatsIntervalInSeconds))
 	}

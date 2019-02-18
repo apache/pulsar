@@ -32,6 +32,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -66,6 +67,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String extraDependenciesDir;
         private String changeConfigMap;
         private String changeConfigMapNamespace;
+        private int percentMemoryPadding;
     }
     private final KubernetesInfo kubernetesInfo;
     private final Boolean submittingInsidePod;
@@ -82,6 +84,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Timer changeConfigMapTimer;
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
+    private Resources functionInstanceMinResources;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -95,6 +98,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pythonExtraDependencyRepository,
                                     String extraDependenciesDir,
                                     Map<String, String> customLabels,
+                                    int percentMemoryPadding,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
@@ -102,6 +106,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     Integer expectedMetricsCollectionInterval,
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
+                                    Resources functionInstanceMinResources,
                                     SecretsProviderConfigurator secretsProviderConfigurator) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
@@ -142,6 +147,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.kubernetesInfo.setPulsarAdminUrl(pulsarAdminUri);
         this.kubernetesInfo.setChangeConfigMap(changeConfigMap);
         this.kubernetesInfo.setChangeConfigMapNamespace(changeConfigMapNamespace);
+        this.kubernetesInfo.setPercentMemoryPadding(percentMemoryPadding);
         this.submittingInsidePod = submittingInsidePod;
         this.installUserCodeDependencies = installUserCodeDependencies;
         this.customLabels = customLabels;
@@ -151,6 +157,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.functionInstanceMinResources = functionInstanceMinResources;
     }
 
     @Override
@@ -196,7 +203,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             stateStorageServiceUri,
             authConfig,
             secretsProviderConfigurator,
-            expectedMetricsCollectionInterval);
+            expectedMetricsCollectionInterval,
+            this.kubernetesInfo.getPercentMemoryPadding());
     }
 
     @Override
@@ -206,6 +214,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
+        validateMinResourcesRequired(functionDetails);
         try {
             setupClient();
         } catch (Exception e) {
@@ -268,6 +277,35 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (data.containsKey(field.getName()) && !data.get(field.getName()).equals(field.get(kubernetesInfo))) {
                 log.info("Kubernetes Config {} changed from {} to {}", field.getName(), field.get(kubernetesInfo), data.get(field.getName()));
                 field.set(kubernetesInfo, data.get(field.getName()));
+            }
+        }
+    }
+
+    void validateMinResourcesRequired(Function.FunctionDetails functionDetails) {
+        if (functionInstanceMinResources != null) {
+            Double minCpu = functionInstanceMinResources.getCpu();
+            Long minRam = functionInstanceMinResources.getRam();
+
+            if (minCpu != null) {
+                if (functionDetails.getResources() == null) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance CPU requested is not specified. Must specify CPU requested for function to be at least %s", minCpu));
+                } else if (functionDetails.getResources().getCpu() < minCpu) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance CPU requested, %s, for function is less than the minimum required, %s",
+                                    functionDetails.getResources().getCpu(), minCpu));
+                }
+            }
+
+            if (minRam != null) {
+                if (functionDetails.getResources() == null) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance RAM requested is not specified. Must specify RAM requested for function to be at least %s", minRam));
+                } else if (functionDetails.getResources().getRam() < minRam) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance RAM requested, %s, for function is less than the minimum required, %s",
+                                    functionDetails.getResources().getRam(), minRam));
+                }
             }
         }
     }

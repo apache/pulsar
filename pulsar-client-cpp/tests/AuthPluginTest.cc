@@ -139,6 +139,21 @@ TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     ASSERT_EQ(ResultOk, result);
 }
 
+TEST(AuthPluginTest, testTlsDetectPulsarSslWithHostNameValidation) {
+    ClientConfiguration config = ClientConfiguration();
+    config.setTlsTrustCertsFilePath(caPath);
+    config.setTlsAllowInsecureConnection(false);
+    config.setValidateHostName(true);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+
+    Client client(serviceUrlTls, config);
+    std::string topicName = "persistent://private/auth/testTlsDetectPulsarSslWithHostNameValidation";
+
+    Producer producer;
+    Result res = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultConnectError, res);
+}
+
 TEST(AuthPluginTest, testTlsDetectHttps) {
     ClientConfiguration config = ClientConfiguration();
     config.setUseTls(true);  // shouldn't be needed soon
@@ -156,6 +171,29 @@ TEST(AuthPluginTest, testTlsDetectHttps) {
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
+}
+
+TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
+    try {
+        ClientConfiguration config = ClientConfiguration();
+        config.setUseTls(true);  // shouldn't be needed soon
+        config.setTlsTrustCertsFilePath(caPath);
+        config.setTlsAllowInsecureConnection(false);
+        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+        config.setValidateHostName(true);
+
+        Client client(serviceUrlHttps, config);
+
+        std::string topicName = "persistent://private/auth/test-tls-detect-https";
+
+        Producer producer;
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
+    } catch (...) {
+        FAIL() << "Expected handshake: certificate verify failed";
+    }
 }
 
 namespace testAthenz {

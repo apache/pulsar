@@ -140,6 +140,31 @@ class PulsarTest(TestCase):
         consumer.unsubscribe()
         client.close()
 
+    def test_message_properties(self):
+        client = Client(self.serviceUrl)
+        topic = 'my-python-test-message-properties'
+        consumer = client.subscribe(topic=topic,
+                                    subscription_name='my-subscription',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer(topic=topic,
+                                          schema=StringSchema())
+        producer.send('hello',
+                      properties={
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        msg = consumer.receive()
+        self.assertTrue(msg)
+        self.assertEqual(msg.value(), 'hello')
+        self.assertEqual(msg.properties(), {
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        consumer.unsubscribe()
+        client.close()
+
     def test_tls_auth(self):
         certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
         if not os.path.exists(certs_dir):
@@ -474,7 +499,7 @@ class PulsarTest(TestCase):
 
         content = 'test'.encode('utf-8')
 
-        self._check_value_error(lambda: producer.send(5))
+        self._check_type_error(lambda: producer.send(5))
         self._check_value_error(lambda: producer.send(content, properties='test'))
         self._check_value_error(lambda: producer.send(content, partition_key=5))
         self._check_value_error(lambda: producer.send(content, sequence_id='test'))
@@ -839,7 +864,7 @@ class PulsarTest(TestCase):
         consumer = client.subscribe('my-python-topic-producer-consumer-zstd',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer',
+        producer = client.create_producer('my-python-topic-producer-consumer-zstd',
                                           compression_type=CompressionType.ZSTD)
         producer.send(b'hello')
 
@@ -897,6 +922,14 @@ class PulsarTest(TestCase):
             # Should throw exception
             self.assertTrue(False)
         except ValueError:
+            pass  # Expected
+
+    def _check_type_error(self, fun):
+        try:
+            fun()
+            # Should throw exception
+            self.assertTrue(False)
+        except TypeError:
             pass  # Expected
 
 

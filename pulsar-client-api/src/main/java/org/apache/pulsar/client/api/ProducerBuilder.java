@@ -22,12 +22,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
+
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 
 /**
  * {@link ProducerBuilder} is used to configure and create instances of {@link Producer}.
  *
  * @see PulsarClient#newProducer()
+ * @see PulsarClient#newProducer(Schema)
  */
 public interface ProducerBuilder<T> extends Cloneable {
 
@@ -61,19 +64,19 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Load the configuration from provided <tt>config</tt> map.
      *
      * <p>Example:
-     * <pre>
-     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * <pre>{@code
+     * Map<String, Object> config = new HashMap<>();
      * config.put("producerName", "test-producer");
      * config.put("sendTimeoutMs", 2000);
      *
-     * ProducerBuilder&lt;byte[]&gt; builder = ...;
-     * builder = builder.loadConf(config);
+     * ProducerBuilder<byte[]> builder = client.newProducer()
+     *                  .loadConf(config);
      *
-     * Producer&lt;byte[]&gt; producer = builder.create();
-     * </pre>
+     * Producer<byte[]> producer = builder.create();
+     * }</pre>
      *
-     * @param config configuration to load
-     * @return producer builder instance
+     * @param config configuration map to load
+     * @return the producer builder instance
      */
     ProducerBuilder<T> loadConf(Map<String, Object> config);
 
@@ -83,12 +86,16 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
-     * <pre>
-     * ProducerBuilder builder = client.newProducer().sendTimeout(10, TimeUnit.SECONDS).blockIfQueueFull(true);
+     * <pre>{@code
+     * ProducerBuilder<String> builder = client.newProducer(Schema.STRING)
+     *                  .sendTimeout(10, TimeUnit.SECONDS)
+     *                  .blockIfQueueFull(true);
      *
-     * Producer producer1 = builder.clone().topic(TOPIC_1).create();
-     * Producer producer2 = builder.clone().topic(TOPIC_2).create();
-     * </pre>
+     * Producer<String> producer1 = builder.clone().topic("topic-1").create();
+     * Producer<String> producer2 = builder.clone().topic("topic-2").create();
+     * }</pre>
+     *
+     * @return a clone of the producer builder instance
      */
     ProducerBuilder<T> clone();
 
@@ -97,22 +104,24 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * This argument is required when constructing the produce.
      *
-     * @param topicName
+     * @param topicName the name of the topic
+     * @return the producer builder instance
      */
     ProducerBuilder<T> topic(String topicName);
 
     /**
      * Specify a name for the producer
      * <p>
-     * If not assigned, the system will generate a globally unique name which can be access with
+     * If not assigned, the system will generate a globally unique name which can be accessed with
      * {@link Producer#getProducerName()}.
      * <p>
-     * When specifying a name, it is up to the user to ensure that, for a given topic, the producer name is unique
+     * <b>Warning</b>: When specifying a name, it is up to the user to ensure that, for a given topic, the producer name is unique
      * across all Pulsar's clusters. Brokers will enforce that only a single producer a given name can be publishing on
      * a topic.
      *
      * @param producerName
      *            the custom name to use for the producer
+     * @return the producer builder instance
      */
     ProducerBuilder<T> producerName(String producerName);
 
@@ -120,13 +129,16 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Set the send timeout <i>(default: 30 seconds)</i>
      * <p>
      * If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
-     * Setting the timeout to zero, for example <code>setTimeout(0, TimeUnit.SECONDS)</code> will set the timeout
-     * to infinity, which can be useful when using Pulsar's message deduplication feature.
+     * <p>
+     * Setting the timeout to zero, for example {@code setTimeout(0, TimeUnit.SECONDS)} will set the timeout
+     * to infinity, which can be useful when using Pulsar's message deduplication feature, since the client
+     * library will retry forever to publish a message. No errors will be propagated back to the application.
      *
      * @param sendTimeout
      *            the send timeout
      * @param unit
      *            the time unit of the {@code sendTimeout}
+     * @return the producer builder instance
      */
     ProducerBuilder<T> sendTimeout(int sendTimeout, TimeUnit unit);
 
@@ -134,10 +146,18 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      * <p>
      * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync} will fail
-     * unless blockIfQueueFull is set to true. Use {@link #blockIfQueueFull(boolean)} to change the blocking behavior.
+     * unless {@code blockIfQueueFull=true}. Use {@link #blockIfQueueFull(boolean)} to change the blocking behavior.
+     * <p>
+     * The producer queue size also determines the max amount of memory that will be required by the client application.
+     * Until, the producer gets a successful acknowledgment back from the broker, it will keep in memory (direct memory
+     * pool) all the messages in the pending queue.
+     *
+     * <p>
+     * Default is 1000.
      *
      * @param maxPendingMessages
-     * @return
+     *            the max size of the pending messages queue for the producer
+     * @return the producer builder instance
      */
     ProducerBuilder<T> maxPendingMessages(int maxPendingMessages);
 
@@ -146,8 +166,18 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * This setting will be used to lower the max pending messages for each partition
      * ({@link #maxPendingMessages(int)}), if the total exceeds the configured value.
+     * The purpose of this setting is to have an upper-limit on the number
+     * of pending messages when publishing on a partitioned topic.
+     * <p>
+     * Default is 50000.
+     * <p>
+     * If publishing at high rate over a topic with many partitions (especially when publishing messages without a
+     * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
+     * individual partitions producers.
      *
      * @param maxPendingMessagesAcrossPartitions
+     *            max pending messages across all the partitions
+     * @return the producer builder instance
      */
     ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
@@ -155,26 +185,51 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Set whether the {@link Producer#send} and {@link Producer#sendAsync} operations should block when the outgoing
      * message queue is full.
      * <p>
-     * Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
-     * {@link ProducerQueueIsFullError} when there is no space left in pending queue.
+     * Default is {@code false}. If set to {@code false}, send operations will immediately fail with
+     * {@link ProducerQueueIsFullError} when there is no space left in pending queue. If set to
+     * {@code true}, the {@link Producer#sendAsync} operation will instead block.
+     * <p>
+     * Setting {@code blockIfQueueFull=true} simplifies the task of an application that
+     * just wants to publish messages as fast as possible, without having to worry
+     * about overflowing the producer send queue.
+     * <p>
+     * For example:
+     * <pre><code>
+     * Producer&lt;String&gt; producer = client.newProducer()
+     *                  .topic("my-topic")
+     *                  .blockIfQueueFull(true)
+     *                  .create();
+     *
+     * while (true) {
+     *     producer.sendAsync("my-message")
+     *          .thenAccept(messageId -> {
+     *              System.out.println("Published message: " + messageId);
+     *          })
+     *          .exceptionally(ex -> {
+     *              System.err.println("Failed to publish: " + e);
+     *              return null;
+     *          });
+     * }
+     * </code></pre>
      *
      * @param blockIfQueueFull
      *            whether to block {@link Producer#send} and {@link Producer#sendAsync} operations on queue full
-     * @return
+     * @return the producer builder instance
      */
     ProducerBuilder<T> blockIfQueueFull(boolean blockIfQueueFull);
 
     /**
-     * Set the message routing mode for the partitioned producer.
-     *
-     * Default routing mode is round-robin routing.
-     *
-     * This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)} on a
-     * particular message.
+     * Set the {@link MessageRoutingMode} for a partitioned producer.
+     * <p>
+     * Default routing mode is to round-robin across the available partitions.
+     * <p>
+     * This logic is applied when the application is not setting a key on a
+     * particular message. If the key is set with {@link MessageBuilder#setKey(String)},
+     * then the hash of the key will be used to select a partition for the message.
      *
      * @param messageRoutingMode
      *            the message routing mode
-     * @return producer builder
+     * @return the producer builder instance
      * @see MessageRoutingMode
      */
     ProducerBuilder<T> messageRoutingMode(MessageRoutingMode messageRoutingMode);
@@ -184,15 +239,14 @@ public interface ProducerBuilder<T> extends Cloneable {
      *
      * Standard hashing functions available are:
      * <ul>
-     * <li><code>JavaStringHash</code>: Java <code>String.hashCode()</code>
-     * <li><code>Murmur3_32Hash</code>: Use Murmur3 hashing function.
+     * <li>{@link HashingScheme#JavaStringHash}: Java {@code String.hashCode()} (Default)
+     * <li>{@link HashingScheme#Murmur3_32Hash}: Use Murmur3 hashing function.
      * <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
      * </ul>
      *
-     * Default is <code>JavaStringHash</code>.
-     *
      * @param hashingScheme
      *            the chosen {@link HashingScheme}
+     * @return the producer builder instance
      */
     ProducerBuilder<T> hashingScheme(HashingScheme hashingScheme);
 
@@ -201,59 +255,68 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>
      * By default, message payloads are not compressed. Supported compression types are:
      * <ul>
-     * <li>{@link CompressionType.LZ4}</li>
-     * <li>{@link CompressionType.ZLIB}</li>
-     * <li>{@link CompressionType.ZSTD} (Since Pulsar 2.3. Zstd
-     *      cannot be used if consumer applications are not in version >= 2.3 as well)</li>
+     * <li>{@link CompressionType#NONE}: No compression (Default)</li>
+     * <li>{@link CompressionType#LZ4}: Compress with LZ4 algorithm. Faster but lower compression than ZLib</li>
+     * <li>{@link CompressionType#ZLIB}: Standard ZLib compression</li>
+     * <li>{@link CompressionType#ZSTD} Compress with Zstandard codec. Since Pulsar 2.3. Zstd cannot be used if consumer
+     * applications are not in version >= 2.3 as well</li>
      * </ul>
      *
      * @param compressionType
-     * @return
+     *            the selected compression type
+     * @return the producer builder instance
      */
     ProducerBuilder<T> compressionType(CompressionType compressionType);
 
     /**
-     * Set a custom message routing policy by passing an implementation of MessageRouter
-     *
+     * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      * @param messageRouter
+     * @return the producer builder instance
      */
     ProducerBuilder<T> messageRouter(MessageRouter messageRouter);
 
     /**
-     * Control whether automatic batching of messages is enabled for the producer. <i>default: false [No batching]</i>
-     *
-     * When batching is enabled, multiple calls to Producer.sendAsync can result in a single batch to be sent to the
+     * Control whether automatic batching of messages is enabled for the producer. <i>default: enabled</i>
+     * <p>
+     * When batching is enabled, multiple calls to {@link Producer#sendAsync} can result in a single batch to be sent to the
      * broker, leading to better throughput, especially when publishing small messages. If compression is enabled,
      * messages will be compressed at the batch level, leading to a much better compression ratio for similar headers or
      * contents.
-     *
+     * <p>
      * When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
+     * <p>
+     * Batching is enabled by default since 2.0.0.
      *
-     * <p>Batching is enabled by default since 2.0.0.
-     *
-     * @return producer builder.
      * @see #batchingMaxPublishDelay(long, TimeUnit)
      * @see #batchingMaxMessages(int)
+     * @return the producer builder instance
      */
     ProducerBuilder<T> enableBatching(boolean enableBatching);
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader}.
+     * <p>
+     * Configure the key reader to be used to encrypt the message payloads.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
+     * @return the producer builder instance
      */
     ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.
-     *
+     * <p>
      * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If keys are
-     * found, a callback getKey(String keyName) is invoked against each key to load the values of the key. Application
-     * should implement this callback to return the key in pkcs8 format. If compression is enabled, message is encrypted
-     * after compression. If batch messaging is enabled, the batched message is encrypted.
+     * found, a callback {@link CryptoKeyReader#getPrivateKey(String, Map)} and
+     * {@link CryptoKeyReader#getPublicKey(String, Map)} is invoked against each key to load the values of the key.
+     * Application should implement this callback to return the key in pkcs8 format. If compression is enabled, message
+     * is encrypted after compression. If batch messaging is enabled, the batched message is encrypted.
      *
+     * @param key
+     *            the name of the encryption key in the key store
+     * @return the producer builder instance
      */
     ProducerBuilder<T> addEncryptionKey(String key);
 
@@ -261,71 +324,104 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Sets the ProducerCryptoFailureAction to the value specified
      *
      * @param action
-     *            producer action
+     *            the action the producer will take in case of encryption failures
+     * @return the producer builder instance
      */
     ProducerBuilder<T> cryptoFailureAction(ProducerCryptoFailureAction action);
 
     /**
      * Set the time period within which the messages sent will be batched <i>default: 1 ms</i> if batch messages are
-     * enabled. If set to a non zero value, messages will be queued until this time interval or until
+     * enabled. If set to a non zero value, messages will be queued until either:
+     * <ul>
+     * <li>this time interval expires</li>
+     * <li>the max number of messages in a batch is reached ({@link #batchingMaxMessages(int)})
+     * <li>the max size of batch is reached
+     * </ul>
+     * <p>
+     * All messages will be published as a single batch message. The consumer will be delivered individual messages in
+     * the batch in the same order they were enqueued.
      *
-     * @see ProducerConfiguration#getBatchingMaxMessages()  threshold is reached; all messages will be published as a single
-     *      batch message. The consumer will be delivered individual messages in the batch in the same order they were
-     *      enqueued
      * @param batchDelay
      *            the batch delay
      * @param timeUnit
      *            the time unit of the {@code batchDelay}
-     * @return
+     * @return the producer builder instance
      */
     ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
 
     /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
      * messages will be queued until this threshold is reached or batch interval has elapsed
+     * <p>
+     * All messages in batch will be published as a single batch message. The consumer will be delivered individual
+     * messages in the batch in the same order they were enqueued
      *
-     * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit) All messages in batch will be published as
-     *      a single batch message. The consumer will be delivered individual messages in the batch in the same order
-     *      they were enqueued
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
      * @param batchMessagesMaxMessagesPerBatch
      *            maximum number of messages in a batch
-     * @return
+     * @return the producer builder instance
      */
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.
      * <p>
-     * First message will be using (initialSequenceId + 1) as its sequence id and subsequent messages will be assigned
+     * First message will be using {@code (initialSequenceId + 1)} as its sequence id and subsequent messages will be assigned
      * incremental sequence ids, if not otherwise specified.
      *
-     * @param initialSequenceId
-     * @return
+     * @param initialSequenceId the initial sequence id for the producer
+     * @return the producer builder instance
      */
     ProducerBuilder<T> initialSequenceId(long initialSequenceId);
 
     /**
      * Set a name/value property with this producer.
+     * <p>
+     * Properties are application defined metadata that can be attached to the producer. When getting the topic stats,
+     * this metadata will be associated to the producer stats for easier identification.
      *
      * @param key
+     *            the property key
      * @param value
-     * @return
+     *            the property value
+     * @return the producer builder instance
      */
     ProducerBuilder<T> property(String key, String value);
 
     /**
-     * Add all the properties in the provided map
+     * Add all the properties in the provided map to the producer.
+     * <p>
+     * Properties are application defined metadata that can be attached to the producer. When getting the topic stats,
+     * this metadata will be associated to the producer stats for easier identification.
      *
-     * @param properties
-     * @return
+     * @param key
+     *            the property key
+     * @param value
+     *            the property value
+     * @return the producer builder instance
      */
     ProducerBuilder<T> properties(Map<String, String> properties);
 
     /**
-     * Intercept {@link Producer}.
+     * Add a set of {@link ProducerInterceptor} to the producer.
+     * <p>
+     * Interceptors can be used to trace the publish and acknowledgments operation happening in a producer.
      *
-     * @param interceptors the list of interceptors to intercept the producer created by this builder.
-     * @return producer builder.
+     * @param interceptors
+     *            the list of interceptors to intercept the producer created by this builder.
+     * @return the producer builder instance
      */
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+
+    /**
+     * If enabled, partitioned producer will automatically discover new partitions at runtime. This is only applied on
+     * partitioned topics .
+     * <p>
+     * Default is true.
+     *
+     * @param autoUpdate
+     *            whether to auto discover the partition configuration changes
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 }

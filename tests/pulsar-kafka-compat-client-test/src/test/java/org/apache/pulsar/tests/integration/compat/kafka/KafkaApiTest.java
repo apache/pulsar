@@ -40,9 +40,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
@@ -298,6 +300,132 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         });
 
         consumers.forEach(Consumer::close);
+    }
+
+    @Test
+    public void testExplicitPartitions() throws Exception {
+        String topic = "testExplicitPartitions";
+
+        // Create 8 partitions in topic
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
+        admin.topics().createPartitionedTopic(topic, 8);
+
+        Properties producerProperties = new Properties();
+        producerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
+        producerProperties.put("key.serializer", IntegerSerializer.class.getName());
+        producerProperties.put("value.serializer", StringSerializer.class.getName());
+
+        @Cleanup
+        Producer<Integer, String> producer = new KafkaProducer<>(producerProperties);
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "true");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        // Create Kakfa consumer and verify all messages came from intended partition
+        @Cleanup
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        int N = 8 * 3;
+
+        final int choosenPartition = 5;
+
+        for (int i = 0; i < N; i++) {
+            producer.send(new ProducerRecord<>(topic, choosenPartition, i, "hello-" + i));
+        }
+
+        producer.flush();
+
+        for (int i = 0; i < N;) {
+            ConsumerRecords<String, String> records = consumer.poll(100);
+            i += records.count();
+
+            records.forEach(record -> {
+                assertEquals(record.partition(), choosenPartition);
+            });
+        }
+
+        // No more messages for this consumer
+        ConsumerRecords<String, String> records = consumer.poll(100);
+        assertEquals(records.count(), 0);
+    }
+
+    public static class MyCustomPartitioner implements Partitioner {
+
+        static int USED_PARTITION = 3;
+
+        @Override
+        public void configure(Map<String, ?> conf) {
+            // Do nothing
+        }
+
+        @Override
+        public void close() {
+            // Do nothing
+        }
+
+        @Override
+        public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
+            // Dummy implementation that always return same partition
+            return USED_PARTITION;
+        }
+    }
+
+    @Test
+    public void testCustomRouter() throws Exception {
+        String topic = "testCustomRouter";
+
+        // Create 8 partitions in topic
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
+        admin.topics().createPartitionedTopic(topic, 8);
+
+        Properties producerProperties = new Properties();
+        producerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
+        producerProperties.put("key.serializer", IntegerSerializer.class.getName());
+        producerProperties.put("value.serializer", StringSerializer.class.getName());
+        producerProperties.put("partitioner.class", MyCustomPartitioner.class.getName());
+
+        @Cleanup
+        Producer<Integer, String> producer = new KafkaProducer<>(producerProperties);
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "true");
+        props.put("key.deserializer", IntegerDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        // Create Kakfa consumer and verify all messages came from intended partition
+        @Cleanup
+        Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        int N = 8 * 3;
+
+        for (int i = 0; i < N; i++) {
+            producer.send(new ProducerRecord<>(topic, i, "hello-" + i));
+        }
+
+        producer.flush();
+
+        for (int i = 0; i < N;) {
+            ConsumerRecords<Integer, String> records = consumer.poll(100);
+            i += records.count();
+
+            records.forEach(record -> {
+                assertEquals(record.partition(), MyCustomPartitioner.USED_PARTITION);
+            });
+        }
+
+        // No more messages for this consumer
+        ConsumerRecords<Integer, String> records = consumer.poll(100);
+        assertEquals(records.count(), 0);
     }
 
     @Test

@@ -24,6 +24,10 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
+/**
+ * Factory class that allows to create {@link Authentication} instances
+ * for all the supported authentication methods.
+ */
 public final class AuthenticationFactory {
 
     /**
@@ -31,6 +35,7 @@ public final class AuthenticationFactory {
      *
      * @param token
      *            the client auth token
+     * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(String token) {
         return DefaultImplementation.newAuthenticationToken(token);
@@ -41,6 +46,7 @@ public final class AuthenticationFactory {
      *
      * @param tokenSupplier
      *            a supplier of the client auth token
+     * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(Supplier<String> tokenSupplier) {
         return DefaultImplementation.newAuthenticationToken(tokenSupplier);
@@ -53,19 +59,21 @@ public final class AuthenticationFactory {
      *            the path to the TLS client public key
      * @param keyFilePath
      *            the path to the TLS client private key
+     * @return the Authentication object initialized with the TLS credentials
      */
     public static Authentication TLS(String certFilePath, String keyFilePath) {
         return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the {@link Authentication} object by using
+     * the plugin class name.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
      * @param authParamsString
      *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
-     * @return instance of the Authentication-Plugin
+     * @return instance of the Authentication object
      * @throws UnsupportedAuthenticationException
      */
     public static Authentication create(String authPluginClassName, String authParamsString)

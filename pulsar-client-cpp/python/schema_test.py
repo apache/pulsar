@@ -50,25 +50,25 @@ class SchemaTest(TestCase):
             "name": "Example",
             "type": "record",
             "fields": [
-                {"name": "a", "type": "string"},
-                {"name": "b", "type": "int"},
-                {"name": "c", "type": {
+                {"name": "a", "type": ["null", "string"]},
+                {"name": "b", "type": ["null", "int"]},
+                {"name": "c", "type": ["null", {
                     "type": "array",
-                    "items": "string"}
+                    "items": "string"}]
                 },
                 {"name": "d",
-                 "type": {
+                 "type": ["null", {
                     "type": "enum",
                     "name": "Color",
-                    "symbols": ["red", "green", "blue"]}
+                    "symbols": ["red", "green", "blue"]}]
                  },
-                {"name": "e", "type": "boolean"},
-                {"name": "f", "type": "float"},
-                {"name": "g", "type": "double"},
-                {"name": "h", "type": "bytes"},
-                {"name": "i", "type": {
+                {"name": "e", "type": ["null", "boolean"]},
+                {"name": "f", "type": ["null", "float"]},
+                {"name": "g", "type": ["null", "double"]},
+                {"name": "h", "type": ["null", "bytes"]},
+                {"name": "i", "type": ["null", {
                     "type": "map",
-                    "values": "string"}
+                    "values": "string"}]
                  },
             ]
         })
@@ -88,27 +88,54 @@ class SchemaTest(TestCase):
             "name": "Example",
             "type": "record",
             "fields": [
-                {"name": "a", "type": "string"},
+                {"name": "a", "type": ["null", "string"]},
                 {"name": "sub",
-                 "type": {
+                 "type": ["null", {
                      "name": "MySubRecord",
                      "type": "record",
-                     "fields": [{"name": "x", "type": "int"},
-                                {"name": "y", "type": "long"},
-                                {"name": "z", "type": "string"}]
-                 }
+                     "fields": [{"name": "x", "type": ["null", "int"]},
+                                {"name": "y", "type": ["null", "long"]},
+                                {"name": "z", "type": ["null", "string"]}]
+                 }]
                  },
                  {"name": "sub2",
-                  "type": {
+                  "type": ["null", {
                      "name": "MySubRecord",
                      "type": "record",
-                     "fields": [{"name": "x", "type": "int"},
-                                {"name": "y", "type": "long"},
-                                {"name": "z", "type": "string"}]
-                 }
+                     "fields": [{"name": "x", "type": ["null", "int"]},
+                                {"name": "y", "type": ["null", "long"]},
+                                {"name": "z", "type": ["null", "string"]}]
+                 }]
                  }
             ]
         })
+
+        def test_complex_with_required_fields(self):
+            class MySubRecord(Record):
+                x = Integer(required=True)
+                y = Long(required=True)
+                z = String()
+
+            class Example(Record):
+                a = String(required=True)
+                sub = MySubRecord(required=True)
+
+            self.assertEqual(Example.schema(), {
+                "name": "Example",
+                "type": "record",
+                "fields": [
+                    {"name": "a", "type": "string"},
+                    {"name": "sub",
+                     "type": {
+                         "name": "MySubRecord",
+                         "type": "record",
+                         "fields": [{"name": "x", "type": "int"},
+                                    {"name": "y", "type": "long"},
+                                    {"name": "z", "type": ["null", "string"]}]
+                     }
+                     },
+                ]
+            })
 
     def test_invalid_enum(self):
         class Color:
@@ -122,7 +149,8 @@ class SchemaTest(TestCase):
 
         # Enum will be ignored
         self.assertEqual(InvalidEnum.schema(),
-                         {'name': 'InvalidEnum', 'type': 'record', 'fields': [{'name': 'a', 'type': 'int'}]})
+                         {'name': 'InvalidEnum', 'type': 'record',
+                          'fields': [{'name': 'a', 'type': ["null", 'int']}]})
 
     def test_initialization(self):
         class Example(Record):
@@ -168,8 +196,8 @@ class SchemaTest(TestCase):
             "name": "Example",
             "type": "record",
             "fields": [
-                {"name": "a", "type": "int"},
-                {"name": "b", "type": "int"},
+                {"name": "a", "type": ["null", "int"]},
+                {"name": "b", "type": ["null", "int"]},
             ]
         })
 
@@ -191,8 +219,8 @@ class SchemaTest(TestCase):
             "name": "Example",
             "type": "record",
             "fields": [
-                {"name": "a", "type": "int"},
-                {"name": "b", "type": "int"},
+                {"name": "a", "type": ["null", "int"]},
+                {"name": "b", "type": ["null", "int"]},
             ]
         })
 

@@ -52,8 +52,8 @@ static void message_listener_callback(pulsar::Consumer consumer, const pulsar::M
 void pulsar_consumer_configuration_set_message_listener(
     pulsar_consumer_configuration_t *consumer_configuration, pulsar_message_listener messageListener,
     void *ctx) {
-    consumer_configuration->consumerConfiguration.setMessageListener(
-        boost::bind(message_listener_callback, _1, _2, messageListener, ctx));
+    consumer_configuration->consumerConfiguration.setMessageListener(std::bind(
+        message_listener_callback, std::placeholders::_1, std::placeholders::_2, messageListener, ctx));
 }
 
 int pulsar_consumer_configuration_has_message_listener(
@@ -117,4 +117,15 @@ void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consume
 void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf, const char *name,
                                                 const char *value) {
     conf->consumerConfiguration.setProperty(name, value);
+}
+
+void pulsar_consumer_set_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration, initial_position subscriptionInitialPosition) {
+    consumer_configuration->consumerConfiguration.setSubscriptionInitialPosition(
+        (pulsar::InitialPosition)subscriptionInitialPosition);
+}
+
+int pulsar_consumer_get_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getSubscriptionInitialPosition();
 }
