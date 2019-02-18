@@ -313,6 +313,7 @@
         </configuration>
         <executions>
           <execution>
+            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>test-compile</goal>
