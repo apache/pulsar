@@ -20,15 +20,19 @@ package org.apache.pulsar.client.impl.auth;
 
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
-
-    protected final X509Certificate[] certificates;
-    protected final PrivateKey privateKey;
+    protected X509Certificate[] tlsCertificates;
+    protected PrivateKey tlsPrivateKey;
+    protected FileModifiedTimeUpdater certFile, keyFile;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -37,8 +41,10 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         if (keyFilePath == null) {
             throw new IllegalArgumentException("keyFilePath must not be null");
         }
-        certificates = SecurityUtility.loadCertificatesFromPemFile(certFilePath);
-        privateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
+        this.certFile = new FileModifiedTimeUpdater(certFilePath);
+        this.keyFile = new FileModifiedTimeUpdater(keyFilePath);
+        this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFilePath);
+        this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
     }
 
     /*
@@ -51,13 +57,28 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     }
 
     @Override
-    public X509Certificate[] getTlsCertificates() {
-        return certificates;
+    public Certificate[] getTlsCertificates() {
+        if (this.certFile.checkAndRefresh()) {
+            try {
+                this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFile.getFileName());
+            } catch (KeyManagementException e) {
+                LOG.error("Unable to refresh authData for cert {}: ", certFile.getFileName(), e);
+            }
+        }
+        return this.tlsCertificates;
     }
 
     @Override
     public PrivateKey getTlsPrivateKey() {
-        return privateKey;
+        if (this.keyFile.checkAndRefresh()) {
+            try {
+                this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFile.getFileName());
+            } catch (KeyManagementException e) {
+                LOG.error("Unable to refresh authData for cert {}: ", keyFile.getFileName(), e);
+            }
+        }
+        return this.tlsPrivateKey;
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);
 }
