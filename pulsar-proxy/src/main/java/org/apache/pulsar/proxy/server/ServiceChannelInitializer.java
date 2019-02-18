@@ -29,6 +29,7 @@ import org.apache.pulsar.common.util.ServerSslContextRefresher;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.ssl.SslContext;
 
 /**
  * Initialize service channel handlers.
@@ -76,8 +77,11 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (this.enableTls) {
-            ch.pipeline().addLast(TLS_HANDLER, serverSslCtxRefresher.get().newHandler(ch.alloc()));
+        if (serverSslCtxRefresher != null && this.enableTls) {
+            SslContext sslContext = serverSslCtxRefresher.get();
+            if (sslContext != null) {
+                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
+            }
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));

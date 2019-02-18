@@ -53,13 +53,12 @@ public class FileModifiedTimeUpdater {
     }
 
     public boolean checkAndRefresh() {
-        boolean ret = false;
         FileTime newLastModifiedTime = updateLastModifiedTime();
         if (newLastModifiedTime != null && !newLastModifiedTime.equals(lastModifiedTime)) {
             this.lastModifiedTime = newLastModifiedTime;
-            ret = true;
+            return true;
         }
-        return ret;
+        return false;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(FileModifiedTimeUpdater.class);

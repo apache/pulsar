@@ -67,7 +67,7 @@ public class ServerSslContextRefresher {
                 tlsCiphers, tlsProtocols, tlsRequireTrustedClientCertOnConnect);
     }
 
-    public SslContext get() {
+    public synchronized SslContext get() {
         long nowInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
         if (nextRefreshTimeInMins > nowInSeconds) {
             nextRefreshTimeInMins = nowInSeconds + delayInMins;
