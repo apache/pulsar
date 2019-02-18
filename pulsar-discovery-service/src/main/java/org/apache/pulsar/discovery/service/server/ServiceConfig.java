@@ -78,6 +78,8 @@ public class ServiceConfig implements PulsarConfiguration {
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
+    // run certificate checks every X Mins
+    private long certRefreshCheckDurationInMins = 0;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
@@ -276,6 +278,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setTlsProtocols(Set<String> tlsProtocols) {
         this.tlsProtocols = tlsProtocols;
+    }
+
+    public long getCertRefreshCheckDurationInMins() {
+        return certRefreshCheckDurationInMins;
+    }
+
+    public void setCertRefreshCheckDurationInMins(long certRefreshCheckDurationInMins) {
+        this.certRefreshCheckDurationInMins = certRefreshCheckDurationInMins;
     }
 
     public Set<String> getTlsCiphers() {
