@@ -301,6 +301,7 @@ class PythonInstance(object):
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=10,
+        compression_type=pulsar.CompressionType.LZ4,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
