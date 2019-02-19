@@ -93,6 +93,16 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
+    public Map<String, String> getRuntimeConfigurations() throws PulsarAdminException {
+        try {
+            return request(adminBrokers.path("/configuration").path("runtime")).get(new GenericType<Map<String, String>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
         try {
             return request(adminBrokers.path("/internal-configuration")).get(InternalConfigurationData.class);

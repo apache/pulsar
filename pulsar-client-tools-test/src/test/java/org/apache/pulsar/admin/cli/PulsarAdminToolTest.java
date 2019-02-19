@@ -72,6 +72,9 @@ public class PulsarAdminToolTest {
         brokers.run(split("list use"));
         verify(mockBrokers).getActiveBrokers("use");
 
+        brokers.run(split("namespaces use --url http://my-service.url:8080"));
+        verify(mockBrokers).getOwnedNamespaces("use", "http://my-service.url:8080");
+
         brokers.run(split("get-all-dynamic-config"));
         verify(mockBrokers).getAllDynamicConfigurations();
 
@@ -83,6 +86,12 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("get-internal-config"));
         verify(mockBrokers).getInternalConfigurationData();
+
+        brokers.run(split("get-runtime-config"));
+        verify(mockBrokers).getRuntimeConfigurations();
+
+        brokers.run(split("healthcheck"));
+        verify(mockBrokers).healthcheck();
     }
 
     @Test
