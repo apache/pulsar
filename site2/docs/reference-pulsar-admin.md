@@ -1086,7 +1086,7 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
-|`-f`, `--force`|Whether to force a clear backlog without prompt|false|
+|`-force`, `--force`|Whether to force a clear backlog without prompt|false|
 |`-s`, `--sub`|The subscription name||
 
 

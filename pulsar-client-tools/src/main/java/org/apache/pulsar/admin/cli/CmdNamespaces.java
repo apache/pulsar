@@ -687,7 +687,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
         private String bundle;
 
-        @Parameter(names = { "--force", "-f" }, description = "Whether to force clear backlog without prompt")
+        @Parameter(names = { "--force", "-force" }, description = "Whether to force clear backlog without prompt")
         private boolean force;
 
         @Override
