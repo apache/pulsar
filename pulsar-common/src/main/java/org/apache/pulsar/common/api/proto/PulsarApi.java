@@ -16195,6 +16195,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.MessageIdData message_id = 3;
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
+    
+    // optional uint64 message_time = 4;
+    boolean hasMessageTime();
+    long getMessageTime();
   }
   public static final class CommandSeek extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -16261,10 +16265,21 @@ public final class PulsarApi {
       return messageId_;
     }
     
+    // optional uint64 message_time = 4;
+    public static final int MESSAGE_TIME_FIELD_NUMBER = 4;
+    private long messageTime_;
+    public boolean hasMessageTime() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getMessageTime() {
+      return messageTime_;
+    }
+    
     private void initFields() {
       consumerId_ = 0L;
       requestId_ = 0L;
       messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      messageTime_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -16306,6 +16321,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeMessage(3, messageId_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeUInt64(4, messageTime_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -16325,6 +16343,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, messageId_);
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(4, messageTime_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -16445,6 +16467,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000004);
+        messageTime_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -16490,6 +16514,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.messageId_ = messageId_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.messageTime_ = messageTime_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -16504,6 +16532,9 @@ public final class PulsarApi {
         }
         if (other.hasMessageId()) {
           mergeMessageId(other.getMessageId());
+        }
+        if (other.hasMessageTime()) {
+          setMessageTime(other.getMessageTime());
         }
         return this;
       }
@@ -16566,6 +16597,11 @@ public final class PulsarApi {
               input.readMessage(subBuilder, extensionRegistry);
               setMessageId(subBuilder.buildPartial());
               subBuilder.recycle();
+              break;
+            }
+            case 32: {
+              bitField0_ |= 0x00000008;
+              messageTime_ = input.readUInt64();
               break;
             }
           }
@@ -16656,6 +16692,27 @@ public final class PulsarApi {
         messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00000004);
+        return this;
+      }
+      
+      // optional uint64 message_time = 4;
+      private long messageTime_ ;
+      public boolean hasMessageTime() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public long getMessageTime() {
+        return messageTime_;
+      }
+      public Builder setMessageTime(long value) {
+        bitField0_ |= 0x00000008;
+        messageTime_ = value;
+        
+        return this;
+      }
+      public Builder clearMessageTime() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        messageTime_ = 0L;
+        
         return this;
       }
       
