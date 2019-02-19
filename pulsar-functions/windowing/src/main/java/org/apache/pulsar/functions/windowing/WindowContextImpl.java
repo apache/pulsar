@@ -67,7 +67,7 @@ public class WindowContextImpl implements WindowContext {
 
     @Override
     public String getFunctionVersion() {
-        return this.getFunctionVersion();
+        return this.context.getFunctionVersion();
     }
 
     @Override
@@ -87,7 +87,7 @@ public class WindowContextImpl implements WindowContext {
 
     @Override
     public Logger getLogger() {
-        return this.getLogger();
+        return this.context.getLogger();
     }
 
     @Override
