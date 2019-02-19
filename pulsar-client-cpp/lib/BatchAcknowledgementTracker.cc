@@ -51,7 +51,8 @@ void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
         std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
         return;
     }
-    LOG_DEBUG("Initializing the trackerMap_ with Message ID = " << msgID);
+    LOG_DEBUG("Initializing the trackerMap_ with Message ID = "
+              << msgID << " -- Map size: " << trackerMap_.size() << " -- List size: " << sendList_.size());
 
     // Since dynamic_set (this version) doesn't have all() function, initializing all bits with 1 and then
     // reseting them to 0 and using any()
@@ -66,6 +67,9 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const MessageId& messageId,
     if (messageId.batchIndex() == -1 && ackType == proto::CommandAck_AckType_Individual) {
         return;
     }
+
+    MessageId batchMessageId =
+        MessageId(messageId.partition(), messageId.ledgerId(), messageId.entryId(), -1 /* Batch index */);
 
     Lock lock(mutex_);
     if (ackType == proto::CommandAck_AckType_Cumulative) {
@@ -85,8 +89,9 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const MessageId& messageId,
         // std::remove shifts all to be deleted items to the end of the vector and returns an iterator to the
         // first
         // instance of item, then we erase all elements from this iterator to the end of the list
-        sendList_.erase(std::remove_if(sendList_.begin(), sendList_.end(), SendRemoveCriteria(messageId)),
-                        sendList_.end());
+        sendList_.erase(
+            std::remove_if(sendList_.begin(), sendList_.end(), SendRemoveCriteria(batchMessageId)),
+            sendList_.end());
 
         if (greatestCumulativeAckSent_ < messageId) {
             greatestCumulativeAckSent_ = messageId;
@@ -100,7 +105,7 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const MessageId& messageId,
                             << messageId);
         }
 
-        sendList_.erase(std::remove(sendList_.begin(), sendList_.end(), messageId), sendList_.end());
+        sendList_.erase(std::remove(sendList_.begin(), sendList_.end(), batchMessageId), sendList_.end());
     }
 }
 
