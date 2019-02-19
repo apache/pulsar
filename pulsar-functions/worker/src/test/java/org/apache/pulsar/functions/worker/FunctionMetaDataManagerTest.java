@@ -177,6 +177,68 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
+    public void testStopFunction() throws PulsarClientException {
+
+        long version = 5;
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        FunctionMetaDataManager functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        mock(SchedulerManager.class),
+                        mockPulsarClient()));
+
+        Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
+        Function.FunctionMetaData f1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
+        functionMetaDataMap1.put("func-1", f1);
+
+        Assert.assertTrue(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.STOPPED));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.RUNNING));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.STOPPED));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.RUNNING));
+
+        functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
+        functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-1", functionMetaDataMap1);
+
+        Mockito.doReturn(null).when(functionMetaDataManager).submit(any(Request.ServiceRequest.class));
+
+        functionMetaDataManager.changeFunctionInstanceStatus("tenant-1", "namespace-1", "func-1", 0, false);
+
+        verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
+        verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof Request.ServiceRequest) {
+                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
+                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) return false;
+                    if (!serviceRequest.getServiceRequestType().equals(
+                            Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                        return false;
+                    }
+                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(f1.getFunctionDetails())) {
+                        return false;
+                    }
+                    if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
+                        return false;
+                    }
+                    Map<Integer, Function.FunctionState> stateMap = serviceRequest.getFunctionMetaData().getInstanceStatesMap();
+                    if (stateMap == null || stateMap.isEmpty()) {
+                        return false;
+                    }
+                    if (stateMap.get(1) != Function.FunctionState.RUNNING) {
+                        return false;
+                    }
+                    if (stateMap.get(0) != Function.FunctionState.STOPPED) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+    }
+
+    @Test
     public void deregisterFunction() throws PulsarClientException {
         long version = 5;
         WorkerConfig workerConfig = new WorkerConfig();

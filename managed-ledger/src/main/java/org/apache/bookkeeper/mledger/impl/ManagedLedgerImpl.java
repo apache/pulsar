@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.time.Clock;
@@ -106,7 +105,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -119,6 +117,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.TRUE;
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 
@@ -131,6 +131,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected final BookKeeper bookKeeper;
     protected final String name;
+    private final Map<String, byte[]> ledgerMetadata;
     private final BookKeeper.DigestType digestType;
 
     protected ManagedLedgerConfig config;
@@ -249,6 +250,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.config = config;
         this.store = store;
         this.name = name;
+        this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
         this.executor = orderedExecutor;
@@ -439,7 +441,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
             }));
-        }, Collections.emptyMap());
+        }, ledgerMetadata);
     }
 
     private void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -3013,13 +3015,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param config
      * @param digestType
      * @param cb
-     * @param emptyMap
+     * @param metadata
      */
     protected void asyncCreateLedger(BookKeeper bookKeeper, ManagedLedgerConfig config, DigestType digestType,
-            CreateCallback cb, Map<Object, Object> emptyMap) {
+            CreateCallback cb, Map<String, byte[]> metadata) {
         AtomicBoolean ledgerCreated = new AtomicBoolean(false);
+        Map<String, byte[]> finalMetadata = new HashMap<>();
+        finalMetadata.putAll(ledgerMetadata);
+        finalMetadata.putAll(metadata);
+        if (log.isDebugEnabled()) {
+            log.debug("creating ledger, metadata: "+finalMetadata);
+        }
         bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(), config.getAckQuorumSize(),
-                digestType, config.getPassword(), cb, ledgerCreated, Collections.emptyMap());
+                digestType, config.getPassword(), cb, ledgerCreated, finalMetadata);
         scheduledExecutor.schedule(() -> {
             if (!ledgerCreated.get()) {
                 ledgerCreated.set(true);

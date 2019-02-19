@@ -22,7 +22,7 @@ namespace pulsar {
 
 const static std::string emptyString;
 
-ProducerConfiguration::ProducerConfiguration() : impl_(boost::make_shared<ProducerConfigurationImpl>()) {}
+ProducerConfiguration::ProducerConfiguration() : impl_(std::make_shared<ProducerConfigurationImpl>()) {}
 
 ProducerConfiguration::~ProducerConfiguration() {}
 

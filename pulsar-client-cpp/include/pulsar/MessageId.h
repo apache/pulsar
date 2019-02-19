@@ -21,7 +21,7 @@
 
 #include <iosfwd>
 #include <stdint.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 //#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
@@ -95,7 +95,7 @@ class MessageId {
     int32_t batchIndex() const;
     int32_t partition() const;
 
-    typedef boost::shared_ptr<MessageIdImpl> MessageIdImplPtr;
+    typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;
 };
 }  // namespace pulsar

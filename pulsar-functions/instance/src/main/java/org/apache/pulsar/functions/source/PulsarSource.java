@@ -81,6 +81,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             } else {
                 cb.topic(topic);
             }
+            if (conf.getReceiverQueueSize() != null) {
+                cb.receiverQueueSize(conf.getReceiverQueueSize());
+            }
             cb.properties(properties);
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {
@@ -107,19 +110,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void received(Consumer<T> consumer, Message<T> message) {
-        String topicName;
-
-        // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
-        // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
-        if (message instanceof TopicMessageImpl) {
-            topicName = ((TopicMessageImpl<?>) message).getTopicName();
-        } else {
-            topicName = consumer.getTopic();
-        }
 
         Record<T> record = PulsarRecord.<T>builder()
                 .message(message)
-                .topicName(topicName)
+                .topicName(message.getTopicName())
                 .ackFunction(() -> {
                     if (pulsarSourceConfig
                             .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
@@ -168,7 +162,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }
             configs.put(topic,
-                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).build());
+                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
         });
 
         return configs;
@@ -183,6 +177,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private static class ConsumerConfig<T> {
         private Schema<T> schema;
         private boolean isRegexPattern;
+        private Integer receiverQueueSize;
     }
 
 }

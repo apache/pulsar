@@ -255,6 +255,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         interceptorList.addAll(Arrays.asList(interceptors));
         return this;
     }
+    @Override
+    public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
 
     private void setMessageRoutingMode() throws PulsarClientException {
         if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {

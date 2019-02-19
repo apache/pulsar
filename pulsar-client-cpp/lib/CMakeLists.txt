@@ -19,7 +19,7 @@
 
 file(GLOB PULSAR_SOURCES *.cc lz4/*.c checksum/*.cc stats/*.cc c/*.cc auth/*.cc auth/athenz/*.cc)
 
-execute_process(COMMAND cat ../pom.xml COMMAND xmllint --format - COMMAND sed "s/xmlns=\".*\"//g" COMMAND xmllint --stream --pattern /project/version --debug - COMMAND grep -A 2 "matches pattern" COMMAND grep text COMMAND sed "s/.* [0-9] //g" OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PV)
+execute_process(COMMAND ../src/get-project-version.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PV)
 set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -D_PULSAR_VERSION_=\\\"${PV}\\\"")
 
 # Protobuf generation is only supported natively starting from CMake 3.8
@@ -31,21 +31,42 @@ ADD_CUSTOM_COMMAND(
          ../../pulsar-common/src/main/proto/PulsarApi.proto
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-
 set(LIBRARY_VERSION $ENV{PULSAR_LIBRARY_VERSION})
 if (NOT LIBRARY_VERSION)
     set(LIBRARY_VERSION ${PV})
 endif(NOT LIBRARY_VERSION)
 
-set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
-set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 
-target_link_libraries(pulsarStatic ${COMMON_LIBS})
+add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarShared ${COMMON_LIBS})
 
-install(TARGETS pulsarStatic DESTINATION lib)
-install(TARGETS pulsarShared DESTINATION lib)
+add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 
+# When linking statically, install a libpulsar.a that contains all the
+# required dependencies
+if (LINK_STATIC)
+    # Build a list of the requird .a libs to merge
+    SET(STATIC_LIBS "")
+    foreach (LIB IN LISTS COMMON_LIBS)
+        if (${LIB} MATCHES ".+\\.a")
+            set(STATIC_LIBS "${STATIC_LIBS} ${LIB}")
+        endif()
+    endforeach()
+
+    add_custom_target(pulsarStaticWithDeps
+            ALL
+            BYPRODUCTS merged-library
+            COMMAND ./build-support/merge_archives.sh libpulsar.a $<TARGET_FILE:pulsarStatic> ${STATIC_LIBS}
+            DEPENDS pulsarStatic
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+    install(FILES ../merged-library/libpulsar.a DESTINATION lib)
+else()
+    # Install regular libpulsar.a
+    target_link_libraries(pulsarStatic ${COMMON_LIBS})
+    install(TARGETS pulsarStatic DESTINATION lib)
+endif(LINK_STATIC)
+
+install(TARGETS pulsarShared DESTINATION lib)
 install(DIRECTORY "../include/pulsar" DESTINATION include)

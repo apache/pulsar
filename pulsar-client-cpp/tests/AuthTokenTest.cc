@@ -21,10 +21,8 @@
 
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <boost/lexical_cast.hpp>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
 #include <lib/LogUtils.h>
 
 #include <string>
@@ -92,11 +90,9 @@ TEST(AuthPluginToken, testToken) {
     // Send Asynchronously
     std::string prefix = "test-token-message-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, NULL);
         LOG_INFO("sending message " << messageContent);
     }
@@ -108,10 +104,10 @@ TEST(AuthPluginToken, testToken) {
         Result res = consumer.receive(receivedMsg);
         ASSERT_EQ(ResultOk, res);
 
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_INFO("Received Message with [ content - "
                  << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
@@ -148,11 +144,9 @@ TEST(AuthPluginToken, testTokenWithHttpUrl) {
     // Send Asynchronously
     std::string prefix = "test-token-message-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, NULL);
         LOG_INFO("sending message " << messageContent);
     }
@@ -164,10 +158,10 @@ TEST(AuthPluginToken, testTokenWithHttpUrl) {
         Result res = consumer.receive(receivedMsg);
         ASSERT_EQ(ResultOk, res);
 
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_INFO("Received Message with [ content - "
                  << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }

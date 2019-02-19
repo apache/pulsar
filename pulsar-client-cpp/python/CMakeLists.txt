@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" "${PYTHON_INCLUDE_DIRS}")
 ADD_LIBRARY(_pulsar SHARED src/pulsar.cc src/producer.cc src/consumer.cc
                             src/config.cc src/enums.cc src/client.cc
                             src/message.cc src/authentication.cc
-                            src/reader.cc)
+                            src/reader.cc src/schema.cc)
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 
@@ -46,7 +46,9 @@ endif()
 
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
-                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY})
+                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
+			${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
+			${Boost_PYTHON36_LIBRARY})
 
 if (APPLE)
     set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
@@ -60,8 +62,8 @@ if (NOT PYTHON_WRAPPER_LIBS)
 endif ()
 
 if (APPLE)
-    target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS})
+    target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS} ${COMMON_LIBS})
 else ()
     set (CMAKE_SHARED_LINKER_FLAGS " -static-libgcc  -static-libstdc++")
-    target_link_libraries(_pulsar pulsarStatic ${PYTHON_WRAPPER_LIBS})
+    target_link_libraries(_pulsar pulsarStatic ${PYTHON_WRAPPER_LIBS} ${COMMON_LIBS})
 endif ()

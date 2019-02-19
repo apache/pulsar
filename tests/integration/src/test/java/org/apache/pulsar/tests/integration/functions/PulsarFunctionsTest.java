@@ -73,7 +73,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testKafkaSink() throws Exception {
-        testSink(new KafkaSinkTester(), true, new KafkaSourceTester());
+        String kafkaContainerName = "kafka-" + randomName(8);
+        testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
     @Test(enabled = false)

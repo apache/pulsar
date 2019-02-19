@@ -20,6 +20,8 @@
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/LogUtils.h>
 
+#include <functional>
+
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
@@ -31,8 +33,7 @@ ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, DeadlineTimerPtr t
       totalNumBytesRecieved_(0),
       numBytesRecieved_(0) {
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(
-        boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
+    timer_->async_wait(std::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, std::placeholders::_1));
 }
 
 ConsumerStatsImpl::ConsumerStatsImpl(const ConsumerStatsImpl& stats)
@@ -59,8 +60,7 @@ void ConsumerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     lock.unlock();
 
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(
-        boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
+    timer_->async_wait(std::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, std::placeholders::_1));
     LOG_INFO(tmp);
 }
 

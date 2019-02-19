@@ -30,14 +30,16 @@
 
 #include <curl/curl.h>
 
-#include <json/value.h>
-#include <json/reader.h>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+namespace ptree = boost::property_tree;
 
 #include <boost/regex.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
+
+#include <mutex>
 
 DECLARE_LOG_OBJECT()
 
@@ -84,7 +86,7 @@ ZTSClient::ZTSClient(std::map<std::string, std::string> &params) {
     roleHeader_ = params.find("roleHeader") == params.end() ? DEFAULT_ROLE_HEADER : params["roleHeader"];
     tokenExpirationTime_ = DEFAULT_TOKEN_EXPIRATION_TIME_SEC;
     if (params.find("tokenExpirationTime") != params.end()) {
-        tokenExpirationTime_ = boost::lexical_cast<int>(params["tokenExpirationTime"]);
+        tokenExpirationTime_ = std::stoi(params["tokenExpirationTime"]);
         if (tokenExpirationTime_ < MIN_TOKEN_EXPIRATION_TIME_SEC) {
             LOG_WARN(tokenExpirationTime_ << " is too small as a token expiration time. "
                                           << MIN_TOKEN_EXPIRATION_TIME_SEC << " is set instead of it.");
@@ -181,8 +183,8 @@ const std::string ZTSClient::getPrincipalToken() const {
     unsignedTokenString += ";n=" + tenantService_;
     unsignedTokenString += ";h=" + std::string(host);
     unsignedTokenString += ";a=" + getSalt();
-    unsignedTokenString += ";t=" + boost::lexical_cast<std::string>(t);
-    unsignedTokenString += ";e=" + boost::lexical_cast<std::string>(t + tokenExpirationTime_);
+    unsignedTokenString += ";t=" + std::to_string(t);
+    unsignedTokenString += ";e=" + std::to_string(t + tokenExpirationTime_);
     unsignedTokenString += ";k=" + keyId_;
 
     LOG_DEBUG("Created unsigned principal token: " << unsignedTokenString);
@@ -255,14 +257,14 @@ static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-static boost::mutex cacheMtx_;
+static std::mutex cacheMtx_;
 const std::string ZTSClient::getRoleToken() const {
     RoleToken roleToken;
     std::string cacheKey = "p=" + tenantDomain_ + "." + tenantService_ + ";d=" + providerDomain_;
 
     // locked block
     {
-        boost::lock_guard<boost::mutex> lock(cacheMtx_);
+        std::lock_guard<std::mutex> lock(cacheMtx_);
         roleToken = roleTokenCache_[cacheKey];
     }
 
@@ -320,16 +322,20 @@ const std::string ZTSClient::getRoleToken() const {
             curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
             LOG_DEBUG("Response received for url " << completeUrl << " code " << response_code);
             if (response_code == 200) {
-                Json::Reader reader;
-                Json::Value root;
-                if (!reader.parse(responseData, root)) {
-                    LOG_ERROR("Failed to parse json of ZTS response: " << reader.getFormatedErrorMessages()
+                ptree::ptree root;
+                std::stringstream stream;
+                stream << responseData;
+                try {
+                    ptree::read_json(stream, root);
+                } catch (ptree::json_parser_error &e) {
+                    LOG_ERROR("Failed to parse json of ZTS response: " << e.what()
                                                                        << "\nInput Json = " << responseData);
                     break;
                 }
-                roleToken.token = root["token"].asString();
-                roleToken.expiryTime = root["expiryTime"].asUInt();
-                boost::lock_guard<boost::mutex> lock(cacheMtx_);
+
+                roleToken.token = root.get<std::string>("token");
+                roleToken.expiryTime = root.get<uint32_t>("expiryTime");
+                std::lock_guard<std::mutex> lock(cacheMtx_);
                 roleTokenCache_[cacheKey] = roleToken;
                 LOG_DEBUG("Got role token " << roleToken.token)
             } else {

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * The compression type that can be specified on a {@link Producer}.
+ */
 public enum CompressionType {
     /** No compression */
     NONE,
@@ -26,5 +29,8 @@ public enum CompressionType {
     LZ4,
 
     /** Compress with ZLib */
-    ZLIB
+    ZLIB,
+
+    /** Compress with Zstandard codec */
+    ZSTD,
 }

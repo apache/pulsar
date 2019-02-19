@@ -198,6 +198,33 @@ public class SourceApiV3Resource extends FunctionApiResource {
         source.stopFunctionInstances(tenant, namespace, sourceName);
     }
 
+    @POST
+    @ApiOperation(value = "Start source instance", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startSource(final @PathParam("tenant") String tenant,
+                            final @PathParam("namespace") String namespace,
+                            final @PathParam("sourceName") String sourceName,
+                            final @PathParam("instanceId") String instanceId) {
+        source.startFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
+    }
+
+    @POST
+    @ApiOperation(value = "Start all source instances", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{sourceName}/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void startSource(final @PathParam("tenant") String tenant,
+                            final @PathParam("namespace") String namespace,
+                            final @PathParam("sourceName") String sourceName) {
+        source.startFunctionInstances(tenant, namespace, sourceName);
+    }
+
     @GET
     @Path("/builtinsources")
     public List<ConnectorDefinition> getSourceList() {
