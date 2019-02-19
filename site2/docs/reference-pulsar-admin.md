@@ -119,6 +119,7 @@ Subcommands
 * `list-dynamic-config`
 * `get-all-dynamic-config`
 * `get-internal-config`
+* `get-runtime-config`
 * `healthcheck`
 
 ### `list`
@@ -180,6 +181,14 @@ Get internal configuration information
 Usage
 ```bash
 $ pulsar-admin brokers get-internal-config
+```
+
+### `get-runtime-config`
+Get runtime configuration values
+
+Usage
+```bash
+$ pulsar-admin brokers get-runtime-config
 ```
 
 ### `healthcheck`
