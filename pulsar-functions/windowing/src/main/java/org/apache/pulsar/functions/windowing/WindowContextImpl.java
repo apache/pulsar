@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class WindowContextImpl implements WindowContext {
