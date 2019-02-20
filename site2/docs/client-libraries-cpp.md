@@ -39,7 +39,7 @@ $ rpm -ivh apache-pulsar-client*.rpm
 To install a DEB package, download the DEB packages and install them using the following command:
 
 ```bash
-$ apt-install apache-pulsar-client*.deb
+$ apt install ./apache-pulsar-client*.deb
 ```
 
 ### Build
