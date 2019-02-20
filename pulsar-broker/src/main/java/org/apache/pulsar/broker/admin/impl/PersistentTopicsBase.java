@@ -402,8 +402,8 @@ public class PersistentTopicsBase extends AdminResource {
     	validateAdminAccessForTenant(topicName.getTenant());
     	
     	try {
-    		PersistentTopic topic = (PersistentTopic) getOrCreateTopic(topicName);
-    		//...
+    		getOrCreateTopic(topicName);
+    		log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
     	} catch (Exception e) {
     		log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
     		throw new RestException(e);
