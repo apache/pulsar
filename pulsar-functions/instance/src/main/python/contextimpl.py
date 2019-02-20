@@ -111,7 +111,7 @@ class ContextImpl(pulsar.Context):
       return self.user_config[key]
     else:
       return None
-  
+
   def get_user_config_map(self):
     return self.user_config
 
@@ -146,8 +146,7 @@ class ContextImpl(pulsar.Context):
         topic_name,
         block_if_queue_full=True,
         batching_enabled=True,
-        batching_max_publish_delay_ms=1,
-        max_pending_messages=100000,
+        batching_max_publish_delay_ms=10,
         compression_type=pulsar_compression_type,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
           self.instance_config.function_details.tenant,
