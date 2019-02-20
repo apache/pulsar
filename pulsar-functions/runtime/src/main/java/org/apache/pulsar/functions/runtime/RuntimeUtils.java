@@ -54,24 +54,69 @@ public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
 
-    public static List<String> composeArgs(InstanceConfig instanceConfig,
-                                           String instanceFile,
-                                           String extraDependenciesDir, /* extra dependencies for running instances */
+    public static List<String> composeCmd(InstanceConfig instanceConfig,
+                                          String instanceFile,
+                                          String extraDependenciesDir, /* extra dependencies for running instances */
+                                          String logDirectory,
+                                          String originalCodeFileName,
+                                          String pulsarServiceUrl,
+                                          String stateStorageServiceUrl,
+                                          AuthenticationConfig authConfig,
+                                          String shardId,
+                                          Integer grpcPort,
+                                          Long expectedHealthCheckInterval,
+                                          String logConfigFile,
+                                          String secretsProviderClassName,
+                                          String secretsProviderConfig,
+                                          Boolean installUserCodeDependencies,
+                                          String pythonDependencyRepository,
+                                          String pythonExtraDependencyRepository,
+                                          int metricsPort) throws Exception {
+
+        final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
+
+        cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
+                originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig, shardId, grpcPort, expectedHealthCheckInterval,
+                logConfigFile, secretsProviderClassName, secretsProviderConfig,
+                installUserCodeDependencies, pythonDependencyRepository,
+                pythonExtraDependencyRepository, metricsPort));
+        return cmd;
+    }
+
+    public static List<String> getArgsBeforeCmd(InstanceConfig instanceConfig, String extraDependenciesDir) {
+
+        final List<String> args = new LinkedList<>();
+        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
+            //no-op
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+            // add `extraDependenciesDir` to python package searching path
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
+            }
+        }
+
+        return args;
+    }
+
+    public static List<String> getCmd(InstanceConfig instanceConfig,
+                                          String instanceFile,
+                                          String extraDependenciesDir, /* extra dependencies for running instances */
                                            String logDirectory,
-                                           String originalCodeFileName,
-                                           String pulsarServiceUrl,
-                                           String stateStorageServiceUrl,
-                                           AuthenticationConfig authConfig,
-                                           String shardId,
-                                           Integer grpcPort,
-                                           Long expectedHealthCheckInterval,
-                                           String logConfigFile,
-                                           String secretsProviderClassName,
-                                           String secretsProviderConfig,
-                                           Boolean installUserCodeDependencies,
-                                           String pythonDependencyRepository,
-                                           String pythonExtraDependencyRepository,
-                                           int metricsPort) throws Exception {
+                                          String originalCodeFileName,
+                                          String pulsarServiceUrl,
+                                          String stateStorageServiceUrl,
+                                          AuthenticationConfig authConfig,
+                                          String shardId,
+                                          Integer grpcPort,
+                                          Long expectedHealthCheckInterval,
+                                          String logConfigFile,
+                                          String secretsProviderClassName,
+                                          String secretsProviderConfig,
+                                          Boolean installUserCodeDependencies,
+                                          String pythonDependencyRepository,
+                                          String pythonExtraDependencyRepository,
+                                          int metricsPort) throws Exception {
         final List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -105,10 +150,6 @@ public class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            // add `extraDependenciesDir` to python package searching path
-            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
-                args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
-            }
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
