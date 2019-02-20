@@ -661,8 +661,7 @@ $ pulsar-admin namespaces subcommand
 
 Subcommands
 * `list`
-* `list-cluster`
-* `destinations`
+* `topics`
 * `policies`
 * `create`
 * `delete`
@@ -670,6 +669,8 @@ Subcommands
 * `permissions`
 * `grant-permission`
 * `revoke-permission`
+* `grant-subscription-permission`
+* `revoke-subscription-permission`
 * `set-clusters`
 * `get-clusters`
 * `get-backlog-quotas`
@@ -679,15 +680,37 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
+* `get-anti-affinity-group`
+* `set-anti-affinity-group`
+* `get-anti-affinity-namespaces`
+* `delete-anti-affinity-group`
 * `get-retention`
 * `set-retention`
 * `unload`
+* `split-bundle`
+* `set-dispatch-rate`
+* `get-dispatch-rate`
+* `set-subscribe-rate`
+* `get-subscribe-rate`
 * `clear-backlog`
 * `unsubscribe`
+* `set-encryption-required`
+* `set-subscription-auth-mode`
+* `get-max-producers-per-topic`
+* `set-max-producers-per-topic`
+* `get-max-consumers-per-topic`
+* `set-max-consumers-per-topic`
+* `get-max-consumers-per-subscription`
+* `set-max-consumers-per-subscription`
 * `get-compaction-threshold`
 * `set-compaction-threshold`
 * `get-offload-threshold`
 * `set-offload-threshold`
+* `get-offload-deletion-lag`
+* `set-offload-deletion-lag`
+* `clear-offload-deletion-lag`
+* `get-schema-autoupdate-strategy`
+* `set-schema-autoupdate-strategy`
 
 
 ### `list`
@@ -698,28 +721,20 @@ Usage
 $ pulsar-admin namespaces list tenant-name
 ```
 
-### `list-cluster`
-Get the namespaces for a tenant in the cluster
+### `topics`
+Get the list of topics for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces list-cluster tenant/cluster
-```
-
-### `destinations`
-Get the destinations for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces destinations tenant/cluster/namespace
+$ pulsar-admin namespaces topics tenant/namespace
 ```
 
 ### `policies`
-Get the policies of a namespace
+Get the configuration policies of a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces policies tenant/cluster/namespace
+$ pulsar-admin namespaces policies tenant/namespace
 ```
 
 ### `create`
@@ -727,21 +742,22 @@ Create a new namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces create tenant/cluster/namespace options
+$ pulsar-admin namespaces create tenant/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`-b` , `--bundles`|The number of bundles to activate|0|
+|`-b`, `--bundles`|The number of bundles to activate|0|
+|`-c`, `--clusters`|List of clusters this namespace will be assigned||
 
 
 ### `delete`
-Deletes a namespace
+Deletes a namespace. The namespace needs to be empty
 
 Usage
 ```bash
-$ pulsar-admin namespaces delete tenant/cluster/namespace
+$ pulsar-admin namespaces delete tenant/namespace
 ```
 
 ### `set-deduplication`
@@ -749,7 +765,7 @@ Enable or disable message deduplication on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-deduplication tenant/cluster/namespace options
+$ pulsar-admin namespaces set-deduplication tenant/namespace options
 ```
 
 Options
@@ -764,7 +780,7 @@ Get the permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces permissions tenant/cluster/namespace
+$ pulsar-admin namespaces permissions tenant/namespace
 ```
 
 ### `grant-permission`
@@ -772,7 +788,7 @@ Grant permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces grant-permission tenant/cluster/namespace options
+$ pulsar-admin namespaces grant-permission tenant/namespace options
 ```
 
 Options
@@ -787,21 +803,48 @@ Revoke permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces revoke-permission tenant/cluster/namespace options
+$ pulsar-admin namespaces revoke-permission tenant/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--role`|The client role to which to grant the permissions||
+|`--role`|The client role to which to revoke the permissions||
 
+### `grant-subscription-permission`
+Grant permissions to access subscription admin-api
+
+Usage
+```bash
+$ pulsar-admin namespaces grant-subscription-permission tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--roles`|The client roles to which to grant the permissions (comma separated roles)||
+|`--subscription`|The subscription name for which permission will be granted to roles||
+
+### `revoke-subscription-permission`
+Revoke permissions to access subscription admin-api
+
+Usage
+```bash
+$ pulsar-admin namespaces revoke-subscription-permission tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--role`|The client role to which to revoke the permissions||
+|`--subscription`|The subscription name for which permission will be revoked to roles||
 
 ### `set-clusters`
 Set replication clusters for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-clusters tenant/cluster/namespace options
+$ pulsar-admin namespaces set-clusters tenant/namespace options
 ```
 
 Options
@@ -815,7 +858,7 @@ Get replication clusters for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-clusters tenant/cluster/namespace
+$ pulsar-admin namespaces get-clusters tenant/namespace
 ```
 
 ### `get-backlog-quotas`
@@ -823,15 +866,15 @@ Get the backlog quota policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-backlog-quotas tenant/cluster/namespace
+$ pulsar-admin namespaces get-backlog-quotas tenant/namespace
 ```
 
 ### `set-backlog-quota`
-Set a backlog quota for a namespace
+Set a backlog quota policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-backlog-quota tenant/cluster/namespace options
+$ pulsar-admin namespaces set-backlog-quota tenant/namespace options
 ```
 
 Options
@@ -842,7 +885,7 @@ Options
 
 Example
 ```bash
-$ pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 --limit 2G \
 --policy producer_request_hold
 ```
@@ -852,7 +895,7 @@ Remove a backlog quota policy from a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces remove-backlog-quota tenant/cluster/namespace
+$ pulsar-admin namespaces remove-backlog-quota tenant/namespace
 ```
 
 ### `get-persistence`
@@ -860,7 +903,7 @@ Get the persistence policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-persistence tenant/cluster/namespace
+$ pulsar-admin namespaces get-persistence tenant/namespace
 ```
 
 ### `set-persistence`
@@ -868,7 +911,7 @@ Set the persistence policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-persistence tenant/cluster/namespace options
+$ pulsar-admin namespaces set-persistence tenant/namespace options
 ```
 
 Options
@@ -885,7 +928,7 @@ Get the message TTL for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-message-ttl tenant/cluster/namespace
+$ pulsar-admin namespaces get-message-ttl tenant/namespace
 ```
 
 ### `set-message-ttl`
@@ -893,7 +936,7 @@ Set the message TTL for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-message-ttl options
+$ pulsar-admin namespaces set-message-ttl tenant/namespace options
 ```
 
 Options
@@ -901,13 +944,56 @@ Options
 |----|---|---|
 |`-ttl`, `--messageTTL`|Message TTL in seconds|0|
 
+### `get-anti-affinity-group`
+Get Anti-affinity group name for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-anti-affinity-group tenant/namespace
+```
+
+### `set-anti-affinity-group`
+Set Anti-affinity group name for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-anti-affinity-group tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-g`, `--group`|Anti-affinity group name||
+
+### `get-anti-affinity-namespaces`
+Get Anti-affinity namespaces grouped with the given anti-affinity group name
+
+Usage
+```bash
+$ pulsar-admin namespaces get-anti-affinity-namespaces options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--cluster`|Cluster name||
+|`-g`, `--group`|Anti-affinity group name||
+|`-p`, `--tenant`|Tenant is only used for authorization. Client has to be admin of any of the tenant to access this api||
+
+### `delete-anti-affinity-group`
+Remove Anti-affinity group name for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
+```
 
 ### `get-retention`
 Get the retention policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-retention tenant/cluster/namespace
+$ pulsar-admin namespaces get-retention tenant/namespace
 ```
 
 ### `set-retention`
@@ -915,7 +1001,7 @@ Set the retention policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-retention tenant/cluster/namespace options
+$ pulsar-admin namespaces set-retention tenant/namespace
 ```
 
 Options
@@ -930,28 +1016,86 @@ Unload a namespace or namespace bundle from the current serving broker.
 
 Usage
 ```bash
-$ pulsar-admin namespaces unload tenant/cluster/namespace options
+$ pulsar-admin namespaces unload tenant/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|||
+|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
 
+### `split-bundle`
+Split a namespace-bundle from the current serving broker
+
+Usage
+```bash
+$ pulsar-admin namespaces split-bundle tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
+|`-u`, `--unload`|Unload newly split bundles after splitting old bundle|false|
+
+### `set-dispatch-rate`
+Set message-dispatch-rate for all topics of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-dispatch-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+
+### `get-dispatch-rate`
+Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
+
+Usage
+```bash
+$ pulsar-admin namespaces get-dispatch-rate tenant/namespace
+```
+
+### `set-subscribe-rate`
+Set subscribe-rate per consumer for all topics of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscribe-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-sr`, `--subscribe-rate`|The subscribe rate (default -1 will be overwrite if not passed)|-1|
+|`-st`, `--subscribe-rate-period`|The subscribe rate period in second type (default 30 second will be overwrite if not passed)|30|
+
+### `get-subscribe-rate`
+Get configured subscribe-rate per consumer for all topics of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-subscribe-rate tenant/namespace
+```
 
 ### `clear-backlog`
 Clear the backlog for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces clear-backlog tenant/cluster/namespace options
+$ pulsar-admin namespaces clear-backlog tenant/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|||   
-|`-f`, `--force`|Whether to force a clear backlog without prompt|false|
+|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
+|`-force`, `--force`|Whether to force a clear backlog without prompt|false|
 |`-s`, `--sub`|The subscription name||
 
 
@@ -960,14 +1104,104 @@ Unsubscribe the given subscription on all destinations on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces unsubscribe tenant/cluster/namespace options
+$ pulsar-admin namespaces unsubscribe tenant/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|||   
+|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
 |`-s`, `--sub`|The subscription name||
+
+### `set-encryption-required`
+Enable or disable message encryption required for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-encryption-required tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--disable`|Disable message encryption required|false|
+|`-e`, `--enable`|Enable message encryption required|false|
+
+### `set-subscription-auth-mode`
+Set subscription auth mode on a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscription-auth-mode tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-m`, `--subscription-auth-mode`|Subscription authorization mode for Pulsar policies. Valid options are: [None, Prefix]||
+
+### `get-max-producers-per-topic`
+Get maxProducersPerTopic for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-producers-per-topic tenant/namespace
+```
+
+### `set-max-producers-per-topic`
+Set maxProducersPerTopic for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-producers-per-topic tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-p`, `--max-producers-per-topic`|maxProducersPerTopic for a namespace|0|
+
+### `get-max-consumers-per-topic`
+Get maxConsumersPerTopic for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-consumers-per-topic tenant/namespace
+```
+
+### `set-max-consumers-per-topic`
+Set maxConsumersPerTopic for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-consumers-per-topic tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-consumers-per-topic`|maxConsumersPerTopic for a namespace|0|
+
+### `get-max-consumers-per-subscription`
+Get maxConsumersPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-consumers-per-subscription tenant/namespace
+```
+
+### `set-max-consumers-per-subscription`
+Set maxConsumersPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-consumers-per-subscription tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-consumers-per-subscription`|maxConsumersPerSubscription for a namespace|0|
 
 
 ### `get-compaction-threshold`
@@ -1000,11 +1234,69 @@ Usage
 $ pulsar-admin namespaces get-offload-threshold tenant/namespace
 ```
 
+### `set-offload-threshold`
+Set offloadThreshold for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-threshold tenant/namespace options
+```
+
 Options
 |Flag|Description|Default|
 |----|---|---|
 |`-s`, `--size`|Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.|-1|
 
+### `get-offload-deletion-lag`
+Get offloadDeletionLag, in minutes, for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload-deletion-lag tenant/namespace
+```
+
+### `set-offload-deletion-lag`
+Set offloadDeletionLag for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-deletion-lag tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-l`, `--lag`|Duration to wait after offloading a ledger segment, before deleting the copy of that segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).|-1|
+
+### `clear-offload-deletion-lag`
+Clear offloadDeletionLag for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces clear-offload-deletion-lag tenant/namespace
+```
+
+### `get-schema-autoupdate-strategy`
+Get the schema auto-update strategy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-schema-autoupdate-strategy tenant/namespace
+```
+
+### `set-schema-autoupdate-strategy`
+Set the schema auto-update strategy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-schema-autoupdate-strategy tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward).||
+|`-d`, `--disabled`|Disable automatic schema updates.|false|
 
 
 ## `ns-isolation-policy`
