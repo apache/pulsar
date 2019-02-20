@@ -185,25 +185,33 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            logDirectory,
-            this.originalCodeFileName,
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            "$" + ENV_SHARD_ID,
-            GRPC_PORT,
-            -1l,
-            logConfigFile,
-            secretsProviderClassName,
-            secretsProviderConfig,
-            installUserCodeDependencies,
-            pythonDependencyRepository,
-            pythonExtraDependencyRepository,
-                METRICS_PORT);
+
+        this.processArgs = new LinkedList<>();
+        this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
+        // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
+        // so that when we kill the pod, the signal will get propagated to the function code
+        this.processArgs.add("exec");
+        this.processArgs.addAll(
+                RuntimeUtils.getCmd(
+                        instanceConfig,
+                        instanceFile,
+                        extraDependenciesDir,
+                        logDirectory,
+                        this.originalCodeFileName,
+                        pulsarServiceUrl,
+                        stateStorageServiceUrl,
+                        authConfig,
+                        "$" + ENV_SHARD_ID,
+                        GRPC_PORT,
+                        -1l,
+                        logConfigFile,
+                        secretsProviderClassName,
+                        secretsProviderConfig,
+                        installUserCodeDependencies,
+                        pythonDependencyRepository,
+                        pythonExtraDependencyRepository,
+                        METRICS_PORT));
+
         doChecks(instanceConfig.getFunctionDetails());
     }
 
@@ -467,7 +475,7 @@ public class KubernetesRuntime implements Runtime {
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails());
         final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds(0L);
+        options.setGracePeriodSeconds(5L);
         options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
@@ -521,8 +529,9 @@ public class KubernetesRuntime implements Runtime {
 
         RuntimeUtils.Actions.Action waitForStatefulSetDeletion = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                // set retry period to be about 2x the graceshutdown time
+                .numRetries(NUM_RETRIES * 2)
+                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS* 2)
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {

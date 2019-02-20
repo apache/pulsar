@@ -271,14 +271,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 34;
-            portArg = 25;
-            metricsPortArg = 27;
+            totalArgs = 35;
+            portArg = 26;
+            metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
-            portArg = 24;
-            metricsPortArg = 26;
-            totalArgs = 33;
+            portArg = 25;
+            metricsPortArg = 27;
+            totalArgs = 34;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -287,7 +287,7 @@ public class KubernetesRuntimeTest {
         assertEquals(args.size(), totalArgs,
             "Actual args : " + StringUtils.join(args, " "));
 
-        String expectedArgs = "java -cp " + classpath
+        String expectedArgs = "exec java -cp " + classpath
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + extraDepsEnv
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.yml "
@@ -352,16 +352,16 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 36;
-            portArg = 29;
-            configArg = 9;
-            pythonPath = "";
-            metricsPortArg = 31;
-        } else {
-            totalArgs = 39;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
+            pythonPath = "";
             metricsPortArg = 32;
+        } else {
+            totalArgs = 40;
+            portArg = 31;
+            configArg = 11;
+            metricsPortArg = 33;
             pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
         }
         if (secretsAttached) {
@@ -370,7 +370,7 @@ public class KubernetesRuntimeTest {
 
         assertEquals(args.size(), totalArgs,
             "Actual args : " + StringUtils.join(args, " "));
-        String expectedArgs = pythonPath + "python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
