@@ -201,8 +201,7 @@ public class JavaInstanceMain implements AutoCloseable {
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
                 try {
-                    server.shutdown();
-                    runtimeSpawner.close();
+                    close();
                 } catch (Exception ex) {
                     System.err.println(ex);
                 }
