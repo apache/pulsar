@@ -71,12 +71,9 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
-        /*conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
+        conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
-        conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));*/
-        conf.setTlsCertificateFilePath(getTLSFile("expired.broker-cert"));
-        conf.setTlsKeyFilePath(getTLSFile("expired.broker.key"));
-        conf.setTlsTrustCertsFilePath(getTLSFile("expired.cacert"));
+        conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 ImmutableSet.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
@@ -143,16 +140,11 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSuperUserCanListTenants() throws Exception {
-        for(int i=0;i<10;i++) {
-            try {
-                try (PulsarAdmin admin = buildAdminClient("admin")) {
-                    admin.tenants().createTenant("tenant1",
-                            new TenantInfo(ImmutableSet.of("foobar"), ImmutableSet.of("test")));
-                    Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
-                }
-            } catch (Throwable th) {
-                th.printStackTrace();
-            }    
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.tenants().createTenant("tenant1",
+                                         new TenantInfo(ImmutableSet.of("foobar"),
+                                                        ImmutableSet.of("test")));
+            Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
         }
     }
 
