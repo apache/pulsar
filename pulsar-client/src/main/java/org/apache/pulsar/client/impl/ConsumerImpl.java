@@ -1426,10 +1426,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf seek = Commands.newSeek(consumerId, requestId, timestamp);
         ClientCnx cnx = cnx();
 
-        log.info("[{}][{}] Seek subscription to message time {}", topic, subscription, timestamp);
+        log.info("[{}][{}] Seek subscription to publish time {}", topic, subscription, timestamp);
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
-            log.info("[{}][{}] Successfully reset subscription to message time {}", topic, subscription, timestamp);
+            log.info("[{}][{}] Successfully reset subscription to publish time {}", topic, subscription, timestamp);
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());

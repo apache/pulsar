@@ -409,7 +409,7 @@ public class Commands {
         seekBuilder.setConsumerId(consumerId);
         seekBuilder.setRequestId(requestId);
 
-        seekBuilder.setMessageTime(timestamp);
+        seekBuilder.setMessagePublishTime(timestamp);
 
         CommandSeek seek = seekBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEEK).setSeek(seek));

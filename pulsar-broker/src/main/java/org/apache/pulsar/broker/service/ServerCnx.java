@@ -1050,13 +1050,15 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = seek.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(seek.getConsumerId());
 
-        if (!seek.hasMessageId() && !seek.hasMessageTime()) {
+        if (!seek.hasMessageId() && !seek.hasMessagePublishTime()) {
             ctx.writeAndFlush(
-                    Commands.newError(requestId, ServerError.MetadataError, "Message id was not present"));
+                    Commands.newError(requestId, ServerError.MetadataError, "Message id and message publish time were not present"));
             return;
         }
 
-        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally() && seek.hasMessageId()) {
+        boolean consumerCreated = consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally();
+
+        if (consumerCreated && seek.hasMessageId()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
@@ -1074,19 +1076,19 @@ public class ServerCnx extends PulsarHandler {
                         "Error when resetting subscription: " + ex.getCause().getMessage()));
                 return null;
             });
-        } else if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally() && seek.hasMessageTime()){
+        } else if (consumerCreated && seek.hasMessagePublishTime()){
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
-            long timestamp = seek.getMessageTime();
+            long timestamp = seek.getMessagePublishTime();
 
             subscription.resetCursor(timestamp).thenRun(() -> {
-                log.info("[{}] [{}][{}] Reset subscription to message time {}", remoteAddress,
+                log.info("[{}] [{}][{}] Reset subscription to publish time {}", remoteAddress,
                         subscription.getTopic().getName(), subscription.getName(), timestamp);
                 ctx.writeAndFlush(Commands.newSuccess(requestId));
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
-                        "Reset subscription to message time error: " + ex.getCause().getMessage()));
+                        "Reset subscription to publish time error: " + ex.getCause().getMessage()));
                 return null;
             });
         } else {
