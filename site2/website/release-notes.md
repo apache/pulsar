@@ -13,8 +13,9 @@
    when a producer choose Zstd compression, a consumer will need to be at least at version 2.3.0
    to be able to correctly receive the messages.
  * Support for Java 11 [#3006](https://github.com/apache/pulsar/pull/3006)
- * `AUTO_PRODUCE` Schema type to allow to publish serialized data and validate it against the
+ * Added `Schema.AUTO_PRODUCE` type to allow to publish serialized data and validate it against the
    topic schema [#2685](https://github.com/apache/pulsar/pull/2685)
+ * Added `Schema.KeyValue` to allow for schema to be validated on message keys as well as payloads. [#2885](https://github.com/apache/pulsar/pull/2885)
  * Support TLS authentication and authorization in standalone mode [#3360](https://github.com/apache/pulsar/pull/3360)
  * When creating namespace, use local cluster by default [#3571](https://github.com/apache/pulsar/pull/3571)
  * Tag BookKeeper ledgers created by Pulsar with topic/subscription names for info/debug purposes
@@ -110,13 +111,19 @@
 
  * Kafka client wrapper, added support for explicit partitioning and custom partitioner [#3462](https://github.com/apache/pulsar/pull/3462)
  * Support config `auto.offset.reset` to Pulsar KafkaConsumer [#3273](https://github.com/apache/pulsar/pull/3273)
-
+ * In Apache Flink connector, added support for Batch Sink API ([2979#](https://github.com/apache/pulsar/pull/2979),
+   [#3039](https://github.com/apache/pulsar/pull/3039) and [#3046](https://github.com/apache/pulsar/pull/3046))
+ * Added [Java batch examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/batch/connectors/pulsar/example) for Flink adaptor
+ * Added [Java streaming examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/streaming/connectors/pulsar/example) for Flink adaptor
+ * Added [Scala examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/scala/org/apache/flink/batch/connectors/pulsar/example) for Flink adaptor
 
 For a complete list of issues fixed, see
 
 https://github.com/apache/pulsar/milestone/18?closed=1
 
 https://github.com/apache/pulsar/releases/tag/v2.3.0
+
+
 
 ### 2.2.1 &mdash; 2018-12-31 <a id="2.2.1"></a>
 
