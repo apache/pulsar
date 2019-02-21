@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.2.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en/release-notes">English</a></li><li><a href="/ja/release-notes">日本語</a></li><li><a href="/fr/release-notes">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.3.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en/release-notes">English</a></li><li><a href="/ja/release-notes">日本語</a></li><li><a href="/fr/release-notes">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -19,6 +19,130 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="pageContainer"><div class="container mainContainer documentContainer postContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1>Apache Pulsar Release Notes</h1><hr/></header><div><span><h2><a class="anchor" aria-hidden="true" id="apache"></a><a href="#apache" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apache</h2>
+<h3><a class="anchor" aria-hidden="true" id="230-mdash-2019-02-20-a-id-230-a"></a><a href="#230-mdash-2019-02-20-a-id-230-a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.3.0 — 2019-02-20 <a id="2.3.0"></a></h3>
+<h4><a class="anchor" aria-hidden="true" id="general"></a><a href="#general" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>General</h4>
+<ul>
+<li>Support for schema definitions in the Pulsar <a href="https://pulsar.apache.org/docs/client-libraries-python/#schema">Python client library</a></li>
+<li>PIP-25: <a href="https://pulsar.apache.org/docs/security-token-client/">Token based authentication</a> <a href="https://github.com/apache/pulsar/pull/2888">#2888</a>,
+<a href="https://github.com/apache/pulsar/pull/3067">#3067</a> and <a href="https://github.com/apache/pulsar/pull/3089">#3089</a></li>
+<li>Updated to <a href="https://bookkeeper.apache.org/docs/4.9.0/overview/releaseNotes/">Apache BookKeeper 4.9.0</a></li>
+<li>ZStandard compression codec <a href="https://github.com/apache/pulsar/pull/3159">#3159</a>. Note that
+when a producer choose Zstd compression, a consumer will need to be at least at version 2.3.0
+to be able to correctly receive the messages.</li>
+<li>Support for Java 11 <a href="https://github.com/apache/pulsar/pull/3006">#3006</a></li>
+<li>Added <code>Schema.AUTO_PRODUCE</code> type to allow to publish serialized data and validate it against the
+topic schema <a href="https://github.com/apache/pulsar/pull/2685">#2685</a></li>
+<li>Added <code>Schema.KeyValue</code> to allow for schema to be validated on message keys as well as payloads. <a href="https://github.com/apache/pulsar/pull/2885">#2885</a></li>
+<li>Support TLS authentication and authorization in standalone mode <a href="https://github.com/apache/pulsar/pull/3360">#3360</a></li>
+<li>When creating namespace, use local cluster by default <a href="https://github.com/apache/pulsar/pull/3571">#3571</a></li>
+<li>Tag BookKeeper ledgers created by Pulsar with topic/subscription names for info/debug purposes
+<a href="https://github.com/apache/pulsar/pull/3525">#3525</a></li>
+<li>Enabled sticky reads in BooKeeper reads to increase IO efficiency with read-ahead <a href="https://github.com/apache/pulsar/pull/3569">#3569</a></li>
+<li>Several optimization in Pulsar SQL Presto connector (<a href="https://github.com/apache/pulsar/pull/3128">#3128</a>,
+<a href="https://github.com/apache/pulsar/pull/3135">#3135</a>, <a href="https://github.com/apache/pulsar/pull/3139">#3139</a>,
+<a href="https://github.com/apache/pulsar/pull/3144">#3144</a>, <a href="https://github.com/apache/pulsar/pull/3143">#3143</a>)</li>
+<li>Configure Pulsar broker data cache automatically from JVM settings <a href="https://github.com/apache/pulsar/pull/3573">#3573</a></li>
+<li>Reuse the SSL context objects <a href="https://github.com/apache/pulsar/pull/3550">#3550</a></li>
+<li>Automatic schema update can be disabled through admin interface <a href="https://github.com/apache/pulsar/pull/2691">#2691</a></li>
+<li>Support Dead-Letter-Queue from WebSocket proxy <a href="https://github.com/apache/pulsar/pull/2968">#2968</a></li>
+<li>Pull-mode for WebSocket proxy <a href="https://github.com/apache/pulsar/pull/3058">#3058</a></li>
+<li>Export Jetty stats to Prometheus <a href="https://github.com/apache/pulsar/pull/2804">#2804</a></li>
+<li>Added stats for Pulsar proxy <a href="https://github.com/apache/pulsar/pull/2740">#2740</a></li>
+<li>Allow subscribers to access subscription admin-api <a href="https://github.com/apache/pulsar/pull/2981">#2981</a></li>
+<li>Make brokers read on closest Bookie in a multi-region deployment <a href="https://github.com/apache/pulsar/pull/3171">#3171</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="fixes"></a><a href="#fixes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fixes</h4>
+<ul>
+<li>Fixed deadlock in reusing ZookKeeper event thread <a href="https://github.com/apache/pulsar/pull/3591">#3591</a></li>
+<li>In functions log topic appender, don't set producer name <a href="https://github.com/apache/pulsar/pull/3544">#3544</a></li>
+<li>When cursor recovery encounters empty cursor ledger, fallback to latest snapshot <a href="https://github.com/apache/pulsar/pull/3487">#3487</a></li>
+<li>Fixed C++ regex-consumer when using HTTP service URL <a href="https://github.com/apache/pulsar/pull/3407">#3407</a></li>
+<li>Fix race condition: broker not scheduling read for active consumer <a href="https://github.com/apache/pulsar/pull/3411">#3411</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-io"></a><a href="#pulsar-io" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar IO</h4>
+<ul>
+<li>Added Debezium connector for Change-Data-Capture into Pulsar <a href="https://github.com/apache/pulsar/pull/2791">#2791</a></li>
+<li>Added MongoDB connector <a href="https://github.com/apache/pulsar/pull/3561">#3561</a></li>
+<li>Added Elastic Search connector <a href="https://github.com/apache/pulsar/pull/2546">#2546</a></li>
+<li>Added HBase sink <a href="https://github.com/apache/pulsar/pull/3368">#3368</a></li>
+<li>Added Local files connector <a href="https://github.com/apache/pulsar/pull/2869">#2869</a></li>
+<li>Report source/sink stats in Prometheus <a href="https://github.com/apache/pulsar/pull/3261">#3261</a></li>
+<li>Allow filtering in Twitter Firehose connector <a href="https://github.com/apache/pulsar/pull/3298">#3298</a></li>
+<li>Sources/Sinks can be launched using fat jars as well <a href="https://github.com/apache/pulsar/pull/3166">#3166</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h4>
+<ul>
+<li>Added Kubernetes runtime <a href="https://github.com/apache/pulsar/pull/1950">#1950</a></li>
+<li>Secrets interface <a href="https://github.com/apache/pulsar/pull/2826">#2826</a></li>
+<li>Cleanup subscriptions when deleting functions <a href="https://github.com/apache/pulsar/pull/3299">#3299</a></li>
+<li>Add Windowfunction interface to functions api <a href="https://github.com/apache/pulsar/pull/3324">#3324</a></li>
+<li>Support for accessing state in Python <a href="https://github.com/apache/pulsar/pull/2714">#2714</a></li>
+<li>Support submitting Python functions as wheel file</li>
+<li>Support submitting Python functions as Zip file with dependencies included <a href="https://github.com/apache/pulsar/pull/3321">#3321</a></li>
+<li>Add minimum amount of resources to run setting for functions <a href="https://github.com/apache/pulsar/pull/3536">#3536</a></li>
+<li>Fixed the behavior of Function start/stop <a href="https://github.com/apache/pulsar/pull/3477">#3477</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="java-client"></a><a href="#java-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
+<ul>
+<li>Moved Pulsar v1 client API into separate artifact <a href="https://github.com/apache/pulsar/pull/3228">#3228</a>.<br />
+Applications that are using the Pulsar v1 API, deprecated since 2.0 release, need to update the
+Maven dependency to use the <code>pulsar-client-1x</code> artifact instead of <code>pulsar-client</code>. Eg.
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-1x<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>2.3.0<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre></li>
+<li>Fixed shading issues with Javadoc bundled in client jars by separating the API in a different
+Maven module <a href="https://github.com/apache/pulsar/pull/3309">#3309</a></li>
+<li>Improve Javadocs <a href="https://github.com/apache/pulsar/pull/3592">#3592</a></li>
+<li>Support specifying multiple hosts in pulsar service url and web url <a href="https://github.com/apache/pulsar/pull/3249">#3249</a></li>
+<li>Automatically discover when partitions on a topic are increased <a href="https://github.com/apache/pulsar/pull/3513">#3513</a></li>
+<li>Added <code>Client.getPartitionsForTopic()</code> <a href="https://github.com/apache/pulsar/pull/2972">#2972</a>
+(<a href="https://pulsar.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient.html#getPartitionsForTopic-java.lang.String-">Javadoc</a>)</li>
+<li>Added <code>Consumer.pauseMessageListener()</code> and <code>Consumer.resumeMessageListener()</code> <a href="https://github.com/apache/pulsar/pull/2961">#2961</a></li>
+<li>Removed shading relocations for Circe-checksum and lz4 libraries, to ensure native libraries
+are correctly loaded when using shaded client lib. <a href="https://github.com/apache/pulsar/pull/2191">#2191</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="python-client"></a><a href="#python-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
+<ul>
+<li>Fixed <code>Message.properties()</code> <a href="https://github.com/apache/pulsar/pull/3595">#3595</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="go-client"></a><a href="#go-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Go client</h4>
+<ul>
+<li>Added <code>Producer.flush()</code> to flush all outstanding messages <a href="https://github.com/apache/pulsar/pull/3469">#3469</a></li>
+<li>Support <code>Consumer.Seek()</code> <a href="https://github.com/apache/pulsar/pull/3478">#3478</a></li>
+<li>Added <code>Message.Topic()</code> <a href="https://github.com/apache/pulsar/pull/3346">#3346</a></li>
+<li>Allow to specify <code>SubscriptionInitPos</code> option in <code>ConsumerOptions</code> <a href="https://github.com/apache/pulsar/pull/3588">#3588</a></li>
+<li>Added TLS hostname verification <a href="https://github.com/apache/pulsar/pull/3580">#3580</a></li>
+<li>Allow to link statically against <code>libpulsar.a</code><a href="https://github.com/apache/pulsar/pull/3488">#3488</a></li>
+<li>Expose <code>Producer.LastSequenceID()</code> and <code>Message.SequenceID()</code> <a href="https://github.com/apache/pulsar/pull/3416">#3416</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
+<ul>
+<li>Enable batching by default when using <code>sendAsync()</code> <a href="https://github.com/apache/pulsar/pull/2949">#2949</a></li>
+<li>Allow to specify schema info in Avro format <a href="https://github.com/apache/pulsar/pull/3354">#3354</a></li>
+<li>Added <code>Producer.flush()</code> to flush all outstanding messages <a href="https://github.com/apache/pulsar/pull/3020">#3020</a></li>
+<li>Added TLS hostname verification <a href="https://github.com/apache/pulsar/pull/2475">#2475</a></li>
+<li>Allow to specify <code>SubscriptionInitialPosition</code> <a href="https://github.com/apache/pulsar/pull/3567">#3567</a></li>
+<li>Added <code>Message.getTopicName()</code> <a href="https://github.com/apache/pulsar/pull/3326">#3326</a></li>
+<li>Added <code>Cosnsumer.receiveAsync()</code> <a href="https://github.com/apache/pulsar/pull/3389">#3389</a></li>
+<li>Build <code>libpulsar.a</code> with all required dependencies <a href="https://github.com/apache/pulsar/pull/3488">#3488</a></li>
+<li>Removed Boost from Pulsar API headers <a href="https://github.com/apache/pulsar/pull/3374">#3374</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="adaptors"></a><a href="#adaptors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Adaptors</h4>
+<ul>
+<li>Kafka client wrapper, added support for explicit partitioning and custom partitioner <a href="https://github.com/apache/pulsar/pull/3462">#3462</a></li>
+<li>Support config <code>auto.offset.reset</code> to Pulsar KafkaConsumer <a href="https://github.com/apache/pulsar/pull/3273">#3273</a></li>
+<li>In Apache Flink connector, added support for Batch Sink API (<a href="https://github.com/apache/pulsar/pull/2979">2979#</a>,
+<a href="https://github.com/apache/pulsar/pull/3039">#3039</a> and <a href="https://github.com/apache/pulsar/pull/3046">#3046</a>)</li>
+<li>Added <a href="https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/batch/connectors/pulsar/example">Java batch examples</a> for Flink adaptor</li>
+<li>Added <a href="https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/streaming/connectors/pulsar/example">Java streaming examples</a> for Flink adaptor</li>
+<li>Added <a href="https://github.com/apache/pulsar/tree/master/examples/flink/src/main/scala/org/apache/flink/batch/connectors/pulsar/example">Scala examples</a> for Flink adaptor</li>
+</ul>
+<p>For a complete list of issues fixed, see</p>
+<p><a href="https://github.com/apache/pulsar/milestone/18?closed=1">https://github.com/apache/pulsar/milestone/18?closed=1</a></p>
+<p><a href="https://github.com/apache/pulsar/releases/tag/v2.3.0">https://github.com/apache/pulsar/releases/tag/v2.3.0</a></p>
 <h3><a class="anchor" aria-hidden="true" id="221-mdash-2018-12-31-a-id-221-a"></a><a href="#221-mdash-2018-12-31-a-id-221-a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.2.1 — 2018-12-31 <a id="2.2.1"></a></h3>
 <p>This release includes fixes for 2.2.0 release. In particular:</p>
 <ul>
@@ -166,7 +290,7 @@ snapshot with last published message for each message key.</li>
 <li><a href="https://github.com/apache/incubator-pulsar/pull/1002">#1002</a>, <a href="https://github.com/apache/incubator-pulsar/pull/1169">#1169</a>, <a href="https://github.com/apache/incubator-pulsar/pull/1168">#1168</a> Making Pulsar Proxy more secure</li>
 <li><a href="https://github.com/apache/incubator-pulsar/pull/1029">#1029</a> Fix MessageRouter hash inconsistent on C++/Java client</li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="fixes"></a><a href="#fixes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fixes</h4>
+<h4><a class="anchor" aria-hidden="true" id="fixes-1"></a><a href="#fixes-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fixes</h4>
 <ul>
 <li><a href="https://github.com/apache/incubator-pulsar/pull/1153">#1153</a> Fixed increase partitions on a partitioned topic</li>
 <li><a href="https://github.com/apache/incubator-pulsar/pull/1195">#1195</a> Ensure the checksum is not stripped after validation in the broker</li>
@@ -489,6 +613,6 @@ environment with 1.14 and 1.15 brokers</li>
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.2.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.3.0"]}
               });
             </script></body></html>
