@@ -100,7 +100,7 @@
  * Allow to specify schema info in Avro format [#3354](https://github.com/apache/pulsar/pull/3354)
  * Added `Producer.flush()` to flush all outstanding messages [#3020](https://github.com/apache/pulsar/pull/3020)
  * Added TLS hostname verification [#2475](https://github.com/apache/pulsar/pull/2475)
- * Allow to specify `SubscriptionInitialPosition` [#](https://github.com/apache/pulsar/pull/3567)
+ * Allow to specify `SubscriptionInitialPosition` [#3567](https://github.com/apache/pulsar/pull/3567)
  * Added `Message.getTopicName()` [#3326](https://github.com/apache/pulsar/pull/3326)
  * Added `Cosnsumer.receiveAsync()` [#3389](https://github.com/apache/pulsar/pull/3389)
  * Build `libpulsar.a` with all required dependencies [#3488](https://github.com/apache/pulsar/pull/3488)
