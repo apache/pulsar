@@ -13,11 +13,11 @@ from new messaging features, to improved usability for Pulsar Functions
 and Pulsar IO.
 
 Check out the official <b>[release notes](/release-notes/#2.3.0)</b> for a
-detailed list of the changes, with link to the relevant pull-requests,
+detailed list of the changes, with links to the relevant pull-requests,
 discussions and documentation.
 
 Regarding new features introduced, I just want to highlight here a tiny
-subset between them:
+subset of them:
 
 <!--truncate-->
 
@@ -26,7 +26,9 @@ subset between them:
 It's now possible to use Kubernetes as the scheduler for Pulsar Functions.
 
 When a Pulsar cluster is configured to use Kubernetes, submitting a
-function, with the using CLI tools or REST API, will cause a
+function, using CLI tools or REST API, will cause the function instances
+to be submitted as Kubernetes pods rather than running as processes
+or threads within the Pulsar functions worker.
 
 With this runtime manager, it's possible to set quota on CPU/Mem and
 have Kubernetes assign the required resources and enforce isolation
@@ -34,10 +36,10 @@ between different instances and functions.
 
 ###  New Pulsar IO connectors:
 
-A new batch of connector was added, including MongoDB, Elastic Search,
+A new batch of connectors was added, including MongoDB, Elastic Search,
 HBase and local files source and sink.
 
-Between them there is also support for doing
+We introduce support for doing
 [Change-Data-Capture](https://en.wikipedia.org/wiki/Change_data_capture)
 with [Debezium](https://debezium.io/). This allows to record all
 the update from a database into a Pulsar topic and use it for replication,
@@ -54,8 +56,8 @@ to get started in capturing database changes.
 
 ### Token Authentication
 
-Provides a very simple and secure method of authentication for Pulsar. This is based on
-[JSON Web Tokens](https://jwt.io/)
+Token Authentication provides a very simple and secure method of authentication for Pulsar.
+This is based on [JSON Web Tokens](https://jwt.io/).
 
 With tokens authentication, a client only needs to provide a single credential, or "token", in the
 form of an opaque string provided by either the system administrator or some automated service.
