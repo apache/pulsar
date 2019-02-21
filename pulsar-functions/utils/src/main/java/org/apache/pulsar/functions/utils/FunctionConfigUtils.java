@@ -211,19 +211,16 @@ public class FunctionConfigUtils {
         } else {
             functionDetailsBuilder.setParallelism(1);
         }
-        if (functionConfig.getResources() != null) {
-            Function.Resources.Builder bldr = Function.Resources.newBuilder();
-            if (functionConfig.getResources().getCpu() != null) {
-                bldr.setCpu(functionConfig.getResources().getCpu());
-            }
-            if (functionConfig.getResources().getRam() != null) {
-                bldr.setRam(functionConfig.getResources().getRam());
-            }
-            if (functionConfig.getResources().getDisk() != null) {
-                bldr.setDisk(functionConfig.getResources().getDisk());
-            }
-            functionDetailsBuilder.setResources(bldr.build());
-        }
+
+        // use default resources if resources not set
+        Resources resources = Resources.mergeWithDefault(functionConfig.getResources());
+
+        Function.Resources.Builder bldr = Function.Resources.newBuilder();
+        bldr.setCpu(resources.getCpu());
+        bldr.setRam(resources.getRam());
+        bldr.setDisk(resources.getDisk());
+        functionDetailsBuilder.setResources(bldr);
+
         return functionDetailsBuilder.build();
     }
 
