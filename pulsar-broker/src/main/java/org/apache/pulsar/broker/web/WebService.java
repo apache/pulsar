@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -98,12 +97,13 @@ public class WebService implements AutoCloseable {
                         pulsar.getConfiguration().getTlsTrustCertsFilePath(),
                         pulsar.getConfiguration().getTlsCertificateFilePath(),
                         pulsar.getConfiguration().getTlsKeyFilePath(),
-                        pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect());
+                        pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect(), true,
+                        pulsar.getConfiguration().getTlsCertRefreshCheckDurationSec());
                 ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(tlsPort.get());
                 tlsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(tlsConnector);
-            } catch (GeneralSecurityException e) {
+            } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
         }
