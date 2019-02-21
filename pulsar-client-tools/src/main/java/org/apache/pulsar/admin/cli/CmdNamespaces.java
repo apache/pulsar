@@ -544,7 +544,7 @@ public class CmdNamespaces extends CmdBase {
 
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
-    private class SetSuscriptionDispatchRate extends CliCommand {
+    private class SetSubscriptionDispatchRate extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
@@ -1061,6 +1061,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+
+        jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
+        jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 

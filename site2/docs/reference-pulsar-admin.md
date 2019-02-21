@@ -692,6 +692,8 @@ Subcommands
 * `get-dispatch-rate`
 * `set-subscribe-rate`
 * `get-subscribe-rate`
+* `set-subscription-dispatch-rate`
+* `get-subscription-dispatch-rate`
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
@@ -1081,6 +1083,29 @@ Get configured subscribe-rate per consumer for all topics of the namespace
 Usage
 ```bash
 $ pulsar-admin namespaces get-subscribe-rate tenant/namespace
+```
+
+### `set-subscription-dispatch-rate`
+Set subscription message-dispatch-rate for all subscription of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscription-dispatch-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
+|`-md`, `--sub-msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+
+### `get-subscription-dispatch-rate`
+Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
+
+Usage
+```bash
+$ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
 ```
 
 ### `clear-backlog`
