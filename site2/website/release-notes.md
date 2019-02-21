@@ -74,7 +74,7 @@
    ```
  * Fixed shading issues with Javadoc bundled in client jars by separating the API in a different
    Maven module [#3309](https://github.com/apache/pulsar/pull/3309)
- * Improve Javadocs [#](https://github.com/apache/pulsar/pull/3592)
+ * Improve Javadocs [#3592](https://github.com/apache/pulsar/pull/3592)
  * Support specifying multiple hosts in pulsar service url and web url [#3249](https://github.com/apache/pulsar/pull/3249)  
  * Automatically discover when partitions on a topic are increased [#3513](https://github.com/apache/pulsar/pull/3513)
  * Added `Client.getPartitionsForTopic()` [#2972](https://github.com/apache/pulsar/pull/2972)
