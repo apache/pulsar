@@ -62,6 +62,9 @@ public class FunctionConfigUtilsTest {
         functionConfig.setTimeoutMs(2000l);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        functionConfig.setResources(Resources.getDefaultResources());
         assertEquals(
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
@@ -90,6 +93,9 @@ public class FunctionConfigUtilsTest {
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        functionConfig.setResources(Resources.getDefaultResources());
         assertEquals(
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
