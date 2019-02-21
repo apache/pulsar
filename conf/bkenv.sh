@@ -33,10 +33,13 @@ BOOKIE_CONF=${BOOKIE_CONF:-"$BK_HOME/conf/bookkeeper.conf"}
 # BOOKIE_LOG_DIR=
 
 # Memory size options
-BOOKIE_MEM=" -Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g"
+BOOKIE_MEM=" -Xmx2g -XX:MaxDirectMemorySize=2g -XX:+ExitOnOutOfMemoryError"
 
 # Garbage collection options
-BOOKIE_GC=" -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB"
+BOOKIE_GC=" -XX:+UseG1GC"
+
+# Example of configuration with more aggressive options to reduce the GC pause times. Works well with higher heap sizes
+# BOOKIE_GC=" -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB"
 
 # Extra options to be passed to the jvm
 BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${BOOKIE_MEM} ${BOOKIE_GC} -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
