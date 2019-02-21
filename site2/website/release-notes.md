@@ -26,7 +26,7 @@
  * Configure Pulsar broker data cache automatically from JVM settings [#3573](https://github.com/apache/pulsar/pull/3573)
  * Reuse the SSL context objects [#3550](https://github.com/apache/pulsar/pull/3550)
  * Automatic schema update can be disabled through admin interface [#2691](https://github.com/apache/pulsar/pull/2691)
- * Support Dead-Letter-Queue from WebSocket proxy [#2698](https://github.com/apache/pulsar/pull/2968)
+ * Support Dead-Letter-Queue from WebSocket proxy [#2968](https://github.com/apache/pulsar/pull/2968)
  * Pull-mode for WebSocket proxy [#3058](https://github.com/apache/pulsar/pull/3058)
  * Export Jetty stats to Prometheus [#2804](https://github.com/apache/pulsar/pull/2804)
  * Added stats for Pulsar proxy [#2740](https://github.com/apache/pulsar/pull/2740)
