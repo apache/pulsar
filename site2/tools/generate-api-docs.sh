@@ -18,18 +18,14 @@
 # under the License.
 #
 
-set -xe
+set -x -e
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+SCRIPT_DIR=`dirname "$0"`
 
-# Make sure the Python client lib is installed
-# so that Pdoc can import the module
-pip install pulsar-client
+cd $SCRIPT_DIR
 
-DESTINATION=$ROOT_DIR/site/api/python
-rm -fr $DESTINATION/{index.html,functions,pulsar}
-PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc pulsar \
-  --html \
-  --html-dir $DESTINATION
-mv -f $DESTINATION/pulsar/* $DESTINATION/
-rmdir $DESTINATION/pulsar
+./doxygen-doc-gen.sh
+
+./javadoc-gen.sh
+
+./python-doc-gen.sh
