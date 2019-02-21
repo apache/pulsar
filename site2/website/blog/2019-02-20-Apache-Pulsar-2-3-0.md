@@ -34,9 +34,23 @@ between different instances and functions.
 
 ###  New Pulsar IO connectors:
 
-A new batch of connector was added, included Debezium (for
-change-data-capture), MongoDB, Elastic Search, HBase and local files
-source and sink.
+A new batch of connector was added, including MongoDB, Elastic Search,
+HBase and local files source and sink.
+
+Between them there is also support for doing
+[Change-Data-Capture](https://en.wikipedia.org/wiki/Change_data_capture)
+with [Debezium](https://debezium.io/). This allows to record all
+the update from a database into a Pulsar topic and use it for replication,
+streaming jobs, cache updating, etc..
+
+With Pulsar IO, Debezium will run as a regular Pulsar IO source,
+completely managed by Pulsar. Users can easily submit a Debezium
+builtin connector to a Pulsar cluster and start feeding data
+from a long list of supported databases like MySQL, MongoDB,
+PostgreSQL, Oracle and SQL Server.
+
+Check out the [Debezium connector](/docs/io-cdc) documentation for how
+to get started in capturing database changes.
 
 ### Token Authentication
 
