@@ -69,6 +69,14 @@ class Download extends React.Component {
               <h1><translate>Apache Pulsar downloads</translate></h1>
               <hr />
             </header>
+
+            <h2><translate>Release notes</translate></h2>
+            <div>
+              <p>
+                <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes`}>Release notes</a> for all Pulsar's versions
+              </p>
+            </div>
+
             <h2 id="latest"><translate>Current version (Stable)</translate> {latestVersion}</h2>
             <table className="versions" style={{width:'100%'}}>
               <thead>
@@ -164,14 +172,6 @@ class Download extends React.Component {
               After you download the file, you should calculate a checksum for your download, and make sure it is
               the same as ours.
             </MarkdownBlock>
-
-
-            <h2><translate>Release notes</translate></h2>
-            <div>
-              <p>
-                <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes`}>Release notes</a> for all Pulsar's versions
-              </p>
-            </div>
 
             <h2><translate>Getting started</translate></h2>
             <div>
