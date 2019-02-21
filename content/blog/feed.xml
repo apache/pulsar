@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Mon, 06 Aug 2018 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Wed, 20 Feb 2019 06:00:00 GMT</lastBuildDate>
         <docs>http://blogs.law.harvard.edu/tech/rss</docs>
         <generator>Feed for Node.js</generator>
         <image>
@@ -13,6 +13,24 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Apache Pulsar 2.3.0]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html</guid>
+            <pubDate>Wed, 20 Feb 2019 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>The Apache Pulsar PMC is happy to announce the release of Pulsar 2.3.0. This
+is the result of huge effort from the community, with over 480 commits and
+a long list of new features, general improvements and bug fixes.</p>
+<p>These improvements have been across the board in all of Pulsar components,
+from new messaging features, to improved usability for Pulsar Functions
+and Pulsar IO.</p>
+<p>Check out the official <b><a href="/release-notes/#2.3.0">release notes</a></b> for a
+detailed list of the changes, with links to the relevant pull-requests,
+discussions and documentation.</p>
+<p>Regarding new features introduced, I just want to highlight here a tiny
+subset of them:</p>
+]]></description>
+        </item>
         <item>
             <title><![CDATA[Apache Pulsar 2.1.0-incubating]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html</link>
