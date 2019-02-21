@@ -18,15 +18,18 @@
 # under the License.
 #
 
+set -x -e
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 DOXYGEN=doxygen
 TMP_DIR=$(mktemp -d)
+
+mkdir -p $ROOT_DIR/generated-site/api/cpp
 
 (
   cd $ROOT_DIR/pulsar-client-cpp
   $DOXYGEN Doxyfile
 )
 
-mv api/cpp $TMP_DIR
-mv $TMP_DIR/cpp/html api/cpp
+mv $ROOT_DIR/generated-site/api/cpp $TMP_DIR
+mv $TMP_DIR/cpp/html $ROOT_DIR/generated-site/api/cpp
