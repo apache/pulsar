@@ -53,7 +53,7 @@ configs:
 
 Here is a simple example to store MySQL change data using above example config.
 
-- Start a MySQL server with an example database
+- Start a MySQL server
 
 ```$bash
 docker pull mysql:5.7
@@ -147,20 +147,20 @@ wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.
 ./bin/pulsar-admin source localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1
 ```
 
-- Insert data and consumption data 
+- consumption data 
 
 ```$bash
 docker exec -it pulsar-standalone /bin/bash
 python pulsar-client.py
 ```
 
--Open other window
+- Open other window for login mysql server
 
 ```$bash
 docker exec -it pulsar-mysql /bin/bash
 mysql -h 127.0.0.1 -uroot -pcanal
 ```
-- Mysql create table and insert, delete, update
+- Create table and insert, delete, update in mysql server
 ```
 mysql> use test;
 mysql> show tables;
