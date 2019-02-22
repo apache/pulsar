@@ -18,6 +18,36 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.ArgumentMatcher;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
@@ -32,30 +62,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.instance.SinkRecord;
-import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.SinkContext;
-import org.mockito.ArgumentMatcher;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 @Slf4j
 public class PulsarSinkTest {
@@ -245,8 +251,6 @@ public class PulsarSinkTest {
             fail();
         }
     }
-
-
 
     @Test
     public void testSinkAndMessageRouting() throws Exception {
