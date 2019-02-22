@@ -137,15 +137,16 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         public Function<Throwable, Void> getPublishErrorHandler(Record<T> record) {
-            return throwable -> {
 
+            return throwable -> {
                 SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
                 Record<T> srcRecord = sinkRecord.getSourceRecord();
 
                 String topic = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
+
                 String errorMsg = null;
                 if (srcRecord instanceof PulsarRecord) {
-                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]", topic, throwable.getMessage(), ((PulsarRecord) record).getMessageId());
+                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]", topic, throwable.getMessage(), ((PulsarRecord) srcRecord).getMessageId());
                     log.error(errorMsg);
                 } else {
                     errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src sequence id [%s]", topic, throwable.getMessage(), record.getRecordSequence().get());
