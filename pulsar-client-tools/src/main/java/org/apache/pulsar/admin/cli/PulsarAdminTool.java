@@ -44,7 +44,11 @@ public class PulsarAdminTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
