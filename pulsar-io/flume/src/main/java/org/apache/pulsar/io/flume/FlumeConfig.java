@@ -50,7 +50,6 @@ public class FlumeConfig {
             help = "specify a config file (required if -z missing)")
     private String confFile;
     @FieldDoc(
-            required = false,
             defaultValue = "false",
             help = "do not reload config file if changed")
     private Boolean noReloadConf;
