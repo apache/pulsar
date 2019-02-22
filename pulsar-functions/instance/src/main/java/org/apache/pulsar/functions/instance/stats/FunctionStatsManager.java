@@ -236,7 +236,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
         sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
     }
 
-    public void addUserException(Exception ex) {
+    public void addUserException(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestUserExceptions.add(info);
@@ -284,19 +284,19 @@ public class FunctionStatsManager extends ComponentStatsManager{
     }
 
     @Override
-    public void incrUserExceptions(Exception userException) {
+    public void incrUserExceptions(Throwable userException) {
         _statTotalUserExceptions.inc();
         _statTotalUserExceptions1min.inc();
         addUserException(userException);
     }
 
     @Override
-    public void incrSourceExceptions(Exception ex) {
+    public void incrSourceExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSinkExceptions(Exception ex) {
+    public void incrSinkExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 

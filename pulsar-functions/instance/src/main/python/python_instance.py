@@ -261,12 +261,12 @@ class PythonInstance(object):
         Log.error("Uncaught exception in Python instance: %s" % e);
         self.stats.incr_total_sys_exceptions(e)
 
-  def done_producing(self, consumer, orig_message, result, sent_message):
+  def done_producing(self, consumer, orig_message, topic, result, sent_message):
     if result == pulsar.Result.Ok:
       if self.auto_ack:
         consumer.acknowledge(orig_message)
     else:
-      error_msg = "Failed to produce with error code: %s" % result
+      error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
       Log.error(error_msg)
       self.stats.incr_total_sys_exceptions(Exception(error_msg))
 
@@ -284,7 +284,7 @@ class PythonInstance(object):
 
       if output_bytes is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
+        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 

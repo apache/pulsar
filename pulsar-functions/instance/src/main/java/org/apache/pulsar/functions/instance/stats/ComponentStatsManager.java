@@ -99,11 +99,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract void incrSysExceptions(Throwable sysException);
 
-    public abstract void incrUserExceptions(Exception userException);
+    public abstract void incrUserExceptions(Throwable userException);
 
-    public abstract void incrSourceExceptions(Exception userException);
+    public abstract void incrSourceExceptions(Throwable userException);
 
-    public abstract void incrSinkExceptions(Exception userException);
+    public abstract void incrSinkExceptions(Throwable userException);
 
     public abstract void setLastInvocation(long ts);
 

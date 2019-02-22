@@ -139,9 +139,9 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def callback_wrapper(self, callback, result, msg):
+  def callback_wrapper(self, callback, topic, message_id, result, msg):
     if result != pulsar.Result.Ok:
-      error_msg = "Failed to produce with error code: %s" % result
+      error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, message_id)
       Log.error(error_msg)
       self.stats.incr_total_sys_exceptions(Exception(error_msg))
     callback(result, msg)
@@ -172,7 +172,7 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
-    self.publish_producers[topic_name].send_async(output_bytes, partial(self.callback_wrapper, callback), properties=properties)
+    self.publish_producers[topic_name].send_async(output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()), properties=properties)
 
   def ack(self, msgid, topic):
     if topic not in self.consumers:
