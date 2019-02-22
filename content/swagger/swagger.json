@@ -7010,17 +7010,27 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "loadReportType" : {
-          "type" : "string"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -7030,21 +7040,11 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -7204,10 +7204,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -7918,10 +7918,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -8026,11 +8026,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

@@ -106,7 +106,7 @@
 <blockquote>
 <p>However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later), you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.</p>
 </blockquote>
-<p>Each machine in your cluster will need to have <a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java 8</a> or higher installed.</p>
+<p>集群中的每台机器都需要安装<a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java 8</a>或更高版本。</p>
 <p>Here's a diagram showing the basic setup:</p>
 <p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
 <p>In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL, in this case <code>pulsar-cluster.acme.com</code>, that abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.</p>
