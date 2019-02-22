@@ -54,6 +54,12 @@ module.exports = [
         link: null
     },
     {
+        name: 'kafka-connect-adaptor',
+        longName: 'Apache Kafka Connect Adaptor',
+        type: 'Source, Sink',
+        link: 'http://kafka.apache.org/'
+    },
+    {
         name: 'kafka',
         longName: 'Apache Kafka',
         type: 'Source, Sink',
