@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -63,7 +65,7 @@ public class JSONSchema<T> implements Schema<T>{
         this.schemaInfo.setName("");
         this.schemaInfo.setProperties(properties);
         this.schemaInfo.setType(SchemaType.JSON);
-        this.schemaInfo.setSchema(this.schema.toString().getBytes());
+        this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
         this.objectMapper = JSON_MAPPER.get();
     }
 
