@@ -333,7 +333,7 @@ elif [ $COMMAND == "sql-worker" ]; then
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
       exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
-elif [ $COMMAND == "help" ]; then
+elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else
     echo ""

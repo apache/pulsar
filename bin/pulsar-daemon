@@ -50,11 +50,18 @@ PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
 PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
 PULSAR_PID_DIR=${PULSAR_PID_DIR:-$PULSAR_HOME/bin}
 
-if [ $# -lt 2 ]
-then
-    echo "Error: no enough arguments provided."
+if [ $# = 0 ]; then
     usage
     exit 1
+elif [ $# = 1 ]; then
+    if [ $1 == "--help" -o $1 == "-h" ]; then
+        usage
+        exit 1
+    else
+        echo "Error: no enough arguments provided."
+        usage
+        exit 1
+    fi
 fi
 
 startStop=$1
