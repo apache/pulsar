@@ -254,6 +254,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean tlsHostnameVerificationEnable = false;
     @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        )
+        private long tlsCertRefreshCheckDurationSec = 300;
+    @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authentication"
     )
