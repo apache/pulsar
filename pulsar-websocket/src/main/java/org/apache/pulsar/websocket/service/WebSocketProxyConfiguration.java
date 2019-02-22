@@ -119,6 +119,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+    private long tlsCertRefreshCheckDurationSec = 300;
 
     private Properties properties = new Properties();
 
@@ -406,5 +408,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
         this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+    
+    public long getTlsCertRefreshCheckDurationSec() {
+        return tlsCertRefreshCheckDurationSec;
+    }
+
+    public void setTlsCertRefreshCheckDurationSec(long tlsCertRefreshCheckDurationSec) {
+        this.tlsCertRefreshCheckDurationSec = tlsCertRefreshCheckDurationSec;
     }
 }

@@ -102,11 +102,13 @@ public class WebServer {
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.isTlsRequireTrustedClientCertOnConnect());
+                        config.isTlsRequireTrustedClientCertOnConnect(),
+                        true,
+                        config.getTlsCertRefreshCheckDurationSec());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
-            } catch (GeneralSecurityException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
