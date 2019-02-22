@@ -265,8 +265,9 @@ class PythonInstance(object):
       if self.auto_ack:
         consumer.acknowledge(orig_message)
     else:
-      Log.error("Failed to produce with error code: %s" % result)
-      self.stats.incr_total_sys_exceptions(Exception(result))
+      error_msg = "Failed to produce with error code: %s" % result
+      Log.error(error_msg)
+      self.stats.incr_total_sys_exceptions(Exception(error_msg))
 
 
   def process_result(self, output, msg):
