@@ -33,7 +33,7 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     public int incrementAndGetRedeliveryCount(Position position) {
         PositionImpl positionImpl = (PositionImpl) position;
         LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
-        int newCount = (int) (count != null ? count.first + 1 : 0);
+        int newCount = (int) (count != null ? count.first + 1 : 1);
         trackerCache.put(positionImpl.getLedgerId(), positionImpl.getEntryId(), newCount, 0L);
         return newCount;
     }
