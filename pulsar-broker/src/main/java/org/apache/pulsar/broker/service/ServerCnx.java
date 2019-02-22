@@ -224,6 +224,7 @@ public class ServerCnx extends PulsarHandler {
      * - originalPrincipal is not a proxy principal
      */
     //TODO: for sasl proxy.
+    // github issue #3655 {@link: https://github.com/apache/pulsar/issues/3655}
     private boolean invalidOriginalPrincipal(String originalPrincipal) {
         return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
             && !isSaslAuthenticationMethod()

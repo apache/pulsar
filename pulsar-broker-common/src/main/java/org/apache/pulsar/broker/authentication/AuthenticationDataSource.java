@@ -116,7 +116,7 @@ public interface AuthenticationDataSource {
      * used for sasl.
      */
     default void setCommandDataBytes(byte[] commandData) throws IOException {
-        throw new IOException("Method not implemented!");
+        throw new UnsupportedOperationException("Method not implemented!");
     }
 
     /**

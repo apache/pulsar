@@ -57,4 +57,10 @@ public class SaslAuthenticationDataSource implements AuthenticationDataSource {
     public String getAuthorizationID() {
         return pulsarSaslServer.getAuthorizationID();
     }
+
+    // TODO: for http support. github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+    /* default boolean hasDataFromHttp() {
+        return false;
+    }*/
+
 }

@@ -84,7 +84,6 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
     }
 
-    // will get authenticated client id like: "client/host.name.client@EXAMPLE.COM"
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData instanceof SaslAuthenticationDataSource) {
@@ -92,8 +91,6 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         } else {
             throw new AuthenticationException("Not support get authDate from outside sasl.");
         }
-        // TODO: for http
-        //authData.hasDataFromHttp()
     }
 
     @Override

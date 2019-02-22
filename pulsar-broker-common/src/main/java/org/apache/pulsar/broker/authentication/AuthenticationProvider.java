@@ -61,7 +61,7 @@ public interface AuthenticationProvider extends Closeable {
      * Some authentication method need to auth between each client channel.
      */
     default AuthenticationDataSource getAuthDataSource() throws IOException {
-        throw new IOException("Method not implemented!");
+        throw new UnsupportedOperationException();
     }
 
 }
