@@ -17,9 +17,15 @@
 # under the License.
 #
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4) 
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "ccache")
+    MESSAGE(STATUS "Using CCache")
+endif(CCACHE_PROGRAM)
 
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})

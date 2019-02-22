@@ -181,19 +181,15 @@ public class SinkConfigUtils {
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
-        if (sinkConfig.getResources() != null) {
-            Function.Resources.Builder bldr = Function.Resources.newBuilder();
-            if (sinkConfig.getResources().getCpu() != null) {
-                bldr.setCpu(sinkConfig.getResources().getCpu());
-            }
-            if (sinkConfig.getResources().getRam() != null) {
-                bldr.setRam(sinkConfig.getResources().getRam());
-            }
-            if (sinkConfig.getResources().getDisk() != null) {
-                bldr.setDisk(sinkConfig.getResources().getDisk());
-            }
-            functionDetailsBuilder.setResources(bldr.build());
-        }
+        // use default resources if resources not set
+        Resources resources = Resources.mergeWithDefault(sinkConfig.getResources());
+
+        Function.Resources.Builder bldr = Function.Resources.newBuilder();
+        bldr.setCpu(resources.getCpu());
+        bldr.setRam(resources.getRam());
+        bldr.setDisk(resources.getDisk());
+        functionDetailsBuilder.setResources(bldr);
+
         return functionDetailsBuilder.build();
     }
 

@@ -29,4 +29,5 @@ public class ConsumerConfig {
     private String schemaType;
     private String serdeClassName;
     private boolean isRegexPattern;
+    private Integer receiverQueueSize;
 }
