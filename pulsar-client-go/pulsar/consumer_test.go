@@ -85,6 +85,7 @@ func TestConsumer(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
+		sendTime := time.Now()
 		if err := producer.Send(ctx, ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		}); err != nil {
@@ -92,11 +93,14 @@ func TestConsumer(t *testing.T) {
 		}
 
 		msg, err := consumer.Receive(ctx)
+		recvTime := time.Now()
 		assert.Nil(t, err)
 		assert.NotNil(t, msg)
 
 		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
 		assert.Equal(t, string(msg.Topic()), "persistent://public/default/my-topic")
+		assert.True(t, sendTime.Unix() <= msg.PublishTime().Unix())
+		assert.True(t, recvTime.Unix() >= msg.PublishTime().Unix())
 
 		consumer.Ack(msg)
 	}
