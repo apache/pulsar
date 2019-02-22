@@ -261,8 +261,13 @@ class PythonInstance(object):
         self.stats.incr_total_sys_exceptions(e)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
-    if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
-      consumer.acknowledge(orig_message)
+    if result == pulsar.Result.Ok:
+      if self.auto_ack:
+        consumer.acknowledge(orig_message)
+    else:
+      Log.error("Failed to produce with error code: %s" % result)
+      self.stats.incr_total_sys_exceptions(Exception(result))
+
 
   def process_result(self, output, msg):
     if output is not None and self.instance_config.function_details.sink.topic != None and \
