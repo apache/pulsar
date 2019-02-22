@@ -201,10 +201,9 @@ func latestMessageID() *messageID {
 }
 
 func timeFromUnixTimestampMillis(timestamp C.ulonglong) time.Time {
-	ts := int64(timestamp)
-	seconds := ts / int64(time.Millisecond)
-	millis := ts - seconds
-	nanos := millis * int64(time.Millisecond)
+	ts := int64(timestamp) * int64(time.Millisecond)
+	seconds := ts / int64(time.Second)
+	nanos := ts - (seconds * int64(time.Second))
 	return time.Unix(seconds, nanos)
 }
 
