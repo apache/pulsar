@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -138,13 +139,16 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(Record<T> record) {
             return throwable -> {
 
+                SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
+                Record<T> srcRecord = sinkRecord.getSourceRecord();
+
                 String topic = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
                 String errorMsg = null;
-                if (record instanceof PulsarRecord) {
+                if (srcRecord instanceof PulsarRecord) {
                     errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]", topic, throwable.getMessage(), ((PulsarRecord) record).getMessageId());
                     log.error(errorMsg);
                 } else {
-                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src sequence id [%s]", topic, throwable.getMessage(), record.getRecordSequence());
+                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src sequence id [%s]", topic, throwable.getMessage(), record.getRecordSequence().get());
                     log.error(errorMsg);
                 }
                 stats.incrSinkExceptions(new Exception(errorMsg));
@@ -190,6 +194,12 @@ public class PulsarSink<T> implements Sink<T> {
             msg.sendAsync()
                     .thenAccept(messageId -> record.ack())
                     .exceptionally(getPublishErrorHandler(record));
+
+
+            CompletableFuture<Void> foo = msg.sendAsync().thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record));
+            foo.completeExceptionally(new RuntimeException("foo test"));
+
+
         }
     }
 
@@ -223,10 +233,10 @@ public class PulsarSink<T> implements Sink<T> {
 
             // assign sequence id to output message for idempotent producing
             msg.sequenceId(record.getRecordSequence().get());
-            msg.sendAsync()
-                    .thenAccept(messageId -> record.ack())
-                    .exceptionally(getPublishErrorHandler(record))
-                    .join();
+            CompletableFuture<MessageId> future = msg.sendAsync();
+
+            future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record));
+            future.join();
         }
     }
 
