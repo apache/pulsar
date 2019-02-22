@@ -201,7 +201,8 @@ class PythonInstance(object):
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client,
                                                self.user_code, self.consumers,
-                                               self.secrets_provider, self.metrics_labels, self.state_context)
+                                               self.secrets_provider, self.metrics_labels,
+                                               self.state_context, self.stats)
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()
