@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
 
@@ -31,7 +32,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from TLS are available.
-     * 
+     *
      * @return true if this authentication data contain data from TLS
      */
     default boolean hasDataFromTls() {
@@ -39,7 +40,7 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a client certificate chain, or null if the data are not available
      */
     default Certificate[] getTlsCertificates() {
@@ -52,7 +53,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from HTTP are available.
-     * 
+     *
      * @return true if this authentication data contain data from HTTP
      */
     default boolean hasDataFromHttp() {
@@ -60,7 +61,7 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a authentication scheme, or <code>null<c/ode> if the request is not be authenticated
      */
     default String getHttpAuthType() {
@@ -68,7 +69,7 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a <code>String</code> containing the value of the specified header, or <code>null</code> if the header
      *         does not exist.
      */
@@ -82,7 +83,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from Pulsar protocol are available.
-     * 
+     *
      * @return true if this authentication data contain data from Pulsar protocol
      */
     default boolean hasDataFromCommand() {
@@ -90,10 +91,46 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return authentication data which is stored in a command
      */
     default String getCommandData() {
+        return null;
+    }
+
+
+    /*
+     * SASL
+     */
+
+    /**
+     *
+     * @return authentication data which will be stored in a command
+     */
+    default byte[] getCommandDataBytes() {
+        return null;
+    }
+
+    /**
+     * set data which will be stored in a command to send to client
+     * used for sasl.
+     */
+    default void setCommandDataBytes(byte[] commandData) throws IOException {
+        throw new IOException("Method not implemented!");
+    }
+
+    /**
+     * Whether the authentication between client and broker completed.
+     */
+    default boolean isComplete() {
+        return true;
+    }
+
+    /**
+     * After the authentication between client and broker completed.
+     * Get authenticationId represent for the client
+     */
+    default String getAuthorizationID() {
         return null;
     }
 
@@ -103,7 +140,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from peer are available.
-     * 
+     *
      * @return true if this authentication data contain data from peer
      */
     default boolean hasDataFromPeer() {
@@ -111,10 +148,12 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a <code>String</code> containing the IP address of the client
      */
     default SocketAddress getPeerAddress() {
         return null;
     }
+
+
 }

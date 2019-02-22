@@ -96,7 +96,7 @@ public class WebSocketWebResource {
      *             if not authorized
      */
     protected void validateSuperUserAccess() {
-        if (service().getConfig().isAuthenticationEnabled()) {
+        if (service().getConfig().isAuthenticationEnabled() && !service().getConfig().isSaslAuthentication()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),

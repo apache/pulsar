@@ -150,6 +150,48 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newConnect(String authMethodName, byte[] authData, int protocolVersion, String libVersion,
+                                     String targetBroker, String originalPrincipal, String originalAuthData,
+                                     String originalAuthMethod) {
+        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
+        connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
+        connectBuilder.setAuthMethodName(authMethodName);
+
+        if ("ycav1".equals(authMethodName)) {
+            // Handle the case of a client that gets updated before the broker and starts sending the string auth method
+            // name. An example would be in broker-to-broker replication. We need to make sure the clients are still
+            // passing both the enum and the string until all brokers are upgraded.
+            connectBuilder.setAuthMethod(AuthMethod.AuthMethodYcaV1);
+        }
+
+        if (targetBroker != null) {
+            // When connecting through a proxy, we need to specify which broker do we want to be proxied through
+            connectBuilder.setProxyToBrokerUrl(targetBroker);
+        }
+
+        if (authData != null) {
+            connectBuilder.setAuthData(ByteString.copyFrom(authData));
+        }
+
+        if (originalPrincipal != null) {
+            connectBuilder.setOriginalPrincipal(originalPrincipal);
+        }
+
+        if (originalAuthData != null) {
+            connectBuilder.setOriginalAuthData(originalAuthData);
+        }
+
+        if (originalAuthMethod != null) {
+            connectBuilder.setOriginalAuthMethod(originalAuthMethod);
+        }
+        connectBuilder.setProtocolVersion(protocolVersion);
+        CommandConnect connect = connectBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
+        connect.recycle();
+        connectBuilder.recycle();
+        return res;
+    }
+
     public static ByteBuf newConnected(int clientProtocolVersion) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
@@ -162,6 +204,21 @@ public class Commands {
         connectedBuilder.setProtocolVersion(versionToAdvertise);
 
         CommandConnected connected = connectedBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
+        connected.recycle();
+        connectedBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newConnecting(String authMethod, byte[] authData) {
+        CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
+        connectedBuilder.setServerVersion("Pulsar Server SASL");
+
+        CommandConnected connected = connectedBuilder
+            .setProtocolVersion(getCurrentProtocolVersion())
+            .setAuthMethodName(authMethod)
+            .setAuthData(ByteString.copyFrom(authData)).build();
+
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
         connected.recycle();
         connectedBuilder.recycle();

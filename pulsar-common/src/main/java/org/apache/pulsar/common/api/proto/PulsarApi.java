@@ -6374,6 +6374,14 @@ public final class PulsarApi {
     // optional int32 protocol_version = 2 [default = 0];
     boolean hasProtocolVersion();
     int getProtocolVersion();
+    
+    // optional string auth_method_name = 3;
+    boolean hasAuthMethodName();
+    String getAuthMethodName();
+    
+    // optional bytes auth_data = 4;
+    boolean hasAuthData();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData();
   }
   public static final class CommandConnected extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -6452,9 +6460,53 @@ public final class PulsarApi {
       return protocolVersion_;
     }
     
+    // optional string auth_method_name = 3;
+    public static final int AUTH_METHOD_NAME_FIELD_NUMBER = 3;
+    private java.lang.Object authMethodName_;
+    public boolean hasAuthMethodName() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public String getAuthMethodName() {
+      java.lang.Object ref = authMethodName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          authMethodName_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthMethodNameBytes() {
+      java.lang.Object ref = authMethodName_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        authMethodName_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    // optional bytes auth_data = 4;
+    public static final int AUTH_DATA_FIELD_NUMBER = 4;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_;
+    public boolean hasAuthData() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData() {
+      return authData_;
+    }
+    
     private void initFields() {
       serverVersion_ = "";
       protocolVersion_ = 0;
+      authMethodName_ = "";
+      authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6483,6 +6535,12 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeInt32(2, protocolVersion_);
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeBytes(3, getAuthMethodNameBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeBytes(4, authData_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6498,6 +6556,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(2, protocolVersion_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(3, getAuthMethodNameBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(4, authData_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6616,6 +6682,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
+        authMethodName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000004);
+        authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -6657,6 +6727,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.protocolVersion_ = protocolVersion_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.authMethodName_ = authMethodName_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.authData_ = authData_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6668,6 +6746,12 @@ public final class PulsarApi {
         }
         if (other.hasProtocolVersion()) {
           setProtocolVersion(other.getProtocolVersion());
+        }
+        if (other.hasAuthMethodName()) {
+          setAuthMethodName(other.getAuthMethodName());
+        }
+        if (other.hasAuthData()) {
+          setAuthData(other.getAuthData());
         }
         return this;
       }
@@ -6710,6 +6794,16 @@ public final class PulsarApi {
             case 16: {
               bitField0_ |= 0x00000002;
               protocolVersion_ = input.readInt32();
+              break;
+            }
+            case 26: {
+              bitField0_ |= 0x00000004;
+              authMethodName_ = input.readBytes();
+              break;
+            }
+            case 34: {
+              bitField0_ |= 0x00000008;
+              authData_ = input.readBytes();
               break;
             }
           }
@@ -6771,6 +6865,66 @@ public final class PulsarApi {
       public Builder clearProtocolVersion() {
         bitField0_ = (bitField0_ & ~0x00000002);
         protocolVersion_ = 0;
+        
+        return this;
+      }
+      
+      // optional string auth_method_name = 3;
+      private java.lang.Object authMethodName_ = "";
+      public boolean hasAuthMethodName() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public String getAuthMethodName() {
+        java.lang.Object ref = authMethodName_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          authMethodName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setAuthMethodName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000004;
+        authMethodName_ = value;
+        
+        return this;
+      }
+      public Builder clearAuthMethodName() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        authMethodName_ = getDefaultInstance().getAuthMethodName();
+        
+        return this;
+      }
+      void setAuthMethodName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000004;
+        authMethodName_ = value;
+        
+      }
+      
+      // optional bytes auth_data = 4;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      public boolean hasAuthData() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData() {
+        return authData_;
+      }
+      public Builder setAuthData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000008;
+        authData_ = value;
+        
+        return this;
+      }
+      public Builder clearAuthData() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        authData_ = getDefaultInstance().getAuthData();
         
         return this;
       }

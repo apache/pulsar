@@ -977,7 +977,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
      public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
@@ -986,7 +986,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 

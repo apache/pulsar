@@ -105,6 +105,10 @@ public class AuthenticationService implements Closeable {
         }
     }
 
+    public AuthenticationProvider getAuthenticationProvider(String authMethodName) {
+        return providers.get(authMethodName);
+    }
+
     @Override
     public void close() throws IOException {
         for (AuthenticationProvider provider : providers.values()) {

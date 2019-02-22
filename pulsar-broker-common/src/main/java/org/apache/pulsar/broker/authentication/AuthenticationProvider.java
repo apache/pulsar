@@ -47,7 +47,7 @@ public interface AuthenticationProvider extends Closeable {
 
     /**
      * Validate the authentication for the given credentials with the specified authentication data
-     * 
+     *
      * @param authData
      *            provider specific authentication data
      * @return the "role" string for the authenticated connection, if the authentication was successful
@@ -55,5 +55,13 @@ public interface AuthenticationProvider extends Closeable {
      *             if the credentials are not valid
      */
     String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
+
+    /**
+     * Get/Create an authentication data provider which provides the data that this broker will be sent to the client.
+     * Some authentication method need to auth between each client channel.
+     */
+    default AuthenticationDataSource getAuthDataSource() throws IOException {
+        throw new IOException("Method not implemented!");
+    }
 
 }

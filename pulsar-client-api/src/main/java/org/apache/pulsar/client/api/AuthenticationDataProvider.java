@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
@@ -34,7 +35,7 @@ public interface AuthenticationDataProvider extends Serializable {
 
     /**
      * Check if data for TLS are available.
-     * 
+     *
      * @return true if this authentication data contain data for TLS
      */
     default boolean hasDataForTls() {
@@ -42,7 +43,7 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * 
+     *
      * @return a client certificate chain, or null if the data are not available
      */
     default Certificate[] getTlsCertificates() {
@@ -50,7 +51,7 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * 
+     *
      * @return a private key for the client certificate, or null if the data are not available
      */
     default PrivateKey getTlsPrivateKey() {
@@ -63,7 +64,7 @@ public interface AuthenticationDataProvider extends Serializable {
 
     /**
      * Check if data for HTTP are available.
-     * 
+     *
      * @return true if this authentication data contain data for HTTP
      */
     default boolean hasDataForHttp() {
@@ -71,7 +72,7 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * 
+     *
      * @return a authentication scheme, or <code>null<c/ode> if the request will not be authenticated
      */
     default String getHttpAuthType() {
@@ -79,7 +80,7 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * 
+     *
      * @return an enumeration of all the header names
      */
     default Set<Map.Entry<String, String>> getHttpHeaders() {
@@ -92,7 +93,7 @@ public interface AuthenticationDataProvider extends Serializable {
 
     /**
      * Check if data from Pulsar protocol are available.
-     * 
+     *
      * @return true if this authentication data contain data from Pulsar protocol
      */
     default boolean hasDataFromCommand() {
@@ -100,11 +101,33 @@ public interface AuthenticationDataProvider extends Serializable {
     }
 
     /**
-     * 
+     *
      * @return authentication data which will be stored in a command
      */
     default String getCommandData() {
         return null;
+    }
+
+    /**
+     * @return authentication data which will be stored in a command
+     */
+    default byte[] getCommandDataBytes() {
+        return null;
+    }
+
+    /**
+     * set data which will be stored in a command to send to server side.
+     * used for sasl.
+     */
+    default void setCommandDataBytes(byte[] commandData) throws IOException {
+        throw new IOException("Method not implemented!");
+    }
+
+    /**
+     * Whether the authentication between client and broker completed.
+     */
+    default boolean isComplete() {
+        return true;
     }
 
 }

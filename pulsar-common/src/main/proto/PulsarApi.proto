@@ -197,6 +197,10 @@ message CommandConnect {
 message CommandConnected {
 	required string server_version = 1;
 	optional int32 protocol_version = 2 [default = 0];
+
+	// To support mutual authentication type, such as Sasl, reuse this command to mutual auth.
+	optional string auth_method_name = 3;
+	optional bytes auth_data = 4;
 }
 
 message CommandSubscribe {

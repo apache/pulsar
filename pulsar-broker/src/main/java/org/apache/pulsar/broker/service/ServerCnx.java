@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
@@ -33,6 +34,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
+import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +98,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -115,6 +118,7 @@ public class ServerCnx extends PulsarHandler {
     private volatile boolean isActive = true;
     String authRole = null;
     AuthenticationDataSource authenticationData;
+    AuthenticationDataSource saslAuthenticationDataSource;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -129,6 +133,7 @@ public class ServerCnx extends PulsarHandler {
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
+    private String authMethod = "none";
 
     enum State {
         Start, Connected, Failed
@@ -213,14 +218,16 @@ public class ServerCnx extends PulsarHandler {
     }
 
     /*
-     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce
+     * If authentication and authorization is enabled(and not sasl) and if the authRole is one of proxyRoles we want to enforce
      * - the originalPrincipal is given while connecting
      * - originalPrincipal is not blank
      * - originalPrincipal is not a proxy principal
      */
+    //TODO: for sasl proxy.
     private boolean invalidOriginalPrincipal(String originalPrincipal) {
-        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
-                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
+        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
+            && !isSaslAuthenticationMethod()
+            && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
     }
 
     // ////
@@ -451,7 +458,6 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Start);
         if (service.isAuthenticationEnabled()) {
             try {
-                String authMethod = "none";
                 if (connect.hasAuthMethodName()) {
                     authMethod = connect.getAuthMethodName();
                 } else if (connect.hasAuthMethod()) {
@@ -459,23 +465,73 @@ public class ServerCnx extends PulsarHandler {
                     authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
                 }
 
-                String authData = connect.getAuthData().toStringUtf8();
-                ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-                SSLSession sslSession = null;
-                if (sslHandler != null) {
-                    sslSession = ((SslHandler) sslHandler).engine().getSession();
+                // sasl.
+                if (isSaslAuthenticationMethod()) {
+                    // set auth data that will send back to client.
+                    if (saslAuthenticationDataSource == null) {
+                        // sasl for kerberos, this is the first init connection.
+                        saslAuthenticationDataSource = getBrokerService()
+                            .getAuthenticationService()
+                            .getAuthenticationProvider(authMethod)
+                            .getAuthDataSource();
+
+                        byte[] authData = connect.getAuthData().toByteArray();
+                        // set sasl server response using authData.
+                        saslAuthenticationDataSource.setCommandDataBytes(authData);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Broker authenticating with Client. method {} init.", remoteAddress, authMethod);
+                        }
+                    } else {
+                        // sasl for kerberos, this is the mutual auth, not the init
+                        byte[] authData = connect.getAuthData().toByteArray();
+                        saslAuthenticationDataSource.setCommandDataBytes(authData);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Broker authenticating with client. method {} mutual auth.", remoteAddress, authMethod);
+                        }
+                    }
+
+                    // sasl. send auth data back to client.
+                    // If auth complete send newConnected command. else newConnecting command.
+                    byte[] data = saslAuthenticationDataSource.getCommandDataBytes();
+                    if (data != null) {
+                        ctx.writeAndFlush(Commands.newConnecting(authMethod, data));
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Broker authenticating with client by method {} newConnecting.", remoteAddress, authMethod);
+                        }
+                        return;
+                    } else {
+                        // auth complete, will go down to send newConnected command.
+                        checkState(saslAuthenticationDataSource.isComplete(),
+                            "auth should be complete since auth data is null");
+
+                        authRole = getBrokerService().getAuthenticationService()
+                            .authenticate(saslAuthenticationDataSource, authMethod);
+
+                        log.info("[{}] Broker authenticating with client by method {} Success. role: {}",
+                            remoteAddress, authMethod, authRole, saslAuthenticationDataSource.getCommandDataBytes());
+                    }
                 }
-                originalPrincipal = getOriginalPrincipal(
+                // other not sasl auth method, which not need mutual auth.
+                else {
+                    String authData = connect.getAuthData().toStringUtf8();
+                    ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+                    SSLSession sslSession = null;
+                    if (sslHandler != null) {
+                        sslSession = ((SslHandler) sslHandler).engine().getSession();
+                    }
+                    originalPrincipal = getOriginalPrincipal(
                         connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
                         connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
                         connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                         sslSession);
-                authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-                authRole = getBrokerService().getAuthenticationService()
+                    authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
+                    authRole = getBrokerService().getAuthenticationService()
                         .authenticate(authenticationData, authMethod);
 
-                log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}", remoteAddress, authMethod, authRole, originalPrincipal);
-            } catch (AuthenticationException e) {
+                    log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                        remoteAddress, authMethod, authRole, originalPrincipal);
+                }
+            } catch (AuthenticationException | IOException e) {
                 String msg = "Unable to authenticate";
                 log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
                 ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
@@ -1398,6 +1454,10 @@ public class ServerCnx extends PulsarHandler {
 
             return null;
         }
+    }
+
+    private boolean isSaslAuthenticationMethod(){
+        return authMethod.equalsIgnoreCase(SaslConstants.AUTH_METHOD_NAME);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ServerCnx.class);

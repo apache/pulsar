@@ -245,7 +245,7 @@ public class WebSocketService implements Closeable {
     public boolean isAuthenticationEnabled() {
         if (this.config == null)
             return false;
-        return this.config.isAuthenticationEnabled();
+        return this.config.isAuthenticationEnabled() && !this.config.isSaslAuthentication();
     }
 
     public boolean isAuthorizationEnabled() {

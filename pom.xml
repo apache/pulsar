@@ -104,6 +104,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-log4j2-appender</module>
     <module>pulsar-sql</module>
     <module>dashboard</module>
+    <module>pulsar-broker-auth-sasl</module>
+    <module>pulsar-client-auth-sasl</module>
 
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
@@ -194,6 +196,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.10.5</testcontainers.version>
+    <kerby.version>1.1.1</kerby.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
