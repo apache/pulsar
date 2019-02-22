@@ -147,20 +147,20 @@ wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.
 ./bin/pulsar-admin source localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1
 ```
 
-- consumption data 
+- Consumption data 
 
 ```$bash
 docker exec -it pulsar-standalone /bin/bash
 python pulsar-client.py
 ```
 
-- Open other window for login mysql server
+- Open another window for login mysql server
 
 ```$bash
 docker exec -it pulsar-mysql /bin/bash
 mysql -h 127.0.0.1 -uroot -pcanal
 ```
-- Create table and insert, delete, update in mysql server
+- Create table and insert, delete, update data in mysql server
 ```
 mysql> use test;
 mysql> show tables;
