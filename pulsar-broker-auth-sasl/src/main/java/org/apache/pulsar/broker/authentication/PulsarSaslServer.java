@@ -47,7 +47,7 @@ public class PulsarSaslServer {
     private final SaslServer saslServer;
     private final Pattern allowedIdsPattern;
     private final Subject serverSubject;
-    static private final String GSSAPI = "GSSAPI";
+    private static final String GSSAPI = "GSSAPI";
 
     public PulsarSaslServer(Subject subject, Pattern allowedIdsPattern)
         throws IOException, LoginException {
