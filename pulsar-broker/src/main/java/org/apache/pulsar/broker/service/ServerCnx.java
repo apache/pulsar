@@ -33,7 +33,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
+import java.io.IOException;
 import java.net.SocketAddress;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +55,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -115,6 +119,8 @@ public class ServerCnx extends PulsarHandler {
     private volatile boolean isActive = true;
     String authRole = null;
     AuthenticationDataSource authenticationData;
+    AuthenticationProvider authenticationProvider;
+    AuthenticationState authState;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -129,6 +135,7 @@ public class ServerCnx extends PulsarHandler {
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
+    private String authMethod = "none";
 
     enum State {
         Start, Connected, Failed
@@ -446,12 +453,15 @@ public class ServerCnx extends PulsarHandler {
         return originalPrincipal;
     }
 
+    private boolean isMutualAuthenticationMethod() {
+        return false;
+    }
+
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
         if (service.isAuthenticationEnabled()) {
             try {
-                String authMethod = "none";
                 if (connect.hasAuthMethodName()) {
                     authMethod = connect.getAuthMethodName();
                 } else if (connect.hasAuthMethod()) {
@@ -459,23 +469,52 @@ public class ServerCnx extends PulsarHandler {
                     authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
                 }
 
-                String authData = connect.getAuthData().toStringUtf8();
-                ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-                SSLSession sslSession = null;
-                if (sslHandler != null) {
-                    sslSession = ((SslHandler) sslHandler).engine().getSession();
-                }
-                originalPrincipal = getOriginalPrincipal(
+                byte[] clientData = connect.getAuthData().toByteArray();
+
+                // init authenticationState.
+                if (authState == null) {
+                    ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+                    SSLSession sslSession = null;
+                    if (sslHandler != null) {
+                        sslSession = ((SslHandler) sslHandler).engine().getSession();
+                    }
+                    originalPrincipal = getOriginalPrincipal(
                         connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
                         connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
                         connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                         sslSession);
-                authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-                authRole = getBrokerService().getAuthenticationService()
-                        .authenticate(authenticationData, authMethod);
 
-                log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}", remoteAddress, authMethod, authRole, originalPrincipal);
-            } catch (AuthenticationException e) {
+                    authenticationProvider = getBrokerService()
+                        .getAuthenticationService()
+                        .getAuthenticationProvider(authMethod);
+
+                    if (isMutualAuthenticationMethod()) {
+                        authenticationData = authenticationProvider.getAuthDataSource();
+                    } else {
+                        authenticationData = new AuthenticationDataCommand(
+                            new String(clientData, Charset.forName("UTF-8")), remoteAddress, sslSession);
+                    }
+                    authState = authenticationProvider.newAuthState(authenticationData);
+                }
+
+                byte[] brokerData = authState.authenticate(clientData);
+                if (brokerData == null) {
+                    // authentication has completed, will send newConnected command.
+                    authRole = authState.getAuthRole();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                            remoteAddress, authMethod, authRole, originalPrincipal);
+                    }
+                } else {
+                    // auth not complete, continue auth with client side.
+                    ctx.writeAndFlush(Commands.newConnecting(authMethod, brokerData));
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Client authenticated with {}  continue auth with client.",
+                            remoteAddress, authMethod);
+                    }
+                    return;
+                }
+            } catch (AuthenticationException | IOException e) {
                 String msg = "Unable to authenticate";
                 log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
                 ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));

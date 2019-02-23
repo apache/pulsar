@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
 /**
  * Interface of authentication providers.
@@ -40,7 +42,23 @@ public interface Authentication extends Closeable, Serializable {
      * @throws PulsarClientException
      *             any other error
      */
-    AuthenticationDataProvider getAuthData() throws PulsarClientException;
+    default AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        throw new UnsupportedAuthenticationException("Method not implemented!");
+    }
+
+    /**
+     *
+     * Get/Create an authentication data provider which provides the data that this client will be sent to the broker.
+     * Some authentication method need to auth between each client channel. So it need the broker, who it will talk to.
+     *
+     * @param brokerHostName
+     *          target broker host name
+     *
+     * @return The authentication data provider
+     */
+    default AuthenticationDataProvider getAuthData(String brokerHostName) throws PulsarClientException {
+        throw new UnsupportedAuthenticationException("Method not implemented!");
+    }
 
     /**
      * Configure the authentication plugins with the supplied parameters
