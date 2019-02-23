@@ -144,7 +144,8 @@ class ContextImpl(pulsar.Context):
       error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, message_id)
       Log.error(error_msg)
       self.stats.incr_total_sys_exceptions(Exception(error_msg))
-    callback(result, msg)
+    if callback:
+      callback(result, msg)
 
   def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
     # Just make sure that user supplied values are properly typed
