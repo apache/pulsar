@@ -555,7 +555,9 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Client client(lookupUrl);
     std::string topicName = "testMessageTooBig";
     Producer producer;
-    Result result = client.createProducer(topicName, producer);
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
