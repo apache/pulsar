@@ -28,9 +28,9 @@ import org.apache.flink.types.Row;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.api.mockito.PowerMockito;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertNotNull;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
 /**
@@ -62,8 +62,8 @@ public class PulsarAvroTableSinkTest {
 
         assertArrayEquals(fieldNames, configuredSink.getFieldNames());
         assertArrayEquals(typeInformations, configuredSink.getFieldTypes());
-        Assert.assertNotNull(((PulsarAvroTableSink) configuredSink).keyExtractor);
-        Assert.assertNotNull(((PulsarAvroTableSink) configuredSink).serializationSchema);
+        assertNotNull(((PulsarAvroTableSink) configuredSink).keyExtractor);
+        assertNotNull(((PulsarAvroTableSink) configuredSink).serializationSchema);
     }
 
 
