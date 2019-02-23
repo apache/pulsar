@@ -36,6 +36,7 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +56,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -119,6 +122,8 @@ public class ServerCnx extends PulsarHandler {
     String authRole = null;
     AuthenticationDataSource authenticationData;
     AuthenticationDataSource saslAuthenticationDataSource;
+    AuthenticationProvider authenticationProvider;
+    AuthenticationState authState;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -466,55 +471,10 @@ public class ServerCnx extends PulsarHandler {
                     authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
                 }
 
-                // sasl.
-                if (isSaslAuthenticationMethod()) {
-                    // set auth data that will send back to client.
-                    if (saslAuthenticationDataSource == null) {
-                        // sasl for kerberos, this is the first init connection.
-                        saslAuthenticationDataSource = getBrokerService()
-                            .getAuthenticationService()
-                            .getAuthenticationProvider(authMethod)
-                            .getAuthDataSource();
+                byte[] clientData = connect.getAuthData().toByteArray();
 
-                        byte[] authData = connect.getAuthData().toByteArray();
-                        // set sasl server response using authData.
-                        saslAuthenticationDataSource.setCommandDataBytes(authData);
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Broker authenticating with Client. method {} init.", remoteAddress, authMethod);
-                        }
-                    } else {
-                        // sasl for kerberos, this is the mutual auth, not the init
-                        byte[] authData = connect.getAuthData().toByteArray();
-                        saslAuthenticationDataSource.setCommandDataBytes(authData);
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Broker authenticating with client. method {} mutual auth.", remoteAddress, authMethod);
-                        }
-                    }
-
-                    // sasl. send auth data back to client.
-                    // If auth complete send newConnected command. else newConnecting command.
-                    byte[] data = saslAuthenticationDataSource.getCommandDataBytes();
-                    if (data != null) {
-                        ctx.writeAndFlush(Commands.newConnecting(authMethod, data));
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Broker authenticating with client by method {} newConnecting.", remoteAddress, authMethod);
-                        }
-                        return;
-                    } else {
-                        // auth complete, will go down to send newConnected command.
-                        checkState(saslAuthenticationDataSource.isComplete(),
-                            "auth should be complete since auth data is null");
-
-                        authRole = getBrokerService().getAuthenticationService()
-                            .authenticate(saslAuthenticationDataSource, authMethod);
-
-                        log.info("[{}] Broker authenticating with client by method {} Success. role: {}",
-                            remoteAddress, authMethod, authRole, saslAuthenticationDataSource.getCommandDataBytes());
-                    }
-                }
-                // other not sasl auth method, which not need mutual auth.
-                else {
-                    String authData = connect.getAuthData().toStringUtf8();
+                // init authenticationState.
+                if (authState == null) {
                     ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
                     SSLSession sslSession = null;
                     if (sslHandler != null) {
@@ -525,12 +485,37 @@ public class ServerCnx extends PulsarHandler {
                         connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
                         connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                         sslSession);
-                    authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-                    authRole = getBrokerService().getAuthenticationService()
-                        .authenticate(authenticationData, authMethod);
 
-                    log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                        remoteAddress, authMethod, authRole, originalPrincipal);
+                    authenticationProvider = getBrokerService()
+                        .getAuthenticationService()
+                        .getAuthenticationProvider(authMethod);
+
+                    if (isSaslAuthenticationMethod()) {
+                        authenticationData = authenticationProvider.getAuthDataSource();
+                    } else {
+                        authenticationData = new AuthenticationDataCommand(
+                            new String(clientData, Charset.forName("UTF-8")), remoteAddress, sslSession);
+                    }
+                    authState = authenticationProvider.newAuthState(authenticationData);
+                }
+
+                byte[] brokerData = authState.authenticate(clientData);
+                if (brokerData == null) {
+                    // authentication has completed, will send newConnected command.
+                    checkState(authState.isComplete());
+                    authRole = authState.getAuthRole();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                            remoteAddress, authMethod, authRole, originalPrincipal);
+                    }
+                } else {
+                    // auth not complete, continue auth with client side.
+                    ctx.writeAndFlush(Commands.newConnecting(authMethod, brokerData));
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Client authenticated with {}  continue auth with client.",
+                            remoteAddress, authMethod);
+                    }
+                    return;
                 }
             } catch (AuthenticationException | IOException e) {
                 String msg = "Unable to authenticate";

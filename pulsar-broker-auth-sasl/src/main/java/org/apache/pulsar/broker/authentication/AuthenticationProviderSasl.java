@@ -102,4 +102,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     public void close() throws IOException {
     }
 
+    @Override
+    public AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource) {
+        return new SaslAuthenticationState(authenticationDataSource);
+    }
 }

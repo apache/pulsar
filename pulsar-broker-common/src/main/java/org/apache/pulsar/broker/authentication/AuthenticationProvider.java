@@ -64,4 +64,8 @@ public interface AuthenticationProvider extends Closeable {
         throw new UnsupportedOperationException();
     }
 
+    default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource) {
+        return new OneStageAuthenticationState(authenticationDataSource, this);
+    }
+
 }
