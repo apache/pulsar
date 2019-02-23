@@ -18,18 +18,6 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
 import io.prometheus.client.CollectorRegistry;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -42,8 +30,22 @@ import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvid
 import org.apache.pulsar.functions.utils.Utils;
 import org.mockito.Matchers;
 import org.slf4j.Logger;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit test {@link ContextImpl}.
@@ -56,7 +58,7 @@ public class ContextImplTest {
     private ContextImpl context;
     private Producer producer = mock(Producer.class);
 
-    @BeforeTest
+    @BeforeMethod
     public void setup() {
         config = new InstanceConfig();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()

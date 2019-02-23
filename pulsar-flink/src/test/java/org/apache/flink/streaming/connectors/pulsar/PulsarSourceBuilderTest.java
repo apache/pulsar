@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.testng.Assert;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ public class PulsarSourceBuilderTest {
 
     private PulsarSourceBuilder pulsarSourceBuilder;
 
-    @BeforeTest
+    @BeforeMethod
     public void before() {
         pulsarSourceBuilder = PulsarSourceBuilder.builder(new TestDeserializationSchema());
     }
