@@ -40,10 +40,10 @@ import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.utils.Utils;
-import org.junit.Before;
-import org.junit.Test;
 import org.mockito.Matchers;
 import org.slf4j.Logger;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link ContextImpl}.
@@ -56,7 +56,7 @@ public class ContextImplTest {
     private ContextImpl context;
     private Producer producer = mock(Producer.class);
 
-    @Before
+    @BeforeTest
     public void setup() {
         config = new InstanceConfig();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
@@ -80,22 +80,22 @@ public class ContextImplTest {
                 Utils.ComponentType.FUNCTION);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testIncrCounterStateDisabled() {
         context.incrCounter("test-key", 10);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testGetCounterStateDisabled() {
         context.getCounter("test-key");
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testPutStateStateDisabled() {
         context.putState("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testGetStateStateDisabled() {
         context.getState("test-key");
     }

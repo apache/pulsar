@@ -33,8 +33,8 @@ import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link StateContextImpl}.
@@ -44,7 +44,7 @@ public class StateContextImplTest {
     private Table<ByteBuf, ByteBuf> mockTable;
     private StateContextImpl stateContext;
 
-    @Before
+    @BeforeTest
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new StateContextImpl(mockTable);

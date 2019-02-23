@@ -40,11 +40,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -82,7 +82,7 @@ public class PulsarConsumerSourceTests {
 
     private Exception exception;
 
-    @Before
+    @BeforeTest
     public void before() {
         context = new TestSourceContext();
 
@@ -95,7 +95,7 @@ public class PulsarConsumerSourceTests {
         });
     }
 
-    @After
+    @AfterTest
     public void after() throws Exception {
         if (source != null) {
             source.cancel();

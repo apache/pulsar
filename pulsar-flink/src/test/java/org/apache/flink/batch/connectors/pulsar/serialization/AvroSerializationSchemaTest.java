@@ -21,11 +21,11 @@ package org.apache.flink.batch.connectors.pulsar.serialization;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.flink.avro.generated.NasaMission;
 import org.apache.flink.formats.avro.AvroDeserializationSchema;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 /**
  * Tests for Avro Serialization Schema
