@@ -24,8 +24,6 @@ from contextimpl import ContextImpl
 from python_instance import InstanceConfig
 from mock import Mock
 from pulsar import Message
-from functools import partial
-from unittest.mock import ANY
 
 import Function_pb2
 import log
