@@ -23,6 +23,9 @@
 from contextimpl import ContextImpl
 from python_instance import InstanceConfig
 from mock import Mock
+from pulsar import Message
+from functools import partial
+from unittest.mock import ANY
 
 import Function_pb2
 import log
@@ -30,6 +33,12 @@ import os
 import unittest
 
 class TestContextImpl(unittest.TestCase):
+
+  def Any(cls):
+    class Any(cls):
+      def __eq__(self, other):
+        return True
+    return Any()
 
   def setUp(self):
     log.init_logger("INFO", "foo", os.environ.get("PULSAR_HOME") + "/conf/functions-logging/console_logging_config.ini")
@@ -50,9 +59,15 @@ class TestContextImpl(unittest.TestCase):
     consumers = None
     context_impl = ContextImpl(instance_config, logger, pulsar_client, user_code, consumers, None, None, None, None)
 
+    msg = Message()
+    msg.message_id = Mock(return_value="test_message_id")
+    context_impl.set_current_message_context(msg, "test_topic_name")
+
     context_impl.publish("test_topic_name", "test_message")
 
-    producer.send_async.assert_called_with("test_message", None, properties=None)
-
+    args, kwargs = producer.send_async.call_args
+    self.assertEqual(args[0].decode("utf-8"), "test_message")
+    self.assertEqual(args[1].args[1], "test_topic_name")
+    self.assertEqual(args[1].args[2], "test_message_id")
 
 
