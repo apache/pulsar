@@ -2146,7 +2146,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
     }
     LOG_INFO("sending the other half messages in async, should able to receive");
     // message not reached max batch number, should received the messages
-    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 1000));
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
 
     LOG_INFO("Receive all messages");
     // receive all the messages.
