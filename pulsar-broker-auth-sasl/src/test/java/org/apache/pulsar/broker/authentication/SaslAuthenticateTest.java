@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.authentication;
 
 import com.google.common.collect.Sets;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -40,6 +42,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -82,7 +85,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         File jaasFile = new File(kerberosWorkDir, "jaas.properties");
         try (FileWriter writer = new FileWriter(jaasFile)) {
             writer.write("\n"
-                + "Broker {\n"
+                + "PulsarBroker {\n"
                 + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
                 + "  useKeyTab=true\n"
                 + "  keyTab=\"" + keytabServer.getAbsolutePath() + "\n"
@@ -93,7 +96,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
                 + "\n"
                 + "\n"
                 + "\n"
-                + "Client {\n"
+                + "PulsarClient {\n"
                 + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
                 + "  useKeyTab=true\n"
                 + "  keyTab=\"" + keytabClient.getAbsolutePath() + "\n"
@@ -125,8 +128,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // Client config
         Map<String, String> clientSaslConfig = Maps.newHashMap();
-        clientSaslConfig.put("saslJaasClientSectionName", "Client");
-        log.info("set client jaas section name: Client");
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        log.info("set client jaas section name: PulsarClient");
         authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
         log.info("created AuthenticationSasl");
     }
@@ -138,6 +141,10 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         if (kdc != null) {
             kdc.stop();
         }
+        FileUtils.deleteQuietly(kdcDir);
+        FileUtils.deleteQuietly(kerberosWorkDir);
+        Assert.assertFalse(kdcDir.exists());
+        Assert.assertFalse(kerberosWorkDir.exists());
     }
 
     @BeforeMethod
@@ -149,6 +156,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setSaslAuthentication(true);
         conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
+        conf.setSaslJaasBrokerSectionName("PulsarBroker");
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);

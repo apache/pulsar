@@ -31,15 +31,16 @@ public class SaslConstants {
 
     // service broker Principal
     public static final String JAAS_BROKER_SECTION_NAME = "saslJaasBrokerSectionName";
-    public static final String JAAS_DEFAULT_BROKER_SECTION_NAME = "Broker";
+    public static final String JAAS_DEFAULT_BROKER_SECTION_NAME = "PulsarBroker";
 
-    // TODO: Proxy principal
+    //TODO: for sasl proxy.
+    // github issue #3655 {@link: https://github.com/apache/pulsar/issues/3655}
     public static final String JAAS_PROXY_SECTION_NAME = "saslJaasProxySectionName";
-    public static final String JAAS_DEFAULT_PROXY_SECTION_NAME = "Proxy";
+    public static final String JAAS_DEFAULT_PROXY_SECTION_NAME = "PulsarProxy";
 
     // Client principal
     public static final String JAAS_CLIENT_SECTION_NAME = "saslJaasClientSectionName";
-    public static final String JAAS_DEFAULT_CLIENT_SECTION_NAME = "Client";
+    public static final String JAAS_DEFAULT_CLIENT_SECTION_NAME = "PulsarClient";
 
     /**
      * This is a regexp which limits the range of possible ids which can connect to the Broker using SASL.
