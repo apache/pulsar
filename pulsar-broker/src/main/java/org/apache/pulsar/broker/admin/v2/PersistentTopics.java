@@ -152,7 +152,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void createNonPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, 
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-    	validateGlobalNamespaceOwnership(tenant,namespace);
+        validateGlobalNamespaceOwnership(tenant,namespace);
         internalCreateNonPartitionedTopic(authoritative);
     }
 
