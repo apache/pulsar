@@ -135,7 +135,7 @@ public class Utils {
             try {
                 theCls = Class.forName(userClassName, true, classLoader);
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException("User class must be in class path", cnfe);
+                throw new RuntimeException(String.format("User class %s must be in class path", userClassName), cnfe);
             }
         }
         Object result;
@@ -144,13 +144,13 @@ public class Utils {
             meth.setAccessible(true);
             result = meth.newInstance();
         } catch (InstantiationException ie) {
-            throw new RuntimeException("User class must be concrete", ie);
+            throw new RuntimeException(String.format("User class must be concrete", userClassName), ie);
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("User class doesn't have such method", e);
+            throw new RuntimeException(String.format("User class doesn't have such method", userClassName), e);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("User class must have a no-arg constructor", e);
+            throw new RuntimeException(String.format("User class must have a no-arg constructor", userClassName), e);
         } catch (InvocationTargetException e) {
-            throw new RuntimeException("User class constructor throws exception", e);
+            throw new RuntimeException(String.format("User class constructor throws exception", userClassName), e);
         }
         return result;
 

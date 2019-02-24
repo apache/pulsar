@@ -337,7 +337,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class must be in class path")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "User class UnknownClass must be in class path")
     public void testRegisterFunctionWrongClassName() {
         try {
             testRegisterFunctionMissingArguments(

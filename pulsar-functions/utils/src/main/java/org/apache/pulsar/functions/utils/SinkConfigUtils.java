@@ -24,6 +24,8 @@ import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -297,7 +299,22 @@ public class SinkConfigUtils {
         if (!isEmpty(sinkConfig.getClassName())) {
             sinkClassName = sinkConfig.getClassName();
             try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	String ext = null;
+            	if (!isEmpty(functionPkgUrl)) {
+            		File file = Utils.extractFileFromPkg(functionPkgUrl);
+            		ext = FilenameUtils.getExtension(file.getName());
+            	} else if (archivePath != null) {
+            		ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
+            	} else if (uploadedInputStreamAsFile != null) {
+            		ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
+            	}
+            	
+            	if ("nar".equalsIgnoreCase(ext)) {
+            	   classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	} else {
+                   classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	}
+            	
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Sink Jar");
             }

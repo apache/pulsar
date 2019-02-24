@@ -24,6 +24,8 @@ import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -210,7 +212,21 @@ public class SourceConfigUtils {
         if (!isEmpty(sourceConfig.getClassName())) {
             sourceClassName = sourceConfig.getClassName();
             try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	String ext = null;
+            	if (!isEmpty(functionPkgUrl)) {
+            		File file = Utils.extractFileFromPkg(functionPkgUrl);
+            		ext = FilenameUtils.getExtension(file.getName());
+            	} else if (archivePath != null) {
+            		ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
+            	} else if (uploadedInputStreamAsFile != null) {
+            		ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
+            	}
+
+            	if ("nar".equalsIgnoreCase(ext)) {
+            		classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	} else {
+            		classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            	}
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Source Jar");
             }

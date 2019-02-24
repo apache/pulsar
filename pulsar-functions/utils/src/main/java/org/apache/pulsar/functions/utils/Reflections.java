@@ -64,7 +64,7 @@ public class Reflections {
         try {
             theCls = Class.forName(userClassName, true, classLoader);
         } catch (ClassNotFoundException cnfe) {
-            throw new RuntimeException("User class must be in class path", cnfe);
+            throw new RuntimeException(String.format("User class %s must be in class path", userClassName), cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {
             throw new RuntimeException(userClassName + " not " + xface.getName());
@@ -105,7 +105,7 @@ public class Reflections {
         try {
             theCls = Class.forName(userClassName, true, classLoader);
         } catch (ClassNotFoundException cnfe) {
-            throw new RuntimeException("User class must be in class path", cnfe);
+            throw new RuntimeException(String.format("User class %s must be in class path", userClassName), cnfe);
         }
         Object result;
         try {
@@ -139,7 +139,7 @@ public class Reflections {
         try {
             theCls = Class.forName(userClassName, true, classLoader);
         } catch (ClassNotFoundException cnfe) {
-            throw new RuntimeException("User class must be in class path", cnfe);
+            throw new RuntimeException(String.format("User class %s must be in class path", userClassName), cnfe);
         }
         Object result;
         try {
