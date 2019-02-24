@@ -224,17 +224,17 @@ public class SinkStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public void incrUserExceptions(Exception ex) {
+    public void incrUserExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSourceExceptions(Exception ex) {
+    public void incrSourceExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSinkExceptions(Exception ex) {
+    public void incrSinkExceptions(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
