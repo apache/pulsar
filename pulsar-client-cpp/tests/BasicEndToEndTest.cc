@@ -555,7 +555,9 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Client client(lookupUrl);
     std::string topicName = "testMessageTooBig";
     Producer producer;
-    Result result = client.createProducer(topicName, producer);
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
@@ -1135,6 +1137,45 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     producer1.closeAsync(0);
     producer2.closeAsync(0);
     consumer.close();
+    client.close();
+
+    delete[] content;
+}
+
+TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testBigMessageSizeBatching";
+    std::string subName = "my-sub-name";
+
+    ProducerConfiguration conf1;
+    conf1.setCompressionType(CompressionNone);
+    conf1.setBatchingEnabled(true);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName, conf1, producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    ProducerConfiguration conf2;
+    conf2.setCompressionType(CompressionLZ4);
+    conf2.setBatchingEnabled(true);
+
+    Producer producer2;
+    result = client.createProducer(topicName, conf2, producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    int size = Commands::MaxMessageSize + 1;
+    char* content = new char[size];
+    Message msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer1.send(msg);
+    ASSERT_EQ(ResultMessageTooBig, result);
+
+    msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer2.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    producer1.close();
+    producer2.close();
     client.close();
 
     delete[] content;
