@@ -221,8 +221,8 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
     	TopicName tn = validateTopic(topic);
-    	WebTarget path = topicPath(tn, "partitions");
-    	
+    	WebTarget path = topicPath(tn, "nonpartitioned");
+    	return asyncPutRequest(path, Entity.entity(0, MediaType.APPLICATION_JSON));
     }
     
     @Override

@@ -141,7 +141,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{tenant}/{namespace}/{topic}")
+    @Path("/{tenant}/{namespace}/{topic}/nonpartitioned")
     @ApiOperation(value="Create a non-partitioned topic.", notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
