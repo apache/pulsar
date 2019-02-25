@@ -26,8 +26,8 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertNotNull;
 
 public class DeadLetterTopicTest extends ProducerConsumerBase {
 
