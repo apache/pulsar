@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.io.debezium;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 

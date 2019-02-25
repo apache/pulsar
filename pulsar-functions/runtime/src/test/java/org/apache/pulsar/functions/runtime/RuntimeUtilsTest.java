@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.runtime;
 
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import java.util.function.Supplier;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 
 public class RuntimeUtilsTest {
 
@@ -68,7 +68,7 @@ public class RuntimeUtilsTest {
                 .addAction(action2);
         actions.run();
 
-        Assert.assertEquals(actions.numActions(), 2);
+        assertEquals(actions.numActions(), 2);
         verify(supplier1, times(1)).get();
         verify(onFail, times(0)).run();
         verify(onSucess, times(1)).run();
@@ -111,7 +111,7 @@ public class RuntimeUtilsTest {
                 .addAction(action2);
         actions.run();
 
-        Assert.assertEquals(actions.numActions(), 2);
+        assertEquals(actions.numActions(), 2);
         verify(supplier1, times(1)).get();
         verify(onFail, times(0)).run();
         verify(onSucess, times(1)).run();
@@ -152,7 +152,7 @@ public class RuntimeUtilsTest {
                 .addAction(action2);
         actions.run();
 
-        Assert.assertEquals(actions.numActions(), 2);
+        assertEquals(actions.numActions(), 2);
         verify(supplier1, times(10)).get();
         verify(onFail, times(1)).run();
         verify(onSucess, times(0)).run();
