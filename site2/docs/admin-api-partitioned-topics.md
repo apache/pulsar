@@ -44,6 +44,34 @@ int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
 
+## Nonpartitioned topics resources
+
+### Create
+
+Nonpartitioned topics in Pulsar must be explicitly created if allowAutoTopicCreation or createIfMissing is disabled.
+When creating a non-partitioned topic, you need to provide a topic name.
+
+#### pulsar-admin
+
+You can create non-partitioned topics using the [`create-non-partitioned-topic`](reference-pulsar-admin.md#create-non-partitioned-topic)
+command and specifying the topic name as an argument. This is an example command:
+
+```shell
+$ bin/pulsar-admin topics create-non-partitioned-topic \
+  persistent://my-tenant/my-namespace/my-topic
+``` 
+
+#### REST API
+
+{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic/nonpartitioned|operation/createNonPartitionedTopic}
+
+#### Java
+
+```java
+String topicName = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().createNonPartitionedTopic(topicName);
+```
+
 ### Get metadata
 
 Partitioned topics have metadata associated with them that you can fetch as a JSON object.
