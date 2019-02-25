@@ -117,13 +117,4 @@ public interface AuthenticationDataSource {
     default SocketAddress getPeerAddress() {
         return null;
     }
-
-
-    default boolean isAuthDataForwardable() {
-        return false;
-    }
-
-    default byte[] getData() {
-        return new byte[0];
-    }
 }
