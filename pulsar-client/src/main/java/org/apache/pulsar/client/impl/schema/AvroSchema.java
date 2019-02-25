@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -57,7 +59,7 @@ public class AvroSchema<T> implements Schema<T> {
         this.schemaInfo.setName("");
         this.schemaInfo.setProperties(properties);
         this.schemaInfo.setType(SchemaType.AVRO);
-        this.schemaInfo.setSchema(this.schema.toString().getBytes());
+        this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
 
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);

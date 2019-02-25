@@ -39,7 +39,7 @@ $ rpm -ivh apache-pulsar-client*.rpm
 To install a DEB package, download the DEB packages and install them using the following command:
 
 ```bash
-$ apt-install apache-pulsar-client*.deb
+$ apt install ./apache-pulsar-client*.deb
 ```
 
 ### Build
@@ -90,14 +90,12 @@ Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
 
 ## MacOS
 
-Use the [Homebrew](https://brew.sh/) supplied recipe to build the Pulsar
-client lib on MacOS.
+Pulsar releases are available through the [Homebrew](https://brew.sh/) core repository. You can install the C++ client 
+library with:
 
 ```shell
-brew install https://raw.githubusercontent.com/apache/pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
+brew install libpulsar
 ```
-
-If using Python 3 on MacOS, add the flag `--with-python3` to the above command.
 
 This will install the package with the library and headers.
 

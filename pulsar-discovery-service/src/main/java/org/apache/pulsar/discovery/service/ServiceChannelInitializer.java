@@ -19,7 +19,8 @@
 package org.apache.pulsar.discovery.service;
 
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.NettySslContextBuilder;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
@@ -34,29 +35,33 @@ import io.netty.handler.ssl.SslContext;
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
-    private final ServiceConfig serviceConfig;
     private final DiscoveryService discoveryService;
-    private final SslContext sslCtx;
+    private final boolean enableTls;
+    private final NettySslContextBuilder sslCtxRefresher;
 
-    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean enableTLS)
+    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean e)
             throws Exception {
         super();
-        this.serviceConfig = serviceConfig;
         this.discoveryService = discoveryService;
-        if (enableTLS) {
-            this.sslCtx = SecurityUtility.createNettySslContextForServer(serviceConfig.isTlsAllowInsecureConnection(),
+        this.enableTls = e;
+        if (this.enableTls) {
+            sslCtxRefresher = new NettySslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
+                    serviceConfig.getTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getTlsCertRefreshCheckDurationSec());
         } else {
-            this.sslCtx = null;
+            this.sslCtxRefresher = null;
         }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (sslCtx != null) {
-            ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+        if (sslCtxRefresher != null && this.enableTls) {
+            SslContext sslContext = sslCtxRefresher.get();
+            if (sslContext != null) {
+                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
+            }
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerConnection(discoveryService));

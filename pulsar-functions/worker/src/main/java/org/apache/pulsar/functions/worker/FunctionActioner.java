@@ -18,42 +18,20 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.common.functions.Utils.FILE;
-import static org.apache.pulsar.common.functions.Utils.HTTP;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
-
-import com.google.common.io.MoreFiles;
-import com.google.common.io.RecursiveDeleteOption;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -64,8 +42,33 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.apache.pulsar.common.functions.Utils.HTTP;
+import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 @Data
 @Setter
@@ -259,6 +262,7 @@ public class FunctionActioner {
                 .getFunctionDetails();
         log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
                 functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
 
         stopFunction(functionRuntimeInfo);
         //cleanup subscriptions
@@ -270,27 +274,64 @@ public class FunctionActioner {
 
                     Function.ConsumerSpec consumerSpec = stringConsumerSpecEntry.getValue();
                     String topic = stringConsumerSpecEntry.getKey();
-                    String subscriptionName = functionRuntimeInfo
-                            .getFunctionInstance().getFunctionMetaData()
-                            .getFunctionDetails().getSource().getSubscriptionName();
-                    // if user specified subscription name is empty use default subscription name
-                    if (isBlank(subscriptionName)) {
-                        subscriptionName =  InstanceUtils.getDefaultSubscriptionName(
-                                functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails());
-                    }
+
+                    String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
+                            ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails())
+                            : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
 
                     try {
-                        if (consumerSpec.getIsRegexPattern()) {
-                            pulsarAdmin.namespaces().unsubscribeNamespace(TopicName.get(topic).getNamespace(), subscriptionName);
-                        } else {
-                            pulsarAdmin.topics().deleteSubscription(topic, subscriptionName);
-                        }
-                    } catch (PulsarAdminException e) {
-                        log.warn("Failed to cleanup {} subscription for {}", subscriptionName,
-                                FunctionDetailsUtils.getFullyQualifiedName(
-                                        functionRuntimeInfo.getFunctionInstance()
-                                                .getFunctionMetaData().getFunctionDetails()), e);
+                        RuntimeUtils.Actions.newBuilder()
+                                .addAction(
+                                        RuntimeUtils.Actions.Action.builder()
+                                                .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
+                                                .numRetries(10)
+                                                .sleepBetweenInvocationsMs(1000)
+                                                .supplier(() -> {
+                                                    try {
+                                                        if (consumerSpec.getIsRegexPattern()) {
+                                                            pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
+                                                                    .get(topic).getNamespace(), subscriptionName);
+                                                        } else {
+                                                            pulsarAdmin.topics().deleteSubscription(topic,
+                                                                    subscriptionName);
+                                                        }
+                                                    } catch (PulsarAdminException e) {
+                                                        if (e instanceof PulsarAdminException.NotFoundException) {
+                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                                    .success(true)
+                                                                    .build();
+                                                        } else {
+                                                            // for debugging purposes
+                                                            List<Map<String, String>> existingConsumers = Collections.emptyList();
+                                                            try {
+                                                                TopicStats stats = pulsarAdmin.topics().getStats(topic);
+                                                                SubscriptionStats sub = stats.subscriptions.get(InstanceUtils.getDefaultSubscriptionName(details));
+                                                                if (sub != null) {
+                                                                    existingConsumers = sub.consumers.stream()
+                                                                    .map(consumerStats -> consumerStats.metadata)
+                                                                    .collect(Collectors.toList());
+                                                                }
+                                                            } catch (PulsarAdminException e1) {
+
+                                                            }
+
+                                                            String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
+                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                                    .success(false)
+                                                                    .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
+                                                                    .build();
+                                                        }
+                                                    }
+
+                                                    return RuntimeUtils.Actions.ActionResult.builder()
+                                                            .success(true)
+                                                            .build();
+
+                                                })
+                                                .build())
+                                .run();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
                     }
                 }
             });

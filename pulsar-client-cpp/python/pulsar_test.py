@@ -140,6 +140,31 @@ class PulsarTest(TestCase):
         consumer.unsubscribe()
         client.close()
 
+    def test_message_properties(self):
+        client = Client(self.serviceUrl)
+        topic = 'my-python-test-message-properties'
+        consumer = client.subscribe(topic=topic,
+                                    subscription_name='my-subscription',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer(topic=topic,
+                                          schema=StringSchema())
+        producer.send('hello',
+                      properties={
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        msg = consumer.receive()
+        self.assertTrue(msg)
+        self.assertEqual(msg.value(), 'hello')
+        self.assertEqual(msg.properties(), {
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        consumer.unsubscribe()
+        client.close()
+
     def test_tls_auth(self):
         certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
         if not os.path.exists(certs_dir):

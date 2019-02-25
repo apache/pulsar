@@ -18,31 +18,31 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Pulsar Csv Output Format
  */
 public class PulsarCsvOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsNull() {
         new PulsarCsvOutputFormat(null, "testTopic");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsNull() {
         new PulsarCsvOutputFormat("testServiceUrl", null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsBlank() {
         new PulsarCsvOutputFormat("testServiceUrl", " ");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsBlank() {
         new PulsarCsvOutputFormat(" ", "testTopic");
     }

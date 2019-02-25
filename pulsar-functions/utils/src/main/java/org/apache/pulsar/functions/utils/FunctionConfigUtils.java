@@ -97,6 +97,10 @@ public class FunctionConfigUtils {
                 } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
                     bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                 }
+                if (consumerConf.getReceiverQueueSize() != null) {
+                    bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
+                            .setValue(consumerConf.getReceiverQueueSize()).build());
+                }
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -207,19 +211,16 @@ public class FunctionConfigUtils {
         } else {
             functionDetailsBuilder.setParallelism(1);
         }
-        if (functionConfig.getResources() != null) {
-            Function.Resources.Builder bldr = Function.Resources.newBuilder();
-            if (functionConfig.getResources().getCpu() != null) {
-                bldr.setCpu(functionConfig.getResources().getCpu());
-            }
-            if (functionConfig.getResources().getRam() != null) {
-                bldr.setRam(functionConfig.getResources().getRam());
-            }
-            if (functionConfig.getResources().getDisk() != null) {
-                bldr.setDisk(functionConfig.getResources().getDisk());
-            }
-            functionDetailsBuilder.setResources(bldr.build());
-        }
+
+        // use default resources if resources not set
+        Resources resources = Resources.mergeWithDefault(functionConfig.getResources());
+
+        Function.Resources.Builder bldr = Function.Resources.newBuilder();
+        bldr.setCpu(resources.getCpu());
+        bldr.setRam(resources.getRam());
+        bldr.setDisk(resources.getDisk());
+        functionDetailsBuilder.setResources(bldr);
+
         return functionDetailsBuilder.build();
     }
 
@@ -238,6 +239,9 @@ public class FunctionConfigUtils {
             }
             if (!isEmpty(input.getValue().getSchemaType())) {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            if (input.getValue().hasReceiverQueueSize()) {
+                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfigMap.put(input.getKey(), consumerConfig);
@@ -514,6 +518,16 @@ public class FunctionConfigUtils {
             if (!new File(functionConfig.getPy()).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
+        }
+
+        if (functionConfig.getInputSpecs() != null) {
+            functionConfig.getInputSpecs().forEach((topicName, conf) -> {
+                // receiver queue size should be >= 0
+                if (conf.getReceiverQueueSize() != null && conf.getReceiverQueueSize() < 0) {
+                    throw new IllegalArgumentException(
+                            String.format("Receiver queue size should be >= zero"));
+                }
+            });
         }
     }
 
