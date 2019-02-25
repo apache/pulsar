@@ -66,6 +66,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.LinkedList;
@@ -915,7 +916,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSourceWithUrl() throws IOException {
+    public void testUpdateSourceWithUrl() throws IOException, URISyntaxException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -936,6 +937,11 @@ public class SourceApiV3ResourceTest {
         mockStatic(org.apache.pulsar.functions.utils.Utils.class);
         doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
         org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+        
+        File mockedFile = mock(File.class);
+        when(mockedFile.getName()).thenReturn(JAR_FILE_NAME);
+        doReturn(mockedFile ).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractFileFromPkg(anyString());
 
         doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
         org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));

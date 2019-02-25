@@ -63,6 +63,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -891,7 +892,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkWithUrl() throws IOException {
+    public void testUpdateSinkWithUrl() throws IOException, URISyntaxException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -912,6 +913,11 @@ public class SinkApiV3ResourceTest {
         mockStatic(org.apache.pulsar.functions.utils.Utils.class);
         doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
         org.apache.pulsar.functions.utils.Utils.getSinkType(anyString(), any(NarClassLoader.class));
+        
+        File mockedFile = mock(File.class);
+        when(mockedFile.getName()).thenReturn(JAR_FILE_NAME);
+        doReturn(mockedFile ).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractFileFromPkg(anyString());
 
         doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
         org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));

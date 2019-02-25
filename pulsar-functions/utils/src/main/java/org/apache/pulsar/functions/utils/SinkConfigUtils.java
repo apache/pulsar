@@ -299,7 +299,7 @@ public class SinkConfigUtils {
         if (!isEmpty(sinkConfig.getClassName())) {
             sinkClassName = sinkConfig.getClassName();
             try {
-            	String ext = null;
+                String ext = null;
             	if (!isEmpty(functionPkgUrl)) {
             		File file = Utils.extractFileFromPkg(functionPkgUrl);
             		ext = FilenameUtils.getExtension(file.getName());
@@ -314,7 +314,6 @@ public class SinkConfigUtils {
             	} else {
                    classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             	}
-            	
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Sink Jar");
             }
