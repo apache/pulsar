@@ -1470,7 +1470,7 @@ Create a non-partitioned topic. It must explicitly be created by the user if all
 
 Usage
 ```bash
-$ pulsar-admin topics create-nonpartitioned-tipc {persistent|non-persistent}://tenant/namespace/topic
+$ pulsar-admin topics create-non-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ### `get-partitioned-topic-metadata`
