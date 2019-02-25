@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -76,9 +78,49 @@ public interface Schema<T> {
     Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
 
     /**
+     * ByteBuffer Schema.
+     */
+    Schema<ByteBuffer> BYTEBUFFER = DefaultImplementation.newByteBufferSchema();
+
+    /**
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
      */
     Schema<String> STRING = DefaultImplementation.newStringSchema();
+
+    /**
+     * INT8 Schema
+     */
+    Schema<Byte> INT8 = DefaultImplementation.newByteSchema();
+
+    /**
+     * INT16 Schema
+     */
+    Schema<Short> INT16 = DefaultImplementation.newShortSchema();
+
+    /**
+     * INT32 Schema
+     */
+    Schema<Integer> INT32 = DefaultImplementation.newIntSchema();
+
+    /**
+     * INT64 Schema
+     */
+    Schema<Long> INT64 = DefaultImplementation.newLongSchema();
+
+    /**
+     * Boolean Schema
+     */
+    Schema<Boolean> BOOL = DefaultImplementation.newBooleanSchema();
+
+    /**
+     * Float Schema
+     */
+    Schema<Float> FLOAT = DefaultImplementation.newFloatSchema();
+
+    /**
+     * Double Schema
+     */
+    Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
 
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
@@ -172,5 +214,17 @@ public interface Schema<T> {
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return DefaultImplementation.getSchema(schemaInfo);
+    }
+
+    /**
+     * Returns a generic schema of existing schema info.
+     *
+     * <p>Only supports AVRO and JSON.
+     *
+     * @param schemaInfo schema info
+     * @return a generic schema instance
+     */
+    static GenericSchema generic(SchemaInfo schemaInfo) {
+        return DefaultImplementation.getGenericSchema(schemaInfo);
     }
 }

@@ -35,7 +35,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic avro schema.
  */
-class GenericAvroSchema extends GenericSchema {
+class GenericAvroSchema extends GenericSchemaImpl {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> datumWriter;
     private BinaryEncoder encoder;
