@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.io.MoreFiles;	
+import com.google.common.io.RecursiveDeleteOption;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
