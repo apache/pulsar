@@ -194,32 +194,14 @@ public class ClientCnx extends PulsarHandler {
                 });
     }
 
-    private boolean isMutualAuthenticationMethod() {
-        return false;
-    }
-
     protected ByteBuf newConnectCommand() throws IOException {
         // mutual authentication is to auth between `remoteHostName` and this client for this channel.
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
-        if (isMutualAuthenticationMethod()) {
-            authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            // this is the init evaluateChallenge.
-            byte[] authData = authenticationDataProvider.authenticate("init".getBytes());
-
-            return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
-
-        } else if (authentication.getAuthData().hasDataFromCommand()) {
-            String authData = "";
-            authData = authentication.getAuthData().getCommandData();
-            return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
-        }
-
-        return Commands.newConnect(authentication.getAuthMethodName(), "", this.protocolVersion,
+        authenticationDataProvider = authentication.getAuthData(remoteHostName);
+        byte[] authData = authenticationDataProvider.authenticate("init".getBytes("UTF-8"));
+        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
             getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
-
     }
 
     @Override
@@ -292,7 +274,7 @@ public class ClientCnx extends PulsarHandler {
         }
 
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
-        if (isMutualAuthenticationMethod()) {
+        if (connected.hasAuthData()) {
             try {
                 byte[] authData = authenticationDataProvider.authenticate(connected.getAuthData().toByteArray());
 

@@ -21,8 +21,11 @@ package org.apache.pulsar.broker.authentication;
 import java.io.Closeable;
 import java.io.IOException;
 
+import java.net.SocketAddress;
+import java.nio.charset.Charset;
 import javax.naming.AuthenticationException;
 
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -58,10 +61,11 @@ public interface AuthenticationProvider extends Closeable {
 
     /**
      * Get/Create an authentication data provider which provides the data that this broker will be sent to the client.
-     * Some authentication method need to auth between each client channel.
      */
-    default AuthenticationDataSource getAuthDataSource() throws IOException {
-        throw new UnsupportedOperationException();
+    default AuthenticationDataSource getAuthDataSource(byte[] authData, SocketAddress remoteAddress, SSLSession sslSession)
+        throws IOException {
+        return new AuthenticationDataCommand(
+            new String(authData, Charset.forName("UTF-8")), remoteAddress, sslSession);
     }
 
     default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource) {

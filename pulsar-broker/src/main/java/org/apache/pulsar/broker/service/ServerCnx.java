@@ -453,10 +453,6 @@ public class ServerCnx extends PulsarHandler {
         return originalPrincipal;
     }
 
-    private boolean isMutualAuthenticationMethod() {
-        return false;
-    }
-
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
@@ -488,12 +484,7 @@ public class ServerCnx extends PulsarHandler {
                         .getAuthenticationService()
                         .getAuthenticationProvider(authMethod);
 
-                    if (isMutualAuthenticationMethod()) {
-                        authenticationData = authenticationProvider.getAuthDataSource();
-                    } else {
-                        authenticationData = new AuthenticationDataCommand(
-                            new String(clientData, Charset.forName("UTF-8")), remoteAddress, sslSession);
-                    }
+                    authenticationData = authenticationProvider.getAuthDataSource(clientData, remoteAddress, sslSession);
                     authState = authenticationProvider.newAuthState(authenticationData);
                 }
 

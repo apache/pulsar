@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
@@ -116,7 +117,7 @@ public interface AuthenticationDataProvider extends Serializable {
      * used for mutual authentication like sasl.
      */
     default byte[] authenticate(byte[] data) throws IOException {
-        throw new UnsupportedOperationException();
+        return (hasDataFromCommand() ? this.getCommandData() : "").getBytes("UTF-8");
     }
 
 }

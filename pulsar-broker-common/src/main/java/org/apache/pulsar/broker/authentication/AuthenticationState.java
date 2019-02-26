@@ -25,17 +25,19 @@ import javax.naming.AuthenticationException;
 /**
  * Interface for authentication state.
  *
- * It is basically holding the the authentication state.
+ * It is basically holding the authentication state.
  * It tell broker whether the authentication is completed or not,
  * if completed, what is the AuthRole is.
  */
 public interface AuthenticationState {
+    /**
+     * Get AuthenticationDataSource for this authentication state.
+     */
     AuthenticationDataSource getAuthData();
 
     /**
      * After the authentication between client and broker completed,
      * get authentication role represent for the client.
-     *
      */
     String getAuthRole() throws AuthenticationException;
 
