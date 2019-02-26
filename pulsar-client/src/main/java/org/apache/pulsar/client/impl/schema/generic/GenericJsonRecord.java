@@ -24,29 +24,23 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 
 /**
  * Generic json record.
  */
-class GenericJsonRecord implements GenericRecord {
+class GenericJsonRecord extends VersionedGenericRecord {
 
-    private final List<Field> fields;
     private final JsonNode jn;
 
-    GenericJsonRecord(List<Field> fields,
+    GenericJsonRecord(byte[] schemaVersion,
+                      List<Field> fields,
                       JsonNode jn) {
-        this.fields = fields;
+        super(schemaVersion, fields);
         this.jn = jn;
     }
 
     JsonNode getJsonNode() {
         return jn;
-    }
-
-    @Override
-    public List<Field> getFields() {
-        return fields;
     }
 
     @Override
@@ -58,7 +52,7 @@ class GenericJsonRecord implements GenericRecord {
                 .stream()
                 .map(f -> new Field(f, idx.getAndIncrement()))
                 .collect(Collectors.toList());
-            return new GenericJsonRecord(fields, fn);
+            return new GenericJsonRecord(schemaVersion, fields, fn);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
         } else if (fn.isInt()) {

@@ -18,46 +18,45 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
- * A generic json schema.
+ * A schema implementation that handles schema versioning.
  */
-class GenericJsonSchema extends GenericSchema {
+public class MultiVersionGenericSchema implements Schema<GenericRecord> {
 
-    private final ObjectMapper objectMapper;
+    private final SchemaProvider<GenericRecord> provider;
 
-    public GenericJsonSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
-        this.objectMapper = new ObjectMapper();
+    MultiVersionGenericSchema(SchemaProvider<GenericRecord> provider) {
+        this.provider = provider;
     }
 
     @Override
     public byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericJsonRecord gjr = (GenericJsonRecord) message;
-        try {
-            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
+        throw new UnsupportedOperationException("This schema implementation is only used for AUTO_CONSUME");
+    }
+
+    @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    @Override
+    public GenericRecord decode(byte[] bytes) {
+        return provider.getSchema(null).decode(bytes);
     }
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(schemaVersion, fields, jn);
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
+        return provider.getSchema(schemaVersion).decode(bytes, schemaVersion);
+    }
+
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        // simulate it is a bytes schema
+        return BytesSchema.of().getSchemaInfo();
     }
 }
