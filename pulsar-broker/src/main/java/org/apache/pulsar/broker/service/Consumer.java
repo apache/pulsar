@@ -581,8 +581,11 @@ public class Consumer {
         }
 
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        if (ackOwnedConsumer != null) {
-            int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
+        LongPair ackedPosition = ackOwnedConsumer != null
+                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
+                : null;
+        if (ackedPosition != null) {
+            int totalAckedMsgs = (int) ackedPosition.first;
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
                 return;
