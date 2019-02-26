@@ -207,4 +207,5 @@ public interface Schema<T> {
     static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return DefaultImplementation.getSchema(schemaInfo);
     }
+
 }
