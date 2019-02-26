@@ -16,30 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
+package org.apache.pulsar.client.impl.schema.generic;
 
-import io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.pulsar.io.netty.NettySource;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.client.api.Schema;
 
 /**
- * Tests for Netty Channel Initializer
+ * Schema Provider.
  */
-public class NettyChannelInitializerTest {
+public interface SchemaProvider<T> {
 
-    @Test
-    public void testChannelInitializer() throws Exception {
-        NioSocketChannel channel = new NioSocketChannel();
-
-        NettyChannelInitializer nettyChannelInitializer = new NettyChannelInitializer(
-                new NettyServerHandler(new NettySource()));
-        nettyChannelInitializer.initChannel(channel);
-
-        assertNotNull(channel.pipeline().toMap());
-        assertEquals(2, channel.pipeline().toMap().size());
-    }
+    /**
+     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
+     *
+     * @param schemaVersion schema version
+     * @return schema instance of the provided <tt>schemaVersion</tt>
+     */
+    Schema<T> getSchema(byte[] schemaVersion);
 
 }

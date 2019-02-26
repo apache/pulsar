@@ -18,43 +18,21 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import java.util.List;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
- * An interface represents a message with schema.
+ * Builder to build schema.
  */
-public interface GenericRecord {
+public interface SchemaBuilder {
 
     /**
-     * Return schema version.
+     * Build the schema for a record.
      *
-     * @return schema version.
+     * @param name name of the record.
+     * @return builder to build the schema for a record.
      */
-    byte[] getSchemaVersion();
-
-    /**
-     * Returns the list of fields associated with the record.
-     *
-     * @return the list of fields associated with the record.
-     */
-    List<Field> getFields();
-
-    /**
-     * Retrieve the value of the provided <tt>field</tt>.
-     *
-     * @param field the field to retrieve the value
-     * @return the value object
-     */
-    default Object getField(Field field) {
-        return getField(field.getName());
+    static RecordSchemaBuilder record(String name) {
+        return DefaultImplementation.newRecordSchemaBuilder(name);
     }
-
-    /**
-     * Retrieve the value of the provided <tt>fieldName</tt>.
-     *
-     * @param fieldName the field name
-     * @return the value object
-     */
-    Object getField(String fieldName);
 
 }

@@ -16,30 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.http;
+package org.apache.pulsar.client.impl.schema.generic;
 
-import io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.pulsar.io.netty.NettySource;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import java.util.List;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 
 /**
- * Tests for Netty Channel Initializer
+ * A generic record carrying schema version.
  */
-public class NettyHttpChannelInitializerTest {
+abstract class VersionedGenericRecord implements GenericRecord {
 
-    @Test
-    public void testChannelInitializer() throws Exception {
-        NioSocketChannel channel = new NioSocketChannel();
+    protected final byte[] schemaVersion;
+    protected final List<Field> fields;
 
-        NettyHttpChannelInitializer nettyChannelInitializer = new NettyHttpChannelInitializer(
-                new NettyHttpServerHandler(new NettySource()), null);
-        nettyChannelInitializer.initChannel(channel);
+    protected VersionedGenericRecord(byte[] schemaVersion,
+                                     List<Field> fields) {
+        this.schemaVersion = schemaVersion;
+        this.fields = fields;
+    }
 
-        assertNotNull(channel.pipeline().toMap());
-        assertEquals(2, channel.pipeline().toMap().size());
+    @Override
+    public byte[] getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    @Override
+    public List<Field> getFields() {
+        return fields;
     }
 
 }

@@ -25,11 +25,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.junit.Assert;
-import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.api.mockito.PowerMockito;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertNotNull;
+import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
 /**
  * Unit test of {@link PulsarAvroTableSink}.
@@ -58,10 +60,10 @@ public class PulsarAvroTableSinkTest {
 
         TableSink<Row> configuredSink = sink.configure(fieldNames, typeInformations);
 
-        Assert.assertArrayEquals(fieldNames, configuredSink.getFieldNames());
-        Assert.assertArrayEquals(typeInformations, configuredSink.getFieldTypes());
-        Assert.assertNotNull(((PulsarAvroTableSink) configuredSink).keyExtractor);
-        Assert.assertNotNull(((PulsarAvroTableSink) configuredSink).serializationSchema);
+        assertArrayEquals(fieldNames, configuredSink.getFieldNames());
+        assertArrayEquals(typeInformations, configuredSink.getFieldTypes());
+        assertNotNull(((PulsarAvroTableSink) configuredSink).keyExtractor);
+        assertNotNull(((PulsarAvroTableSink) configuredSink).serializationSchema);
     }
 
 

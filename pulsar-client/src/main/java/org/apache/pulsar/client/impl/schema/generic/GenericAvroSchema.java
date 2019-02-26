@@ -66,13 +66,13 @@ class GenericAvroSchema extends GenericSchemaImpl {
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         try {
             Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
             org.apache.avro.generic.GenericRecord avroRecord = datumReader.read(
                 null,
                 decoder);
-            return new GenericAvroRecord(schema, fields, avroRecord);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

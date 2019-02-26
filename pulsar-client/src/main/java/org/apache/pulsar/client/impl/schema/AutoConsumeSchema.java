@@ -56,10 +56,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
-        return schema.decode(bytes);
+        return schema.decode(bytes, schemaVersion);
     }
 
     @Override

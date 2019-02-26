@@ -59,13 +59,47 @@ public interface Schema<T> {
     byte[] encode(T message);
 
     /**
+     * Returns whether this schema supports versioning.
+     *
+     * <p>Most of the schema implementations don't really support schema versioning, or it just doesn't
+     * make any sense to support schema versionings (e.g. primitive schemas). Only schema returns
+     * {@link GenericRecord} should support schema versioning.
+     *
+     * <p>If a schema implementation returns <tt>false</tt>, it should implement {@link #decode(byte[])};
+     * while a schema implementation returns <tt>true</tt>, it should implement {@link #decode(byte[], byte[])}
+     * instead.
+     *
+     * @return true if this schema implementation supports schema versioning; otherwise returns false.
+     */
+    default boolean supportSchemaVersioning() {
+        return false;
+    }
+
+    /**
      * Decode a byte array into an object using the schema definition and deserializer implementation
      *
      * @param bytes
      *            the byte array to decode
      * @return the deserialized object
      */
-    T decode(byte[] bytes);
+    default T decode(byte[] bytes) {
+        // use `null` to indicate ignoring schema version
+        return decode(bytes, null);
+    }
+
+    /**
+     * Decode a byte array into an object using a given version.
+     *
+     * @param bytes
+     *            the byte array to decode
+     * @param schemaVersion
+     *            the schema version to decode the object. null indicates using latest version.
+     * @return the deserialized object
+     */
+    default T decode(byte[] bytes, byte[] schemaVersion) {
+        // ignore version by default (most of the primitive schema implementations ignore schema version)
+        return decode(bytes);
+    }
 
     /**
      * @return an object that represents the Schema associated metadata
