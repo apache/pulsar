@@ -2,6 +2,7 @@
 id: io-cdc-canal
 title: CDC Canal Connector
 sidebar_label: CDC Canal Connector
+original_id: io-cdc-canal
 ---
 
 ### Source Configuration Options

@@ -2,6 +2,7 @@
 id: io-cdc-debezium
 title: CDC Debezium Connector
 sidebar_label: CDC Debezium Connector
+original_id: io-cdc-debezium
 ---
 
 ### Source Configuration Options
