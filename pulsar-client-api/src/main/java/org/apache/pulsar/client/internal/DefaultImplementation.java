@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -170,5 +171,11 @@ public class DefaultImplementation {
         return catchExceptions(
                 () -> (Schema<?>) getStaticMethod("org.apache.pulsar.client.impl.schema.AutoConsumeSchema",
                         "getSchema", SchemaInfo.class).invoke(null, schemaInfo));
+    }
+
+    public static RecordSchemaBuilder newRecordSchemaBuilder(String name) {
+        return catchExceptions(
+                () -> (RecordSchemaBuilder) getConstructor("org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl",
+                        String.class).newInstance(name));
     }
 }
