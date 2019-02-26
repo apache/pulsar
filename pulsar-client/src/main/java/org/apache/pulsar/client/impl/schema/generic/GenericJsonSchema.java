@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -59,5 +60,10 @@ class GenericJsonSchema extends GenericSchemaImpl {
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }
+    }
+
+    @Override
+    public GenericRecordBuilder newRecordBuilder() {
+        throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
 }
