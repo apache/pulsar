@@ -56,6 +56,15 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
     Py_END_ALLOW_THREADS
 }
 
+void Producer_flush(Producer& producer) {
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+    res = producer.flush();
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+}
+
 void Producer_close(Producer& producer) {
     Result res;
     Py_BEGIN_ALLOW_THREADS
@@ -89,6 +98,9 @@ void export_producer() {
                          "\n"
                          "@param msg message to publish\n")
             .def("send_async", &Producer_sendAsync)
+            .def("flush", &Producer_flush,
+                 "Flush all the messages buffered in the client and wait until all messages have been\n"
+                         "successfully persisted\n")
             .def("close", &Producer_close)
             ;
 }
