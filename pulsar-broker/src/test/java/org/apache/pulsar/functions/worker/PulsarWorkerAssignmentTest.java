@@ -168,7 +168,7 @@ public class PulsarWorkerAssignmentTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -218,7 +218,7 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
-    @Test(timeOut=20000)
+    @Test(timeOut = 20000)
     public void testFunctionAssignmentsWithRestart() throws Exception {
 
         final String namespacePortion = "assignment-test";
