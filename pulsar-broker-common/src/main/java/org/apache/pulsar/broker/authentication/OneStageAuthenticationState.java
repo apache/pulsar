@@ -20,6 +20,7 @@
 package org.apache.pulsar.broker.authentication;
 
 import javax.naming.AuthenticationException;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Interface for authentication state.
@@ -53,7 +54,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
      * Returns null if authentication has completed, and no auth data is required to send back to client.
      * Do auth and Returns the auth data back to client, if authentication has not completed.
      */
-    public byte[] authenticate(byte[] authData) {
+    public AuthData authenticate(AuthData authData) {
         return null;
     }
 }

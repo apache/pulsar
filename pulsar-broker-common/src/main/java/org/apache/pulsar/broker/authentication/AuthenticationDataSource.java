@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authentication;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Interface for accessing data which are used in variety of authentication schemes on server side
@@ -105,7 +106,7 @@ public interface AuthenticationDataSource {
      *
      * used for mutual authentication like sasl.
      */
-    default byte[] authenticate(byte[] data) throws IOException {
+    default AuthData authenticate(AuthData data) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -129,6 +130,4 @@ public interface AuthenticationDataSource {
     default SocketAddress getPeerAddress() {
         return null;
     }
-
-
 }

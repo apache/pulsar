@@ -68,7 +68,10 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -78,6 +81,7 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -334,9 +338,22 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testConnectCommandWithAuthenticationPositive() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = mock(AuthenticationProvider.class);
+        AuthenticationState authenticationState = mock(AuthenticationState.class);
+        AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
+        AuthData authData = AuthData.of(null);
+
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doReturn("appid1").when(authenticationService).authenticate(new AuthenticationDataCommand(Mockito.anyString()),
-                Mockito.anyString());
+        doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
+        doReturn(authenticationDataSource).when(authenticationProvider)
+            .getAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        doReturn(authenticationState).when(authenticationProvider)
+            .newAuthState(authenticationDataSource);
+        doReturn(authData).when(authenticationState)
+            .authenticate(authData);
+        doReturn("appid1").when(authenticationState)
+            .getAuthRole();
+
         doReturn(true).when(brokerService).isAuthenticationEnabled();
 
         resetChannel();
@@ -357,8 +374,7 @@ public class ServerCnxTest {
         AuthenticationException e = new AuthenticationException();
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doThrow(e).when(authenticationService).authenticate(new AuthenticationDataCommand(Mockito.anyString()),
-                Mockito.anyString());
+        doThrow(e).when(authenticationService).getAnonymousUserRole();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
 
         resetChannel();

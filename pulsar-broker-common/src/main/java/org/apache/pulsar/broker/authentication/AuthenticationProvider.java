@@ -27,6 +27,7 @@ import javax.naming.AuthenticationException;
 
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Provider of authentication mechanism
@@ -62,10 +63,11 @@ public interface AuthenticationProvider extends Closeable {
     /**
      * Get/Create an authentication data provider which provides the data that this broker will be sent to the client.
      */
-    default AuthenticationDataSource getAuthDataSource(byte[] authData, SocketAddress remoteAddress, SSLSession sslSession)
-        throws IOException {
+    default AuthenticationDataSource getAuthDataSource(AuthData authData,
+                                                       SocketAddress remoteAddress,
+                                                       SSLSession sslSession) throws IOException {
         return new AuthenticationDataCommand(
-            new String(authData, Charset.forName("UTF-8")), remoteAddress, sslSession);
+            new String(authData.getBytes(), Charset.forName("UTF-8")), remoteAddress, sslSession);
     }
 
     default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource) {

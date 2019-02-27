@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -150,7 +151,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnect(String authMethodName, byte[] authData, int protocolVersion, String libVersion,
+    public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
                                      String targetBroker, String originalPrincipal, String originalAuthData,
                                      String originalAuthMethod) {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
@@ -170,7 +171,7 @@ public class Commands {
         }
 
         if (authData != null) {
-            connectBuilder.setAuthData(ByteString.copyFrom(authData));
+            connectBuilder.setAuthData(ByteString.copyFrom(authData.getBytes()));
         }
 
         if (originalPrincipal != null) {
@@ -210,14 +211,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnecting(String authMethod, byte[] authData) {
+    public static ByteBuf newConnecting(String authMethod, AuthData authData) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server Mutual Authn");
 
         CommandConnected connected = connectedBuilder
             .setProtocolVersion(getCurrentProtocolVersion())
             .setAuthMethodName(authMethod)
-            .setAuthData(ByteString.copyFrom(authData)).build();
+            .setAuthData(ByteString.copyFrom(authData.getBytes())).build();
 
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
         connected.recycle();

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authentication;
 
 import java.io.IOException;
 import javax.naming.AuthenticationException;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Interface for authentication state.
@@ -45,5 +46,5 @@ public interface AuthenticationState {
      * Returns null if authentication has completed, and no auth data is required to send back to client.
      * Do auth and Returns the auth data back to client, if authentication has not completed.
      */
-    byte[] authenticate(byte[] authData) throws IOException;
+    AuthData authenticate(AuthData authData) throws IOException;
 }

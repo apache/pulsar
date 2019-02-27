@@ -20,11 +20,11 @@ package org.apache.pulsar.client.api;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
 import java.util.Set;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Interface for accessing data which are used in variety of authentication schemes on client side
@@ -114,10 +114,10 @@ public interface AuthenticationDataProvider extends Serializable {
      * then returns null if authentication has completed;
      * returns authenticated data back to server side, if authentication has not completed.
      *
-     * used for mutual authentication like sasl.
+     * Mainly used for mutual authentication like sasl.
      */
-    default byte[] authenticate(byte[] data) throws IOException {
-        return (hasDataFromCommand() ? this.getCommandData() : "").getBytes("UTF-8");
+    default AuthData authenticate(AuthData data) throws IOException {
+        byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes("UTF-8");
+        return AuthData.of(bytes);
     }
-
 }

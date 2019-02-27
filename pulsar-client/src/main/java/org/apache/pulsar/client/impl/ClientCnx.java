@@ -19,14 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -47,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -199,7 +198,7 @@ public class ClientCnx extends PulsarHandler {
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        byte[] authData = authenticationDataProvider.authenticate("init".getBytes("UTF-8"));
+        AuthData authData = authenticationDataProvider.authenticate(AuthData.of("init".getBytes("UTF-8")));
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
             getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
@@ -276,7 +275,8 @@ public class ClientCnx extends PulsarHandler {
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         if (connected.hasAuthData()) {
             try {
-                byte[] authData = authenticationDataProvider.authenticate(connected.getAuthData().toByteArray());
+                AuthData authData = authenticationDataProvider
+                    .authenticate(AuthData.of(connected.getAuthData().toByteArray()));
 
                 ByteBuf request = Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
                     getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
