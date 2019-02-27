@@ -127,10 +127,38 @@
     </dependency>
 
     <dependency>
-  	  <groupId>org.elasticsearch.client</groupId>
-  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
-  	  <version>6.3.2</version>
-  	</dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <version>6.3.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-client</artifactId>
+      <version>${hbase.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-server</artifactId>
+      <version>${hbase.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-common</artifactId>
+      <version>${hbase.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-hbase</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
 
   </dependencies>
 
@@ -187,7 +215,7 @@
                 </property>
               </properties>
               <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
-              -Dio.netty.leakDetectionLevel=advanced
+                -Dio.netty.leakDetectionLevel=advanced
               </argLine>
               <skipTests>false</skipTests>
               <suiteXmlFiles>

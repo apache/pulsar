@@ -20,8 +20,8 @@ package org.apache.pulsar.io.hbase.sink;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.DoubleSchema;
 import org.apache.pulsar.client.impl.schema.FloatSchema;
 import org.apache.pulsar.client.impl.schema.IntSchema;
@@ -77,7 +77,7 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
         } else if (value instanceof Float) {
             return FloatSchema.of().encode((Float) value);
         } else if (value instanceof Boolean) {
-            return Bytes.toBytes((Boolean) value);
+            return BooleanSchema.of().encode((Boolean) value);
         } else if (value instanceof String) {
             return StringSchema.utf8().encode((String) value);
         } else if (value instanceof Short) {
