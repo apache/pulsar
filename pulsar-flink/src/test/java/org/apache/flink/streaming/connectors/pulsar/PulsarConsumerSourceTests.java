@@ -429,6 +429,14 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void negativeAcknowledge(Message<?> message) {
+        }
+
+        @Override
+        public void negativeAcknowledge(MessageId messageId) {
+        }
+
+        @Override
         public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
 
         }
