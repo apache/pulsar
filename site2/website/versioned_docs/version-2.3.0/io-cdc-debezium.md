@@ -1,5 +1,5 @@
 ---
-id: io-cdc-debezium
+id: version-2.3.0-io-cdc-debezium
 title: CDC Debezium Connector
 sidebar_label: CDC Debezium Connector
 original_id: io-cdc-debezium
