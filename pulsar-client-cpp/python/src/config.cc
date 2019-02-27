@@ -95,11 +95,14 @@ void export_config() {
             .def("tls_trust_certs_file_path", &ClientConfiguration::setTlsTrustCertsFilePath, return_self<>())
             .def("tls_allow_insecure_connection", &ClientConfiguration::isTlsAllowInsecureConnection)
             .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection, return_self<>())
+            .def("tls_validate_hostname", &ClientConfiguration::setValidateHostName, return_self<>())
             ;
 
     class_<ProducerConfiguration>("ProducerConfiguration")
             .def("producer_name", &ProducerConfiguration::getProducerName, return_value_policy<copy_const_reference>())
             .def("producer_name", &ProducerConfiguration::setProducerName, return_self<>())
+            .def("schema", &ProducerConfiguration::getSchema, return_value_policy<copy_const_reference>())
+            .def("schema", &ProducerConfiguration::setSchema, return_self<>())
             .def("send_timeout_millis", &ProducerConfiguration::getSendTimeout)
             .def("send_timeout_millis", &ProducerConfiguration::setSendTimeout, return_self<>())
             .def("initial_sequence_id", &ProducerConfiguration::getInitialSequenceId)
@@ -128,6 +131,8 @@ void export_config() {
     class_<ConsumerConfiguration>("ConsumerConfiguration")
             .def("consumer_type", &ConsumerConfiguration::getConsumerType)
             .def("consumer_type", &ConsumerConfiguration::setConsumerType, return_self<>())
+            .def("schema", &ConsumerConfiguration::getSchema, return_value_policy<copy_const_reference>())
+            .def("schema", &ConsumerConfiguration::setSchema, return_self<>())
             .def("message_listener", &ConsumerConfiguration_setMessageListener, return_self<>())
             .def("receiver_queue_size", &ConsumerConfiguration::getReceiverQueueSize)
             .def("receiver_queue_size", &ConsumerConfiguration::setReceiverQueueSize)
@@ -148,6 +153,8 @@ void export_config() {
 
     class_<ReaderConfiguration>("ReaderConfiguration")
             .def("message_listener", &ReaderConfiguration_setReaderListener, return_self<>())
+            .def("schema", &ReaderConfiguration::getSchema, return_value_policy<copy_const_reference>())
+            .def("schema", &ReaderConfiguration::setSchema, return_self<>())
             .def("receiver_queue_size", &ReaderConfiguration::getReceiverQueueSize)
             .def("receiver_queue_size", &ReaderConfiguration::setReceiverQueueSize)
             .def("reader_name", &ReaderConfiguration::getReaderName, return_value_policy<copy_const_reference>())

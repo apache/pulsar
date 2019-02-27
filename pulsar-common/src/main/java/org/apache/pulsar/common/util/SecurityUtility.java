@@ -58,6 +58,11 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class SecurityUtility {
 
+    static {
+        // Fixes loading PKCS8Key file: https://stackoverflow.com/a/18912362
+        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    }
+    
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
@@ -249,11 +254,18 @@ public class SecurityUtility {
 
     public static SslContextFactory createSslContextFactory(boolean tlsAllowInsecureConnection,
             String tlsTrustCertsFilePath, String tlsCertificateFilePath, String tlsKeyFilePath,
-            boolean tlsRequireTrustedClientCertOnConnect) throws GeneralSecurityException {
-        SslContextFactory sslCtxFactory = new SslContextFactory();
-        SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath, tlsCertificateFilePath,
-                tlsKeyFilePath);
-        sslCtxFactory.setSslContext(sslCtx);
+            boolean tlsRequireTrustedClientCertOnConnect, boolean autoRefresh, long certRefreshInSec)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        SslContextFactory sslCtxFactory = null;
+        if (autoRefresh) {
+            sslCtxFactory = new SslContextFactoryWithAutoRefresh(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
+                    tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, 0);
+        } else {
+            sslCtxFactory = new SslContextFactory();
+            SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
+                    tlsCertificateFilePath, tlsKeyFilePath);
+            sslCtxFactory.setSslContext(sslCtx);
+        }
         if (tlsRequireTrustedClientCertOnConnect) {
             sslCtxFactory.setNeedClientAuth(true);
         } else {
@@ -261,5 +273,28 @@ public class SecurityUtility {
         }
         sslCtxFactory.setTrustAll(true);
         return sslCtxFactory;
+    }
+    
+    /**
+     * {@link SslContextFactory} that auto-refresh SSLContext
+     *
+     */
+    static class SslContextFactoryWithAutoRefresh extends SslContextFactory {
+
+        private final DefaultSslContextBuilder sslCtxRefresher;
+
+        public SslContextFactoryWithAutoRefresh(boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath,
+                String tlsCertificateFilePath, String tlsKeyFilePath, boolean tlsRequireTrustedClientCertOnConnect,
+                long certRefreshInSec)
+                throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
+            super();
+            sslCtxRefresher = new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
+                    tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
+        }
+
+        @Override
+        public SSLContext getSslContext() {
+            return sslCtxRefresher.get();
+        }
     }
 }

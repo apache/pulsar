@@ -45,7 +45,11 @@ public class PulsarClientTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
@@ -134,8 +138,9 @@ public class PulsarClientTool {
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
+            String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage();
+                commandParser.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }
@@ -152,14 +157,8 @@ public class PulsarClientTool {
         Properties properties = new Properties();
 
         if (configFile != null) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(configFile);
+            try (FileInputStream fis = new FileInputStream(configFile)) {
                 properties.load(fis);
-            } finally {
-                if (fis != null) {
-                    fis.close();
-                }
             }
         }
 

@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.util.internal.PlatformDependent;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -102,6 +104,7 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("brokerServicePort=7777");
         printWriter.println("managedLedgerDefaultMarkDeleteRateLimit=5.0");
         printWriter.println("managedLedgerDigestType=CRC32C");
+        printWriter.println("managedLedgerCacheSizeMB=");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -114,6 +117,7 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
         assertEquals(serviceConfig.getBrokerServicePort().get(), new Integer(7777));
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
+        assertTrue(serviceConfig.getManagedLedgerCacheSizeMB() > 0);
     }
 
     @Test

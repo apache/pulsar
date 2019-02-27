@@ -74,7 +74,7 @@ add_maven_deps_to_classpath() {
 }
 pulsar_help() {
     cat <<EOF
-Usage: pulsar <command>
+Usage: pulsar-perf <command>
 where command is one of:
     produce                 Run a producer
     consume                 Run a consumer
@@ -87,13 +87,13 @@ where command is one of:
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
 
-    help                           This help message
+    help                    This help message
 
 or command is the full name of a class with a defined main() method.
 
 Environment variables:
    PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
-   PULSAR_CLIENT_CONF          Configuration file for client (default: $DEFAULT_CLIENT_CONF)
+   PULSAR_CLIENT_CONF            Configuration file for client (default: $DEFAULT_CLIENT_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
 

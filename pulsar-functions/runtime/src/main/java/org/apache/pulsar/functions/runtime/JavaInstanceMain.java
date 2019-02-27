@@ -46,10 +46,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -201,8 +198,7 @@ public class JavaInstanceMain implements AutoCloseable {
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
                 try {
-                    server.shutdown();
-                    runtimeSpawner.close();
+                    close();
                 } catch (Exception ex) {
                     System.err.println(ex);
                 }
@@ -317,7 +313,7 @@ public class JavaInstanceMain implements AutoCloseable {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
-                    InstanceCommunication.MetricsData metrics = runtime.getMetrics().get();
+                    InstanceCommunication.MetricsData metrics = runtime.getMetrics(instanceId).get();
                     responseObserver.onNext(metrics);
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {

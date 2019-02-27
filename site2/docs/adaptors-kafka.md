@@ -9,12 +9,12 @@ Pulsar provides an easy option for applications that are currently written using
 
 ## Using the Pulsar Kafka compatibility wrapper
 
-In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove:
+In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
 
 ```xml
 <dependency>
   <groupId>org.apache.kafka</groupId>
-  <artifactId>kakfa-clients</artifactId>
+  <artifactId>kafka-clients</artifactId>
   <version>0.10.2.1</version>
 </dependency>
 ```
@@ -48,7 +48,7 @@ unshaded pulsar kafka client wrapper.
 </dependency>
 ```
 
-When using this dependency, you need to construct producer using `org.apache.kafka.clients.producer.PulsarKafkaProducer`
+When using this dependency, you need to construct producers using `org.apache.kafka.clients.producer.PulsarKafkaProducer`
 instead of `org.apache.kafka.clients.producer.KafkaProducer` and `org.apache.kafka.clients.producer.PulsarKafkaConsumer` for consumers.
 
 ## Producer example
@@ -116,7 +116,7 @@ APIs:
 
 | Producer Method                                                               | Supported | Notes                                                                    |
 |:------------------------------------------------------------------------------|:----------|:-------------------------------------------------------------------------|
-| `Future<RecordMetadata> send(ProducerRecord<K, V> record)`                    | Yes       | Currently no support for explicitly set the partition id when publishing |
+| `Future<RecordMetadata> send(ProducerRecord<K, V> record)`                    | Yes       |                                                                          |
 | `Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback)` | Yes       |                                                                          |
 | `void flush()`                                                                | Yes       |                                                                          |
 | `List<PartitionInfo> partitionsFor(String topic)`                             | No        |                                                                          |
@@ -129,6 +129,7 @@ Properties:
 | Config property                         | Supported | Notes                                                                         |
 |:----------------------------------------|:----------|:------------------------------------------------------------------------------|
 | `acks`                                  | Ignored   | Durability and quorum writes are configured at the namespace level            |
+| `auto.offset.reset`                     | Yes       | Will have a default value of `latest` if user does not give specific setting. |
 | `batch.size`                            | Ignored   |                                                                               |
 | `block.on.buffer.full`                  | Yes       | If true it will block producer, otherwise give error                          |
 | `bootstrap.servers`                     | Yes       | Needs to point to a single Pulsar service URL                                 |
@@ -145,7 +146,7 @@ Properties:
 | `metric.reporters`                      | Ignored   |                                                                               |
 | `metrics.num.samples`                   | Ignored   |                                                                               |
 | `metrics.sample.window.ms`              | Ignored   |                                                                               |
-| `partitioner.class`                     | Ignored   |                                                                               |
+| `partitioner.class`                     | Yes       |                                                                               |
 | `receive.buffer.bytes`                  | Ignored   |                                                                               |
 | `reconnect.backoff.ms`                  | Ignored   |                                                                               |
 | `request.timeout.ms`                    | Ignored   |                                                                               |
@@ -245,7 +246,7 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
 | [`pulsar.producer.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-) | | Specify producer name |
 | [`pulsar.producer.initial.sequence.id`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-) |  | Specify baseline for sequence id for this producer |
-| [`pulsar.producer.max.pending.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-) | `1000` | Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.  |
+| [`pulsar.producer.max.pending.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-) | `1000` | Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker  |
 | [`pulsar.producer.max.pending.messages.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-) | `50000` | Set the number of max pending messages across all the partitions  |
 | [`pulsar.producer.batching.enabled`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-) | `true` | Control whether automatic batching of messages is enabled for the producer |
 | [`pulsar.producer.batching.max.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-) | `1000` | The maximum number of messages permitted in a batch |
@@ -256,6 +257,7 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 | Config property                        | Default | Notes                                                                                  |
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
 | [`pulsar.consumer.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-) | | Set the consumer name |
-| [`pulsar.consumer.receiver.queue.size`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-) | 1000 | Sets the size of the consumer receive queue |
-| [`pulsar.consumer.total.receiver.queue.size.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-) | 50000 | Set the max total receiver queue size across partitons |
-
+| [`pulsar.consumer.receiver.queue.size`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-) | 1000 | Set the size of the consumer receiver queue |
+| [`pulsar.consumer.acknowledgments.group.time.millis`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-) | 100 | Set the max amount of group time for consumers to send out the acknowledgments to the broker |
+| [`pulsar.consumer.total.receiver.queue.size.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-) | 50000 | Set the max total receiver queue size across partitions |
+| [`pulsar.consumer.subscription.topics.mode`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-) | PersistentOnly | Set the subscription topic mode for consumers |

@@ -27,6 +27,7 @@ import logging.handlers
 import os
 import errno
 import pulsar
+import sys
 
 # Create the logger
 # pylint: disable=invalid-name
@@ -92,3 +93,26 @@ def init_logger(level, logfile, logging_config_file):
   Log = logging.getLogger()
   Log.setLevel(level)
 
+  # set print to redirect to logger
+  class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+
+    def __init__(self, logger, log_level=logging.INFO):
+      self.logger = logger
+      self.log_level = log_level
+      self.linebuf = ''
+
+    def write(self, buf):
+      for line in buf.rstrip().splitlines():
+        self.logger.log(self.log_level, line.rstrip())
+
+    def flush(self):
+      pass
+
+  sl = StreamToLogger(Log, logging.INFO)
+  sys.stdout = sl
+
+  sl = StreamToLogger(Log, logging.ERROR)
+  sys.stderr = sl

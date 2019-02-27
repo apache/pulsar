@@ -61,7 +61,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    @Override
     public CompletableFuture<MessageId> sendAsync(Message<T> message) {
         return internalSendAsync(message);
     }
@@ -73,7 +72,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
 
     abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);
 
-    @Override
     public MessageId send(Message<T> message) throws PulsarClientException {
         try {
             // enqueue the message to the buffer

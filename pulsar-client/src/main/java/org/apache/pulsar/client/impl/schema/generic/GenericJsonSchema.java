@@ -47,17 +47,17 @@ class GenericJsonSchema extends GenericSchema {
         try {
             return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
         } catch (IOException ioe) {
-            throw new RuntimeException(new SchemaSerializationException(ioe));
+            throw new SchemaSerializationException(ioe);
         }
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         try {
             JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(fields, jn);
+            return new GenericJsonRecord(schemaVersion, fields, jn);
         } catch (IOException ioe) {
-            throw new RuntimeException(new SchemaSerializationException(ioe));
+            throw new SchemaSerializationException(ioe);
         }
     }
 }

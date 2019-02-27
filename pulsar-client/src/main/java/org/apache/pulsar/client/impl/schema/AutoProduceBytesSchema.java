@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
@@ -64,12 +63,12 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     @Override
-    public byte[] decode(byte[] bytes) {
+    public byte[] decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
         if (requireSchemaValidation) {
             // verify the message can be detected by the underlying schema
-            schema.decode(bytes);
+            schema.decode(bytes, schemaVersion);
         }
 
         return bytes;

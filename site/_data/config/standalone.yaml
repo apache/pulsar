@@ -21,9 +21,9 @@ configs:
 - name: zookeeperServers
   default: ''
   description: The quorum connection string for local ZooKeeper
-- name: globalZookeeperServers
+- name: configurationStoreServers
   default: ''
-  description: The quorum connection string for global ZooKeeper
+  description: Configuration store connection string
 - name: brokerServicePort
   default: '6650'
   description: The port on which the standalone broker listens for connections
@@ -163,6 +163,10 @@ configs:
   default: '14400'
 - name: autoSkipNonRecoverableData
   default: 'false'
+- name: managedLedgerMetadataOperationsTimeoutSeconds
+  default: '60'
+- name: managedLedgerReadEntryTimeoutSeconds
+  default: '120'
 - name: loadBalancerEnabled
   default: 'false'
 - name: loadBalancerPlacementStrategy

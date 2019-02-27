@@ -195,7 +195,7 @@ elif [ $COMMAND == "upgrade" ]; then
 elif [ $COMMAND == "shell" ]; then
     ENTRY_FORMATTER_ARG="-DentryFormatterClass=${ENTRY_FORMATTER_CLASS:-org.apache.bookkeeper.util.StringEntryFormatter}"
     exec $JAVA $OPTS $ENTRY_FORMATTER_ARG org.apache.bookkeeper.bookie.BookieShell -conf $BOOKIE_CONF $@
-elif [ $COMMAND == "help" ]; then
+elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     bookkeeper_help;
 else
     exec $JAVA $OPTS $COMMAND $@

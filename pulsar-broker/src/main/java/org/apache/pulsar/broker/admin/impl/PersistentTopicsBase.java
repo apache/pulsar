@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -67,6 +68,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -297,7 +299,12 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(),
                     topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to grant permissions on topic {}: concurrent modification", clientAppId(),
+                    topicUri);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        }
+        catch (Exception e) {
             log.error("[{}] Failed to grant permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
@@ -330,7 +337,12 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to revoke permissions on topic {}: Namespace does not exist", clientAppId(),
                     topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to revoke permissions on topic {}: concurrent modification", clientAppId(),
+                topicUri);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        }
+        catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
@@ -376,6 +388,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
             throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
+        } catch (KeeperException.BadVersionException e) {
+                log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
+                        topicName);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -480,6 +496,10 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NoNodeException nne) {
             throw new RestException(Status.NOT_FOUND, "Partitioned topic does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to delete partitioned topic {}: concurrent modification", clientAppId(),
+                    topicName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -625,7 +645,19 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+
+                String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                try {
+                    boolean zkPathExists = zkPathExists(path);
+                    if (zkPathExists) {
+                        stats.partitions.put(topicName.toString(), new TopicStats());
+                    } else {
+                        throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                    }
+                } catch (KeeperException | InterruptedException exception) {
+                    throw new RestException(e);
+                }
+
             } else {
                 throw new RestException(e);
             }
@@ -1266,7 +1298,13 @@ public class PersistentTopicsBase extends AdminResource {
                         TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
                         if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
-                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                        	final String errSrc;
+                        	if (partitionedTopicMetadata != null) {
+                        		errSrc = " has zero partitions";
+                        	} else {
+                        		errSrc = " has no metadata";
+                        	}
+                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.toString() + errSrc);
                         } else if (!internalGetList().contains(topicName.toString())) {
                             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                         }
@@ -1276,7 +1314,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
+        return pulsar().getBrokerService().getTopic(topicName.toString(), true).thenApply(Optional::get).join();
     }
 
     /**
@@ -1449,5 +1487,22 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
         return;
+    }
+
+    protected MessageId internalGetLastMessageId(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "GetLastMessageId on a non-persistent topic is not allowed");
+        }
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        Position position = topic.getLastMessageId();
+        int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+
+        MessageId messageId = new MessageIdImpl(((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId(), partitionIndex);
+
+        return messageId;
     }
 }

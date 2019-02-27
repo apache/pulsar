@@ -39,14 +39,9 @@ import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Getter
 @Setter
 public class ProxyConfiguration implements PulsarConfiguration {
-    private final static Logger log = LoggerFactory.getLogger(ProxyConfiguration.class);
-
     @Category
     private static final String CATEGORY_SERVER = "Server";
     @Category
@@ -227,9 +222,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     /***** --- TLS --- ****/
 
-    @Deprecated 
+    @Deprecated
     private boolean tlsEnabledInProxy = false;
-
+    @FieldContext(
+        category = CATEGORY_TLS,
+        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+    )
+    private long tlsCertRefreshCheckDurationSec = 300; // 5 mins
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the TLS certificate file"
@@ -301,6 +300,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpOutputBufferSize = 32*1024;
 
+    @FieldContext(
+           minValue = 1,
+           category = CATEGORY_HTTP,
+           doc = "Number of threads to use for HTTP requests processing"
+    )
+    private int httpNumThreads = 2 * Runtime.getRuntime().availableProcessors();
+
     @PropertiesContext(
         properties = {
             @PropertyContext(
@@ -338,15 +344,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     public Optional<Integer> getServicePortTls() {
         return Optional.ofNullable(servicePortTls);
     }
-    
+
     public Optional<Integer> getWebServicePort() {
         return Optional.ofNullable(webServicePort);
     }
-    
+
     public Optional<Integer> getWebServicePortTls() {
         return Optional.ofNullable(webServicePortTls);
     }
-    
+
     public void setProperties(Properties properties) {
         this.properties = properties;
 

@@ -56,12 +56,13 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     protected static Network network;
     protected static StandaloneContainer container;
 
-    protected void startCluster() throws Exception {
+    protected void startCluster(final String pulsarImageName) throws Exception {
         network = Network.newNetwork();
         String clusterName = PulsarClusterTestBase.randomName(8);
-        container = new StandaloneContainer(clusterName)
+        container = new StandaloneContainer(clusterName, pulsarImageName)
             .withNetwork(network)
-            .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName);
+            .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
+            .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181");
         container.start();
         log.info("Pulsar cluster {} is up running:", clusterName);
         log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());

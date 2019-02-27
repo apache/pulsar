@@ -53,6 +53,9 @@ public class SourceConfigUtilsTest {
         sourceConfig.setConfigs(new HashMap<>());
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        sourceConfig.setResources(Resources.getDefaultResources());
         assertEquals(
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(convertedConfig)

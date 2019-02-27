@@ -21,6 +21,7 @@
 
 #include <pulsar/Authentication.h>
 #include <pulsar/Message.h>
+#include <pulsar/Schema.h>
 
 #include "PulsarApi.pb.h"
 #include "SharedBuffer.h"
@@ -30,7 +31,7 @@ using namespace pulsar;
 
 namespace pulsar {
 
-typedef boost::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
+typedef std::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
 
 /**
  * Construct buffers ready to send for Pulsar client commands.
@@ -78,13 +79,16 @@ class Commands {
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
-                                     bool readCompacted, const std::map<std::string, std::string>& metadata);
+                                     bool readCompacted, const std::map<std::string, std::string>& metadata,
+                                     const SchemaInfo& schemaInfo,
+                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
                                     const std::string& producerName, uint64_t requestId,
-                                    const std::map<std::string, std::string>& metadata);
+                                    const std::map<std::string, std::string>& metadata,
+                                    const SchemaInfo& schemaInfo);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);

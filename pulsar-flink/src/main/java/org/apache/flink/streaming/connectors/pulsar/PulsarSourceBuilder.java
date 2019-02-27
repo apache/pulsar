@@ -24,6 +24,12 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+
 /**
  * A class for building a pulsar source.
  */
@@ -36,7 +42,8 @@ public class PulsarSourceBuilder<T> {
 
     final DeserializationSchema<T> deserializationSchema;
     String serviceUrl = SERVICE_URL;
-    String topic;
+    final Set<String> topicNames = new TreeSet<>();
+    Pattern topicsPattern;
     String subscriptionName = "flink-sub";
     long acknowledgementBatchSize = ACKNOWLEDGEMENT_BATCH_SIZE;
 
@@ -57,18 +64,74 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * Sets the topic to consumer from. This is required.
+     * Sets topics to consumer from. This is required.
      *
      * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
      * are in the following format:
      * {persistent|non-persistent}://tenant/namespace/topic
      *
-     * @param topic the topic to consumer from
+     * @param topics the topic to consumer from
      * @return this builder
      */
-    public PulsarSourceBuilder<T> topic(String topic) {
-        Preconditions.checkArgument(StringUtils.isNotBlank(topic), "topic cannot be blank");
-        this.topic = topic;
+    public PulsarSourceBuilder<T> topic(String... topics) {
+        Preconditions.checkArgument(topics != null && topics.length > 0,
+                "topics cannot be blank");
+        for (String topic : topics) {
+            Preconditions.checkArgument(StringUtils.isNotBlank(topic), "topicNames cannot have blank topic");
+        }
+        this.topicNames.addAll(Arrays.asList(topics));
+        return this;
+    }
+
+    /**
+     * Sets topics to consumer from. This is required.
+     *
+     * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
+     * are in the following format:
+     * {persistent|non-persistent}://tenant/namespace/topic
+     *
+     * @param topics the topic to consumer from
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> topics(List<String> topics) {
+        Preconditions.checkArgument(topics != null && !topics.isEmpty(), "topics cannot be blank");
+        topics.forEach(topicName ->
+                Preconditions.checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
+        this.topicNames.addAll(topics);
+        return this;
+    }
+
+    /**
+     * Use topic pattern to config sets of topics to consumer
+     *
+     * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
+     * are in the following format:
+     * {persistent|non-persistent}://tenant/namespace/topic
+     *
+     * @param topicsPattern topic pattern to consumer from
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> topicsPattern(Pattern topicsPattern) {
+        Preconditions.checkArgument(topicsPattern != null, "Param topicsPattern cannot be null");
+        Preconditions.checkArgument(this.topicsPattern == null, "Pattern has already been set.");
+        this.topicsPattern = topicsPattern;
+        return this;
+    }
+
+    /**
+     * Use topic pattern to config sets of topics to consumer
+     *
+     * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
+     * are in the following format:
+     * {persistent|non-persistent}://tenant/namespace/topic
+     *
+     * @param topicsPattern topic pattern string to consumer from
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> topicsPatternString(String topicsPattern) {
+        Preconditions.checkArgument(StringUtils.isNotBlank(topicsPattern), "Topics pattern string cannot be blank");
+        Preconditions.checkArgument(this.topicsPattern == null, "Pattern has already been set.");
+        this.topicsPattern = Pattern.compile(topicsPattern);
         return this;
     }
 
@@ -101,9 +164,9 @@ public class PulsarSourceBuilder<T> {
 
     public SourceFunction<T> build() {
         Preconditions.checkNotNull(serviceUrl, "a service url is required");
-        Preconditions.checkNotNull(topic, "a topic is required");
+        Preconditions.checkArgument((topicNames != null && !topicNames.isEmpty()) || topicsPattern != null,
+                "At least one topic or topics pattern is required");
         Preconditions.checkNotNull(subscriptionName, "a subscription name is required");
-
         return new PulsarConsumerSource<>(this);
     }
 

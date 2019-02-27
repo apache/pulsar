@@ -27,8 +27,8 @@ import "C"
 import (
 	"reflect"
 	"runtime"
-	"unsafe"
 	"time"
+	"unsafe"
 )
 
 type message struct {
@@ -69,6 +69,10 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 
 	if message.EventTime.UnixNano() != 0 {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
+	}
+
+	if message.SequenceID != 0 {
+		C.pulsar_message_set_sequence_id(cMsg, C.int64_t(message.SequenceID))
 	}
 
 	if message.ReplicationClusters != nil {
@@ -151,6 +155,10 @@ func (m *message) Key() string {
 	return C.GoString(C.pulsar_message_get_partitionKey(m.ptr))
 }
 
+func (m *message) Topic() string {
+	return C.GoString(C.pulsar_message_get_topic_name(m.ptr))
+}
+
 //////// MessageID
 
 func newMessageId(msg *C.pulsar_message_t) MessageID {
@@ -193,10 +201,9 @@ func latestMessageID() *messageID {
 }
 
 func timeFromUnixTimestampMillis(timestamp C.ulonglong) time.Time {
-	ts := int64(timestamp)
-	seconds := ts / int64(time.Millisecond)
-	millis := ts - seconds
-	nanos := millis * int64(time.Millisecond)
+	ts := int64(timestamp) * int64(time.Millisecond)
+	seconds := ts / int64(time.Second)
+	nanos := ts - (seconds * int64(time.Second))
 	return time.Unix(seconds, nanos)
 }
 

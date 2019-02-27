@@ -240,7 +240,7 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    void start() throws Exception {
+    public void start() throws Exception {
 
         if (config == null) {
             System.exit(1);
@@ -272,12 +272,23 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
-            workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
-            if (!this.isNoStreamStorage()) {
+            boolean useTls = workerConfig.isUseTls();
+            String localhost = "127.0.0.1";
+            String pulsarServiceUrl = useTls
+                    ? PulsarService.brokerUrlTls(localhost, config.getBrokerServicePortTls().get())
+                    : PulsarService.brokerUrl(localhost, config.getBrokerServicePort().get());
+            String webServiceUrl = useTls
+                    ? PulsarService.webAddressTls(localhost, config.getWebServicePortTls().get())
+                    : PulsarService.webAddress(localhost, config.getWebServicePort().get());
+            workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
+            workerConfig.setPulsarWebServiceUrl(webServiceUrl);
+            if (this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
+                workerConfig.setStateStorageServiceUrl(null);
+            } else if (workerConfig.getStateStorageServiceUrl() == null) {
                 workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
             }
+            
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());
             workerConfig.setWorkerHostname(hostname);

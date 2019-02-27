@@ -18,25 +18,29 @@
  */
 package org.apache.pulsar.client.admin;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.util.Map;
-
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.pulsar.client.admin.internal.*;
+import org.apache.pulsar.client.admin.internal.BookiesImpl;
+import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
+import org.apache.pulsar.client.admin.internal.BrokersImpl;
+import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
+import org.apache.pulsar.client.admin.internal.LookupImpl;
+import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
+import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
+import org.apache.pulsar.client.admin.internal.SchemasImpl;
+import org.apache.pulsar.client.admin.internal.SinkImpl;
+import org.apache.pulsar.client.admin.internal.SourceImpl;
+import org.apache.pulsar.client.admin.internal.TenantsImpl;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.admin.internal.WorkerImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -49,12 +53,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import javax.net.ssl.SSLContext;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URL;
+import java.security.cert.X509Certificate;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Pulsar client admin API client.
  */
 @SuppressWarnings("deprecation")
 public class PulsarAdmin implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarAdmin.class);
+
+    public static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 60;
+    public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
 
     private final Clusters clusters;
     private final Brokers brokers;
@@ -77,6 +95,10 @@ public class PulsarAdmin implements Closeable {
     private final Schemas schemas;
     protected final WebTarget root;
     protected final Authentication auth;
+    private final int connectTimeout;
+    private final TimeUnit connectTimeoutUnit;
+    private final int readTimeout;
+    private final TimeUnit readTimeoutUnit;
 
     static {
         /**
@@ -103,7 +125,23 @@ public class PulsarAdmin implements Closeable {
         return new PulsarAdminBuilderImpl();
     }
 
+
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
+        this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
+                DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+    }
+
+    public PulsarAdmin(String serviceUrl,
+                       ClientConfigurationData clientConfigData,
+                       int connectTimeout,
+                       TimeUnit connectTimeoutUnit,
+                       int readTimeout,
+                       TimeUnit readTimeoutUnit) throws PulsarClientException {
+        this.connectTimeout = connectTimeout;
+        this.connectTimeoutUnit = connectTimeoutUnit;
+        this.readTimeout = readTimeout;
+        this.readTimeoutUnit = readTimeoutUnit;
         this.clientConfigData = clientConfigData;
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
@@ -118,7 +156,10 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+                .withConfig(httpConfig)
+                .connectTimeout(this.connectTimeout, this.connectTimeoutUnit)
+                .readTimeout(this.readTimeout, this.readTimeoutUnit)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
         boolean useTls = false;
@@ -164,7 +205,7 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        root = client.target(serviceUrl.toString());
+        root = client.target(serviceUrl);
 
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
@@ -191,34 +232,19 @@ public class PulsarAdmin implements Closeable {
      *
      * @param serviceUrl
      *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
-     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
-     */
-    @Deprecated
-    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
-        this(serviceUrl.toString(), pulsarConfig.getConfigurationData());
-    }
-
-    /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
      * @param auth
      *            the Authentication object to be used to talk with Pulsar
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
     @Deprecated
     public PulsarAdmin(URL serviceUrl, Authentication auth) throws PulsarClientException {
-        this(serviceUrl, new ClientConfiguration() {
-            private static final long serialVersionUID = 1L;
-            {
-                setAuthentication(auth);
-            }
-        });
+        this(serviceUrl.toString(), getConfigData(auth));
+    }
+
+    private static ClientConfigurationData getConfigData(Authentication auth) {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setAuthentication(auth);
+        return conf;
     }
 
     /**
@@ -370,7 +396,7 @@ public class PulsarAdmin implements Closeable {
    public Worker worker() {
        return worker;
    }
-    
+
     /**
      * @return the broker statics
      */
@@ -413,4 +439,5 @@ public class PulsarAdmin implements Closeable {
         }
         client.close();
     }
+
 }

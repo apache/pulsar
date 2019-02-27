@@ -221,7 +221,6 @@ fi
 
 if [ -z "$PULSAR_GLOBAL_ZK_CONF" ]; then
     PULSAR_GLOBAL_ZK_CONF=$DEFAULT_GLOBAL_ZK_CONF
-    PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_GLOBAL_ZK_CONF
 fi
 
 if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then
@@ -334,7 +333,7 @@ elif [ $COMMAND == "sql-worker" ]; then
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
       exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
-elif [ $COMMAND == "help" ]; then
+elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else
     echo ""

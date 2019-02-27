@@ -90,9 +90,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     // Number of IO threads in Pulsar Client used in WebSocket proxy
-    private int numIoThreads = Runtime.getRuntime().availableProcessors();
+    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+
+    // Number of threads to use in HTTP server
+    private int numHttpServerThreads = Runtime.getRuntime().availableProcessors();
+
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
-    private int connectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
     // Time in milliseconds that idle WebSocket session times out
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
@@ -100,9 +104,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
-    @Deprecated 
+    @Deprecated
     private boolean tlsEnabled = false;
-    
+
     private boolean brokerClientTlsEnabled = false;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -115,7 +119,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    
+    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+    private long tlsCertRefreshCheckDurationSec = 300;
+
     private Properties properties = new Properties();
 
     public String getClusterName() {
@@ -288,20 +294,48 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
     }
 
+    @Deprecated
     public int getNumIoThreads() {
-        return numIoThreads;
+        return getWebSocketNumIoThreads();
     }
 
+    @Deprecated
     public void setNumIoThreads(int numIoThreads) {
-        this.numIoThreads = numIoThreads;
+        setWebSocketNumIoThreads(numIoThreads);
     }
 
+    public int getWebSocketNumIoThreads() {
+        return webSocketNumIoThreads;
+    }
+
+    public void setWebSocketNumIoThreads(int webSocketNumIoThreads) {
+        this.webSocketNumIoThreads = webSocketNumIoThreads;
+    }
+
+    public int getNumHttpServerThreads() {
+        return numHttpServerThreads;
+    }
+
+    public void setNumHttpServerThreads(int numHttpServerThreads) {
+        this.numHttpServerThreads = numHttpServerThreads;
+    }
+
+    @Deprecated
     public int getConnectionsPerBroker() {
-        return connectionsPerBroker;
+        return getWebSocketConnectionsPerBroker();
     }
 
+    @Deprecated
     public void setConnectionsPerBroker(int connectionsPerBroker) {
-        this.connectionsPerBroker = connectionsPerBroker;
+        setWebSocketConnectionsPerBroker(connectionsPerBroker);
+    }
+
+    public int getWebSocketConnectionsPerBroker() {
+        return webSocketConnectionsPerBroker;
+    }
+
+    public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) {
+        this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker;
     }
 
     public int getWebSocketSessionIdleTimeoutMillis() {
@@ -374,5 +408,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
         this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+    
+    public long getTlsCertRefreshCheckDurationSec() {
+        return tlsCertRefreshCheckDurationSec;
+    }
+
+    public void setTlsCertRefreshCheckDurationSec(long tlsCertRefreshCheckDurationSec) {
+        this.tlsCertRefreshCheckDurationSec = tlsCertRefreshCheckDurationSec;
     }
 }

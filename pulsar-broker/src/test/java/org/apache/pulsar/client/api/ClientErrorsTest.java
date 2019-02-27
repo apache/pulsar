@@ -189,7 +189,7 @@ public class ClientErrorsTest {
             fail("Should have failed");
         } catch (Exception e) {
             // we fail even on the retriable error
-            assertTrue(e instanceof PulsarClientException.LookupException);
+            assertTrue(e instanceof PulsarClientException);
         }
 
         mockBrokerService.resetHandleProducer();
@@ -417,7 +417,7 @@ public class ClientErrorsTest {
             fail("Should have failed");
         } catch (Exception e) {
             // we fail even on the retriable error
-            assertEquals(e.getClass(), LookupException.class);
+            assertTrue(e instanceof PulsarClientException);
         }
 
         mockBrokerService.resetHandleSubscribe();

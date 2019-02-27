@@ -20,37 +20,38 @@
 package pulsar
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 type MessageRoutingMode int
 
 const (
 	// Publish messages across all partitions in round-robin.
-	RoundRobinDistribution MessageRoutingMode = 0
+	RoundRobinDistribution MessageRoutingMode = iota
 
 	// The producer will chose one single partition and publish all the messages into that partition
-	UseSinglePartition MessageRoutingMode = 1
+	UseSinglePartition
 
 	// Use custom message router implementation that will be called to determine the partition for a particular message.
-	CustomPartition MessageRoutingMode = 2
+	CustomPartition
 )
 
 type HashingScheme int
 
 const (
-	JavaStringHash HashingScheme = 0 // Java String.hashCode() equivalent
-	Murmur3_32Hash HashingScheme = 1 // Use Murmur3 hashing function
-	BoostHash      HashingScheme = 2 // C++ based boost::hash
+	JavaStringHash HashingScheme = iota // Java String.hashCode() equivalent
+	Murmur3_32Hash                      // Use Murmur3 hashing function
+	BoostHash                           // C++ based boost::hash
 )
 
 type CompressionType int
 
 const (
-	NoCompression CompressionType = 0
-	LZ4           CompressionType = 1
-	ZLib          CompressionType = 2
+	NoCompression CompressionType = iota
+	LZ4
+	ZLib
+	ZSTD
 )
 
 type TopicMetadata interface {
@@ -118,6 +119,10 @@ type ProducerOptions struct {
 	// By default, message payloads are not compressed. Supported compression types are:
 	//  - LZ4
 	//  - ZLIB
+	//  - ZSTD
+	//
+	// Note: ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+	// release in order to be able to receive messages compressed with ZSTD.
 	CompressionType
 
 	// Set a custom message routing policy by passing an implementation of MessageRouter
@@ -162,6 +167,18 @@ type Producer interface {
 	// The callback will report back the message being published and
 	// the eventual error in publishing
 	SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))
+
+	// Get the last sequence id that was published by this producer.
+	// This represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that
+	// was published and acknowledged by the broker.
+	// After recreating a producer with the same producer name, this will return the last message that was
+	// published in the previous producer session, or -1 if there no message was ever published.
+	// return the last sequence id published by this producer.
+	LastSequenceID() int64
+
+	// Flush all the messages buffered in the client and wait until all messages have been successfully
+	// persisted.
+	Flush() error
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case

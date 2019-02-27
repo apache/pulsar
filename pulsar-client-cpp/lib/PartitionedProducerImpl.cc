@@ -19,7 +19,6 @@
 #include <cstdlib>
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
-#include <boost/bind.hpp>
 #include <lib/TopicName.h>
 #include <sstream>
 #include "RoundRobinMessageRouter.h"
@@ -41,7 +40,8 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
       topic_(topicName_->toString()),
       conf_(config),
       state_(Pending),
-      topicMetadata_(new TopicMetadataImpl(numPartitions)) {
+      topicMetadata_(new TopicMetadataImpl(numPartitions)),
+      flushedPartitions_(0) {
     numProducersCreated_ = 0;
     cleanup_ = false;
     routerPolicy_ = getMessageRouter();
@@ -55,14 +55,14 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
 MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
     switch (conf_.getPartitionsRoutingMode()) {
         case ProducerConfiguration::RoundRobinDistribution:
-            return boost::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
+            return std::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
         case ProducerConfiguration::CustomPartition:
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
         default:
             unsigned int random = rand();
-            return boost::make_shared<SinglePartitionMessageRouter>(
-                random % topicMetadata_->getNumPartitions(), conf_.getHashingScheme());
+            return std::make_shared<SinglePartitionMessageRouter>(random % topicMetadata_->getNumPartitions(),
+                                                                  conf_.getHashingScheme());
     }
 }
 
@@ -72,13 +72,14 @@ const std::string& PartitionedProducerImpl::getTopic() const { return topic_; }
 
 // override
 void PartitionedProducerImpl::start() {
-    boost::shared_ptr<ProducerImpl> producer;
+    std::shared_ptr<ProducerImpl> producer;
     // create producer per partition
     for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
         std::string topicPartitionName = topicName_->getTopicPartitionName(i);
-        producer = boost::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
-        producer->getProducerCreatedFuture().addListener(boost::bind(
-            &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), _1, _2, i));
+        producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
+        producer->getProducerCreatedFuture().addListener(
+            std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(),
+                      std::placeholders::_1, std::placeholders::_2, i));
         producers_.push_back(producer);
         LOG_DEBUG("Creating Producer for single Partition - " << topicPartitionName);
     }
@@ -147,6 +148,12 @@ const std::string& PartitionedProducerImpl::getProducerName() const {
     return producers_[0]->getProducerName();
 }
 
+const std::string& PartitionedProducerImpl::getSchemaVersion() const {
+    // Since the schema is atomically assigned on the partitioned-topic,
+    // it's guaranteed that all the partitions will have the same schema version.
+    return producers_[0]->getSchemaVersion();
+}
+
 int64_t PartitionedProducerImpl::getLastSequenceId() const {
     int64_t currentMax = -1L;
     for (int i = 0; i < producers_.size(); i++) {
@@ -167,8 +174,9 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
     for (ProducerList::const_iterator i = producers_.begin(); i != producers_.end(); i++) {
         ProducerImplPtr prod = *i;
         if (!prod->isClosed()) {
-            prod->closeAsync(boost::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
-                                         shared_from_this(), _1, producerIndex, closeCallback));
+            prod->closeAsync(std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
+                                       shared_from_this(), std::placeholders::_1, producerIndex,
+                                       closeCallback));
         } else {
             producerAlreadyClosed++;
         }
@@ -243,10 +251,10 @@ void PartitionedProducerImpl::triggerFlush() {
 
 void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
     if (!flushPromise_ || flushPromise_->isComplete()) {
-        flushPromise_ = boost::make_shared<Promise<Result, bool_type>>();
+        flushPromise_ = std::make_shared<Promise<Result, bool_type>>();
     } else {
         // already in flushing, register a listener callback
-        boost::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
+        std::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
             if (v) {
                 callback(ResultOk);
             } else {

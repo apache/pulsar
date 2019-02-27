@@ -44,7 +44,11 @@ public class PulsarAdminTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
@@ -110,7 +114,13 @@ public class PulsarAdminTool {
             adminBuilder.authentication(authPluginClassName, authParams);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                if (admin != null) {
+                    // Other mode, all components are initialized.
+                    jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                } else if (c.getKey().equals("functions") || c.getKey().equals("source") || c.getKey().equals("sink")) {
+                    // In mode localrun, only some components are initialized, such as source, sink and functions
+                    jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                }
             }
         } catch (Exception e) {
             Throwable cause;
@@ -185,13 +195,8 @@ public class PulsarAdminTool {
         Properties properties = new Properties();
 
         if (configFile != null) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(configFile);
+            try (FileInputStream fis = new FileInputStream(configFile)) {
                 properties.load(fis);
-            } finally {
-                if (fis != null)
-                    fis.close();
             }
         }
 
@@ -205,10 +210,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = false;
-        if (cmdPos < args.length) {
-            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
-        }
+        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {

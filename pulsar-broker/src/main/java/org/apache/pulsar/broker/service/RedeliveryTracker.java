@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.bookkeeper.mledger.Position;
-
 import java.util.List;
+
+import org.apache.bookkeeper.mledger.Position;
 
 public interface RedeliveryTracker {
 

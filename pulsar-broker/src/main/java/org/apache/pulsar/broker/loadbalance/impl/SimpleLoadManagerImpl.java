@@ -48,7 +48,6 @@ import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -182,8 +181,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private boolean forceLoadReportUpdate = false;
     private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LoadReport.class);
-    // check if given broker can load persistent/non-persistent topic
-    private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -200,21 +197,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
         brokerToNamespaceToBundleRange = new HashMap<>();
-        this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
-            @Override
-            public boolean isEnablePersistentTopics(String brokerUrl) {
-                ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
-                LoadReport loadReport = currentLoadReports.get(ru);
-                return loadReport != null && loadReport.isPersistentTopicsEnabled();
-            }
-
-            @Override
-            public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
-                LoadReport loadReport = currentLoadReports.get(ru);
-                return loadReport != null && loadReport.isNonPersistentTopicsEnabled();
-            }
-        };
     }
 
     @Override
@@ -227,9 +209,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-        lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
             public LoadReport deserialize(String key, byte[] content) throws Exception {
@@ -355,7 +334,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public Set<String> getAvailableBrokers() throws Exception {
         return this.availableActiveBrokers.get();
     }
-    
+
     public ZooKeeperDataCache<LoadReport> getLoadReportCache() {
         return this.loadReportCacheZk;
     }
@@ -919,8 +898,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
-                        brokerTopicLoadingPredicate);
+                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                        availableBrokersCache);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
                 for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
@@ -1062,13 +1041,15 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public static boolean isAboveLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
         return (usage.bandwidthOut.percentUsage() > thresholdPercentage
                 || usage.bandwidthIn.percentUsage() > thresholdPercentage
-                || usage.cpu.percentUsage() > thresholdPercentage || usage.memory.percentUsage() > thresholdPercentage);
+                || usage.cpu.percentUsage() > thresholdPercentage
+                || usage.directMemory.percentUsage() > thresholdPercentage);
     }
 
     public static boolean isBelowLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
         return (usage.bandwidthOut.percentUsage() < thresholdPercentage
                 && usage.bandwidthIn.percentUsage() < thresholdPercentage
-                && usage.cpu.percentUsage() < thresholdPercentage && usage.memory.percentUsage() < thresholdPercentage);
+                && usage.cpu.percentUsage() < thresholdPercentage
+                && usage.directMemory.percentUsage() < thresholdPercentage);
     }
 
     private static long getRealtimeJvmHeapUsageMBytes() {
@@ -1110,8 +1091,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-                loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-                loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
                         pulsar.getConfiguration().getWebServicePort().get()));
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());

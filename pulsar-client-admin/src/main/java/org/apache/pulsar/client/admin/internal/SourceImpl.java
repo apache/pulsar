@@ -46,7 +46,7 @@ public class SourceImpl extends BaseResource implements Source {
 
     public SourceImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.source = web.path("/admin/v2/source");
+        this.source = web.path("/admin/v3/source");
     }
 
     @Override
@@ -226,6 +226,27 @@ public class SourceImpl extends BaseResource implements Source {
     public void stopSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(sourceName).path("stop"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSource(String tenant, String namespace, String sourceName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
+        try {
+            request(source.path(tenant).path(namespace).path(sourceName).path("start"))
                     .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

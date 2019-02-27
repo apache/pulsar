@@ -888,9 +888,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         }
 
         String msgId = response.getHeaderString("X-Pulsar-Message-ID");
-        InputStream stream = null;
-        try {
-            stream = (InputStream) response.getEntity();
+        try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
             stream.read(data);
 
@@ -900,9 +898,9 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
             if (tmp != null) {
                 properties.put("publish-time", (String) tmp);
             }
-            tmp =  headers.getFirst(BATCH_HEADER);
+            tmp = headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
-                properties.put(BATCH_HEADER, (String)tmp);
+                properties.put(BATCH_HEADER, (String) tmp);
                 return getIndividualMsgsFromBatch(topic, msgId, data, properties);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
@@ -914,11 +912,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
             }
 
             return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
-                                                                     Unpooled.wrappedBuffer(data), Schema.BYTES));
-        } finally {
-            if (stream != null) {
-                stream.close();
-            }
+                    Unpooled.wrappedBuffer(data), Schema.BYTES));
         }
     }
 
@@ -948,6 +942,38 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
             singleMessageMetadataBuilder.recycle();
         }
         return ret;
+    }
+
+    @Override
+    public MessageId getLastMessageId(String topic) throws PulsarAdminException {
+        try {
+            return getLastMessageIdAsync(topic).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    public CompletableFuture<MessageId> getLastMessageIdAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "lastMessageId");
+        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<MessageIdImpl>() {
+
+                    @Override
+                    public void completed(MessageIdImpl response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

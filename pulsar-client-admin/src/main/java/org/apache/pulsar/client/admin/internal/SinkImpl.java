@@ -46,7 +46,7 @@ public class SinkImpl extends BaseResource implements Sink {
 
     public SinkImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.sink = web.path("/admin/v2/sink");
+        this.sink = web.path("/admin/v3/sink");
     }
 
     @Override
@@ -226,6 +226,27 @@ public class SinkImpl extends BaseResource implements Sink {
     public void stopSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(sinkName).path("stop"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSink(String tenant, String namespace, String sinkName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void startSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
+        try {
+            request(sink.path(tenant).path(namespace).path(sinkName).path("start"))
                     .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
