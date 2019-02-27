@@ -71,6 +71,9 @@ class Commands {
     static SharedBuffer newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
                                    bool connectingThroughProxy);
 
+    static SharedBuffer newRenewedConnect(const AuthenticationPtr& authentication,
+                                          const std::string& logicalAddress, bool connectingThroughProxy);
+
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
     static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);
@@ -127,6 +130,8 @@ class Commands {
     Commands();
 
     static SharedBuffer writeMessageWithSize(const proto::BaseCommand& cmd);
+    static void updateConnect(proto::CommandConnect* connect, const AuthenticationPtr& authentication,
+                              const std::string& logicalAddress, bool connectingThroughProxy);
 };
 
 } /* namespace pulsar */

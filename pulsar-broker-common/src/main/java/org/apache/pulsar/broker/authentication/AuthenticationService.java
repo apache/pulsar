@@ -82,6 +82,14 @@ public class AuthenticationService implements Closeable {
         }
     }
 
+    public long getExpiryTime(AuthenticationDataSource authData, String authMethodName) {
+        AuthenticationProvider provider = providers.get(authMethodName);
+        if (provider != null) {
+            return provider.getExpiryTime(authData);
+        }
+        return -1L;
+    }
+
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         // Try to validate with any configured provider
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);

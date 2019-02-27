@@ -1096,6 +1096,16 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::RENEW_CONNECT: {
+                    // Respond to ping request
+                    LOG_DEBUG(cnxString_ << "Renewing auth data");
+                    bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
+                    SharedBuffer buffer =
+                        Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
+                    sendCommand(buffer);
+                    break;
+                }
+
                 default: {
                     LOG_WARN(cnxString_ << "Received invalid message from server");
                     close();

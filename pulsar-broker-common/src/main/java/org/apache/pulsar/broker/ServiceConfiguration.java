@@ -619,6 +619,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Autentication provider name list, which is a list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "Enable authentication expiry check. Once, connection expires, "
+                    + "Broker asks client to send non-expired auth-data to renew connection and broker"
+                    + "closes the expired connection if client can't send renewed auth-data. (default disabled)"
+        )
+    private boolean authenticationCheckExpiredConnectionEnabled = false;
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "Broker schedules expired-connection check task only if connection expire time"
+                    + " is lower than this threshold (in seconds)."
+        )
+    private long durationSecAfterSkipConnectionExpiryCheck = 60 * 60 * 24 * 30; // 30 days
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,

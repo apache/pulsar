@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authentication;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Date;
 
 import javax.naming.AuthenticationException;
 
@@ -87,6 +88,17 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
         }
 
         return commonName;
+    }
+    
+    @Override
+    public long getExpiryTime(AuthenticationDataSource authData) {
+        if (authData.hasDataFromTls()) {
+            Certificate[] certs = authData.getTlsCertificates();
+            Date expiredDate = ((X509Certificate) certs[0]).getNotAfter();
+            return expiredDate.getTime();
+        }
+        
+        return -1;
     }
 
 }

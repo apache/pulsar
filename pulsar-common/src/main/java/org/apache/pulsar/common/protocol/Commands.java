@@ -86,6 +86,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRenewedConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -125,6 +126,20 @@ public class Commands {
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     private static final int checksumSize = 4;
+
+    private final static ByteBuf cmdRenewConnect;
+
+    static {
+        // TODO: remove
+        ByteBuf serializedCmdRenewConnect = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.RENEW_CONNECT).setPing(CommandPing.getDefaultInstance()));
+        cmdRenewConnect = Unpooled.copiedBuffer(serializedCmdRenewConnect);
+        serializedCmdRenewConnect.release();
+    }
+
+    public static ByteBuf newRenewConnect() {
+        return cmdRenewConnect.retainedDuplicate();
+    }
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */,
@@ -184,9 +199,9 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
-                                     String targetBroker, String originalPrincipal, AuthData originalAuthData,
-                                     String originalAuthMethod) {
+    public static CommandConnect.Builder newConnectCommand(String authMethodName, AuthData authData,
+            int protocolVersion, String libVersion, String targetBroker, String originalPrincipal,
+            AuthData originalAuthData, String originalAuthMethod) {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
@@ -212,10 +227,35 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+        return connectBuilder;
+    }
+
+    public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
+            String targetBroker, String originalPrincipal, AuthData originalAuthData, String originalAuthMethod) {
+        CommandConnect.Builder connectBuilder = newConnectCommand(authMethodName, authData, protocolVersion, libVersion,
+                targetBroker, originalPrincipal, originalAuthData, originalAuthMethod);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
         connectBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newRenewedConnect(String authMethodName, AuthData authData, int protocolVersion,
+            String libVersion, String targetBroker, String originalPrincipal, AuthData originalAuthData,
+            String originalAuthMethod) {
+        CommandConnect.Builder connectBuilder = newConnectCommand(authMethodName, authData, protocolVersion, libVersion,
+                targetBroker, originalPrincipal, originalAuthData, originalAuthMethod);
+        CommandConnect connect = connectBuilder.build();
+        CommandRenewedConnect.Builder renewdConnectBuilder = CommandRenewedConnect.newBuilder();
+        renewdConnectBuilder.setRenewedConnect(connect);
+        CommandRenewedConnect renewedConnect = renewdConnectBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.RENEWED_CONNECT).setRenewedConnect(renewedConnect));
+        connect.recycle();
+        connectBuilder.recycle();
+        renewedConnect.recycle();
+        renewdConnectBuilder.recycle();
         return res;
     }
 

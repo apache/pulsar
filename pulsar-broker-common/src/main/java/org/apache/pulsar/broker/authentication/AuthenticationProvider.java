@@ -83,4 +83,13 @@ public interface AuthenticationProvider extends Closeable {
     default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         throw new AuthenticationException("Not supported");
     }
+
+    /**
+     * Returns expiry timestamp of authentication credentials after which client needs to renew the connection lease.
+     * 
+     * @return expiry-timestamp in milliseconds. (-1 returns unlimited expired time)
+     */
+    default long getExpiryTime(AuthenticationDataSource authData) {
+        return -1;
+    }
 }

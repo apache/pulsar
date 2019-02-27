@@ -199,6 +199,7 @@ enum ProtocolVersion {
     v13 = 13; // Schema-registry : added avro schema format for json
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
+    v15 = 15; // Renew connection lease
 }
 
 message CommandConnect {
@@ -223,6 +224,13 @@ message CommandConnect {
     optional string original_auth_data = 8;
     optional string original_auth_method = 9;
 
+}
+
+message CommandRenewConnect {
+}
+
+message CommandRenewedConnect {
+	required CommandConnect renewed_connect = 1;
 }
 
 message CommandConnected {
@@ -780,6 +788,9 @@ message BaseCommand {
         AUTH_RESPONSE = 37;
 
         ACK_RESPONSE = 38;
+        
+        RENEW_CONNECT = 39;
+		RENEWED_CONNECT = 40;
 
         // transaction related
         NEW_TXN = 50;
@@ -799,6 +810,8 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+        
+        
 
     }
 
@@ -857,6 +870,9 @@ message BaseCommand {
     optional CommandAuthResponse authResponse = 37;
 
     optional CommandAckResponse ackResponse = 38;
+    
+    optional CommandRenewConnect renewConnect = 39;
+	optional CommandRenewedConnect renewedConnect = 40;
 
     // transaction related
     optional CommandNewTxn newTxn = 50;

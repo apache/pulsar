@@ -76,6 +76,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandRenewConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
@@ -213,6 +214,16 @@ public class ClientCnx extends PulsarHandler {
                 PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
 
+    protected ByteBuf newRenewedConnectCommand() throws Exception {
+        AuthData authData = null;
+        if (authentication.getAuthData().hasDataFromCommand()) {
+            authenticationDataProvider = authentication.getAuthData(remoteHostName);
+            authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+        }
+        return Commands.newRenewedConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
+    }
+
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
@@ -334,6 +345,16 @@ public class ClientCnx extends PulsarHandler {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
             return;
+        }
+    }
+
+    @Override
+    protected void handleRenewConnect(CommandRenewConnect commandRenewConnect) {
+        try {
+            ByteBuf newCmd = newRenewedConnectCommand();
+            ctx.writeAndFlush(newCmd);
+        } catch (Exception e) {
+            log.warn("[{}] Failed to renewed expired connection {}", ctx.channel(), e.getMessage(), e);
         }
     }
 
