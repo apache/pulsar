@@ -208,23 +208,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.8.1.jar
-    - jackson-databind-2.8.1.jar
-    - jackson-dataformat-smile-2.8.1.jar
-    - jackson-datatype-guava-2.8.1.jar
-    - jackson-datatype-guava-2.8.1.jar
-    - jackson-datatype-jdk8-2.8.1.jar
-    - jackson-datatype-jdk8-2.8.1.jar
-    - jackson-datatype-joda-2.8.1.jar
-    - jackson-datatype-joda-2.8.4.jar
-    - jackson-datatype-jsr310-2.8.1.jar
-    - jackson-datatype-jsr310-2.8.1.jar
-    - jackson-annotations-2.8.4.jar
-    - jackson-core-2.8.1.jar
-    - jackson-core-2.8.4.jar
+    - jackson-annotations-2.8.11.jar
+    - jackson-databind-2.8.11.1.jar
+    - jackson-dataformat-smile-2.8.11.jar
+    - jackson-datatype-guava-2.8.11.jar
+    - jackson-datatype-guava-2.8.11.jar
+    - jackson-datatype-jdk8-2.8.11.jar
+    - jackson-datatype-jdk8-2.8.11.jar
+    - jackson-datatype-joda-2.8.11.jar
+    - jackson-datatype-jsr310-2.8.11.jar
+    - jackson-core-2.8.11.jar
     - jackson-core-asl-1.9.13.jar
-    - jackson-databind-2.8.4.jar
     - jackson-mapper-asl-1.9.13.jar
+    - jackson-dataformat-yaml-2.8.11.jar
  * Guava
     - guava-21.0.jar
     - guava-24.1-jre.jar
@@ -233,15 +229,15 @@ The Apache Software License, Version 2.0
     - guice-multibindings-4.2.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
-    - commons-beanutils-core-1.8.3.jar
     - commons-beanutils-core-1.8.0.jar
+    - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.15.jar
     - commons-lang3-3.3.2.jar
     - commons-lang3-3.4.jar
  * Netty
     - netty-3.6.2.Final.jar
  * Joda Time
-     - joda-time-2.9.9.jar
+    - joda-time-2.9.9.jar
  * Jetty
     - http2-client-9.4.11.v20180605.jar
     - http2-common-9.4.11.v20180605.jar
@@ -348,6 +344,7 @@ The Apache Software License, Version 2.0
     - xbean-reflect-3.4.jar
   * Avro
     - avro-1.8.2.jar
+    - avro-protobuf-1.8.2.jar
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
@@ -375,7 +372,8 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
-    - snakeyaml-1.15.jar
+    - snakeyaml-1.17.jar
+    - snakeyaml-1.23.jar
   * Snappy Java
     - snappy-java-1.1.1.3.jar
   * Bean Validation API
@@ -387,20 +385,23 @@ The Apache Software License, Version 2.0
     - metrics-graphite-3.1.0.jar
     - metrics-jvm-3.1.0.jar
   * Prometheus
-    - simpleclient-0.0.23.jar
-    - simpleclient_common-0.0.23.jar
-    - simpleclient_hotspot-0.0.23.jar
-    - simpleclient_servlet-0.0.23.jar
+    - simpleclient-0.5.0.jar
+    - simpleclient_common-0.5.0.jar
+    - simpleclient_hotspot-0.5.0.jar
+    - simpleclient_servlet-0.5.0.jar
   * LZ4
     - lz4-java-1.5.0.jar
+  * JCTools
+    - jctools-core-2.1.2.jar
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.5.1.jar -- licenses/LICENSE-protobuf.txt
    - protobuf-shaded-2.1.0-incubating.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
+  *  DSL Platform JSON
+    - dsl-json-1.8.4.jar
 
 BSD License
  * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar
@@ -414,9 +415,12 @@ BSD License
    - jline-2.14.6.jar
  * ParaNamer Core
    - paranamer-2.7.jar
+ * Zstd-jni
+   - zstd-jni-1.3.7-3.jar
 
 MIT License
- * Animal Sniffer Annotations -- animal-sniffer-annotations-1.14.jar
+ * Animal Sniffer Annotations
+   - animal-sniffer-annotations-1.14.jar
  * Checker Qua -- checker-compat-qual-2.0.0.jar
  * PCollections
    - pcollections-2.1.2.jar
@@ -435,7 +439,11 @@ CDDL - 1.0
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
+   - javax.annotation-api-1.2.jar
    - javax.annotation-api-1.3.1.jar
+   - javax.activation-api-1.2.0.jar
+   - javax.activation-1.2.0.jar
+   - activation-1.0.2.jar
  * HK2 - Dependency Injection Kernel
    - hk2-api-2.5.0-b42.jar
    - hk2-locator-2.5.0-b42.jar
@@ -452,6 +460,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
  * JAXB
     - jaxb-api-2.2.6.jar
+    - jaxb-api-2.3.1.jar
     - jaxb-impl-2.2.6.jar
 
  Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
@@ -479,6 +488,5 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk15on-1.55.jar
-    - bcprov-jdk15on-1.55.jar
-
+    - bcpkix-jdk15on-1.60.jar
+    - bcprov-jdk15on-1.60.jar

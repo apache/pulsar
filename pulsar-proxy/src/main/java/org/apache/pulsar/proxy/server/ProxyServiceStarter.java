@@ -19,18 +19,14 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.Lists.newArrayList;
-import static java.lang.Thread.setDefaultUncaughtExceptionHandler;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
-import java.util.List;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +37,11 @@ import com.beust.jcommander.Parameter;
 import io.prometheus.client.exporter.MetricsServlet;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.apache.pulsar.common.configuration.VipStatus;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 
 /**
  * Starts an instance of the Pulsar ProxyService
@@ -69,8 +70,10 @@ public class ProxyServiceStarter {
         // setup handlers
         removeHandlersForRootLogger();
         install();
-        setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            log.error("Uncaught exception in thread {}: {}", thread.getName(), exception.getMessage(), exception);
+
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
+            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
         });
 
         JCommander jcommander = new JCommander();
@@ -137,15 +140,7 @@ public class ProxyServiceStarter {
 
         // Setup metrics
         DefaultExports.initialize();
-        server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
-        server.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-
-        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, proxyService.getDiscoveryProvider());
-        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
-        servletHolder.setInitParameter("preserveHost", "true");
-        server.addServlet("/admin", servletHolder);
-        server.addServlet("/lookup", servletHolder);
+        addWebServerHandlers(server, config, proxyService.getDiscoveryProvider());
 
         // start web-service
         server.start();
@@ -153,6 +148,28 @@ public class ProxyServiceStarter {
 
     public static void main(String[] args) throws Exception {
         new ProxyServiceStarter(args);
+    }
+
+    static void addWebServerHandlers(WebServer server,
+                                     ProxyConfiguration config,
+                                     BrokerDiscoveryProvider discoveryProvider) {
+        server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
+        server.addRestResources("/", VipStatus.class.getPackage().getName(),
+                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
+
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        server.addServlet("/admin", servletHolder);
+        server.addServlet("/lookup", servletHolder);
+
+        for (ProxyConfiguration.HttpReverseProxyConfig revProxy : config.getHttpReverseProxyConfigs()) {
+            log.debug("Adding reverse proxy with config {}", revProxy);
+            ServletHolder proxyHolder = new ServletHolder(ProxyServlet.Transparent.class);
+            proxyHolder.setInitParameter("proxyTo", revProxy.getProxyTo());
+            proxyHolder.setInitParameter("prefix", "/");
+            server.addServlet(revProxy.getPath(), proxyHolder);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);

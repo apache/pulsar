@@ -20,27 +20,31 @@
 from setuptools import setup
 from distutils.core import Extension
 import subprocess
+import sys
 
 from distutils.command import build_ext
 
+import xml.etree.ElementTree as ET
+from os.path import dirname, realpath, join
 
 def get_version():
     # Get the pulsar version from pom.xml
-    command = '''cat ../../pom.xml | xmllint --format - | \\
-        sed "s/xmlns=\\".*\\"//g" | xmllint --stream --pattern /project/version --debug - | \\
-        grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"'''
-    process = subprocess.Popen(['bash', '-c', command], stdout=subprocess.PIPE)
-    output, error = process.communicate()
-    if error:
-        raise 'Failed to get version: ' + error
+    TOP_LEVEL_PATH = dirname(dirname(dirname(realpath(__file__))))
+    POM_PATH = join(TOP_LEVEL_PATH, 'pom.xml')
+    root = ET.XML(open(POM_PATH).read())
+    version = root.find('{http://maven.apache.org/POM/4.0.0}version').text.strip()
 
     # Strip the '-incubating' suffix, since it prevents the packages
     # from being uploaded into PyPI
-    return output.strip().decode('utf-8', 'strict').split('-')[0]
+    return version.split('-')[0]
 
 
 VERSION = get_version()
 
+if sys.version_info[0] == 2:
+    PY2 = True
+else:
+    PY2 = False
 
 # This is a workaround to have setuptools to include
 # the already compiled _pulsar.so library
@@ -57,10 +61,26 @@ class my_build_ext(build_ext.build_ext):
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
 
 
+dependencies = [
+    'fastavro',
+    'grpcio',
+    'protobuf',
+    'six',
+
+    # functions dependencies
+    "apache-bookkeeper-client",
+    "prometheus_client",
+    "ratelimit"
+]
+
+if PY2:
+    # Python 2 compat dependencies
+    dependencies += ['enum34']
+
 setup(
     name="pulsar-client",
     version=VERSION,
-    packages=['pulsar', 'pulsar.functions'],
+    packages=['pulsar', 'pulsar.schema', 'pulsar.functions'],
     cmdclass={'build_ext': my_build_ext},
     ext_modules=[Extension('_pulsar', [])],
 
@@ -68,8 +88,6 @@ setup(
     author_email="dev@pulsar.apache.org",
     description="Apache Pulsar Python client library",
     license="Apache License v2.0",
-    url="http://pulsar.apache.org/",
-    install_requires=[
-        'grpcio', 'protobuf'
-    ],
+    url="https://pulsar.apache.org/",
+    install_requires=dependencies,
 )

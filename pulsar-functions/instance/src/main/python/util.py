@@ -26,6 +26,7 @@ import os
 import inspect
 import sys
 import importlib
+from threading import Timer
 
 import log
 
@@ -36,38 +37,59 @@ PULSAR_FUNCTIONS_API_ROOT = 'functions'
 def import_class(from_path, full_class_name):
   from_path = str(from_path)
   full_class_name = str(full_class_name)
-  kclass = import_class_from_path(from_path, full_class_name)
-  if kclass is None:
+  try:
+    return import_class_from_path(from_path, full_class_name)
+  except Exception as e:
     our_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     api_dir = os.path.join(our_dir, PULSAR_API_ROOT, PULSAR_FUNCTIONS_API_ROOT)
-    kclass = import_class_from_path(api_dir, full_class_name)
-  return kclass
+    try:
+      return import_class_from_path(api_dir, full_class_name)
+    except Exception as e:
+      Log.info("Failed to import class %s from path %s" % (full_class_name, from_path))
+      Log.info(e, exc_info=True)
+      return None
 
 def import_class_from_path(from_path, full_class_name):
-  Log.info('Trying to import %s from path %s' % (full_class_name, from_path))
+  Log.debug('Trying to import %s from path %s' % (full_class_name, from_path))
   split = full_class_name.split('.')
   classname_path = '.'.join(split[:-1])
   class_name = full_class_name.split('.')[-1]
   if from_path not in sys.path:
-    Log.info("Add a new dependency to the path: %s" % from_path)
+    Log.debug("Add a new dependency to the path: %s" % from_path)
     sys.path.insert(0, from_path)
   if not classname_path:
-    try:
-      mod = importlib.import_module(class_name)
-      return mod
-    except Exception as e:
-      Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
-      Log.info(e, exc_info=True)
-      return None
+    mod = importlib.import_module(class_name)
+    return mod
   else:
-    try:
-      mod = importlib.import_module(classname_path)
-      retval = getattr(mod, class_name)
-      return retval
-    except Exception as e:
-      Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
-      Log.info(e, exc_info=True)
-      return None
+    mod = importlib.import_module(classname_path)
+    retval = getattr(mod, class_name)
+    return retval
 
 def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
+
+def getFullyQualifiedInstanceId(tenant, namespace, name, instance_id):
+    return "%s/%s/%s:%s" % (tenant, namespace, name, instance_id)
+
+def get_properties(fullyQualifiedName, instanceId):
+    return {"application": "pulsar-function", "id": str(fullyQualifiedName), "instance_id": str(instanceId)}
+
+class FixedTimer():
+
+    def __init__(self, t, hFunction, name="timer-thread"):
+        self.t = t
+        self.hFunction = hFunction
+        self.thread = Timer(self.t, self.handle_function)
+        self.thread.setName(name)
+        self.thread.setDaemon(True)
+
+    def handle_function(self):
+        self.hFunction()
+        self.thread = Timer(self.t, self.handle_function)
+        self.thread.start()
+
+    def start(self):
+        self.thread.start()
+
+    def cancel(self):
+        self.thread.cancel()

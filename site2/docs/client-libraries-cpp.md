@@ -19,9 +19,9 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:rpm:client}}.asc), [sha512]({{pulsar:rpm:client}}.sha512) |
-| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
-| [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc),  [sha512]({{pulsar:rpm:client-devel}}.sha512) |
+| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:dist_rpm:client}}.asc), [sha512]({{pulsar:dist_rpm:client}}.sha512) |
+| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:dist_rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:dist_rpm:client-debuginfo}}.sha512) |
+| [client-devel]({{pulsar:dist_rpm:client-devel}}) | [asc]({{pulsar:dist_rpm:client-devel}}.asc),  [sha512]({{pulsar:dist_rpm:client-devel}}.sha512) |
 
 To install a RPM package, download the RPM packages and install them using the following command:
 
@@ -33,13 +33,13 @@ $ rpm -ivh apache-pulsar-client*.rpm
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:deb:client}}.asc), [sha512]({{pulsar:deb:client}}.sha512) |
-| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:deb:client-devel}}.asc),  [sha512]({{pulsar:deb:client-devel}}.sha512) |
+| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:dist_deb:client}}.asc), [sha512]({{pulsar:dist_deb:client}}.sha512) |
+| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:dist_deb:client-devel}}.asc),  [sha512]({{pulsar:dist_deb:client-devel}}.sha512) |
 
 To install a DEB package, download the DEB packages and install them using the following command:
 
 ```bash
-$ apt-install apache-pulsar-client*.deb
+$ apt install ./apache-pulsar-client*.deb
 ```
 
 ### Build
@@ -90,14 +90,12 @@ Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
 
 ## MacOS
 
-Use the [Homebrew](https://brew.sh/) supplied recipe to build the Pulsar
-client lib on MacOS.
+Pulsar releases are available through the [Homebrew](https://brew.sh/) core repository. You can install the C++ client 
+library with:
 
 ```shell
-brew install https://raw.githubusercontent.com/apache/pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
+brew install libpulsar
 ```
-
-If using Python 3 on MacOS, add the flag `--with-python3` to the above command.
 
 This will install the package with the library and headers.
 

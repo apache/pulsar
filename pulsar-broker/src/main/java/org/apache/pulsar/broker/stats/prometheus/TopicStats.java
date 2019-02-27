@@ -126,6 +126,22 @@ class TopicStats {
             });
         });
 
+        if (!stats.replicationStats.isEmpty()) {
+            stats.replicationStats.forEach((remoteCluster, replStats) -> {
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_in", remoteCluster,
+                        replStats.msgRateIn);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_out", remoteCluster,
+                        replStats.msgRateOut);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_throughput_in",
+                        remoteCluster,
+                        replStats.msgThroughputIn);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_throughput_out",
+                        remoteCluster,
+                        replStats.msgThroughputOut);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
+                        replStats.replicationBacklog);
+            });
+        }
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {
@@ -171,6 +187,15 @@ class TopicStats {
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
                 .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
+        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
+            String topic,
+            String name, String remoteCluster, double value) {
+        metricType(stream, name);
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
+        stream.write("\",topic=\"").write(topic).write("remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }

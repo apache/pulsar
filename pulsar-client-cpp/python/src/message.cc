@@ -66,6 +66,20 @@ boost::python::object Message_data(const Message& msg) {
     return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize((const char*)msg.getData(), msg.getLength())));
 }
 
+boost::python::object Message_properties(const Message& msg) {
+    boost::python::dict pyProperties;
+    for (const auto& item : msg.getProperties()) {
+        pyProperties[item.first] = item.second;
+    }
+    return pyProperties;
+}
+
+std::string Topic_name_str(const Message& msg) {
+    std::stringstream ss;
+    ss << msg.getTopicName();
+    return ss.str();
+}
+
 const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
@@ -109,7 +123,7 @@ void export_message() {
             ;
 
     class_<Message>("Message")
-            .def("properties", &Message::getProperties, return_value_policy<copy_const_reference>())
+            .def("properties", &Message_properties)
             .def("data", &Message_data)
             .def("length", &Message::getLength)
             .def("partition_key", &Message::getPartitionKey, return_value_policy<copy_const_reference>())
@@ -117,5 +131,6 @@ void export_message() {
             .def("event_timestamp", &Message::getEventTimestamp)
             .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
+            .def("topic_name", &Topic_name_str)
             ;
 }

@@ -21,18 +21,6 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Queues;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.unix.Errors.NativeIoException;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.Promise;
-
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -40,6 +28,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -74,9 +64,22 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Queues;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.unix.Errors.NativeIoException;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Promise;
 
 public class ClientCnx extends PulsarHandler {
 
@@ -101,6 +104,7 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
+    private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
     private final Semaphore pendingLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
 
@@ -110,6 +114,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
+    private final int protocolVersion;
     private final long operationTimeoutMs;
 
     protected String proxyToTargetBrokerAddress = null;
@@ -118,11 +123,28 @@ public class ClientCnx extends PulsarHandler {
     private boolean isTlsHostnameVerificationEnable;
     private DefaultHostnameVerifier hostnameVerifier;
 
+    private final ScheduledFuture<?> timeoutTask;
+
     enum State {
         None, SentConnectFrame, Ready, Failed
     }
 
+    static class RequestTime {
+        long creationTimeMs;
+        long requestId;
+
+        public RequestTime(long creationTime, long requestId) {
+            super();
+            this.creationTimeMs = creationTime;
+            this.requestId = requestId;
+        }
+    }
+
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+        this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
+    }
+
+    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
@@ -135,6 +157,9 @@ public class ClientCnx extends PulsarHandler {
         this.state = State.None;
         this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
         this.hostnameVerifier = new DefaultHostnameVerifier();
+        this.protocolVersion = protocolVersion;
+        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
+                operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -167,8 +192,8 @@ public class ClientCnx extends PulsarHandler {
         if (authentication.getAuthData().hasDataFromCommand()) {
             authData = authentication.getAuthData().getCommandData();
         }
-        return Commands.newConnect(authentication.getAuthMethodName(), authData,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress);
+        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
+                getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override
@@ -202,6 +227,8 @@ public class ClientCnx extends PulsarHandler {
 
         producers.clear();
         consumers.clear();
+
+        timeoutTask.cancel(true);
     }
 
     // Command Handlers
@@ -628,7 +655,7 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(getPulsarClientException(rc, commandGetSchemaResponse.getErrorMessage()));
             }
         } else {
-            future.complete(Optional.of(new SchemaInfo(commandGetSchemaResponse.getSchema())));
+            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(commandGetSchemaResponse.getSchema())));
         }
     }
 
@@ -662,6 +689,7 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(writeFuture.cause());
             }
         });
+        requestTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         return future;
     }
 
@@ -809,6 +837,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
         case TopicTerminatedError:
             return new PulsarClientException.TopicTerminatedException(errorMsg);
+        case IncompatibleSchema:
+            return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
@@ -820,6 +850,25 @@ public class ClientCnx extends PulsarHandler {
        if (ctx != null) {
            ctx.close();
        }
+    }
+
+    private void checkRequestTimeout() {
+        while (!requestTimeoutQueue.isEmpty()) {
+            RequestTime request = requestTimeoutQueue.peek();
+            if (request == null || (System.currentTimeMillis() - request.creationTimeMs) < operationTimeoutMs) {
+                // if there is no request that is timed out then exit the loop
+                break;
+            }
+            request = requestTimeoutQueue.poll();
+            CompletableFuture<ProducerResponse> requestFuture = pendingRequests.remove(request.requestId);
+            if (requestFuture != null && !requestFuture.isDone()
+                    && requestFuture.completeExceptionally(new TimeoutException(
+                            request.requestId + " lookup request timedout after ms " + operationTimeoutMs))) {
+                log.warn("{} request {} timed out after {} ms", ctx.channel(), request.requestId, operationTimeoutMs);
+            } else {
+                // request is already completed successfully.
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);

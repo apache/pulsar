@@ -104,8 +104,11 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = {
-                "--auth_params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
+        @Parameter(
+            names = { "--auth-params" },
+            description = "Authentication parameters, whose format is determined by the implementation " +
+                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
@@ -138,10 +141,6 @@ public class PerformanceProducer {
 
         @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
         public double warmupTimeSeconds = 1.0;
-
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
-        public boolean useTls;
 
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
@@ -206,10 +205,6 @@ public class PerformanceProducer {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
-               arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
@@ -237,7 +232,6 @@ public class PerformanceProducer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .ioThreads(Runtime.getRuntime().availableProcessors()) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         if (isNotBlank(arguments.authPluginClassName)) {

@@ -23,9 +23,11 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +45,8 @@ import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Sets;
 
 /**
  * Default authorization provider that stores authorization policies under local-zookeeper.
@@ -109,7 +113,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
-                    if (isNotBlank(subscription) && !isSuperUser(role)) {
+                    if (isNotBlank(subscription)) {
+                        // validate if role is authorize to access subscription. (skip validatation if authorization
+                        // list is empty)
+                        Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
+                        if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                            log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
+                            PulsarServerException ex = new PulsarServerException(
+                                    String.format("%s is not authorized to access subscription %s on topic %s", role,
+                                            subscription, topicName));
+                            permissionFuture.complete(false);
+                            return;
+                        }
+
+                        // validate if subscription-auth mode is configured
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
@@ -125,6 +142,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     }
                 }
+                // check namespace and topic level consume-permissions
                 checkAuthorization(topicName, role, AuthAction.consume).thenAccept(isAuthorized -> {
                     permissionFuture.complete(isAuthorized);
                 });
@@ -241,13 +259,73 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return result;
     }
 
-    private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        if (isSuperUser(role)) {
-            return CompletableFuture.completedFuture(true);
-        } else {
-            return checkPermission(topicName, role, action)
-                    .thenApply(isPermission -> isPermission && checkCluster(topicName));
+    @Override
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            Set<String> roles, String authDataJson) {
+        return updateSubscriptionPermissionAsync(namespace, subscriptionName, roles, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson) {
+        return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
+    }
+    
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
+            boolean remove) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            result.completeExceptionally(e);
         }
+
+        ZooKeeper globalZk = configCache.getZooKeeper();
+        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
+
+        try {
+            Stat nodeStat = new Stat();
+            byte[] content = globalZk.getData(policiesPath, null, nodeStat);
+            Policies policies = getThreadLocal().readValue(content, Policies.class);
+            if (remove) {
+                if (policies.auth_policies.subscription_auth_roles.get(subscriptionName) != null) {
+                    policies.auth_policies.subscription_auth_roles.get(subscriptionName).removeAll(roles);
+                }else {
+                    log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
+                    result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
+                    return result;
+                }
+            } else {
+                policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
+            }
+
+            // Write back the new policies into zookeeper
+            globalZk.setData(policiesPath, getThreadLocal().writeValueAsBytes(policies), nodeStat.getVersion());
+
+            configCache.policiesCache().invalidate(policiesPath);
+
+            log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
+            result.complete(null);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", subscriptionName, namespace);
+            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
+            result.completeExceptionally(new IllegalStateException(
+                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
+            result.completeExceptionally(
+                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
+        }
+
+        return result;
+    }
+
+    private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
+        return checkPermission(topicName, role, action)
+                .thenApply(isPermission -> isPermission && checkCluster(topicName));
     }
 
     private boolean checkCluster(TopicName topicName) {
@@ -292,7 +370,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
 
                     // Using wildcard
-                    if (conf.getAuthorizationAllowWildcardsMatching()) {
+                    if (conf.isAuthorizationAllowWildcardsMatching()) {
                         if (checkWildcardPermission(role, action, namespaceRoles)) {
                             // The role has namespace level permission by wildcard match
                             permissionFuture.complete(true);
@@ -343,16 +421,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return false;
     }
 
-    /**
-     * Super user roles are allowed to do anything, used for replication primarily
-     *
-     * @param role
-     *            the app id used to receive messages from the topic.
-     */
-    public boolean isSuperUser(String role) {
-        Set<String> superUserRoles = conf.getSuperUserRoles();
-        return role != null && superUserRoles.contains(role) ? true : false;
-    }
 
     @Override
     public void close() throws IOException {

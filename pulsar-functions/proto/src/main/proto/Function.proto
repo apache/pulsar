@@ -57,6 +57,7 @@ message FunctionDetails {
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
     string userConfig = 7;
+    string secretsMap = 16;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;
@@ -71,6 +72,10 @@ message ConsumerSpec {
 	string schemaType   = 1;
     string serdeClassName = 2;
 	bool isRegexPattern = 3;
+    message ReceiverQueueSize {
+        int32 value = 1;
+    }
+    ReceiverQueueSize receiverQueueSize = 4;
 }
 
 message SourceSpec {
@@ -97,6 +102,7 @@ message SourceSpec {
      * already present in the server */
     string builtin = 8;
     string subscriptionName = 9;
+    bool cleanupSubscription = 11;
 }
 
 message SinkSpec {
@@ -125,11 +131,16 @@ message PackageLocationMetaData {
     string originalFileName = 2;
 }
 
+enum FunctionState {
+    RUNNING = 0;
+    STOPPED = 1;
+}
 message FunctionMetaData {
     FunctionDetails functionDetails = 1;
     PackageLocationMetaData packageLocation = 2;
     uint64 version = 3;
     uint64 createTime = 4;
+    map<int32, FunctionState> instanceStates = 5;
 }
 
 message Instance {

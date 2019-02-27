@@ -23,10 +23,9 @@ class Libpulsar < Formula
 
   head "https://github.com/apache/pulsar.git"
 
-  # TODO: Switch to official 2.1 version when available
-  version "2.1.0-incubating-SNAPSHOT"
-  url "https://s3-us-west-2.amazonaws.com/pulsar-preview/apache-pulsar-#{version}-src.tar.gz"
-  sha256 "b7ec66c64830f9a0890a145d40a2a28063c056c2d68e9a4e9bdb0cbe7de0bb39"
+  version "2.2.1"
+  url "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-#{version}/apache-pulsar-#{version}-src.tar.gz"
+  sha256 "3a365368f0d7beba091ba3a6d0f703dcc77545c8b454e5e33b72c1a29905232e"
 
   option "with-python3", "Use Boost with Python-3.x"
   option "with-log4cxx", "Enable Log4cxx logger"
@@ -41,6 +40,7 @@ class Libpulsar < Formula
   if build.with? "python3"
       depends_on "boost-python3" => :build
   else
+      depends_on "python@2" => :build
       depends_on "boost-python" => :build
   end
 
@@ -51,10 +51,16 @@ class Libpulsar < Formula
   def install
     Dir.chdir('pulsar-client-cpp')
 
-    if build.with? "log4cxx"
-      system "cmake", ".", "-DBUILD_TESTS=OFF", "-DLINK_STATIC=ON", "-DUSE_LOG4CXX"
+    if build.with? "python3"
+        python_include_dir = '/usr/local/Frameworks/Python.framework/Versions/3.7/include/python3.7m'
     else
-      system "cmake", ".", "-DBUILD_TESTS=OFF", "-DLINK_STATIC=ON"
+        python_include_dir = '/usr/local/Frameworks/Python.framework/Versions/2.7/include/python2.7/'
+    end
+
+    if build.with? "log4cxx"
+      system "cmake", ".", "-DBUILD_TESTS=OFF", "-DLINK_STATIC=ON", "-DUSE_LOG4CXX", "-DPYTHON_INCLUDE_DIR=" + python_include_dir
+    else
+      system "cmake", ".", "-DBUILD_TESTS=OFF", "-DLINK_STATIC=ON", "-DPYTHON_INCLUDE_DIR=" + python_include_dir
     end
     system "make", "pulsarShared", "pulsarStatic"
 

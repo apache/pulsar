@@ -43,8 +43,16 @@
     <fileSet>
       <directory>${basedir}/licenses</directory>
     </fileSet>
+    <!-- created `instances/deps` directory -->
     <fileSet>
-      <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
+      <directory>.</directory>
+      <outputDirectory>instances/deps</outputDirectory>
+      <excludes>
+        <exclude>*/**</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-functions/instance/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
     <fileSet>
@@ -78,11 +86,6 @@
     <file>
       <source>${basedir}/../../pulsar-functions/runtime-all/target/java-instance.jar</source>
       <destName>java-instance.jar</destName>
-      <outputDirectory>instances</outputDirectory>
-    </file>
-    <file>
-      <source>${basedir}/../../pulsar-functions/metrics/target/PrometheusMetricsServer.jar</source>
-      <destName>PrometheusMetricsServer.jar</destName>
       <outputDirectory>instances</outputDirectory>
     </file>
     <file>
@@ -134,6 +137,8 @@
         <!-- Explicitely remove JUnit which is getting pulled in even
              though it's set to the scope 'test' -->
         <exclude>junit:junit</exclude>
+
+        <exclude>org.projectlombok:lombok</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

@@ -29,6 +29,7 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -37,6 +38,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.nio.charset.StandardCharsets;
 
 import java.time.Clock;
 import java.util.ArrayDeque;
@@ -104,8 +106,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
+    public static final int FALSE = 0;
+    public static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
@@ -166,6 +168,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         NoLedger, // There is no metadata ledger open for writing
         Open, // Metadata ledger is ready
         SwitchingLedger, // The metadata ledger is being switched
+        Closing, // The managed cursor is closing
         Closed // The managed cursor has been closed
     }
 
@@ -282,6 +285,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             // Read the last entry in the ledger
             long lastEntryInLedger = lh.getLastAddConfirmed();
+
+            if (lastEntryInLedger < 0) {
+                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: No entries in ledger",
+                        ledger.getName(), ledgerId, name);
+                // Rewind to last cursor snapshot available
+                initialize(getRollbackPosition(info), callback);
+                return;
+            }
+
             lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
@@ -430,7 +442,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
             final Object ctx) {
         checkArgument(numberOfEntriesToRead > 0);
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -467,7 +479,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }, null);
 
-        counter.await();
+        counter.await(ledger.getConfig().getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
 
         if (result.exception != null) {
             throw result.exception;
@@ -480,7 +492,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncGetNthEntry(int n, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
             Object ctx) {
         checkArgument(n > 0);
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        if (isClosed()) {
             callback.readEntryFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -545,7 +557,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
         checkArgument(numberOfEntriesToRead > 0);
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        if (isClosed()) {
             callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
             return;
         }
@@ -619,6 +631,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private boolean isClosed() {
+        return state == State.Closed || state == State.Closing;
+    }
+
     @Override
     public boolean cancelPendingReadRequest() {
         if (log.isDebugEnabled()) {
@@ -665,7 +681,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntriesSinceFirstNotAckedMessage() {
-        return ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition));
+        // sometimes for already caught up consumer: due to race condition markDeletePosition > readPosition. so,
+        // validate it before preparing range
+        PositionImpl markDeletePosition = this.markDeletePosition;
+        PositionImpl readPosition = this.readPosition;
+        return (markDeletePosition.compareTo(readPosition) < 0)
+                ? ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition))
+                : 0;
     }
 
     @Override
@@ -688,7 +710,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
-            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition()));
+            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
         }
 
         return backlog;
@@ -1336,7 +1358,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
 
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        if (isClosed()) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -1552,7 +1574,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncDelete(Iterable<Position> positions, AsyncCallbacks.DeleteCallback callback, Object ctx) {
-        if (state == State.Closed) {
+        if (isClosed()) {
             callback.deleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -1870,6 +1892,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
+        if (state == State.Closed) {
+            ledger.getExecutor().execute(safeRun(() -> {
+                callback.operationFailed(new MetaStoreException(
+                        new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
+            }));
+            return;
+        }
+
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
@@ -1904,13 +1934,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        State oldState = STATE_UPDATER.getAndSet(this, State.Closed);
-        if (oldState == State.Closed) {
+        State oldState = STATE_UPDATER.getAndSet(this, State.Closing);
+        if (oldState == State.Closed || oldState == State.Closing) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
             return;
         }
         persistPosition(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
+        STATE_UPDATER.set(this, State.Closed);
     }
 
     /**
@@ -1986,7 +2017,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
-
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
@@ -2052,8 +2082,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 });
             }));
-        }, Collections.emptyMap());
-       
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
+
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {
@@ -2160,7 +2190,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long now = clock.millis();
         if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
-                && STATE_UPDATER.get(this) != State.Closed) {
+                && (STATE_UPDATER.get(this) != State.Closed && STATE_UPDATER.get(this) != State.Closing)) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
             lastLedgerSwitchTimestamp = now;

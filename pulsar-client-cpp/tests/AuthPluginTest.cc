@@ -19,10 +19,9 @@
 #include "pulsar/Authentication.h"
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <boost/lexical_cast.hpp>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <thread>
 #include <lib/LogUtils.h>
 
 #include "lib/Future.h"
@@ -32,24 +31,28 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 int globalTestTlsMessagesCounter = 0;
-static std::string lookupUrlTls = "pulsar+ssl://localhost:9886";
+static const std::string serviceUrlTls = "pulsar+ssl://localhost:6651";
+static const std::string serviceUrlHttps = "https://localhost:8443";
+
+static const std::string caPath = "../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
+static const std::string clientPublicKeyPath =
+    "../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem";
+static const std::string clientPrivateKeyPath =
+    "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
 
 static void sendCallBackTls(Result r, const Message& msg) {
     ASSERT_EQ(r, ResultOk);
     std::string prefix = "test-tls-message-";
-    std::string messageContent = prefix + boost::lexical_cast<std::string>(globalTestTlsMessagesCounter++);
+    std::string messageContent = prefix + std::to_string(globalTestTlsMessagesCounter++);
     ASSERT_EQ(messageContent, msg.getDataAsString());
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
 
 TEST(AuthPluginTest, testTls) {
     ClientConfiguration config = ClientConfiguration();
-    config.setUseTls(true);
-    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsTrustCertsFilePath(caPath);
     config.setTlsAllowInsecureConnection(false);
-    AuthenticationPtr auth =
-        pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
-                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
+    AuthenticationPtr auth = pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath);
 
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
@@ -61,9 +64,9 @@ TEST(AuthPluginTest, testTls) {
     ASSERT_EQ(auth.use_count(), 1);
 
     config.setAuth(auth);
-    Client client(lookupUrlTls, config);
+    Client client(serviceUrlTls, config);
 
-    std::string topicName = "persistent://property/cluster/namespace/test-tls";
+    std::string topicName = "persistent://private/auth/test-tls";
     std::string subName = "subscription-name";
     int numOfMessages = 10;
 
@@ -94,11 +97,9 @@ TEST(AuthPluginTest, testTls) {
     // Send Asynchronously
     std::string prefix = "test-tls-message-";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
         producer.sendAsync(msg, &sendCallBackTls);
         LOG_INFO("sending message " << messageContent);
     }
@@ -106,10 +107,10 @@ TEST(AuthPluginTest, testTls) {
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_INFO("Received Message with [ content - "
                  << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
@@ -122,16 +123,13 @@ TEST(AuthPluginTest, testTls) {
 
 TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     ClientConfiguration config = ClientConfiguration();
-    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsTrustCertsFilePath(caPath);
     config.setTlsAllowInsecureConnection(false);
-    AuthenticationPtr auth =
-        pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
-                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
-    config.setAuth(auth);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
 
-    Client client("pulsar+ssl://localhost:9886", config);
+    Client client(serviceUrlTls, config);
 
-    std::string topicName = "persistent://property/cluster/namespace/test-tls-detect";
+    std::string topicName = "persistent://private/auth/test-tls-detect";
 
     Producer producer;
     Promise<Result, Producer> producerPromise;
@@ -139,21 +137,33 @@ TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
+}
+
+TEST(AuthPluginTest, testTlsDetectPulsarSslWithHostNameValidation) {
+    ClientConfiguration config = ClientConfiguration();
+    config.setTlsTrustCertsFilePath(caPath);
+    config.setTlsAllowInsecureConnection(false);
+    config.setValidateHostName(true);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+
+    Client client(serviceUrlTls, config);
+    std::string topicName = "persistent://private/auth/testTlsDetectPulsarSslWithHostNameValidation";
+
+    Producer producer;
+    Result res = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultConnectError, res);
 }
 
 TEST(AuthPluginTest, testTlsDetectHttps) {
     ClientConfiguration config = ClientConfiguration();
     config.setUseTls(true);  // shouldn't be needed soon
-    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsTrustCertsFilePath(caPath);
     config.setTlsAllowInsecureConnection(false);
-    AuthenticationPtr auth =
-        pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
-                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
-    config.setAuth(auth);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
 
-    Client client("https://localhost:9766", config);
+    Client client(serviceUrlHttps, config);
 
-    std::string topicName = "persistent://property/cluster/namespace/test-tls-detect-https";
+    std::string topicName = "persistent://private/auth/test-tls-detect-https";
 
     Producer producer;
     Promise<Result, Producer> producerPromise;
@@ -163,14 +173,42 @@ TEST(AuthPluginTest, testTlsDetectHttps) {
     ASSERT_EQ(ResultOk, result);
 }
 
+TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
+    try {
+        ClientConfiguration config = ClientConfiguration();
+        config.setUseTls(true);  // shouldn't be needed soon
+        config.setTlsTrustCertsFilePath(caPath);
+        config.setTlsAllowInsecureConnection(false);
+        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+        config.setValidateHostName(true);
+
+        Client client(serviceUrlHttps, config);
+
+        std::string topicName = "persistent://private/auth/test-tls-detect-https";
+
+        Producer producer;
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
+    } catch (...) {
+        FAIL() << "Expected handshake: certificate verify failed";
+    }
+}
+
 namespace testAthenz {
 std::string principalToken;
-void mockZTS() {
+void mockZTS(int port) {
+    LOG_INFO("-- MockZTS started");
     boost::asio::io_service io;
     boost::asio::ip::tcp::iostream stream;
     boost::asio::ip::tcp::acceptor acceptor(io,
-                                            boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 9999));
+                                            boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
+
+    LOG_INFO("-- MockZTS waiting for connnection");
     acceptor.accept(*stream.rdbuf());
+    LOG_INFO("-- MockZTS got connection");
+
     std::string headerLine;
     while (getline(stream, headerLine)) {
         std::vector<std::string> kv;
@@ -190,19 +228,24 @@ void mockZTS() {
             break;
         }
     }
+
+    LOG_INFO("-- MockZTS exiting");
 }
 }  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
-    boost::thread zts(&testAthenz::mockZTS);
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9999));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test.tenant",
         "tenantService": "service",
         "providerDomain": "pulsar.test.provider",
-        "privateKey": "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem",
+        "privateKey": "file:)" +
+                         clientPrivateKeyPath + R"(",
         "ztsUrl": "http://localhost:9999"
     })";
+
+    LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthAthenz::create(params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
@@ -237,23 +280,21 @@ TEST(AuthPluginTest, testDisable) {
 
 TEST(AuthPluginTest, testAuthFactoryTls) {
     pulsar::AuthenticationDataPtr data;
-    std::string tlsCertFile = "../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem";
-    std::string tlsKeyFile = "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
-    AuthenticationPtr auth =
-        pulsar::AuthFactory::create("tls", "tlsCertFile:" + tlsCertFile + ",tlsKeyFile:" + tlsKeyFile);
+    AuthenticationPtr auth = pulsar::AuthFactory::create(
+        "tls", "tlsCertFile:" + clientPublicKeyPath + ",tlsKeyFile:" + clientPrivateKeyPath);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForTls(), true);
-    ASSERT_EQ(data->getTlsCertificates(), tlsCertFile);
-    ASSERT_EQ(data->getTlsPrivateKey(), tlsKeyFile);
+    ASSERT_EQ(data->getTlsCertificates(), clientPublicKeyPath);
+    ASSERT_EQ(data->getTlsPrivateKey(), clientPrivateKeyPath);
 
     ClientConfiguration config = ClientConfiguration();
     config.setAuth(auth);
-    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsTrustCertsFilePath(caPath);
     config.setTlsAllowInsecureConnection(false);
-    Client client("pulsar+ssl://localhost:9886", config);
+    Client client(serviceUrlTls, config);
 
-    std::string topicName = "persistent://property/cluster/namespace/test-tls-factory";
+    std::string topicName = "persistent://private/auth/test-tls-factory";
     Producer producer;
     Promise<Result, Producer> producerPromise;
     client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
@@ -263,15 +304,17 @@ TEST(AuthPluginTest, testAuthFactoryTls) {
 }
 
 TEST(AuthPluginTest, testAuthFactoryAthenz) {
-    boost::thread zts(&testAthenz::mockZTS);
+    std::thread zts(std::bind(&testAthenz::mockZTS, 9998));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
-        "tenantDomain": "pulsar.test.tenant",
+        "tenantDomain": "pulsar.test2.tenant",
         "tenantService": "service",
         "providerDomain": "pulsar.test.provider",
-        "privateKey": "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem",
-        "ztsUrl": "http://localhost:9999"
+        "privateKey": "file:)" +
+                         clientPrivateKeyPath + R"(",
+        "ztsUrl": "http://localhost:9998"
     })";
+    LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("athenz", params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
@@ -279,14 +322,18 @@ TEST(AuthPluginTest, testAuthFactoryAthenz) {
     ASSERT_EQ(data->hasDataFromCommand(), true);
     ASSERT_EQ(data->getHttpHeaders(), "Athenz-Role-Auth: mockToken");
     ASSERT_EQ(data->getCommandData(), "mockToken");
+
+    LOG_INFO("Calling zts.join()");
     zts.join();
+    LOG_INFO("Done zts.join()");
+
     std::vector<std::string> kvs;
     boost::algorithm::split(kvs, testAthenz::principalToken, boost::is_any_of(";"));
     for (std::vector<std::string>::iterator itr = kvs.begin(); itr != kvs.end(); itr++) {
         std::vector<std::string> kv;
         boost::algorithm::split(kv, *itr, boost::is_any_of("="));
         if (kv[0] == "d") {
-            ASSERT_EQ(kv[1], "pulsar.test.tenant");
+            ASSERT_EQ(kv[1], "pulsar.test2.tenant");
         } else if (kv[0] == "n") {
             ASSERT_EQ(kv[1], "service");
         }

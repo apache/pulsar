@@ -358,7 +358,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 + "/my-sub?subscriptionType=Failover";
         final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic + "/";
         final String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/" + topic;
-        System.out.println(consumerUri+", "+producerUri);
+        System.out.println(consumerUri + ", " + producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
         URI readUri = URI.create(readerUri);
@@ -407,7 +407,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getWebServiceAddress()
-                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
+                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()), (Integer.toString(port)))
                     + "/admin/v2/proxy-stats/";
 
             // verify proxy metrics
@@ -421,6 +421,107 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         } finally {
             stopWebSocketClient(consumeClient1, produceClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void consumeMessagesInPartitionedTopicTest() throws Exception {
+        final String namespace = "my-property/my-ns";
+        final String topic = namespace + "/" + "my-topic7";
+        admin.topics().createPartitionedTopic("persistent://" + topic, 3);
+
+        final String subscription = "my-sub";
+        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient = new WebSocketClient();
+        WebSocketClient produceClient = new WebSocketClient();
+
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            producerFuture.get();
+            produceSocket.sendMessage(100);
+        } finally {
+            stopWebSocketClient(produceClient);
+        }
+
+        Thread.sleep(500);
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumerFuture.get();
+        } finally {
+            stopWebSocketClient(consumeClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void socketPullModeTest() throws Exception {
+        final String topic = "my-property/my-ns/my-topic8";
+        final String subscription = "my-sub";
+        final String consumerUri = String.format(
+                "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
+                port, topic, subscription
+        );
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", port, topic);
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient1 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        WebSocketClient consumeClient2 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            consumeClient1.start();
+            consumeClient2.start();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+            log.info("Connecting to : {}", consumeUri);
+
+            // let it connect
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(consumerFuture2.get().isOpen());
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Assert.assertTrue(producerFuture.get().isOpen());
+            produceSocket.sendMessage(100);
+
+            Thread.sleep(500);
+
+            // Verify no messages received despite production
+            Assert.assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
+            Assert.assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+
+            consumeSocket1.sendPermits(3);
+            consumeSocket2.sendPermits(2);
+            consumeSocket2.sendPermits(2);
+            consumeSocket2.sendPermits(2);
+
+            Thread.sleep(500);
+
+            Assert.assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
+            Assert.assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+
+        } finally {
+            stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
         }
     }
 

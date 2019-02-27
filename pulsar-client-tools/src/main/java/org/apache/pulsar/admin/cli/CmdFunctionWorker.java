@@ -18,23 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.utils.Utils;
-
-import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerInfo;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClientException;
 
 @Slf4j
 @Parameters(commandDescription = "Operations to collect function-worker statistics")
@@ -57,88 +45,49 @@ public class CmdFunctionWorker extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "dump all functions stats")
+    @Parameters(commandDescription = "Dump all functions stats running on this broker")
     class FunctionsStats extends BaseCommand {
-
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.worker().getFunctionsStats());
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(new JsonParser().parse(json)));
+            printList(admin.worker().getFunctionsStats());
         }
     }
 
-    @Parameters(commandDescription = "dump metrics for Monitoring")
+    @Parameters(commandDescription = "Dump metrics for Monitoring")
     class CmdMonitoringMetrics extends BaseCommand {
-
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
 
         @Override
         void runCmd() throws Exception {
-            String json = new Gson().toJson(admin.worker().getMetrics());
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(new JsonParser().parse(json)));
+            printList(admin.worker().getMetrics());
         }
     }
 
     @Parameters(commandDescription = "Get all workers belonging to this cluster")
     class GetCluster extends BaseCommand {
 
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
-
         @Override
         void runCmd() throws Exception {
-            List<WorkerInfo> workers = admin.worker().getCluster();
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(workers));
+            printList(admin.worker().getCluster());
         }
     }
 
     @Parameters(commandDescription = "Get the leader of the worker cluster")
     class GetClusterLeader extends BaseCommand {
 
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
-
         @Override
         void runCmd() throws Exception {
-            WorkerInfo leader = admin.worker().getClusterLeader();
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(leader));
+            print(admin.worker().getClusterLeader());
         }
     }
 
     @Parameters(commandDescription = "Get the assignments of the functions accross the worker cluster")
     class GetFunctionAssignments extends BaseCommand {
 
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
-        boolean indent = false;
 
         @Override
         void runCmd() throws Exception {
-            Map<String, Collection<String>> assignments = admin.worker().getAssignments();
-            GsonBuilder gsonBuilder = new GsonBuilder();
-            if (indent) {
-                gsonBuilder.setPrettyPrinting();
-            }
-            System.out.println(gsonBuilder.create().toJson(assignments));
+            print(admin.worker().getAssignments());
         }
     }
 

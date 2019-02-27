@@ -18,17 +18,10 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.isNull;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -37,72 +30,43 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-
 import java.io.File;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.result.KeyValue;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.RetryDetails;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
-import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
-import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
-import org.apache.pulsar.functions.windowing.WindowUtils;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
-    private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
-
     private final LocalRunner localRunner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
     private final GetFunction getter;
     private final GetFunctionStatus functionStatus;
+    @Getter
+    private final GetFunctionStats functionStats;
     private final RestartFunction restart;
     private final StopFunction stop;
+    private final StartFunction start;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
@@ -310,21 +274,18 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
-        protected boolean autoAck = true;
+        protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
         @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
-        protected Integer maxMessageRetries = -1;
+        protected Integer maxMessageRetries;
         @Parameter(names = "--dead-letter-topic", description = "The topic where all messages which could not be processed successfully are sent")
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
-        // The classLoader associated with this function defn
-        protected ClassLoader classLoader;
-
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
@@ -428,7 +389,30 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setParallelism(parallelism);
             }
 
-            functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+            Resources resources = functionConfig.getResources();
+            if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
+                resources.setCpu(cpu);
+            }
+
+            if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
+                resources.setRam(ram);
+            }
+
+            if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
+                resources.setDisk(disk);
+            }
+            if (resources != null) {
+                functionConfig.setResources(resources);
+            }
 
             if (timeoutMs != null) {
                 functionConfig.setTimeoutMs(timeoutMs);
@@ -463,7 +447,9 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            functionConfig.setAutoAck(autoAck);
+            if (autoAck != null) {
+                functionConfig.setAutoAck(autoAck);
+            }
 
             if (null != maxMessageRetries) {
                 functionConfig.setMaxMessageRetries(maxMessageRetries);
@@ -486,14 +472,23 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getPy();
             }
 
-            // infer default vaues
-            inferMissingArguments(functionConfig);
-
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("No Function Classname specified");
+            }
+            if (StringUtils.isEmpty(functionConfig.getName())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
@@ -505,100 +500,14 @@ public class CmdFunctions extends CmdBase {
                         + " be specified for the function. Please specify one.");
             }
 
-            boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
-            String jarFilePath = null;
-            if (isJarPathUrl) {
-                if (functionConfig.getJar().startsWith(Utils.HTTP)) {
-                    // download jar file if url is http or file is downloadable
-                    File tempPkgFile = null;
-                    try {
-                        tempPkgFile = downloadFromHttpUrl(functionConfig.getJar(), functionConfig.getName());
-                        jarFilePath = tempPkgFile.getAbsolutePath();
-                    } catch (Exception e) {
-                        if (tempPkgFile != null) {
-                            tempPkgFile.deleteOnExit();
-                        }
-                        throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
-                                + ", due to =" + e.getMessage());
-                    }
-                }
-            } else {
-                if (!fileExists(userCodeFile)) {
-                    throw new ParameterException("File " + userCodeFile + " does not exist");
-                }
-                jarFilePath = userCodeFile;
+            if (!isBlank(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar()) &&
+                    !new File(functionConfig.getJar()).exists()) {
+                throw new ParameterException("The specified jar file does not exist");
             }
-
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-
-                if (jarFilePath != null) {
-                    File file = new File(jarFilePath);
-                    try {
-                        classLoader = Reflections.loadJar(file);
-                    } catch (MalformedURLException e) {
-                        throw new ParameterException(
-                                "Failed to load user jar " + file + " with error " + e.getMessage());
-                    }
-                    (new ImplementsClassesValidator(Function.class, java.util.function.Function.class))
-                            .validateField("className", functionConfig.getClassName(), classLoader);
-                }
+            if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
+                    !new File(functionConfig.getPy()).exists()) {
+                throw new ParameterException("The specified python file does not exist");
             }
-
-            try {
-                // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), classLoader);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        }
-
-        private void inferMissingArguments(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getName())) {
-                inferMissingFunctionName(functionConfig);
-            }
-            if (StringUtils.isEmpty(functionConfig.getTenant())) {
-                inferMissingTenant(functionConfig);
-            }
-            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
-                inferMissingNamespace(functionConfig);
-            }
-
-            if (functionConfig.getParallelism() == 0) {
-                functionConfig.setParallelism(1);
-            }
-
-            if (functionConfig.getJar() != null) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-            } else if (functionConfig.getPy() != null) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-            }
-
-            WindowConfig windowConfig = functionConfig.getWindowConfig();
-            if (windowConfig != null) {
-                WindowUtils.inferDefaultConfigs(windowConfig);
-                functionConfig.setAutoAck(false);
-            }
-        }
-
-        private void inferMissingFunctionName(FunctionConfig functionConfig) {
-            if (isNull(functionConfig.getClassName())) {
-                throw new ParameterException("You must specify a class name for the function");
-            }
-
-            String[] domains = functionConfig.getClassName().split("\\.");
-            if (domains.length == 0) {
-                functionConfig.setName(functionConfig.getClassName());
-            } else {
-                functionConfig.setName(domains[domains.length - 1]);
-            }
-        }
-
-        private void inferMissingTenant(FunctionConfig functionConfig) {
-            functionConfig.setTenant(PUBLIC_TENANT);
-        }
-
-        private void inferMissingNamespace(FunctionConfig functionConfig) {
-            functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
     }
 
@@ -668,14 +577,22 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
-            CmdFunctions.startLocalRun(FunctionConfigUtils.convert(functionConfig, classLoader), functionConfig.getParallelism(),
-                    instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
-                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
-                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
-                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
-                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
-                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                    userCodeFile, admin);
+            List<String> localRunArgs = new LinkedList<>();
+            localRunArgs.add(System.getenv("PULSAR_HOME") + "/bin/function-localrunner");
+            localRunArgs.add("--functionConfig");
+            localRunArgs.add(new Gson().toJson(functionConfig));
+            for (Field field : this.getClass().getDeclaredFields()) {
+                if (field.getName().startsWith("DEPRECATED")) continue;
+                if(field.getName().contains("$")) continue;
+                Object value = field.get(this);
+                if (value != null) {
+                    localRunArgs.add("--" + field.getName());
+                    localRunArgs.add(value.toString());
+                }
+            }
+            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            Process process = processBuilder.start();
+            process.waitFor();
         }
     }
 
@@ -684,9 +601,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().createFunctionWithUrl(FunctionConfigUtils.convert(functionConfig, classLoader), functionConfig.getJar());
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
             } else {
-                admin.functions().createFunction(FunctionConfigUtils.convert(functionConfig, classLoader), userCodeFile);
+                admin.functions().createFunction(functionConfig, userCodeFile);
             }
 
             print("Created successfully");
@@ -697,9 +614,9 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.functions().getFunction(tenant, namespace, functionName));
+            FunctionConfig functionConfig = admin.functions().getFunction(tenant, namespace, functionName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            System.out.println(gson.toJson(functionConfig));
         }
     }
 
@@ -711,12 +628,28 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(
-                    isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
-                            : admin.functions().getFunctionStatus(tenant, namespace, functionName,
-                                    Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.functions().getFunctionStatus(tenant, namespace, functionName));
+            } else {
+                print(admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
+    class GetFunctionStats extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+
+            if (isBlank(instanceId)) {
+                print(admin.functions().getFunctionStats(tenant, namespace, functionName));
+            } else {
+               print(admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+            }
         }
     }
 
@@ -741,12 +674,12 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again")
+    @Parameters(commandDescription = "Stops function instance")
     class StopFunction extends FunctionCommand {
-        
+
         @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
         protected String instanceId;
-        
+
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
@@ -758,7 +691,28 @@ public class CmdFunctions extends CmdBase {
             } else {
                 admin.functions().stopFunction(tenant, namespace, functionName);
             }
-            System.out.println("Restarted successfully");
+            System.out.println("Stopped successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Starts a stopped function instance")
+    class StartFunction extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (start all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().startFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Started successfully");
         }
     }
 
@@ -773,12 +727,30 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
+
+        @Override
+        protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                if (StringUtils.isEmpty(functionConfig.getName())) {
+                    throw new IllegalArgumentException("Function Name not provided");
+                }
+            } else if (StringUtils.isEmpty(functionConfig.getName())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
+        }
+
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(FunctionConfigUtils.convert(functionConfig, classLoader), functionConfig.getJar());
+                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar());
             } else {
-                admin.functions().updateFunction(FunctionConfigUtils.convert(functionConfig, classLoader), userCodeFile);
+                admin.functions().updateFunction(functionConfig, userCodeFile);
             }
             print("Updated successfully");
         }
@@ -798,55 +770,19 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = { "-k", "--key" }, description = "key")
         private String key = null;
 
-        // TODO: this url should be fetched along with bookkeeper location from pulsar admin
-        @Parameter(names = { "-u", "--storage-service-url" }, description = "The URL for the storage service used by the function")
-        private String stateStorageServiceUrl = null;
-
         @Parameter(names = { "-w", "--watch" }, description = "Watch for changes in the value associated with a key for a Pulsar Function")
         private boolean watch = false;
 
         @Override
         void runCmd() throws Exception {
-            checkNotNull(stateStorageServiceUrl, "The state storage service URL is missing");
-
-            String tableNs = String.format(
-                "%s_%s",
-                tenant,
-                namespace).replace('-', '_');
-
-            String tableName = getFunctionName();
-
-            try (StorageClient client = StorageClientBuilder.newBuilder()
-                 .withSettings(StorageClientSettings.newBuilder()
-                     .serviceUri(stateStorageServiceUrl)
-                     .clientName("functions-admin")
-                     .build())
-                 .withNamespace(tableNs)
-                 .build()) {
-                try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
-                    long lastVersion = -1L;
-                    do {
-                        try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
-                            if (null == kv) {
-                                System.out.println("key '" + key + "' doesn't exist.");
-                            } else {
-                                if (kv.version() > lastVersion) {
-                                    if (kv.isNumber()) {
-                                        System.out.println("value = " + kv.numberValue());
-                                    } else {
-                                        System.out.println("value = " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8));
-                                    }
-                                    lastVersion = kv.version();
-                                }
-                            }
-                        }
-                        if (watch) {
-                            Thread.sleep(1000);
-                        }
-                    } while (watch);
+            do {
+                FunctionState functionState = admin.functions().getFunctionState(tenant, namespace, functionName, key);
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                System.out.println(gson.toJson(functionState));
+                if (watch) {
+                    Thread.sleep(1000);
                 }
-            }
-
+            } while (watch);
         }
     }
 
@@ -960,6 +896,7 @@ public class CmdFunctions extends CmdBase {
         updater = new UpdateFunction();
         getter = new GetFunction();
         functionStatus = new GetFunctionStatus();
+        functionStats = new GetFunctionStats();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
@@ -967,6 +904,7 @@ public class CmdFunctions extends CmdBase {
         downloader = new DownloadFunction();
         restart = new RestartFunction();
         stop = new StopFunction();
+        start = new StartFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -974,7 +912,10 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
-        jcommander.addCommand("getstatus", getStatuser());
+        jcommander.addCommand("start", getStarter());
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getStatuser(), "getstatus");
+        jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());
@@ -1045,6 +986,11 @@ public class CmdFunctions extends CmdBase {
         return stop;
     }
 
+    @VisibleForTesting
+    StartFunction getStarter() {
+        return start;
+    }
+
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
@@ -1056,80 +1002,4 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-            int parallelism, int instanceIdOffset, String brokerServiceUrl, String stateStorageServiceUrl, AuthenticationConfig authConfig,
-            String userCodeFile, PulsarAdmin admin)
-            throws Exception {
-
-        String serviceUrl = admin.getServiceUrl();
-        if (brokerServiceUrl != null) {
-            serviceUrl = brokerServiceUrl;
-        }
-        if (serviceUrl == null) {
-            serviceUrl = DEFAULT_SERVICE_URL;
-        }
-
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
-                null)) {
-            List<RuntimeSpawner> spawners = new LinkedList<>();
-            for (int i = 0; i < parallelism; ++i) {
-                InstanceConfig instanceConfig = new InstanceConfig();
-                instanceConfig.setFunctionDetails(functionDetails);
-                // TODO: correctly implement function version and id
-                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(i + instanceIdOffset);
-                instanceConfig.setMaxBufferedTuples(1024);
-                instanceConfig.setPort(Utils.findAvailablePort());
-                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                        instanceConfig,
-                        userCodeFile,
-                        null,
-                        containerFactory,
-                        30000);
-                spawners.add(runtimeSpawner);
-                runtimeSpawner.start();
-            }
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                public void run() {
-                    log.info("Shutting down the localrun runtimeSpawner ...");
-                    for (RuntimeSpawner spawner : spawners) {
-                        spawner.close();
-                    }
-                }
-            });
-            Timer statusCheckTimer = new Timer();
-            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
-                    @Override
-                    public void run() {
-                        CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
-                        int index = 0;
-                        for (RuntimeSpawner spawner : spawners) {
-                            futures[index] = spawner.getFunctionStatusAsJson(index);
-                            index++;
-                        }
-                        try {
-                            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
-                            for (index = 0; index < futures.length; ++index) {
-                                String json = futures[index].get();
-                                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                                log.info(gson.toJson(new JsonParser().parse(json)));
-                            }
-                        } catch (Exception ex) {
-                            log.error("Could not get status from all local instances");
-                        }
-                    }
-                }, 30000, 30000);
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                    public void run() {
-                        statusCheckTimer.cancel();
-                    }
-                });
-            for (RuntimeSpawner spawner : spawners) {
-                spawner.join();
-                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
-            }
-
-        }
-    }
 }

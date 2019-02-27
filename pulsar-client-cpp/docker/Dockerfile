@@ -32,6 +32,14 @@ ENV PATH="/opt/python/${PYTHON_SPEC}/bin:${PATH}"
 
 RUN ln -s /opt/python/${PYTHON_SPEC}/include/python${PYTHON_VERSION}m /opt/python/${PYTHON_SPEC}/include/python${PYTHON_VERSION}
 
+# Perl (required for building OpenSSL)
+RUN curl -O -L https://www.cpan.org/src/5.0/perl-5.10.0.tar.gz && \
+    tar xvfz perl-5.10.0.tar.gz && \
+    cd perl-5.10.0 && \
+    ./configure.gnu --prefix=/usr/local/ && \
+    make && make install && \
+    rm -rf /perl-5.10.0.tar.gz /perl-5.10.0
+
 ####################################
 # These dependencies can be found in Ubuntu but they're not compiled with -fPIC,
 # so they cannot be statically linked into a shared library
@@ -46,12 +54,12 @@ RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz && \
     rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
 
 # Compile OpenSSL
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_0_2l.tar.gz && \
-    tar xvfz OpenSSL_1_0_2l.tar.gz && \
-    cd openssl-OpenSSL_1_0_2l/ && \
-    ./Configure -fPIC no-shared linux-x86_64 && \
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
+    tar xvfz OpenSSL_1_1_0j.tar.gz && \
+    cd openssl-OpenSSL_1_1_0j/ && \
+    ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
     make && make install && \
-    rm -rf /OpenSSL_1_0_2l.tar.gz /openssl-OpenSSL_1_0_2l
+    rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
 # Download and compile boost
 RUN curl -O -L https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz && \
@@ -126,12 +134,20 @@ RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar
     rm -rf /1.8.0.tar.gz /jsoncpp-1.8.0
 
 # LibCurl
-RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-7.54.0.tar.gz && \
-    tar xvfz curl-7.54.0.tar.gz && \
-    cd curl-7.54.0 && \
-    CFLAGS=-fPIC ./configure && \
+RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
+    tar xvfz curl-7.61.0.tar.gz && \
+    cd curl-7.61.0 && \
+    CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
     make && make install && \
-    rm -rf /curl-7.54.0.tar.gz /curl-7.54.0
+    rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
+
+# Zstandard
+RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
+    tar xvfz zstd-1.3.7.tar.gz && \
+    cd zstd-1.3.7 && \
+    CFLAGS="-fPIC -O3" make -j8 && \
+    make install && \
+    rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
 RUN pip install twine
 

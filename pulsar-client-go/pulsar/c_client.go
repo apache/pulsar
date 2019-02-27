@@ -26,16 +26,17 @@ package pulsar
 import "C"
 import (
 	"runtime"
-	"unsafe"
-	"log"
 	"strings"
+	"unsafe"
+
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
 )
 
 //export pulsarClientLoggerProxy
 func pulsarClientLoggerProxy(level C.pulsar_logger_level_t, file *C.char, line C.int, message *C.char, ctx unsafe.Pointer) {
-	logger := restorePointerNoDelete(ctx).(func(LoggerLevel, string, int, string))
+	logger := restorePointerNoDelete(ctx).(func(log.LoggerLevel, string, int, string))
 
-	logger(LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
+	logger(log.LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
 }
 
 func newClient(options ClientOptions) (Client, error) {
@@ -63,8 +64,8 @@ func newClient(options ClientOptions) (Client, error) {
 
 	if options.Logger == nil {
 		// Configure a default logger with same date format as Go logs
-		options.Logger = func(level LoggerLevel, file string, line int, message string) {
-			log.Printf("%-5s | %s:%d | %s", level, file, line, message)
+		options.Logger = func(level log.LoggerLevel, file string, line int, message string) {
+			log.Infof("%-5s | %s:%d | %s", level, file, line, message)
 		}
 	}
 
@@ -87,6 +88,10 @@ func newClient(options ClientOptions) (Client, error) {
 
 	if options.TLSAllowInsecureConnection {
 		C.pulsar_client_configuration_set_tls_allow_insecure_connection(conf, cBool(options.TLSAllowInsecureConnection))
+	}
+
+	if options.TLSValidateHostname {
+		C.pulsar_client_configuration_set_validate_hostname(conf, cBool(options.TLSValidateHostname))
 	}
 
 	if options.StatsIntervalInSeconds != 0 {
@@ -127,6 +132,37 @@ func newAuthenticationTLS(certificatePath string, privateKeyPath string) Authent
 	return auth
 }
 
+func newAuthenticationToken(token string) Authentication {
+	cToken := C.CString(token)
+	defer C.free(unsafe.Pointer(cToken))
+
+	auth := &authentication{
+		ptr: C.pulsar_authentication_token_create(cToken),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
+//export pulsarClientTokenSupplierProxy
+func pulsarClientTokenSupplierProxy(ctx unsafe.Pointer) *C.char {
+	tokenSupplier := restorePointerNoDelete(ctx).(func() string)
+	token := tokenSupplier()
+	// The C string will be freed from within the C wrapper itself
+	return C.CString(token)
+}
+
+func newAuthenticationTokenSupplier(tokenSupplier func() string) Authentication {
+	supplierPtr := savePointer(tokenSupplier)
+
+	auth := &authentication{
+		ptr: C._pulsar_authentication_token_create_with_supplier(supplierPtr),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
 func newAuthenticationAthenz(authParams string) Authentication {
 	cAuthParams := C.CString(authParams)
 	defer C.free(unsafe.Pointer(cAuthParams))
@@ -144,7 +180,7 @@ func authenticationFinalizer(authentication *authentication) {
 }
 
 type client struct {
-	ptr *C.pulsar_client_t
+	ptr  *C.pulsar_client_t
 	auth *authentication
 }
 
@@ -216,8 +252,62 @@ func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
 	return res.Reader, res.error
 }
 
+//export pulsarGetTopicPartitionsCallbackProxy
+func pulsarGetTopicPartitionsCallbackProxy(res C.pulsar_result, cPartitions *C.pulsar_string_list_t, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func([]string, error))
+
+	if res != C.pulsar_result_Ok {
+		callback(nil, newError(res, "Failed to get partitions for topic"))
+	} else {
+		numPartitions := int(C.pulsar_string_list_size(cPartitions))
+		partitions := make([]string, numPartitions)
+		for i := 0; i < numPartitions; i++ {
+			partitions[i] = C.GoString(C.pulsar_string_list_get(cPartitions, C.int(i)))
+		}
+
+		C.pulsar_string_list_free(cPartitions)
+
+		callback(partitions, nil)
+	}
+}
+
 func (client *client) CreateReaderAsync(options ReaderOptions, callback func(Reader, error)) {
 	createReaderAsync(client, options, callback)
+}
+
+func (client *client) TopicPartitions(topic string) ([]string, error) {
+	c := make(chan struct {
+		partitions []string
+		err        error
+	})
+
+	topicPartitionsAsync(client, topic, func(partitions []string, err error) {
+		c <- struct {
+			partitions []string
+			err        error
+		}{partitions, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.partitions, res.err
+}
+
+type getPartitionsCallback struct {
+	partitions []string
+	channel    chan ReaderMessage
+}
+
+func topicPartitionsAsync(client *client, topic string, callback func([]string, error)) {
+	if topic == "" {
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
+		return
+	}
+
+	cTopic := C.CString(topic)
+	defer C.free(unsafe.Pointer(cTopic))
+
+	C._pulsar_client_get_topic_partitions(client.ptr, cTopic, savePointer(callback))
 }
 
 func (client *client) Close() error {

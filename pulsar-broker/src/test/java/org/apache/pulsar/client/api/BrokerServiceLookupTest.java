@@ -126,7 +126,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     /**
-     * UsecaseL Multiple Broker => Lookup Redirection test
+     * Usecase Multiple Broker => Lookup Redirection test
      *
      * 1. Broker1 is a leader 2. Lookup request reaches to Broker2 which redirects to leader (Broker1) with
      * authoritative = false 3. Leader (Broker1) finds out least loaded broker as Broker2 and redirects request to
@@ -142,10 +142,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
-        conf2.setAdvertisedAddress("localhost");
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -170,7 +167,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** started broker-2 ****/
 
-        URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
+        URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         // load namespace-bundle by calling Broker2
@@ -223,13 +220,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(newCluster); // Broker2 serves newCluster
         conf2.setZookeeperServers("localhost:2181");
-        String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort();
+        String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, broker2ServiceUrl, null));
@@ -314,9 +309,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -395,7 +388,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setTlsAllowInsecureConnection(true);
-        conf2.setTlsEnabled(true);
         conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
@@ -403,8 +395,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarService pulsar2 = startBroker(conf2);
 
         // restart broker1 with tls enabled
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         stopBroker();
@@ -430,7 +423,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** started broker-2 ****/
 
-        URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
+        URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
@@ -456,11 +449,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         con.connect();
         log.info("connected url: {} ", con.getURL());
         // assert connect-url: broker2-https
-        assertEquals(con.getURL().getPort(), conf2.getWebServicePortTls());
+        assertEquals(new Integer(con.getURL().getPort()), conf2.getWebServicePortTls().get());
         InputStream is = con.getInputStream();
         // assert redirect-url: broker1-https only
         log.info("redirected url: {}", con.getURL());
-        assertEquals(con.getURL().getPort(), conf.getWebServicePortTls());
+        assertEquals(new Integer(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
         pulsarClient2.close();
@@ -532,8 +525,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
         // (1) restart broker1 with tls enabled
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         stopBroker();
@@ -543,7 +537,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfig config = new ServiceConfig();
         config.setServicePort(nextFreePort());
         config.setServicePortTls(nextFreePort());
-        config.setTlsEnabled(true);
         config.setBindOnLocalhost(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
@@ -809,9 +802,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
-        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
-        conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
@@ -837,7 +828,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
-        URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
+        URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(broker2ServiceUrl.toString()).build();
 
         // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
@@ -914,9 +905,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             ServiceConfiguration conf2 = new ServiceConfiguration();
             conf2.setAdvertisedAddress("localhost");
             conf2.setBrokerServicePort(PortManager.nextFreePort());
-            conf2.setBrokerServicePortTls(PortManager.nextFreePort());
             conf2.setWebServicePort(PortManager.nextFreePort());
-            conf2.setWebServicePortTls(PortManager.nextFreePort());
             conf2.setAdvertisedAddress("localhost");
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -947,7 +936,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             doReturn(res).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
             loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
-            URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
+            URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
             PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(broker2ServiceUrl.toString()).build();
 
             // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch

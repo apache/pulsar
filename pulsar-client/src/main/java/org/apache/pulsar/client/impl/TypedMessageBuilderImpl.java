@@ -52,12 +52,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public MessageId send() throws PulsarClientException {
-        return producer.send((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.send(getMessage());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        return producer.internalSendAsync((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.internalSendAsync(getMessage());
     }
 
     @Override
@@ -76,12 +76,15 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
+        checkArgument(value != null, "Need Non-Null content value");
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> property(String name, String value) {
+        checkArgument(name != null, "Need Non-Null name");
+        checkArgument(value != null, "Need Non-Null value for name: " + name);
         msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
         return this;
     }
@@ -89,6 +92,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> properties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
+            checkArgument(entry.getKey() != null, "Need Non-Null key");
+            checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
             msgMetadataBuilder
                     .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
         }
@@ -123,6 +128,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
+    }
+
+    public MessageMetadata.Builder getMetadataBuilder() {
+        return msgMetadataBuilder;
+    }
+
+    public Message<T> getMessage() {
+        return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 
     public long getPublishTime() {

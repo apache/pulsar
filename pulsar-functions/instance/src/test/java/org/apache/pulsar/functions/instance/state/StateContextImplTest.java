@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -28,14 +37,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import java.nio.ByteBuffer;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.junit.Before;
-import org.junit.Test;
-
 /**
  * Unit test {@link StateContextImpl}.
  */
@@ -44,7 +45,7 @@ public class StateContextImplTest {
     private Table<ByteBuf, ByteBuf> mockTable;
     private StateContextImpl stateContext;
 
-    @Before
+    @BeforeMethod
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new StateContextImpl(mockTable);

@@ -19,14 +19,14 @@
 
 -->
 <project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+        xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.4.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -34,12 +34,10 @@
   <name>Pulsar Flink Connectors</name>
 
   <dependencies>
-
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
       <version>${flink.version}</version>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -52,9 +50,28 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-json</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-avro</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+      <version>1.6</version>
+      <scope>compile</scope>
     </dependency>
 
     <dependency>
@@ -63,14 +80,6 @@
       <version>${flink.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-tests_${scala.binary.version}</artifactId>
-      <version>${flink.version}</version>
-      <scope>test</scope>
-      <type>test-jar</type>
     </dependency>
 
     <dependency>
@@ -94,7 +103,6 @@
       <version>3.20.0-GA</version>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
 
   <build>
@@ -103,31 +111,27 @@
         <directory>src/main/resources</directory>
         <filtering>true</filtering>
       </resource>
+      <resource>
+        <directory>src/test/resources</directory>
+        <filtering>true</filtering>
+      </resource>
     </resources>
+
     <plugins>
+      <!-- Generate Test class from avro schema -->
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-maven-plugin</artifactId>
+        <version>${avro.version}</version>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>generate-sources</phase>
             <goals>
-              <goal>shade</goal>
+              <goal>schema</goal>
             </goals>
             <configuration>
-              <createDependencyReducedPom>true</createDependencyReducedPom>
-              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-              <artifactSet>
-                <includes>
-                  <include>com.google.guava:guava</include>
-                </includes>
-              </artifactSet>
-              <relocations>
-                <relocation>
-                  <pattern>com.google</pattern>
-                  <shadedPattern>pulsar-flink-shade.com.google</shadedPattern>
-                </relocation>
-              </relocations>
+              <testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
+              <testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
             </configuration>
           </execution>
         </executions>

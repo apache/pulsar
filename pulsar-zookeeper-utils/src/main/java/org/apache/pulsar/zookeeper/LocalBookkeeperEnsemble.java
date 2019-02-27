@@ -60,7 +60,6 @@ import org.apache.bookkeeper.stream.proto.NamespaceProperties;
 import org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
-import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -353,7 +352,6 @@ public class LocalBookkeeperEnsemble {
     public void start() throws Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();
-        conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         // Use minimal configuration requiring less memory for unit tests
         conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
@@ -377,7 +375,6 @@ public class LocalBookkeeperEnsemble {
 
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         LOG.debug("Local ZK/BK starting ...");
-        conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         conf.setAdvertisedAddress(advertisedAddress);
 
         runZookeeper(1000);
@@ -429,7 +426,7 @@ public class LocalBookkeeperEnsemble {
     }
 
     public static boolean waitForServerUp(String hp, long timeout) {
-        long start = MathUtils.now();
+        long start = System.currentTimeMillis();
         String split[] = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
@@ -459,7 +456,7 @@ public class LocalBookkeeperEnsemble {
                 LOG.info("server " + hp + " not up " + e);
             }
 
-            if (MathUtils.now() > start + timeout) {
+            if (System.currentTimeMillis() > start + timeout) {
                 break;
             }
             try {

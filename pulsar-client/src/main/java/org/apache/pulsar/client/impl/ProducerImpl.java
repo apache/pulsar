@@ -62,7 +62,6 @@ import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -70,7 +69,6 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +79,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final long producerId;
 
     // Variable is used through the atomic updater
-    @SuppressWarnings("unused")
     private volatile long msgIdGenerator;
 
     private final BlockingQueue<OpSendMsg> pendingMessages;
@@ -130,8 +127,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.semaphore = new Semaphore(conf.getMaxPendingMessages(), true);
-        this.compressor = CompressionCodecProvider
-                .getCompressionCodec(convertCompressionType(conf.getCompressionType()));
+
+        this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
         if (conf.getInitialSequenceId() != null) {
             long initialSequenceId = conf.getInitialSequenceId();
@@ -168,7 +165,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (conf.isBatchingEnabled()) {
             this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
             this.batchMessageContainer = new BatchMessageContainer(maxNumMessagesInBatch,
-                    convertCompressionType(conf.getCompressionType()), topic, producerName);
+                    CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()), topic, producerName);
         } else {
             this.maxNumMessagesInBatch = 1;
             this.batchMessageContainer = null;
@@ -352,7 +349,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setProducerName(producerName);
 
                     if (conf.getCompressionType() != CompressionType.NONE) {
-                        msgMetadataBuilder.setCompression(convertCompressionType(conf.getCompressionType()));
+                        msgMetadataBuilder.setCompression(
+                                CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
                     }
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
@@ -1353,20 +1351,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public int getPendingQueueSize() {
         return pendingMessages.size();
-    }
-
-    private PulsarApi.CompressionType convertCompressionType(CompressionType compressionType) {
-        switch (compressionType) {
-        case NONE:
-            return PulsarApi.CompressionType.NONE;
-        case LZ4:
-            return PulsarApi.CompressionType.LZ4;
-        case ZLIB:
-            return PulsarApi.CompressionType.ZLIB;
-
-        default:
-            throw new RuntimeException("Invalid compression type");
-        }
     }
 
     @Override

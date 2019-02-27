@@ -32,7 +32,13 @@
       "io-quickstart",
       "io-managing",
       "io-connectors",
-      "io-develop"
+      "io-develop",
+      "io-cdc"
+    ],
+    "Pulsar SQL": [
+      "sql-overview",
+      "sql-getting-started",
+      "sql-deployment-configurations"
     ],
     "Deployment": [
       "deploy-aws",
@@ -54,6 +60,8 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-token-client",
+      "security-token-admin",
       "security-athenz",
       "security-authorization",
       "security-encryption",
@@ -91,7 +99,8 @@
       "cookbooks-partitioned",
       "cookbooks-retention-expiry",
       "cookbooks-encryption",
-      "cookbooks-message-queue"
+      "cookbooks-message-queue",
+      "cookbooks-bookkeepermetadata"
     ],
     "Development": [
       "develop-tools",

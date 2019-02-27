@@ -22,11 +22,12 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -55,7 +56,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNumChannelsPerBookie(16);
         bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
-        bkConf.setLedgerManagerFactoryClassName(HierarchicalLedgerManagerFactory.class.getName());
+        bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
+
+        bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
             bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);
@@ -64,8 +67,12 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     TimeUnit.SECONDS);
         }
 
-        if (conf.isBookkeeperClientRackawarePolicyEnabled()) {
-            bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
+        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+            if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+                bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
+            } else {
+                bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
+            }
             bkConf.setProperty(RackawareEnsemblePlacementPolicy.REPP_DNS_RESOLVER_CLASS,
                     ZkBookieRackAffinityMapping.class.getName());
 
@@ -77,6 +84,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
             bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.rackawarePolicyZkCache.get());
         }
+        bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
 
         if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
             bkConf.setEnsemblePlacementPolicy(ZkIsolatedBookieEnsemblePlacementPolicy.class);

@@ -17,12 +17,21 @@
 # under the License.
 #
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4) 
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "ccache")
+    MESSAGE(STATUS "Using CCache")
+endif(CCACHE_PROGRAM)
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
+
+option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
+MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
@@ -42,7 +51,11 @@ if (NOT CXX_STANDARD)
     set(CXX_STANDARD "-std=c++11")
 endif(NOT CXX_STANDARD)
 
-set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+if (NOT C_STANDARD)
+    set(C_STANDARD "-std=c11")
+endif(NOT C_STANDARD)
+
+set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -61,22 +74,26 @@ if (LINK_STATIC)
     SET(OPENSSL_USE_STATIC_LIBS TRUE)
 
     find_library(ZLIB_LIBRARY_PATH REQUIRED NAMES libz.a z)
-    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
+    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf-lite.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
-    find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
+    find_library(LIB_ZSTD NAMES libzstd.a)
 
     if (USE_LOG4CXX)
-        find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
+        if (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH log4cxx)
+        elseif (LOG4CXX_USE_DYNAMIC_LIBS)
+            find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
-        # Libraries needed by log4cxx to link statically with
-        find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
-        find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
-        find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
-        if (APPLE)
-            find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
-        else ()
-            set(ICONV_LIBRARY_PATH )
-        endif (APPLE)
+            # Libraries needed by log4cxx to link statically with
+            find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
+            find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
+            find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
+            if (APPLE)
+                find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
+            else ()
+                set(ICONV_LIBRARY_PATH )
+            endif (APPLE)
+        endif (LOG4CXX_USE_DYNAMIC_LIBS)
     endif (USE_LOG4CXX)
 else()
     # Link to shared libraries
@@ -85,11 +102,11 @@ else()
     if (NOT PROTOBUF_LIBRARIES)
       find_package(ProtoBuf QUIET)
       if (NOT ProtoBuf_FOUND)
-        find_library(PROTOBUF_LIBRARIES protobuf)
+        find_library(PROTOBUF_LIBRARIES protobuf-lite)
       endif (NOT ProtoBuf_FOUND)
     endif (NOT PROTOBUF_LIBRARIES)
 
-    find_library(LIB_JSON jsoncpp)
+    find_library(LIB_ZSTD zstd)
     find_library(CURL_LIBRARY_PATH curl)
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
@@ -97,39 +114,39 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
+find_package(Boost REQUIRED COMPONENTS program_options regex system)
 
-find_package(PythonLibs REQUIRED)
+if (BUILD_PYTHON_WRAPPER)
+    find_package(PythonLibs REQUIRED)
+    MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
+    if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
+        MESSAGE(STATUS "DETECTED Python 3")
+        string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+        list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+        list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+        set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
+        # For python3 the lib name is boost_python3
+        set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+    else ()
+        # Regular boost_python
+        set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
+    endif ()
 
-MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
+    foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
+        find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
+        if (${Boost_FOUND})
+            set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
+            break()
+        endif()
+    endforeach()
 
-if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
-    MESSAGE(STATUS "DETECTED Python 3")
-    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
-    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
-    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
-    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
-    # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
-else ()
-    # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt)
-endif ()
+    if (NOT ${Boost_FOUND})
+        MESSAGE(FATAL_ERROR "Could not find Boost Python library")
+    endif ()
 
-foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
-    find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
-    if (${Boost_FOUND})
-        set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
-        break()
-    endif()
-endforeach()
-
-if (NOT ${Boost_FOUND})
-    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
-endif ()
-
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
-                                       thread system ${BOOST_PYTHON_NAME_FOUND})
+    find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
+endif (BUILD_PYTHON_WRAPPER)
 
 if (APPLE)
     set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
@@ -143,22 +160,10 @@ if (BUILD_TESTS)
     find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
 endif ()
 
-find_path(JSON_INCLUDE_PATH jsoncpp)
-
 if (USE_LOG4CXX)
     set(CMAKE_CXX_FLAGS " -DUSE_LOG4CXX ${CMAKE_CXX_FLAGS}")
     find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 endif (USE_LOG4CXX)
-
-if (NOT LIB_JSON)
-    find_library(LIB_JSON json_cpp)
-endif (NOT LIB_JSON)
-
-if (NOT JSON_INCLUDE_PATH)
-    find_path(JSON_INCLUDE_PATH json)
-else (NOT JSON_INCLUDE_PATH)
-    set(JSON_INCLUDE_PATH ${JSON_INCLUDE_PATH}/jsoncpp/)
-endif (NOT JSON_INCLUDE_PATH)
 
 if (NOT APPLE)
     # we don't set options below to build _pulsar.so
@@ -166,6 +171,13 @@ if (NOT APPLE)
     # Hide all non-exported symbols to avoid conflicts
     set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
 endif ()
+
+if (LIB_ZSTD)
+    set(HAS_ZSTD 1)
+else ()
+    set(HAS_ZSTD 0)
+endif ()
+MESSAGE(STATUS "HAS_ZSTD: ${HAS_ZSTD}")
 
 
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
@@ -181,25 +193,17 @@ include_directories(
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
   ${GMOCK_INCLUDE_PATH}
-  ${JSON_INCLUDE_PATH}
 )
 
 set(COMMON_LIBS
   ${COMMON_LIBS} -lpthread -lm
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_REGEX_LIBRARY}
-  ${Boost_THREAD_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
-  ${Boost_CHRONO_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY}
-  ${Boost_ATOMIC_LIBRARY}
+  ${CURL_LIBRARY_PATH}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
-  ${LIB_JSON}
   dl
   pthread
 )
@@ -214,6 +218,12 @@ if (USE_LOG4CXX)
       ${ICONV_LIBRARY_PATH}
     )
 endif ()
+
+if (HAS_ZSTD)
+    set(COMMON_LIBS ${COMMON_LIBS} ${LIB_ZSTD} )
+endif ()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAS_ZSTD=${HAS_ZSTD}")
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)
@@ -239,10 +249,15 @@ if (BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(python)
+if (BUILD_PYTHON_WRAPPER)
+    add_subdirectory(python)
+endif ()
 
 # `make format` option
-set(CLANG_FORMAT_VERSION "5.0")
+if (NOT APPLE)
+    set(CLANG_FORMAT_VERSION "5.0")
+endif()
+
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py

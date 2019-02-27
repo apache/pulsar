@@ -24,16 +24,20 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectExecResponse;
-import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ContainerNetwork;
-
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -42,11 +46,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResultBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +75,11 @@ public class DockerUtils {
         // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
         File output = new File(getTargetDirectory(containerName), "docker.log");
+        int i = 0;
+        while (output.exists()) {
+            LOG.info("{} exists, incrementing", output);
+            output = new File(getTargetDirectory(containerName), "docker." + i++ + ".log");
+        }
         try (FileOutputStream os = new FileOutputStream(output)) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             dockerClient.logContainerCmd(containerName).withStdOut(true)
@@ -116,8 +125,13 @@ public class DockerUtils {
         // docker api returns names prefixed with "/", it's part of it's legacy design,
         // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
-        File output = new File(getTargetDirectory(containerName),
-                               (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
+        String baseName = path.replace("/", "-").replaceAll("^-", "");
+        File output = new File(getTargetDirectory(containerName), baseName + ".tar.gz");
+        int i = 0;
+        while (output.exists()) {
+            LOG.info("{} exists, incrementing", output);
+            output = new File(getTargetDirectory(containerName), baseName + "_" + i++ + ".tar.gz");
+        }
         try (InputStream dockerStream = dockerClient.copyArchiveFromContainerCmd(containerId, path).exec();
              OutputStream os = new GZIPOutputStream(new FileOutputStream(output))) {
             byte[] block = new byte[READ_BLOCK_SIZE];
@@ -127,7 +141,9 @@ public class DockerUtils {
                 read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
             }
         } catch (RuntimeException|IOException e) {
-            LOG.error("Error reading dir from container {}", containerName, e);
+            if (!(e instanceof NotFoundException)) {
+                LOG.error("Error reading dir from container {}", containerName, e);
+            }
         }
     }
 
@@ -232,6 +248,82 @@ public class DockerUtils {
 
         if (retCode != 0) {
             throw new ContainerExecException(cmdString, containerId, result);
+        }
+        return result;
+    }
+
+    public static ContainerExecResultBytes runCommandWithRawOutput(DockerClient docker,
+            String containerId,
+            String... cmd)
+            throws ContainerExecException {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        String execid = docker.execCreateCmd(containerId)
+                .withCmd(cmd)
+                .withAttachStderr(true)
+                .withAttachStdout(true)
+                .exec()
+                .getId();
+        String cmdString = Arrays.stream(cmd).collect(Collectors.joining(" "));
+        ByteBuf stdout = Unpooled.buffer();
+        ByteBuf stderr = Unpooled.buffer();
+        docker.execStartCmd(execid).withDetach(false)
+                .exec(new ResultCallback<Frame>() {
+                    @Override
+                    public void close() {
+                    }
+
+                    @Override
+                    public void onStart(Closeable closeable) {
+                        LOG.info("DOCKER.exec({}:{}): Executing...", containerId, cmdString);
+                    }
+
+                    @Override
+                    public void onNext(Frame object) {
+                        if (StreamType.STDOUT == object.getStreamType()) {
+                            stdout.writeBytes(object.getPayload());
+                        } else if (StreamType.STDERR == object.getStreamType()) {
+                            stderr.writeBytes(object.getPayload());
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        future.completeExceptionally(throwable);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LOG.info("DOCKER.exec({}:{}): Done", containerId, cmdString);
+                        future.complete(true);
+                    }
+                });
+        future.join();
+
+        InspectExecResponse resp = docker.inspectExecCmd(execid).exec();
+        while (resp.isRunning()) {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(ie);
+            }
+            resp = docker.inspectExecCmd(execid).exec();
+        }
+        int retCode = resp.getExitCode();
+
+        byte[] stdoutBytes = new byte[stdout.readableBytes()];
+        stdout.readBytes(stdoutBytes);
+        byte[] stderrBytes = new byte[stderr.readableBytes()];
+        stderr.readBytes(stderrBytes);
+
+        ContainerExecResultBytes result = ContainerExecResultBytes.of(
+                retCode,
+                stdoutBytes,
+                stderrBytes);
+        LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+
+        if (retCode != 0) {
+            throw new ContainerExecException(cmdString, containerId, null);
         }
         return result;
     }

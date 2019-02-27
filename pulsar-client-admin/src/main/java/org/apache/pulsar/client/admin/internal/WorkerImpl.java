@@ -18,27 +18,20 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static org.apache.pulsar.client.admin.internal.FunctionsImpl.mergeJson;
-
-import java.lang.reflect.Type;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Worker;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.Worker;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class WorkerImpl extends BaseResource implements Worker {
@@ -53,27 +46,28 @@ public class WorkerImpl extends BaseResource implements Worker {
     }
 
     @Override
-    public Metrics getFunctionsStats() throws PulsarAdminException {
+    public List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException {
         try {
             Response response = request(workerStats.path("functionsmetrics")).get();
-           if (!response.getStatusInfo().equals(Response.Status.OK)) {
-               throw new ClientErrorException(response);
-           }
-           String jsonResponse = response.readEntity(String.class);
-           Metrics.Builder metricsBuilder = Metrics.newBuilder();
-           mergeJson(jsonResponse, metricsBuilder);
-           return metricsBuilder.build();
-       } catch (Exception e) {
-           throw getApiException(e);
-       }
-   }
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            List<WorkerFunctionInstanceStats> metricsList
+                    = response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
+            return metricsList;
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 
     @Override
     public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException {
         try {
-            return request(workerStats.path("metrics"))
-                    .get(new GenericType<List<org.apache.pulsar.common.stats.Metrics>>() {
-                    });
+            Response response = request(workerStats.path("metrics")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<List<org.apache.pulsar.common.stats.Metrics>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -82,9 +76,11 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            return request(worker.path("cluster"))
-                    .get(new GenericType<List<WorkerInfo>>() {
-                    });
+            Response response = request(worker.path("cluster")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<List<WorkerInfo>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -93,8 +89,11 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
         try {
-            return request(worker.path("cluster").path("leader"))
-                    .get(new GenericType<WorkerInfo>(){});
+            Response response = request(worker.path("cluster").path("leader")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<WorkerInfo>(){});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -107,9 +106,8 @@ public class WorkerImpl extends BaseResource implements Worker {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            Type type = new TypeToken<Map<String, Collection<String>>>(){}.getType();
-            Map<String, Collection<String>> assignments = new Gson().fromJson(jsonResponse, type);
+            Map<String, Collection<String>> assignments
+                    = response.readEntity(new GenericType<Map<String, Collection<String>>>() {});
             return assignments;
         } catch (Exception e) {
             throw getApiException(e);

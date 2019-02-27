@@ -23,23 +23,23 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import lombok.Data;
-
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -69,6 +69,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long ackTimeoutMillis = 0;
 
+    private long tickDurationMillis = 1000;
+
     private int priorityLevel = 0;
 
     @JsonIgnore
@@ -84,9 +86,11 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private int patternAutoDiscoveryPeriod = 1;
 
-    private Mode subscriptionTopicsMode = Mode.PERSISTENT;
+    private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     private DeadLetterPolicy deadLetterPolicy;
+
+    private boolean autoUpdatePartitions = true;
 
     @JsonIgnore
     public String getSingleTopic() {

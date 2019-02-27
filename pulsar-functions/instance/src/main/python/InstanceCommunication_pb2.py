@@ -39,7 +39,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='InstanceCommunication.proto',
   package='proto',
   syntax='proto3',
-  serialized_pb=_b('\n\x1bInstanceCommunication.proto\x12\x05proto\x1a\x1bgoogle/protobuf/empty.proto\"\xd8\x05\n\x0e\x46unctionStatus\x12\x0f\n\x07running\x18\x01 \x01(\x08\x12\x18\n\x10\x66\x61ilureException\x18\x02 \x01(\t\x12\x13\n\x0bnumRestarts\x18\x03 \x01(\x03\x12\x14\n\x0cnumProcessed\x18\x04 \x01(\x03\x12 \n\x18numSuccessfullyProcessed\x18\x05 \x01(\x03\x12\x19\n\x11numUserExceptions\x18\x06 \x01(\x03\x12H\n\x14latestUserExceptions\x18\x07 \x03(\x0b\x32*.proto.FunctionStatus.ExceptionInformation\x12\x1b\n\x13numSystemExceptions\x18\x08 \x01(\x03\x12J\n\x16latestSystemExceptions\x18\t \x03(\x0b\x32*.proto.FunctionStatus.ExceptionInformation\x12W\n\x19\x64\x65serializationExceptions\x18\n \x03(\x0b\x32\x34.proto.FunctionStatus.DeserializationExceptionsEntry\x12\x1f\n\x17serializationExceptions\x18\x0b \x01(\x03\x12\x16\n\x0e\x61verageLatency\x18\x0c \x01(\x01\x12\x1a\n\x12lastInvocationTime\x18\r \x01(\x03\x12\x12\n\ninstanceId\x18\x0e \x01(\t\x12#\n\x07metrics\x18\x0f \x01(\x0b\x32\x12.proto.MetricsData\x12\x10\n\x08workerId\x18\x10 \x01(\t\x1a\x45\n\x14\x45xceptionInformation\x12\x17\n\x0f\x65xceptionString\x18\x01 \x01(\t\x12\x14\n\x0cmsSinceEpoch\x18\x02 \x01(\x03\x1a@\n\x1e\x44\x65serializationExceptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"G\n\x12\x46unctionStatusList\x12\x31\n\x12\x66unctionStatusList\x18\x01 \x03(\x0b\x32\x15.proto.FunctionStatus\"\xd2\x01\n\x0bMetricsData\x12\x30\n\x07metrics\x18\x01 \x03(\x0b\x32\x1f.proto.MetricsData.MetricsEntry\x1a\x42\n\nDataDigest\x12\r\n\x05\x63ount\x18\x01 \x01(\x01\x12\x0b\n\x03sum\x18\x02 \x01(\x01\x12\x0b\n\x03max\x18\x03 \x01(\x01\x12\x0b\n\x03min\x18\x04 \x01(\x01\x1aM\n\x0cMetricsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x1d.proto.MetricsData.DataDigest:\x02\x38\x01\"$\n\x11HealthCheckResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\x98\x01\n\x07Metrics\x12/\n\x07metrics\x18\x01 \x03(\x0b\x32\x1e.proto.Metrics.InstanceMetrics\x1a\\\n\x0fInstanceMetrics\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x12\n\ninstanceId\x18\x02 \x01(\x05\x12\'\n\x0bmetricsData\x18\x03 \x01(\x0b\x32\x12.proto.MetricsData2\xdc\x02\n\x0fInstanceControl\x12\x44\n\x11GetFunctionStatus\x12\x16.google.protobuf.Empty\x1a\x15.proto.FunctionStatus\"\x00\x12\x42\n\x12GetAndResetMetrics\x12\x16.google.protobuf.Empty\x1a\x12.proto.MetricsData\"\x00\x12@\n\x0cResetMetrics\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12:\n\nGetMetrics\x12\x16.google.protobuf.Empty\x1a\x12.proto.MetricsData\"\x00\x12\x41\n\x0bHealthCheck\x12\x16.google.protobuf.Empty\x1a\x18.proto.HealthCheckResult\"\x00\x42:\n!org.apache.pulsar.functions.protoB\x15InstanceCommunicationb\x06proto3')
+  serialized_pb=_b('\n\x1bInstanceCommunication.proto\x12\x05proto\x1a\x1bgoogle/protobuf/empty.proto\"\xf6\x03\n\x0e\x46unctionStatus\x12\x0f\n\x07running\x18\x01 \x01(\x08\x12\x18\n\x10\x66\x61ilureException\x18\x02 \x01(\t\x12\x13\n\x0bnumRestarts\x18\x03 \x01(\x03\x12\x13\n\x0bnumReceived\x18\x11 \x01(\x03\x12 \n\x18numSuccessfullyProcessed\x18\x05 \x01(\x03\x12\x19\n\x11numUserExceptions\x18\x06 \x01(\x03\x12H\n\x14latestUserExceptions\x18\x07 \x03(\x0b\x32*.proto.FunctionStatus.ExceptionInformation\x12\x1b\n\x13numSystemExceptions\x18\x08 \x01(\x03\x12J\n\x16latestSystemExceptions\x18\t \x03(\x0b\x32*.proto.FunctionStatus.ExceptionInformation\x12\x16\n\x0e\x61verageLatency\x18\x0c \x01(\x01\x12\x1a\n\x12lastInvocationTime\x18\r \x01(\x03\x12\x12\n\ninstanceId\x18\x0e \x01(\t\x12\x10\n\x08workerId\x18\x10 \x01(\t\x1a\x45\n\x14\x45xceptionInformation\x12\x17\n\x0f\x65xceptionString\x18\x01 \x01(\t\x12\x14\n\x0cmsSinceEpoch\x18\x02 \x01(\x03\"\xd0\x03\n\x0bMetricsData\x12\x15\n\rreceivedTotal\x18\x02 \x01(\x03\x12\x1a\n\x12receivedTotal_1min\x18\n \x01(\x03\x12\"\n\x1aprocessedSuccessfullyTotal\x18\x04 \x01(\x03\x12\'\n\x1fprocessedSuccessfullyTotal_1min\x18\x0c \x01(\x03\x12\x1d\n\x15systemExceptionsTotal\x18\x05 \x01(\x03\x12\"\n\x1asystemExceptionsTotal_1min\x18\r \x01(\x03\x12\x1b\n\x13userExceptionsTotal\x18\x06 \x01(\x03\x12 \n\x18userExceptionsTotal_1min\x18\x0e \x01(\x03\x12\x19\n\x11\x61vgProcessLatency\x18\x07 \x01(\x01\x12\x1e\n\x16\x61vgProcessLatency_1min\x18\x0f \x01(\x01\x12\x16\n\x0elastInvocation\x18\x08 \x01(\x03\x12\x38\n\x0buserMetrics\x18\t \x03(\x0b\x32#.proto.MetricsData.UserMetricsEntry\x1a\x32\n\x10UserMetricsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"$\n\x11HealthCheckResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\x98\x01\n\x07Metrics\x12/\n\x07metrics\x18\x01 \x03(\x0b\x32\x1e.proto.Metrics.InstanceMetrics\x1a\\\n\x0fInstanceMetrics\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x12\n\ninstanceId\x18\x02 \x01(\x05\x12\'\n\x0bmetricsData\x18\x03 \x01(\x0b\x32\x12.proto.MetricsData2\xdc\x02\n\x0fInstanceControl\x12\x44\n\x11GetFunctionStatus\x12\x16.google.protobuf.Empty\x1a\x15.proto.FunctionStatus\"\x00\x12\x42\n\x12GetAndResetMetrics\x12\x16.google.protobuf.Empty\x1a\x12.proto.MetricsData\"\x00\x12@\n\x0cResetMetrics\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12:\n\nGetMetrics\x12\x16.google.protobuf.Empty\x1a\x12.proto.MetricsData\"\x00\x12\x41\n\x0bHealthCheck\x12\x16.google.protobuf.Empty\x1a\x18.proto.HealthCheckResult\"\x00\x42:\n!org.apache.pulsar.functions.protoB\x15InstanceCommunicationb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_empty__pb2.DESCRIPTOR,])
 
@@ -79,45 +79,8 @@ _FUNCTIONSTATUS_EXCEPTIONINFORMATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=661,
-  serialized_end=730,
-)
-
-_FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY = _descriptor.Descriptor(
-  name='DeserializationExceptionsEntry',
-  full_name='proto.FunctionStatus.DeserializationExceptionsEntry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='proto.FunctionStatus.DeserializationExceptionsEntry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='value', full_name='proto.FunctionStatus.DeserializationExceptionsEntry.value', index=1,
-      number=2, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=732,
-  serialized_end=796,
+  serialized_start=501,
+  serialized_end=570,
 )
 
 _FUNCTIONSTATUS = _descriptor.Descriptor(
@@ -149,8 +112,8 @@ _FUNCTIONSTATUS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='numProcessed', full_name='proto.FunctionStatus.numProcessed', index=3,
-      number=4, type=3, cpp_type=2, label=1,
+      name='numReceived', full_name='proto.FunctionStatus.numReceived', index=3,
+      number=17, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -191,49 +154,28 @@ _FUNCTIONSTATUS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='deserializationExceptions', full_name='proto.FunctionStatus.deserializationExceptions', index=9,
-      number=10, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='serializationExceptions', full_name='proto.FunctionStatus.serializationExceptions', index=10,
-      number=11, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='averageLatency', full_name='proto.FunctionStatus.averageLatency', index=11,
+      name='averageLatency', full_name='proto.FunctionStatus.averageLatency', index=9,
       number=12, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='lastInvocationTime', full_name='proto.FunctionStatus.lastInvocationTime', index=12,
+      name='lastInvocationTime', full_name='proto.FunctionStatus.lastInvocationTime', index=10,
       number=13, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='instanceId', full_name='proto.FunctionStatus.instanceId', index=13,
+      name='instanceId', full_name='proto.FunctionStatus.instanceId', index=11,
       number=14, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='metrics', full_name='proto.FunctionStatus.metrics', index=14,
-      number=15, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='workerId', full_name='proto.FunctionStatus.workerId', index=15,
+      name='workerId', full_name='proto.FunctionStatus.workerId', index=12,
       number=16, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -242,7 +184,7 @@ _FUNCTIONSTATUS = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_FUNCTIONSTATUS_EXCEPTIONINFORMATION, _FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY, ],
+  nested_types=[_FUNCTIONSTATUS_EXCEPTIONINFORMATION, ],
   enum_types=[
   ],
   options=None,
@@ -252,110 +194,28 @@ _FUNCTIONSTATUS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=68,
-  serialized_end=796,
+  serialized_end=570,
 )
 
 
-_FUNCTIONSTATUSLIST = _descriptor.Descriptor(
-  name='FunctionStatusList',
-  full_name='proto.FunctionStatusList',
+_METRICSDATA_USERMETRICSENTRY = _descriptor.Descriptor(
+  name='UserMetricsEntry',
+  full_name='proto.MetricsData.UserMetricsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='functionStatusList', full_name='proto.FunctionStatusList.functionStatusList', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=798,
-  serialized_end=869,
-)
-
-
-_METRICSDATA_DATADIGEST = _descriptor.Descriptor(
-  name='DataDigest',
-  full_name='proto.MetricsData.DataDigest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='count', full_name='proto.MetricsData.DataDigest.count', index=0,
-      number=1, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='sum', full_name='proto.MetricsData.DataDigest.sum', index=1,
-      number=2, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='max', full_name='proto.MetricsData.DataDigest.max', index=2,
-      number=3, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='min', full_name='proto.MetricsData.DataDigest.min', index=3,
-      number=4, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=937,
-  serialized_end=1003,
-)
-
-_METRICSDATA_METRICSENTRY = _descriptor.Descriptor(
-  name='MetricsEntry',
-  full_name='proto.MetricsData.MetricsEntry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='proto.MetricsData.MetricsEntry.key', index=0,
+      name='key', full_name='proto.MetricsData.UserMetricsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='proto.MetricsData.MetricsEntry.value', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='value', full_name='proto.MetricsData.UserMetricsEntry.value', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
@@ -371,8 +231,8 @@ _METRICSDATA_METRICSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1005,
-  serialized_end=1082,
+  serialized_start=987,
+  serialized_end=1037,
 )
 
 _METRICSDATA = _descriptor.Descriptor(
@@ -383,8 +243,85 @@ _METRICSDATA = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='metrics', full_name='proto.MetricsData.metrics', index=0,
-      number=1, type=11, cpp_type=10, label=3,
+      name='receivedTotal', full_name='proto.MetricsData.receivedTotal', index=0,
+      number=2, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='receivedTotal_1min', full_name='proto.MetricsData.receivedTotal_1min', index=1,
+      number=10, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='processedSuccessfullyTotal', full_name='proto.MetricsData.processedSuccessfullyTotal', index=2,
+      number=4, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='processedSuccessfullyTotal_1min', full_name='proto.MetricsData.processedSuccessfullyTotal_1min', index=3,
+      number=12, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='systemExceptionsTotal', full_name='proto.MetricsData.systemExceptionsTotal', index=4,
+      number=5, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='systemExceptionsTotal_1min', full_name='proto.MetricsData.systemExceptionsTotal_1min', index=5,
+      number=13, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='userExceptionsTotal', full_name='proto.MetricsData.userExceptionsTotal', index=6,
+      number=6, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='userExceptionsTotal_1min', full_name='proto.MetricsData.userExceptionsTotal_1min', index=7,
+      number=14, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='avgProcessLatency', full_name='proto.MetricsData.avgProcessLatency', index=8,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='avgProcessLatency_1min', full_name='proto.MetricsData.avgProcessLatency_1min', index=9,
+      number=15, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='lastInvocation', full_name='proto.MetricsData.lastInvocation', index=10,
+      number=8, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='userMetrics', full_name='proto.MetricsData.userMetrics', index=11,
+      number=9, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -392,7 +329,7 @@ _METRICSDATA = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_METRICSDATA_DATADIGEST, _METRICSDATA_METRICSENTRY, ],
+  nested_types=[_METRICSDATA_USERMETRICSENTRY, ],
   enum_types=[
   ],
   options=None,
@@ -401,8 +338,8 @@ _METRICSDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=872,
-  serialized_end=1082,
+  serialized_start=573,
+  serialized_end=1037,
 )
 
 
@@ -432,8 +369,8 @@ _HEALTHCHECKRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1084,
-  serialized_end=1120,
+  serialized_start=1039,
+  serialized_end=1075,
 )
 
 
@@ -477,8 +414,8 @@ _METRICS_INSTANCEMETRICS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1183,
-  serialized_end=1275,
+  serialized_start=1138,
+  serialized_end=1230,
 )
 
 _METRICS = _descriptor.Descriptor(
@@ -507,26 +444,19 @@ _METRICS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1123,
-  serialized_end=1275,
+  serialized_start=1078,
+  serialized_end=1230,
 )
 
 _FUNCTIONSTATUS_EXCEPTIONINFORMATION.containing_type = _FUNCTIONSTATUS
-_FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY.containing_type = _FUNCTIONSTATUS
 _FUNCTIONSTATUS.fields_by_name['latestUserExceptions'].message_type = _FUNCTIONSTATUS_EXCEPTIONINFORMATION
 _FUNCTIONSTATUS.fields_by_name['latestSystemExceptions'].message_type = _FUNCTIONSTATUS_EXCEPTIONINFORMATION
-_FUNCTIONSTATUS.fields_by_name['deserializationExceptions'].message_type = _FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY
-_FUNCTIONSTATUS.fields_by_name['metrics'].message_type = _METRICSDATA
-_FUNCTIONSTATUSLIST.fields_by_name['functionStatusList'].message_type = _FUNCTIONSTATUS
-_METRICSDATA_DATADIGEST.containing_type = _METRICSDATA
-_METRICSDATA_METRICSENTRY.fields_by_name['value'].message_type = _METRICSDATA_DATADIGEST
-_METRICSDATA_METRICSENTRY.containing_type = _METRICSDATA
-_METRICSDATA.fields_by_name['metrics'].message_type = _METRICSDATA_METRICSENTRY
+_METRICSDATA_USERMETRICSENTRY.containing_type = _METRICSDATA
+_METRICSDATA.fields_by_name['userMetrics'].message_type = _METRICSDATA_USERMETRICSENTRY
 _METRICS_INSTANCEMETRICS.fields_by_name['metricsData'].message_type = _METRICSDATA
 _METRICS_INSTANCEMETRICS.containing_type = _METRICS
 _METRICS.fields_by_name['metrics'].message_type = _METRICS_INSTANCEMETRICS
 DESCRIPTOR.message_types_by_name['FunctionStatus'] = _FUNCTIONSTATUS
-DESCRIPTOR.message_types_by_name['FunctionStatusList'] = _FUNCTIONSTATUSLIST
 DESCRIPTOR.message_types_by_name['MetricsData'] = _METRICSDATA
 DESCRIPTOR.message_types_by_name['HealthCheckResult'] = _HEALTHCHECKRESULT
 DESCRIPTOR.message_types_by_name['Metrics'] = _METRICS
@@ -540,41 +470,19 @@ FunctionStatus = _reflection.GeneratedProtocolMessageType('FunctionStatus', (_me
     # @@protoc_insertion_point(class_scope:proto.FunctionStatus.ExceptionInformation)
     ))
   ,
-
-  DeserializationExceptionsEntry = _reflection.GeneratedProtocolMessageType('DeserializationExceptionsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY,
-    __module__ = 'InstanceCommunication_pb2'
-    # @@protoc_insertion_point(class_scope:proto.FunctionStatus.DeserializationExceptionsEntry)
-    ))
-  ,
   DESCRIPTOR = _FUNCTIONSTATUS,
   __module__ = 'InstanceCommunication_pb2'
   # @@protoc_insertion_point(class_scope:proto.FunctionStatus)
   ))
 _sym_db.RegisterMessage(FunctionStatus)
 _sym_db.RegisterMessage(FunctionStatus.ExceptionInformation)
-_sym_db.RegisterMessage(FunctionStatus.DeserializationExceptionsEntry)
-
-FunctionStatusList = _reflection.GeneratedProtocolMessageType('FunctionStatusList', (_message.Message,), dict(
-  DESCRIPTOR = _FUNCTIONSTATUSLIST,
-  __module__ = 'InstanceCommunication_pb2'
-  # @@protoc_insertion_point(class_scope:proto.FunctionStatusList)
-  ))
-_sym_db.RegisterMessage(FunctionStatusList)
 
 MetricsData = _reflection.GeneratedProtocolMessageType('MetricsData', (_message.Message,), dict(
 
-  DataDigest = _reflection.GeneratedProtocolMessageType('DataDigest', (_message.Message,), dict(
-    DESCRIPTOR = _METRICSDATA_DATADIGEST,
+  UserMetricsEntry = _reflection.GeneratedProtocolMessageType('UserMetricsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _METRICSDATA_USERMETRICSENTRY,
     __module__ = 'InstanceCommunication_pb2'
-    # @@protoc_insertion_point(class_scope:proto.MetricsData.DataDigest)
-    ))
-  ,
-
-  MetricsEntry = _reflection.GeneratedProtocolMessageType('MetricsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _METRICSDATA_METRICSENTRY,
-    __module__ = 'InstanceCommunication_pb2'
-    # @@protoc_insertion_point(class_scope:proto.MetricsData.MetricsEntry)
+    # @@protoc_insertion_point(class_scope:proto.MetricsData.UserMetricsEntry)
     ))
   ,
   DESCRIPTOR = _METRICSDATA,
@@ -582,8 +490,7 @@ MetricsData = _reflection.GeneratedProtocolMessageType('MetricsData', (_message.
   # @@protoc_insertion_point(class_scope:proto.MetricsData)
   ))
 _sym_db.RegisterMessage(MetricsData)
-_sym_db.RegisterMessage(MetricsData.DataDigest)
-_sym_db.RegisterMessage(MetricsData.MetricsEntry)
+_sym_db.RegisterMessage(MetricsData.UserMetricsEntry)
 
 HealthCheckResult = _reflection.GeneratedProtocolMessageType('HealthCheckResult', (_message.Message,), dict(
   DESCRIPTOR = _HEALTHCHECKRESULT,
@@ -610,10 +517,8 @@ _sym_db.RegisterMessage(Metrics.InstanceMetrics)
 
 DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n!org.apache.pulsar.functions.protoB\025InstanceCommunication'))
-_FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY.has_options = True
-_FUNCTIONSTATUS_DESERIALIZATIONEXCEPTIONSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
-_METRICSDATA_METRICSENTRY.has_options = True
-_METRICSDATA_METRICSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
+_METRICSDATA_USERMETRICSENTRY.has_options = True
+_METRICSDATA_USERMETRICSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 
 _INSTANCECONTROL = _descriptor.ServiceDescriptor(
   name='InstanceControl',
@@ -621,8 +526,8 @@ _INSTANCECONTROL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   options=None,
-  serialized_start=1278,
-  serialized_end=1626,
+  serialized_start=1233,
+  serialized_end=1581,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFunctionStatus',

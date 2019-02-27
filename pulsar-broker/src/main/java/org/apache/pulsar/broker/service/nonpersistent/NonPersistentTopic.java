@@ -37,14 +37,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -228,6 +226,8 @@ public class NonPersistentTopic implements Topic {
 
         lock.readLock().lock();
         try {
+            brokerService.checkTopicNsOwnership(getName());
+            
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -292,17 +292,6 @@ public class NonPersistentTopic implements Topic {
         return foundLocal.get();
     }
 
-    private boolean hasRemoteProducers() {
-        AtomicBoolean foundRemote = new AtomicBoolean(false);
-        producers.forEach(producer -> {
-            if (producer.isRemote()) {
-                foundRemote.set(true);
-            }
-        });
-
-        return foundRemote.get();
-    }
-
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
@@ -323,6 +312,13 @@ public class NonPersistentTopic implements Topic {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
+        
+        try {
+            brokerService.checkTopicNsOwnership(getName());
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
 
         if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
             if (log.isDebugEnabled()) {

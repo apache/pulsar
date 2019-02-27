@@ -20,7 +20,16 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -29,37 +38,29 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
+import java.lang.reflect.Type;
+import java.nio.file.Path;
+import java.util.*;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
 public class SinkConfigUtils {
 
-    public static FunctionDetails convert(SinkConfig sinkConfig) throws IOException {
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class ExtractedSinkDetails {
+        private String sinkClassName;
+        private String typeArg;
+    }
 
-        String sinkClassName = null;
-        String typeArg = null;
-
+    public static FunctionDetails convert(SinkConfig sinkConfig, ExtractedSinkDetails sinkDetails) throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
-
-        if (!isBuiltin) {
-            if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
-                if (isBlank(sinkConfig.getClassName())) {
-                    throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-                }
-                sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
-            } else {
-                sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                        Collections.emptySet())) {
-                    typeArg = Utils.getSinkType(sinkClassName, ncl).getName();
-                }
-            }
-        }
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (sinkConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sinkConfig.getTenant());
@@ -71,7 +72,11 @@ public class SinkConfigUtils {
             functionDetailsBuilder.setName(sinkConfig.getName());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
+        if (sinkConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
         if (sinkConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
@@ -124,30 +129,40 @@ public class SinkConfigUtils {
             });
         }
 
-        if (typeArg != null) {
-            sourceSpecBuilder.setTypeClassName(typeArg);
+        if (sinkDetails.getTypeArg() != null) {
+            sourceSpecBuilder.setTypeClassName(sinkDetails.getTypeArg());
         }
         if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
             sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
         }
 
-        Function.SubscriptionType subType = (sinkConfig.isRetainOrdering()
+        Function.SubscriptionType subType = ((sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
                 ? Function.SubscriptionType.FAILOVER
                 : Function.SubscriptionType.SHARED;
         sourceSpecBuilder.setSubscriptionType(subType);
 
-        functionDetailsBuilder.setAutoAck(sinkConfig.isAutoAck());
+        if (sinkConfig.getAutoAck() != null) {
+            functionDetailsBuilder.setAutoAck(sinkConfig.getAutoAck());
+        } else {
+            functionDetailsBuilder.setAutoAck(true);
+        }
         if (sinkConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
+        }
+
+        if (sinkConfig.getCleanupSubscription() != null) {
+            sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
+        } else {
+            sourceSpecBuilder.setCleanupSubscription(true);
         }
 
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // set up sink spec
         Function.SinkSpec.Builder sinkSpecBuilder = Function.SinkSpec.newBuilder();
-        if (sinkClassName != null) {
-            sinkSpecBuilder.setClassName(sinkClassName);
+        if (sinkDetails.getSinkClassName() != null) {
+            sinkSpecBuilder.setClassName(sinkDetails.getSinkClassName());
         }
 
         if (isBuiltin) {
@@ -158,24 +173,281 @@ public class SinkConfigUtils {
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
-        if (typeArg != null) {
-            sinkSpecBuilder.setTypeClassName(typeArg);
+        if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
+        }
+        if (sinkDetails.getTypeArg() != null) {
+            sinkSpecBuilder.setTypeClassName(sinkDetails.getTypeArg());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
-        if (sinkConfig.getResources() != null) {
-            Function.Resources.Builder bldr = Function.Resources.newBuilder();
-            if (sinkConfig.getResources().getCpu() != null) {
-                bldr.setCpu(sinkConfig.getResources().getCpu());
-            }
-            if (sinkConfig.getResources().getRam() != null) {
-                bldr.setRam(sinkConfig.getResources().getRam());
-            }
-            if (sinkConfig.getResources().getDisk() != null) {
-                bldr.setDisk(sinkConfig.getResources().getDisk());
-            }
-            functionDetailsBuilder.setResources(bldr.build());
-        }
+        // use default resources if resources not set
+        Resources resources = Resources.mergeWithDefault(sinkConfig.getResources());
+
+        Function.Resources.Builder bldr = Function.Resources.newBuilder();
+        bldr.setCpu(resources.getCpu());
+        bldr.setRam(resources.getRam());
+        bldr.setDisk(resources.getDisk());
+        functionDetailsBuilder.setResources(bldr);
+
         return functionDetailsBuilder.build();
+    }
+
+    public static SinkConfig convertFromDetails(FunctionDetails functionDetails) {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(functionDetails.getTenant());
+        sinkConfig.setNamespace(functionDetails.getNamespace());
+        sinkConfig.setName(functionDetails.getName());
+        sinkConfig.setParallelism(functionDetails.getParallelism());
+        sinkConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
+        for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
+            ConsumerConfig consumerConfig = new ConsumerConfig();
+            if (!isEmpty(input.getValue().getSerdeClassName())) {
+                consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
+            }
+            if (!isEmpty(input.getValue().getSchemaType())) {
+                consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfigMap.put(input.getKey(), consumerConfig);
+        }
+        sinkConfig.setInputSpecs(consumerConfigMap);
+        if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
+            sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
+        }
+        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
+            sinkConfig.setRetainOrdering(true);
+            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        } else {
+            sinkConfig.setRetainOrdering(false);
+            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        }
+        sinkConfig.setAutoAck(functionDetails.getAutoAck());
+        if (functionDetails.getSource().getTimeoutMs() != 0) {
+            sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        }
+        if (!isEmpty(functionDetails.getSink().getClassName())) {
+            sinkConfig.setClassName(functionDetails.getSink().getClassName());
+        }
+        if (!isEmpty(functionDetails.getSink().getBuiltin())) {
+            sinkConfig.setArchive("builtin://" + functionDetails.getSink().getBuiltin());
+        }
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
+        }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sinkConfig.setSecrets(secretsMap);
+        }
+        if (functionDetails.hasResources()) {
+            Resources resources = new Resources();
+            resources.setCpu(functionDetails.getResources().getCpu());
+            resources.setRam(functionDetails.getResources().getRam());
+            resources.setDisk(functionDetails.getResources().getDisk());
+        }
+
+        return sinkConfig;
+    }
+
+    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+                                          File uploadedInputStreamAsFile) {
+        if (isEmpty(sinkConfig.getTenant())) {
+            throw new IllegalArgumentException("Sink tenant cannot be null");
+        }
+        if (isEmpty(sinkConfig.getNamespace())) {
+            throw new IllegalArgumentException("Sink namespace cannot be null");
+        }
+        if (isEmpty(sinkConfig.getName())) {
+            throw new IllegalArgumentException("Sink name cannot be null");
+        }
+
+        // make we sure we have one source of input
+        Collection<String> allInputs = collectAllInputTopics(sinkConfig);
+        if (allInputs.isEmpty()) {
+            throw new IllegalArgumentException("Must specify at least one topic of input via topicToSerdeClassName, " +
+                    "topicsPattern, topicToSchemaType or inputSpecs");
+        }
+        for (String topic : allInputs) {
+            if (!TopicName.isValid(topic)) {
+                throw new IllegalArgumentException(String.format("Input topic %s is invalid", topic));
+            }
+        }
+
+        if (sinkConfig.getParallelism() != null && sinkConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Sink parallelism should positive number");
+        }
+
+        if (sinkConfig.getResources() != null) {
+            ResourceConfigUtils.validate(sinkConfig.getResources());
+        }
+
+        if (sinkConfig.getTimeoutMs() != null && sinkConfig.getTimeoutMs() <= 0) {
+            throw new IllegalArgumentException("Sink timeout must be a positive number");
+        }
+
+        String sinkClassName;
+        ClassLoader classLoader;
+        if (!isEmpty(sinkConfig.getClassName())) {
+            sinkClassName = sinkConfig.getClassName();
+            try {
+                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid Sink Jar");
+            }
+        } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
+        } else {
+            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Sink Package is not provided");
+            }
+            try {
+                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
+            }
+        }
+
+        Class<?> typeArg = getSinkType(sinkClassName, classLoader);
+
+        if (sinkConfig.getTopicToSerdeClassName() != null) {
+            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, true);
+            });
+        }
+
+        if (sinkConfig.getTopicToSchemaType() != null) {
+            sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                ValidatorUtils.validateSchema(schemaType, typeArg, classLoader, true);
+            });
+        }
+
+        // topicsPattern does not need checks
+
+        if (sinkConfig.getInputSpecs() != null) {
+            sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+                // Only one is set
+                if (!isEmpty(consumerSpec.getSerdeClassName()) && !isEmpty(consumerSpec.getSchemaType())) {
+                    throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+                }
+                if (!isEmpty(consumerSpec.getSerdeClassName())) {
+                    ValidatorUtils.validateSerde(consumerSpec.getSerdeClassName(), typeArg, classLoader, true);
+                }
+                if (!isEmpty(consumerSpec.getSchemaType())) {
+                    ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, classLoader, true);
+                }
+            });
+        }
+        return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
+    }
+
+    private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
+        List<String> retval = new LinkedList<>();
+        if (sinkConfig.getInputs() != null) {
+            retval.addAll(sinkConfig.getInputs());
+        }
+        if (sinkConfig.getTopicToSerdeClassName() != null) {
+            retval.addAll(sinkConfig.getTopicToSerdeClassName().keySet());
+        }
+        if (sinkConfig.getTopicsPattern() != null) {
+            retval.add(sinkConfig.getTopicsPattern());
+        }
+        if (sinkConfig.getTopicToSchemaType() != null) {
+            retval.addAll(sinkConfig.getTopicToSchemaType().keySet());
+        }
+        if (sinkConfig.getInputSpecs() != null) {
+            retval.addAll(sinkConfig.getInputSpecs().keySet());
+        }
+        return retval;
+    }
+
+    public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {
+        SinkConfig mergedConfig = existingConfig.toBuilder().build();
+        if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
+            throw new IllegalArgumentException("Tenants differ");
+        }
+        if (!existingConfig.getNamespace().equals(newConfig.getNamespace())) {
+            throw new IllegalArgumentException("Namespaces differ");
+        }
+        if (!existingConfig.getName().equals(newConfig.getName())) {
+            throw new IllegalArgumentException("Sink Names differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getClassName())) {
+            mergedConfig.setClassName(newConfig.getClassName());
+        }
+        if (!StringUtils.isEmpty(newConfig.getSourceSubscriptionName()) && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
+            throw new IllegalArgumentException("Subscription Name cannot be altered");
+        }
+        if (newConfig.getInputs() != null) {
+            newConfig.getInputs().forEach((topicName -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder().isRegexPattern(false).build());
+            }));
+        }
+        if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
+            newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),
+                    ConsumerConfig.builder()
+                            .isRegexPattern(true)
+                            .build());
+        }
+        if (newConfig.getTopicToSerdeClassName() != null) {
+            newConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .serdeClassName(serdeClassName)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (newConfig.getTopicToSchemaType() != null) {
+            newConfig.getTopicToSchemaType().forEach((topicName, schemaClassname) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .schemaType(schemaClassname)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (!newConfig.getInputSpecs().isEmpty()) {
+            newConfig.getInputSpecs().forEach((topicName, consumerConfig) -> {
+                if (!existingConfig.getInputSpecs().containsKey(topicName)) {
+                    throw new IllegalArgumentException("Input Topics cannot be altered");
+                }
+                if (!consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
+                    throw new IllegalArgumentException("Input Specs mismatch");
+                }
+            });
+        }
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+        }
+        if (newConfig.getConfigs() != null) {
+            mergedConfig.setConfigs(newConfig.getConfigs());
+        }
+        if (newConfig.getSecrets() != null) {
+            mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (newConfig.getParallelism() != null) {
+            mergedConfig.setParallelism(newConfig.getParallelism());
+        }
+        if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
+            throw new IllegalArgumentException("Retain Orderning cannot be altered");
+        }
+        if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
+            throw new IllegalArgumentException("AutoAck cannot be altered");
+        }
+        if (newConfig.getResources() != null) {
+            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+        }
+        if (newConfig.getTimeoutMs() != null) {
+            mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
+        }
+        if (!StringUtils.isEmpty(newConfig.getArchive())) {
+            mergedConfig.setArchive(newConfig.getArchive());
+        }
+        return mergedConfig;
     }
 }

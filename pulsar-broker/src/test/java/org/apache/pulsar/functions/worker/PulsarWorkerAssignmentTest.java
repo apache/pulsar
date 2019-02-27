@@ -23,15 +23,17 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
-import java.io.File;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.google.gson.Gson;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -42,29 +44,17 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.gson.Gson;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 /**
  * Test Pulsar sink on function
@@ -159,8 +149,8 @@ public class PulsarWorkerAssignmentTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
-        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -190,15 +180,13 @@ public class PulsarWorkerAssignmentTest {
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails.Builder functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
-        functionDetailsBuilder.setParallelism(2);
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
+        functionConfig.setParallelism(2);
 
         // (1) Create function with 2 instance
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
@@ -213,10 +201,9 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 2);
 
         // (2) Update function with 1 instance
-        functionDetailsBuilder.setParallelism(1);
-        functionDetails = functionDetailsBuilder.build();
+        functionConfig.setParallelism(1);
         // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
@@ -227,6 +214,7 @@ public class PulsarWorkerAssignmentTest {
             }
         }, 5, 150);
         // validate pulsar sink consumer has started on the topic
+        log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
@@ -236,6 +224,7 @@ public class PulsarWorkerAssignmentTest {
         final String namespacePortion = "assignment-test";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String logTopic = "persistent://" + replNamespace + "/log-topic";
         final String baseFunctionName = "assign-restart";
         final String subscriptionName = "test-sub";
         final int totalFunctions = 5;
@@ -245,19 +234,16 @@ public class PulsarWorkerAssignmentTest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails.Builder functionDetailsBuilder = null;
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        FunctionConfig functionConfig = null;
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
-            functionDetailsBuilder.setParallelism(parallelism);
-            // set-auto-ack prop =true
-            functionDetailsBuilder.setAutoAck(true);
-            FunctionDetails functionDetails = functionDetailsBuilder.build();
-            admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+            functionConfig.setParallelism(parallelism);
+            // don't set any log topic
+            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
         retryStrategically((test) -> {
             try {
@@ -275,13 +261,12 @@ public class PulsarWorkerAssignmentTest {
         // (2) Update function with prop=auto-ack and Delete 2 functions
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
-            functionDetailsBuilder.setParallelism(parallelism);
-            // set-auto-ack prop =false
-            functionDetailsBuilder.setAutoAck(false);
-            FunctionDetails functionDetails = functionDetailsBuilder.build();
-            admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+            functionConfig.setParallelism(parallelism);
+            // Now set the log topic
+            functionConfig.setLogTopic(logTopic);
+            admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
 
         int totalDeletedFunction = 2;
@@ -324,51 +309,30 @@ public class PulsarWorkerAssignmentTest {
         // validate updated function prop = auto-ack=false and instnaceid
         for (int i = 0; i < (totalFunctions - totalDeletedFunction); i++) {
             String functionName = baseFunctionName + i;
-            assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getAutoAck());
+            assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
         }
     }
 
-    protected static FunctionDetails.Builder createFunctionDetails(String jarFile, String tenant, String namespace,
-            String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
+                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
 
-        File file = new File(jarFile);
-        try {
-            Reflections.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
-        }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setTenant(tenant);
-        functionDetailsBuilder.setNamespace(namespace);
-        functionDetailsBuilder.setName(functionName);
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(1);
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setParallelism(1);
+        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
 
-        // set source spec
-        // source spec classname should be empty so that the default pulsar source will be used
-        SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-        sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-        sourceSpecBuilder.setTypeClassName(typeArg.getName());
-        sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
-        sourceSpecBuilder.setSubscriptionName(subscriptionName);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, "");
-        functionDetailsBuilder.setAutoAck(true);
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        functionConfig.setTopicsPattern(sourceTopicPattern);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setAutoAck(true);
+        functionConfig.setOutput(sinkTopic);
 
-        // set up sink spec
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        // sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-        sinkSpecBuilder.setTopic(sinkTopic);
-        Map<String, Object> sinkConfigMap = Maps.newHashMap();
-        sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));
-        sinkSpecBuilder.setTypeClassName(typeArg.getName());
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-        return functionDetailsBuilder;
+        return functionConfig;
     }
 
 }

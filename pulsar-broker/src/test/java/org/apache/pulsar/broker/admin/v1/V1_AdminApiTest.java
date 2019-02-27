@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -138,7 +139,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setTlsEnabled(true);
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
@@ -627,6 +629,12 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Policies policies = new Policies();
         policies.bundles = Policies.defaultBundle();
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
+
+        // set default quotas on namespace
+        Policies.setStorageQuota(policies, ConfigHelper.backlogQuota(conf));
+        policies.clusterDispatchRate.put("test", ConfigHelper.dispatchRate(conf));
+        policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
+        policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/use/ns1"), policies.auth_policies.namespace_auth);
@@ -1324,24 +1332,25 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void backlogQuotas() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1"), Maps.newTreeMap());
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1"),
+                ConfigHelper.backlogQuotaMap(conf));
 
         Map<BacklogQuotaType, BacklogQuota> quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
-        assertEquals(quotaMap.size(), 0);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), null);
+        assertEquals(quotaMap.size(), 1);
+        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
 
         admin.namespaces().setBacklogQuota("prop-xyz/use/ns1",
-                new BacklogQuota(1 * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
+                new BacklogQuota(1 * 1024 * 1024, RetentionPolicy.producer_exception));
         quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
         assertEquals(quotaMap.size(), 1);
         assertEquals(quotaMap.get(BacklogQuotaType.destination_storage),
-                new BacklogQuota(1 * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
+                new BacklogQuota(1 * 1024 * 1024, RetentionPolicy.producer_exception));
 
         admin.namespaces().removeBacklogQuota("prop-xyz/use/ns1");
 
         quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
-        assertEquals(quotaMap.size(), 0);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), null);
+        assertEquals(quotaMap.size(), 1);
+        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
     }
 
     @Test

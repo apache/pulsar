@@ -167,7 +167,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
-    private final DispatchRateLimiter dispatchRateLimiter;
+    private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+    private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
@@ -225,7 +226,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         USAGE_COUNT_UPDATER.set(this, 0);
 
-        this.dispatchRateLimiter = new DispatchRateLimiter(this);
+        initializeDispatchRateLimiterIfNeeded(Optional.empty());
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -264,6 +265,22 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
+        }
+    }
+
+    private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
+        synchronized (dispatchRateLimiter) {
+            if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
+                    .isDispatchRateNeeded(brokerService, policies, topic, null)) {
+                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this));
+            }
+            if (!subscribeRateLimiter.isPresent() && SubscribeRateLimiter
+                    .isDispatchRateNeeded(brokerService, policies, topic)) {
+                this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
+            }
+            subscriptions.forEach((name, subscription) -> {
+                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies);
+            });
         }
     }
 
@@ -332,6 +349,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         lock.readLock().lock();
         try {
+            brokerService.checkTopicNsOwnership(getName());
+            
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -466,7 +485,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-
+        
+        try {
+            brokerService.checkTopicNsOwnership(getName());
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
+        
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             future.completeExceptionally(
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
@@ -492,6 +518,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
             return future;
+        }
+
+        if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
+            SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
+                    cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
+            if (subscribeRateLimiter.isPresent() && !subscribeRateLimiter.get().subscribeAvailable(consumer) || !subscribeRateLimiter.get().tryAcquire(consumer)) {
+                log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
+                        topic, subscriptionName, consumer, subscribeRateLimiter.get().getSubscribeRate(),
+                        subscribeRateLimiter.get().getAvailableSubscribeRateLimit(consumer));
+                future.completeExceptionally(new NotAllowedException("Subscribe limited by subscribe rate limit per consumer."));
+                return future;
+            }
         }
 
         lock.readLock().lock();
@@ -839,7 +877,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 }
             }, null);
 
-            dispatchRateLimiter.close();
+            if (dispatchRateLimiter.isPresent()) {
+                dispatchRateLimiter.get().close();
+            }
+            if (subscribeRateLimiter.isPresent()) {
+                subscribeRateLimiter.get().close();
+            }
 
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -1196,12 +1239,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             // Add incoming msg rates
             PublisherStats pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
-            if (pubStats != null) {
-                rStat.msgRateIn = pubStats.msgRateIn;
-                rStat.msgThroughputIn = pubStats.msgThroughputIn;
-                rStat.inboundConnection = pubStats.getAddress();
-                rStat.inboundConnectedSince = pubStats.getConnectedSince();
-            }
+            rStat.msgRateIn = pubStats != null ? pubStats.msgRateIn : 0;
+            rStat.msgThroughputIn = pubStats != null ? pubStats.msgThroughputIn : 0;
+            rStat.inboundConnection = pubStats != null ? pubStats.getAddress() : null;
+            rStat.inboundConnectedSince = pubStats != null ? pubStats.getConnectedSince() : null;
 
             topicStatsHelper.aggMsgRateOut += rStat.msgRateOut;
             topicStatsHelper.aggMsgThroughputOut += rStat.msgThroughputOut;
@@ -1223,6 +1264,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
+            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
+                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
+            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -1565,21 +1610,30 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                 data.schema_auto_update_compatibility_strategy);
 
+        initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
+        
         producers.forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
-            if (sub.getDispatcher().getRateLimiter() != null) {
-                sub.getDispatcher().getRateLimiter().onPoliciesUpdate(data);
+            if (sub.getDispatcher().getRateLimiter().isPresent()) {
+                sub.getDispatcher().getRateLimiter().get().onPoliciesUpdate(data);
             }
         });
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
         CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
-        dispatchRateLimiter.onPoliciesUpdate(data);
+        // update rate-limiter if policies updated
+        if (this.dispatchRateLimiter.isPresent()) {
+            dispatchRateLimiter.get().onPoliciesUpdate(data);
+        }
+        if (this.subscribeRateLimiter.isPresent()) {
+            subscribeRateLimiter.get().onPoliciesUpdate(data);
+        }
+    
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -1723,8 +1777,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.hasBatchMessagePublished = true;
     }
 
-    public DispatchRateLimiter getDispatchRateLimiter() {
+    public Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return this.dispatchRateLimiter;
+    }
+
+    public Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
+        return this.subscribeRateLimiter;
     }
 
     public long getLastPublishedSequenceId(String producerName) {

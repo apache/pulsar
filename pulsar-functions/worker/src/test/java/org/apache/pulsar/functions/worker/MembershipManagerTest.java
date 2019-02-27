@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -47,8 +46,8 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -139,15 +138,15 @@ public class MembershipManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
-        
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+                mock(ConnectorsManager.class),
+                functionMetaDataManager));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, pulsarClient));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -210,16 +209,16 @@ public class MembershipManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
-        
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
+                mock(ConnectorsManager.class),
+                functionMetaDataManager));
 
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -306,15 +305,15 @@ public class MembershipManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
-        
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+                mock(ConnectorsManager.class),
+                functionMetaDataManager));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -381,15 +380,15 @@ public class MembershipManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(workerConfig).when(workerService).getWorkerConfig();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
-        
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
-                mock(ConnectorsManager.class)
-        ));
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+                mock(ConnectorsManager.class),
+                functionMetaDataManager));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();

@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +55,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
     private final String name;
-    private DispatchRateLimiter dispatchRateLimiter;
+    private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();;
 
     private volatile boolean havePendingRead = false;
 
@@ -62,7 +63,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private final ServiceConfiguration serviceConfig;
-    private ScheduledFuture<?> readOnActiveConsumerTask = null;
+    private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
 
@@ -75,8 +76,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
-        this.dispatchRateLimiter = null;
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
+        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -211,14 +212,15 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 if (future.isSuccess()) {
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                        topic.getDispatchRateLimiter().tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
-                                sentMsgInfo.getTotalSentMessageBytes());
-
-                        if (dispatchRateLimiter == null) {
-                            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                        if (topic.getDispatchRateLimiter().isPresent()) {
+                            topic.getDispatchRateLimiter().get().tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
+                                    sentMsgInfo.getTotalSentMessageBytes());
                         }
-                        dispatchRateLimiter.tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
-                                sentMsgInfo.getTotalSentMessageBytes());
+
+                        if (dispatchRateLimiter.isPresent()) {
+                            dispatchRateLimiter.get().tryDispatchPermit(sentMsgInfo.getTotalSentMessages(),
+                                    sentMsgInfo.getTotalSentMessageBytes());
+                        }
                     }
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
@@ -341,8 +343,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter();
-                if (topicRateLimiter.isDispatchRateLimitingEnabled()) {
+                if (topic.getDispatchRateLimiter().isPresent()
+                        && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
+                    DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
                     if (!topicRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
@@ -370,14 +373,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     }
                 }
 
-                if (dispatchRateLimiter == null) {
-                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
-                }
-                if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
-                    if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
+                if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
+                    if (!dispatchRateLimiter.get().hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}", name,
-                                dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRateLimiter.getDispatchRateOnByte(),
+                                dispatchRateLimiter.get().getDispatchRateOnMsg(), dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                         }
                         topic.getBrokerService().executor().schedule(() -> {
@@ -394,7 +394,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         return;
                     } else {
                         // if dispatch-rate is in msg then read only msg according to available permit
-                        long subPermitsOnMsg = dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        long subPermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
                         if (subPermitsOnMsg > 0) {
                             messagesToRead = Math.min(messagesToRead, (int) subPermitsOnMsg);
                         }
@@ -478,14 +478,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     }
 
-    public DispatchRateLimiter getDispatchRateLimiter() {
-        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
-            (dispatchRateLimiter == null)) {
-            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
-        }
-        return dispatchRateLimiter;
-    }
-
     @Override
     public void addUnAckedMessages(int unAckMessages) {
         // No-op
@@ -497,9 +489,17 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
-    public DispatchRateLimiter getRateLimiter() {
+    public Optional<DispatchRateLimiter> getRateLimiter() {
         return dispatchRateLimiter;
     }
 
+    @Override
+    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
+                .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), name)) {
+            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, name));
+        }
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 }

@@ -24,9 +24,9 @@
   xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
   <id>bin</id>
   <formats>
-    <format>tar.gz</format>
+    <format>dir</format>
   </formats>
-  <includeBaseDirectory>true</includeBaseDirectory>
+  <includeBaseDirectory>false</includeBaseDirectory>
   <files>
     <file>
       <source>${basedir}/../../LICENSE</source>
@@ -40,58 +40,29 @@
       <fileMode>644</fileMode>
     </file>
 
-    <file>
-      <source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
+    <!-- Include all connectors.
+         There doesn't seem to be a straight way to automatically
+         include all nars and place them in a single directory.
+     -->
 
-    <file>
-      <source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/jdbc/target/pulsar-io-jdbc-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/data-genenator/target/pulsar-io-data-generator-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
+    <file><source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/jdbc/target/pulsar-io-jdbc-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/kafka-connect-adaptor/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/hbase/target/pulsar-io-hbase-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/hdfs2/target/pulsar-io-hdfs2-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/hdfs3/target/pulsar-io-hdfs3-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/file/target/pulsar-io-file-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/canal/target/pulsar-io-canal-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/netty/target/pulsar-io-netty-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/mongo/target/pulsar-io-mongo-${project.version}.nar</source></file>
   </files>
 </assembly>

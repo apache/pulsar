@@ -21,11 +21,11 @@
 #include <pulsar/c/result.h>
 #include <pulsar/Client.h>
 
-#include <boost/scoped_ptr.hpp>
-#include <boost/bind.hpp>
+#include <memory>
+#include <functional>
 
 struct _pulsar_client {
-    boost::scoped_ptr<pulsar::Client> client;
+    std::unique_ptr<pulsar::Client> client;
 };
 
 struct _pulsar_client_configuration {
@@ -83,4 +83,8 @@ static void handle_result_callback(pulsar::Result result, pulsar_result_callback
 
 struct _pulsar_string_map {
     std::map<std::string, std::string> map;
+};
+
+struct _pulsar_string_list {
+    std::vector<std::string> list;
 };

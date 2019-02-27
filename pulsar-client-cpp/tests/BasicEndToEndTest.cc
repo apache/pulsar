@@ -18,7 +18,6 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
 #include <lib/Commands.h>
@@ -26,8 +25,7 @@
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
-#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
 #include "HttpHelper.h"
@@ -37,16 +35,19 @@
 #include <lib/PatternMultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
+
+#include <functional>
+
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-boost::mutex mutex_;
+std::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
-static std::string lookupUrl = "pulsar://localhost:8885";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string lookupUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 static void messageListenerFunction(Consumer consumer, const Message& msg) {
     globalCount++;
     consumer.acknowledge(msg);
@@ -59,19 +60,41 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& 
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix) {
+static void sendCallBack(Result r, const Message& msg, std::string prefix, int* count) {
+    static std::mutex sendMutex_;
+    sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + boost::lexical_cast<std::string>(globalTestBatchMessagesCounter++);
+    std::string messageContent = prefix + std::to_string(*count);
     ASSERT_EQ(messageContent, msg.getDataAsString());
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
+    *count += 1;
+    sendMutex_.unlock();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix, double percentage,
-                         uint64_t delayInMicros) {
+static void receiveCallBack(Result r, const Message& msg, std::string& messageContent, bool checkContent,
+                            bool* isFailed, int* count) {
+    static std::mutex receiveMutex_;
+    receiveMutex_.lock();
+
+    if (r == ResultOk) {
+        LOG_DEBUG("received msg " << msg.getDataAsString() << " expected: " << messageContent
+                                  << " count =" << *count);
+        if (checkContent) {
+            ASSERT_EQ(messageContent, msg.getDataAsString());
+        }
+        *count += 1;
+    } else {
+        *isFailed = true;
+    }
+    receiveMutex_.unlock();
+}
+
+static void sendCallBackWithDelay(Result r, const Message& msg, std::string prefix, double percentage,
+                                  uint64_t delayInMicros, int* count) {
     if ((rand() % 100) <= percentage) {
         usleep(delayInMicros);
     }
-    sendCallBack(r, msg, prefix);
+    sendCallBack(r, msg, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -113,7 +136,7 @@ class EncKeyReader : public CryptoKeyReader {
 TEST(BasicEndToEndTest, testBatchMessages) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-batch-messages";
+    std::string topicName = "persistent://public/default/test-batch-messages";
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -158,29 +181,29 @@ TEST(BasicEndToEndTest, testBatchMessages) {
 
     // Send Asynchronously
     std::string prefix = "msg-batch-";
+    int msgCount = 0;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
         LOG_DEBUG("sending message " << messageContent);
     }
 
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
-                                                       << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        std::string expectedMessageContent = prefix + std::to_string(i);
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+        LOG_INFO("msg-index " << receivedMsg.getProperty("msgIndex") << ", expected " << std::to_string(i));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
     // Number of messages produced
-    ASSERT_EQ(globalTestBatchMessagesCounter, numOfMessages);
-    globalTestBatchMessagesCounter = 0;
+    ASSERT_EQ(msgCount, numOfMessages);
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages);
 }
@@ -194,13 +217,14 @@ void resendMessage(Result r, const Message msg, Producer producer) {
         }
     }
     lock.unlock();
-    producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+    producer.sendAsync(MessageBuilder().build(),
+                       std::bind(resendMessage, std::placeholders::_1, std::placeholders::_2, producer));
 }
 
 TEST(BasicEndToEndTest, testProduceConsume) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-topic";
+    std::string topicName = "persistent://public/default/test-produce-consume";
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -238,7 +262,7 @@ TEST(BasicEndToEndTest, testProduceConsume) {
 }
 
 TEST(BasicEndToEndTest, testLookupThrottling) {
-    std::string topicName = "persistent://prop/unit/ns1/testLookupThrottling";
+    std::string topicName = "testLookupThrottling";
     ClientConfiguration config;
     config.setConcurrentLookupRequest(0);
     Client client(lookupUrl, config);
@@ -264,7 +288,7 @@ TEST(BasicEndToEndTest, testNonExistingTopic) {
 }
 
 TEST(BasicEndToEndTest, testNonPersistentTopic) {
-    std::string topicName = "non-persistent://prop/unit/ns1/testNonPersistentTopic";
+    std::string topicName = "non-persistent://public/default/testNonPersistentTopic";
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -306,7 +330,7 @@ TEST(BasicEndToEndTest, testV2TopicHttp) {
 }
 
 TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
-    std::string topicName = "persistent://prop/unit/ns1/testSingleClientMultipleSubscriptions";
+    std::string topicName = "testSingleClientMultipleSubscriptions";
 
     Client client(lookupUrl);
 
@@ -325,7 +349,7 @@ TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
 }
 
 TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
-    std::string topicName = "persistent://prop/unit/ns1/testMultipleClientsMultipleSubscriptions";
+    std::string topicName = "testMultipleClientsMultipleSubscriptions";
     Client client1(lookupUrl);
     Client client2(lookupUrl);
 
@@ -354,7 +378,7 @@ TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
 }
 
 TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
-    std::string topicName = "persistent://prop/unit/ns1/testProduceAndConsumeAfterClientClose";
+    std::string topicName = "testProduceAndConsumeAfterClientClose";
     Client client(lookupUrl);
 
     Producer producer;
@@ -375,10 +399,8 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
     LOG_INFO("Publishing 10 messages synchronously");
     int numMsg = 0;
     for (; numMsg < 10; numMsg++) {
-        Message msg = MessageBuilder()
-                          .setContent(msgContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(numMsg))
-                          .build();
+        Message msg =
+            MessageBuilder().setContent(msgContent).setProperty("msgIndex", std::to_string(numMsg)).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
 
@@ -388,7 +410,7 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
         consumer.receive(msgReceived, 1000);
         LOG_DEBUG("Received message :" << msgReceived.getMessageId());
         ASSERT_EQ(msgContent, msgReceived.getDataAsString());
-        ASSERT_EQ(boost::lexical_cast<std::string>(i), msgReceived.getProperty("msgIndex"));
+        ASSERT_EQ(std::to_string(i), msgReceived.getProperty("msgIndex"));
         ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(msgReceived));
     }
 
@@ -396,10 +418,8 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
     ASSERT_EQ(ResultOk, client.close());
 
     LOG_INFO("Trying to publish a message after closing the client");
-    Message msg = MessageBuilder()
-                      .setContent(msgContent)
-                      .setProperty("msgIndex", boost::lexical_cast<std::string>(numMsg))
-                      .build();
+    Message msg =
+        MessageBuilder().setContent(msgContent).setProperty("msgIndex", std::to_string(numMsg)).build();
 
     ASSERT_EQ(ResultAlreadyClosed, producer.send(msg));
 
@@ -410,18 +430,18 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
 TEST(BasicEndToEndTest, testIamSoFancyCharactersInTopicName) {
     Client client(lookupUrl);
     Producer producer;
-    Result result = client.createProducer("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", producer);
+    Result result = client.createProducer("persistent://public/default/topic@%*)(&!%$#@#$><?", producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
-    result = client.subscribe("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", "my-sub-name", consumer);
+    result = client.subscribe("persistent://public/default/topic@%*)(&!%$#@#$><?", "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
 }
 
 TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://prop/unit/ns1/::,::bf11";
+    std::string topicName = "persistent://public/default/::,::bf11";
     std::string subName = "weird-ass-characters-@%*)(&!%$#@#$><?)";
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -442,7 +462,7 @@ TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario) {
 
 TEST(BasicEndToEndTest, testInvalidUrlPassed) {
     Client client("localhost:4080");
-    std::string topicName = "persistent://prop/unit/ns1/testInvalidUrlPassed";
+    std::string topicName = "testInvalidUrlPassed";
     std::string subName = "test-sub";
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -467,10 +487,11 @@ TEST(BasicEndToEndTest, testInvalidUrlPassed) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumer";
+    std::string topicName = "testPartitionedProducerConsumer";
 
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumer/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionedProducerConsumer/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -506,11 +527,12 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumerSubscriptionName";
+    std::string topicName = "testPartitionedProducerConsumerSubscriptionName";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumerSubscriptionName/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testPartitionedProducerConsumerSubscriptionName/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -531,9 +553,11 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
 TEST(BasicEndToEndTest, testMessageTooBig) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testMessageTooBig";
+    std::string topicName = "testMessageTooBig";
     Producer producer;
-    Result result = client.createProducer(topicName, producer);
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
@@ -554,7 +578,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
 TEST(BasicEndToEndTest, testCompressionLZ4) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/namespace1/testCompressionLZ4";
+    std::string topicName = "testCompressionLZ4";
     std::string subName = "my-sub-name";
     Producer producer;
     ProducerConfiguration conf;
@@ -592,7 +616,7 @@ TEST(BasicEndToEndTest, testCompressionLZ4) {
 TEST(BasicEndToEndTest, testCompressionZLib) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testCompressionZLib";
+    std::string topicName = "testCompressionZLib";
     std::string subName = "my-sub-name";
     Producer producer;
     ProducerConfiguration conf;
@@ -645,11 +669,11 @@ TEST(BasicEndToEndTest, testConfigurationFile) {
 
 TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testSinglePartitionRoutingPolicy";
+    std::string topicName = "partition-testSinglePartitionRoutingPolicy";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testSinglePartitionRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -686,7 +710,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
 }
 
 TEST(BasicEndToEndTest, testNamespaceName) {
-    boost::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
+    std::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
     ASSERT_STREQ(nameSpaceName->getCluster().c_str(), "bf1");
     ASSERT_STREQ(nameSpaceName->getLocalName().c_str(), "nameSpace");
     ASSERT_STREQ(nameSpaceName->getProperty().c_str(), "property");
@@ -695,7 +719,7 @@ TEST(BasicEndToEndTest, testNamespaceName) {
 TEST(BasicEndToEndTest, testConsumerClose) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testConsumerClose";
+    std::string topicName = "testConsumerClose";
     std::string subName = "my-sub-name";
     Consumer consumer;
     ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
@@ -705,12 +729,12 @@ TEST(BasicEndToEndTest, testConsumerClose) {
 
 TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Client client(lookupUrl);
-    std::string topicName =
-        "persistent://prop/unit/ns/partition-testDuplicateConsumerCreationOnPartitionedTopic";
+    std::string topicName = "partition-testDuplicateConsumerCreationOnPartitionedTopic";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -721,7 +745,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::CustomPartition);
-    producerConfiguration.setMessageRouter(boost::make_shared<CustomRoutingPolicy>());
+    producerConfiguration.setMessageRouter(std::make_shared<CustomRoutingPolicy>());
 
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -755,10 +779,10 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
 
 TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testRoundRobinRoutingPolicy";
+    std::string topicName = "persistent://public/default/partition-testRoundRobinRoutingPolicy";
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testRoundRobinRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -820,9 +844,10 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
 
 TEST(BasicEndToEndTest, testMessageListener) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testMessageListener";
+    std::string topicName = "partition-testMessageListener";
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -837,7 +862,8 @@ TEST(BasicEndToEndTest, testMessageListener) {
     globalCount = 0;
 
     ConsumerConfiguration consumerConfig;
-    consumerConfig.setMessageListener(boost::bind(messageListenerFunction, _1, _2));
+    consumerConfig.setMessageListener(
+        std::bind(messageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     Consumer consumer;
     result = client.subscribe(topicName, "subscription-A", consumerConfig, consumer);
 
@@ -861,12 +887,11 @@ TEST(BasicEndToEndTest, testMessageListener) {
 
 TEST(BasicEndToEndTest, testMessageListenerPause) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/partition-testMessageListenerPause";
+    std::string topicName = "partition-testMessageListenerPause";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl +
-        "admin/persistent/property/cluster/namespace/partition-testMessageListener-pauses/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener-pauses/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -881,7 +906,8 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     globalCount = 0;
 
     ConsumerConfiguration consumerConfig;
-    consumerConfig.setMessageListener(boost::bind(messageListenerFunction, _1, _2));
+    consumerConfig.setMessageListener(
+        std::bind(messageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     Consumer consumer;
     // Removing dangling subscription from previous test failures
     result = client.subscribe(topicName, "subscription-name", consumerConfig, consumer);
@@ -919,7 +945,7 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     ClientConfiguration clientConfiguration;
     clientConfiguration.setIOThreads(1);
     Client client(lookupUrl, clientConfiguration);
-    std::string topicName = "persistent://my-property/my-cluster/my-namespace/testResendViaListener";
+    std::string topicName = "testResendViaListener";
 
     Producer producer;
 
@@ -938,7 +964,8 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     // Expect timeouts since we have set timeout to 1 ms
     // On receiving timeout send the message using the Pulsar client IO thread via cb function.
     for (int i = 0; i < 10000; i++) {
-        producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+        producer.sendAsync(MessageBuilder().build(),
+                           std::bind(resendMessage, std::placeholders::_1, std::placeholders::_2, producer));
     }
     // 3 seconds
     usleep(3 * 1000 * 1000);
@@ -953,7 +980,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     config.setMessageListenerThreads(1);
     config.setStatsIntervalInSeconds(5);
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://property/cluster/namespace/testStatsLatencies";
+    std::string topicName = "persistent://public/default/testStatsLatencies";
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -981,13 +1008,13 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
 
     // Send Asynchronously
     std::string prefix = "msg-stats-";
+    int count = 0;
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
-                          .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 2 * 1e3));
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(msg, std::bind(&sendCallBackWithDelay, std::placeholders::_1,
+                                          std::placeholders::_2, prefix, 15, 2 * 1e3, &count));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -1049,10 +1076,10 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     ConsumerStatsImplPtr consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
 
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
-        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        std::string expectedMessageContent = prefix + std::to_string(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
                                                        << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
         ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), i);
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), i - 1);
@@ -1066,7 +1093,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
 TEST(BasicEndToEndTest, testProduceMessageSize) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testProduceMessageSize";
+    std::string topicName = "testProduceMessageSize";
     std::string subName = "my-sub-name";
     Producer producer1;
     Producer producer2;
@@ -1080,6 +1107,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     Promise<Result, Producer> producerPromise2;
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
+    conf.setBatchingEnabled(false);
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise2));
     producerFuture = producerPromise2.getFuture();
     result = producerFuture.get(producer2);
@@ -1114,9 +1142,48 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     delete[] content;
 }
 
+TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testBigMessageSizeBatching";
+    std::string subName = "my-sub-name";
+
+    ProducerConfiguration conf1;
+    conf1.setCompressionType(CompressionNone);
+    conf1.setBatchingEnabled(true);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName, conf1, producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    ProducerConfiguration conf2;
+    conf2.setCompressionType(CompressionLZ4);
+    conf2.setBatchingEnabled(true);
+
+    Producer producer2;
+    result = client.createProducer(topicName, conf2, producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    int size = Commands::MaxMessageSize + 1;
+    char* content = new char[size];
+    Message msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer1.send(msg);
+    ASSERT_EQ(ResultMessageTooBig, result);
+
+    msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer2.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    producer1.close();
+    producer2.close();
+    client.close();
+
+    delete[] content;
+}
+
 TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
     Client client(adminUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testHandlerReconnectionLogic";
+    std::string topicName = "testHandlerReconnectionLogic";
 
     Producer producer;
     Consumer consumer;
@@ -1129,11 +1196,9 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
     int numOfMessages = 10;
     std::string propertyName = "msgIndex";
     for (int i = 0; i < numOfMessages; i++) {
-        std::string messageContent = "msg-" + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder()
-                          .setContent(messageContent)
-                          .setProperty(propertyName, boost::lexical_cast<std::string>(i))
-                          .build();
+        std::string messageContent = "msg-" + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty(propertyName, std::to_string(i)).build();
         if (i % 3 == 1) {
             ProducerImpl& pImpl = PulsarFriend::getProducerImpl(producer);
             ClientConnectionPtr clientConnectionPtr;
@@ -1173,20 +1238,19 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
     ASSERT_EQ(receivedMsgIndex.size(), 10);
 
     for (int i = 0; i < numOfMessages; i++) {
-        ASSERT_TRUE(receivedMsgContent.find("msg-" + boost::lexical_cast<std::string>(i)) !=
-                    receivedMsgContent.end());
-        ASSERT_TRUE(receivedMsgIndex.find(boost::lexical_cast<std::string>(i)) != receivedMsgIndex.end());
+        ASSERT_TRUE(receivedMsgContent.find("msg-" + std::to_string(i)) != receivedMsgContent.end());
+        ASSERT_TRUE(receivedMsgIndex.find(std::to_string(i)) != receivedMsgIndex.end());
     }
 }
 
 TEST(BasicEndToEndTest, testRSAEncryption) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-rsaenctopic";
+    std::string topicName = "my-rsaenctopic";
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.addEncryptionKey("client-rsa.pem");
@@ -1240,11 +1304,11 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
 TEST(BasicEndToEndTest, testEncryptionFailure) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-rsaencfailtopic";
+    std::string topicName = "my-rsaencfailtopic";
     std::string subName = "my-sub-name";
     Producer producer;
 
-    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    std::shared_ptr<EncKeyReader> keyReader = std::make_shared<EncKeyReader>();
 
     ConsumerConfiguration consConfig;
 
@@ -1267,6 +1331,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-non-existing-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
@@ -1282,6 +1347,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
@@ -1352,7 +1418,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 TEST(BasicEndToEndTest, testEventTime) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://prop/unit/ns1/topic";
+    std::string topicName = "test-event-time";
     Producer producer;
     ProducerConfiguration producerConf;
     producerConf.setBatchingEnabled(true);
@@ -1378,7 +1444,7 @@ TEST(BasicEndToEndTest, testEventTime) {
 TEST(BasicEndToEndTest, testSeek) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testSeek";
+    std::string topicName = "persistent://public/default/testSeek";
     std::string subName = "sub-testSeek";
     Producer producer;
 
@@ -1445,7 +1511,7 @@ TEST(BasicEndToEndTest, testSeek) {
 
 TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeout";
+    std::string topicName = "testUnAckedMessageTimeout";
     std::string subName = "my-sub-name";
     std::string content = "msg-content";
 
@@ -1485,7 +1551,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
 
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeoutListener";
+    std::string topicName = "testUnAckedMessageTimeoutListener";
     std::string subName = "my-sub-name";
     std::string content = "msg-content";
 
@@ -1497,7 +1563,8 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     ConsumerConfiguration consConfig;
     consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
     Latch latch(2);
-    consConfig.setMessageListener(boost::bind(messageListenerFunctionWithoutAck, _1, _2, latch, content));
+    consConfig.setMessageListener(std::bind(messageListenerFunctionWithoutAck, std::placeholders::_1,
+                                            std::placeholders::_2, latch, content));
     result = client.subscribe(topicName, subName, consConfig, consumer);
     ASSERT_EQ(ResultOk, result);
 
@@ -1507,7 +1574,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
 
-    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
     ASSERT_GE(globalCount, 2);
 
     consumer.unsubscribe();
@@ -1522,7 +1589,7 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerTopicNameInvalid) {
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsTopicNameInvalid";
     // cluster empty
-    std::string topicName1 = "persistent://prop/testMultiTopicsTopicNameInvalid";
+    std::string topicName1 = "persistent://tenant/testMultiTopicsTopicNameInvalid";
 
     // empty topics
     ASSERT_EQ(0, topicNames.size());
@@ -1557,9 +1624,9 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     std::vector<std::string> topicNames;
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsDifferentNamespace";
-    std::string topicName1 = "persistent://prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1";
-    std::string topicName2 = "persistent://prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2";
-    std::string topicName3 = "persistent://prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3";
+    std::string topicName1 = "persistent://public/default/testMultiTopicsConsumerDifferentNamespace1";
+    std::string topicName2 = "persistent://public/default-2/testMultiTopicsConsumerDifferentNamespace2";
+    std::string topicName3 = "persistent://public/default-3/testMultiTopicsConsumerDifferentNamespace3";
 
     topicNames.push_back(topicName1);
     topicNames.push_back(topicName2);
@@ -1567,11 +1634,13 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumerDifferentNamespace1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1601,10 +1670,10 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     std::vector<std::string> topicNames;
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsConsumer";
-    std::string topicName1 = "persistent://prop/unit/ns/testMultiTopicsConsumer1";
-    std::string topicName2 = "persistent://prop/unit/ns/testMultiTopicsConsumer2";
-    std::string topicName3 = "persistent://prop/unit/ns/testMultiTopicsConsumer3";
-    std::string topicName4 = "persistent://prop/unit/ns/testMultiTopicsConsumer4";
+    std::string topicName1 = "testMultiTopicsConsumer1";
+    std::string topicName2 = "testMultiTopicsConsumer2";
+    std::string topicName3 = "testMultiTopicsConsumer3";
+    std::string topicName4 = "testMultiTopicsConsumer4";
 
     topicNames.push_back(topicName1);
     topicNames.push_back(topicName2);
@@ -1612,9 +1681,9 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     topicNames.push_back(topicName4);
 
     // call admin api to make topics partitioned
-    std::string url1 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer1/partitions";
-    std::string url2 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer2/partitions";
-    std::string url3 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer3/partitions";
+    std::string url1 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer1/partitions";
+    std::string url2 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer2/partitions";
+    std::string url3 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1724,24 +1793,24 @@ TEST(BasicEndToEndTest, testPatternTopicsConsumerInvalid) {
 // and only receive messages from matched topics.
 TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     Client client(lookupUrl);
-    std::string pattern = "persistent://prop/unit/ns1/patternMultiTopicsConsumer.*";
+    std::string pattern = "persistent://public/default/patternMultiTopicsConsumer.*";
 
     std::string subName = "testPatternMultiTopicsConsumer";
-    std::string topicName1 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub1";
-    std::string topicName2 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub2";
-    std::string topicName3 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub3";
+    std::string topicName1 = "persistent://public/default/patternMultiTopicsConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternMultiTopicsConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternMultiTopicsConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://prop/unit/ns1/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub2/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub3/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1834,13 +1903,108 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     client.shutdown();
 }
 
+// User adminUrl to create client, to protect http related services
+TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
+    Client client(adminUrl);
+    std::string pattern = "persistent://public/default/patternMultiTopicsHttpConsumer.*";
+
+    std::string subName = "testpatternMultiTopicsHttpConsumer";
+    std::string topicName1 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternMultiTopicsHttpConsumerPubSub3";
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub1/partitions";
+    std::string url2 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub2/partitions";
+    std::string url3 =
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsHttpConsumerPubSub3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4");
+
+    int messageNumber = 100;
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 3 topics");
+
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    // verify no more to receive
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
 // and only receive messages from matched topics.
 TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     Client client(lookupUrl);
-    std::string pattern = "persistent://prop/unit/ns2/patternTopicsAutoConsumer.*";
+    std::string pattern = "persistent://public/default/patternTopicsAutoConsumer.*";
     Result result;
     std::string subName = "testPatternTopicsAutoConsumer";
 
@@ -1860,21 +2024,21 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     LOG_INFO("created pattern consumer with not match topics at beginning");
 
     // 2. create 4 topics, in which 3 match the pattern.
-    std::string topicName1 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub1";
-    std::string topicName2 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub2";
-    std::string topicName3 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub3";
+    std::string topicName1 = "persistent://public/default/patternTopicsAutoConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://prop/unit/ns2/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub2/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub3/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1956,4 +2120,725 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "test-flush-batch-messages-" + std::to_string(time(NULL));
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    int numOfMessages = 10;
+
+    ProducerConfiguration conf;
+
+    conf.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    conf.setBatchingMaxMessages(numOfMessages);
+    conf.setBatchingMaxPublishDelayMs(60000);
+
+    conf.setBlockIfQueueFull(true);
+    conf.setProperty("producer-name", "test-producer-name");
+    conf.setProperty("producer-id", "test-producer-id");
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setProperty("consumer-name", "test-consumer-name");
+    consumerConfig.setProperty("consumer-id", "test-consumer-id");
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consumerConfig,
+                          WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send Asynchronously of half the messages
+    std::string prefix = "msg-batch-async";
+    int msgCount = 0;
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending first half messages in async, should timeout to receive");
+
+    // message not reached max batch number, should not receive any data.
+    Message receivedMsg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 1000));
+
+    // Send Asynchronously of the other half the messages
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending the other half messages in async, should able to receive");
+    // message not reached max batch number, should received the messages
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
+
+    LOG_INFO("Receive all messages");
+    // receive all the messages.
+    int i = 1;
+    while (consumer.receive(receivedMsg, 1000) == ResultOk) {
+        std::string expectedMessageContent = prefix + std::to_string(i);
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]"
+                 << "property = " << receivedMsg.getProperty("msgIndex"));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), std::to_string(i++));
+        ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+    }
+
+    LOG_INFO("Last sync send round");
+    // Send sync of half the messages, this will triggerFlush, and could get the messages.
+    prefix = "msg-batch-sync";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.send(msg);
+        LOG_INFO("sync sending message " << messageContent);
+    }
+    // message not reached max batch number, should received the messages, and not timeout
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 1000));
+
+    producer.close();
+    client.shutdown();
+}
+
+// for partitioned reason, it may hard to verify message id.
+static void simpleCallback(Result code, const Message& msg) {
+    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+}
+
+TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/partition-testSyncFlushBatchMessages";
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/partition-testSyncFlushBatchMessages/partitions";
+    int res = makePutRequest(url, "5");
+    int numberOfPartitions = 5;
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    int numOfMessages = 20;
+    ProducerConfiguration tempProducerConfiguration;
+    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ProducerConfiguration producerConfiguration = tempProducerConfiguration;
+    producerConfiguration.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    producerConfiguration.setBatchingMaxMessages(numOfMessages / numberOfPartitions);
+    producerConfiguration.setBatchingMaxPublishDelayMs(60000);
+
+    Result result = client.createProducer(topicName, producerConfiguration, producer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(producer.getTopic(), topicName);
+
+    // Topic is partitioned into 5 partitions so each partition will receive two messages
+    LOG_INFO("Creating Subscriber");
+    std::string consumerId = "CONSUMER";
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerExclusive);
+    consConfig.setReceiverQueueSize(2);
+    ASSERT_FALSE(consConfig.hasMessageListener());
+    Consumer consumer[numberOfPartitions];
+    Result subscribeResult;
+    for (int i = 0; i < numberOfPartitions; i++) {
+        std::stringstream partitionedTopicName;
+        partitionedTopicName << topicName << "-partition-" << i;
+
+        std::stringstream partitionedConsumerId;
+        partitionedConsumerId << consumerId << i;
+        client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(), consConfig, consumer[i]);
+        consumer[i].unsubscribe();
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
+
+        ASSERT_EQ(ResultOk, subscribeResult);
+        ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
+    }
+
+    // Send asynchronously of first part the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / numberOfPartitions / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending first part messages in async, should timeout to receive");
+
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer[0].receive(m, 5000));
+
+    for (int i = numOfMessages / numberOfPartitions / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending second part messages in async, should be able to receive");
+
+    for (int i = 0; i < numOfMessages / numberOfPartitions; i++) {
+        for (int partitionIndex = 0; partitionIndex < numberOfPartitions; partitionIndex++) {
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].receive(m));
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+        }
+    }
+
+    // Sync send of first part of the messages, this will triggerFlush, and could get the messages.
+    prefix = "msg-batch-sync";
+    for (int i = 0; i < numOfMessages / numberOfPartitions / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.send(msg);
+        LOG_DEBUG("sync sending message " << messageContent);
+    }
+    LOG_INFO("sending first part messages in sync, should not timeout to receive");
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 5000));
+
+    producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testGetTopicPartitions) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/testGetPartitions";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/testGetPartitions/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+    std::vector<std::string> partitionsList;
+    Result result = client.getPartitionsForTopic(topicName, partitionsList);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(3, partitionsList.size());
+    ASSERT_EQ(topicName + "-partition-0", partitionsList[0]);
+    ASSERT_EQ(topicName + "-partition-1", partitionsList[1]);
+    ASSERT_EQ(topicName + "-partition-2", partitionsList[2]);
+
+    std::vector<std::string> partitionsList2;
+    result = client.getPartitionsForTopic("persistent://public/default/testGetPartitions-non-partitioned",
+                                          partitionsList2);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(1, partitionsList2.size());
+    ASSERT_EQ(partitionsList2[0], "persistent://public/default/testGetPartitions-non-partitioned");
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testFlushInProducer) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "test-flush-in-producer";
+    std::string subName = "subscription-name";
+    Producer producer;
+    int numOfMessages = 10;
+
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    conf.setBatchingMaxMessages(numOfMessages);
+    conf.setBatchingMaxPublishDelayMs(60000);
+
+    conf.setBlockIfQueueFull(true);
+    conf.setProperty("producer-name", "test-producer-name");
+    conf.setProperty("producer-id", "test-producer-id");
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setProperty("consumer-name", "test-consumer-name");
+    consumerConfig.setProperty("consumer-id", "test-consumer-id");
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribe(topicName, subName, consumerConfig, consumer);
+    consumer.unsubscribe();
+    client.subscribeAsync(topicName, subName, consumerConfig,
+                          WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send Asynchronously of half the messages
+    std::string prefix = "msg-batch-async";
+    int msgCount = 0;
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending half of messages in async, should timeout to receive");
+
+    // message not reached max batch number, should not receive any data.
+    Message receivedMsg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 2000));
+
+    // After flush, it should get the message
+    producer.flush();
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
+
+    // receive all the messages.
+    while (consumer.receive(receivedMsg, 2000) == ResultOk) {
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+    }
+
+    // Send Asynchronously of another round of the messages
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO(
+        "sending the other half messages in async, should still timeout, since first half already flushed");
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 2000));
+
+    // After flush async, it should get the message
+    Promise<bool, Result> promise;
+    producer.flushAsync(WaitForCallback(promise));
+    Promise<bool, Result> promise1;
+    producer.flushAsync(WaitForCallback(promise1));
+    promise.getFuture().get(result);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
+
+    producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/partition-testFlushInPartitionedProducer";
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
+    int res = makePutRequest(url, "5");
+    int numberOfPartitions = 5;
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    int numOfMessages = 10;
+    ProducerConfiguration tempProducerConfiguration;
+    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ProducerConfiguration producerConfiguration = tempProducerConfiguration;
+    producerConfiguration.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    producerConfiguration.setBatchingMaxMessages(numOfMessages / numberOfPartitions);
+    producerConfiguration.setBatchingMaxPublishDelayMs(60000);
+
+    Result result = client.createProducer(topicName, producerConfiguration, producer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(producer.getTopic(), topicName);
+
+    LOG_INFO("Creating Subscriber");
+    std::string consumerId = "CONSUMER";
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerExclusive);
+    consConfig.setReceiverQueueSize(2);
+    ASSERT_FALSE(consConfig.hasMessageListener());
+    Consumer consumer[numberOfPartitions];
+    Result subscribeResult;
+    for (int i = 0; i < numberOfPartitions; i++) {
+        std::stringstream partitionedTopicName;
+        partitionedTopicName << topicName << "-partition-" << i;
+
+        std::stringstream partitionedConsumerId;
+        partitionedConsumerId << consumerId << i;
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
+        consumer[i].unsubscribe();
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
+        ASSERT_EQ(ResultOk, subscribeResult);
+        ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
+    }
+
+    // Send asynchronously of first part the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+
+    LOG_INFO("sending first part messages in async, should timeout to receive");
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer[0].receive(m, 2000));
+
+    // After flush, should be able to consume.
+    producer.flush();
+    LOG_INFO("After flush, should be able to receive");
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 2000));
+
+    LOG_INFO("Receive all messages.");
+    // receive all the messages.
+    for (int partitionIndex = 0; partitionIndex < numberOfPartitions; partitionIndex++) {
+        while (consumer[partitionIndex].receive(m, 2000) == ResultOk) {
+            // ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+        }
+    }
+
+    // send message again.
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+
+    // After flush async, it should get the message
+    Promise<bool, Result> promise;
+    producer.flushAsync(WaitForCallback(promise));
+    Promise<bool, Result> promise1;
+    producer.flushAsync(WaitForCallback(promise1));
+    promise.getFuture().get(result);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 2000));
+
+    producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testReceiveAsync) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync";
+    std::string subName = "my-sub-name";
+    Producer producer;
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content = "msg-1-content";
+    int count = 0;
+    int totalMsgs = 5;
+    bool isFailed = false;
+    for (int i = 0; i < totalMsgs; i++) {
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, true, &isFailed, &count));
+    }
+    // Send synchronously
+    for (int i = 0; i < totalMsgs; i++) {
+        Message msg = MessageBuilder().setContent(content).build();
+        result = producer.send(msg);
+        ASSERT_EQ(ResultOk, result);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == totalMsgs) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, totalMsgs);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPartitionedReceiveAsync) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-partition";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/receiveAsync-partition/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    int totalMsgs = 10;
+    std::string content;
+    int count = 0;
+    bool isFailed = false;
+    for (int i = 0; i < totalMsgs; i++) {
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, false, &isFailed, &count));
+    }
+
+    for (int i = 0; i < totalMsgs; i++) {
+        boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
+        long nanoSeconds = t.time_of_day().total_nanoseconds();
+        std::stringstream ss;
+        ss << nanoSeconds;
+        Message msg = MessageBuilder().setContent(ss.str()).setPartitionKey(ss.str()).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+        LOG_DEBUG("Message Timestamp is " << msg.getPublishTimestamp());
+        LOG_DEBUG("Message is " << msg);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == totalMsgs) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, totalMsgs);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testBatchMessagesReceiveAsync) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-batch";
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    // Enable batching on producer side
+    int batchSize = 2;
+    int numOfMessages = 100;
+
+    ProducerConfiguration conf;
+    conf.setCompressionType(CompressionLZ4);
+    conf.setBatchingMaxMessages(batchSize);
+    conf.setBatchingEnabled(true);
+    conf.setBlockIfQueueFull(true);
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // handling dangling subscriptions
+    consumer.unsubscribe();
+    client.subscribe(topicName, subName, consumer);
+
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content;
+    int count = 0;
+    bool isFailed = false;
+    for (int i = 0; i < numOfMessages; i++) {
+        consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2,
+                                        content, false, &isFailed, &count));
+    }
+
+    // Send Asynchronously
+    std::string prefix = "msg-batch-";
+    int msgCount = 0;
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg =
+            MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
+        producer.sendAsync(
+            msg, std::bind(&sendCallBack, std::placeholders::_1, std::placeholders::_2, prefix, &msgCount));
+        LOG_DEBUG("sending message " << messageContent);
+    }
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (count == numOfMessages) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+    ASSERT_FALSE(isFailed);
+    ASSERT_EQ(count, numOfMessages);
+}
+
+TEST(BasicEndToEndTest, testReceiveAsyncFailedConsumer) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-failed";
+    std::string subName = "my-sub-name";
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    bool isFailedOnConsumerClosing = false;
+    std::string content;
+    int closingCunt = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosing, &closingCunt));
+
+    // close consumer
+    consumer.close();
+    bool isFailedOnConsumerClosed = false;
+    int count = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosed, &count));
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+
+    ASSERT_TRUE(isFailedOnConsumerClosing);
+    ASSERT_TRUE(isFailedOnConsumerClosed);
+    ASSERT_EQ(count, 0);
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/receiveAsync-fail-partition";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/receiveAsync-fail-partition/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Consumer consumer;
+    Result result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    bool isFailedOnConsumerClosing = false;
+    std::string content;
+    int closingCunt = 0;
+    // callback should immediately fail
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosing, &closingCunt));
+    // close consumer
+    consumer.close();
+
+    int count = 0;
+    bool isFailedOnConsumerClosed = false;
+    consumer.receiveAsync(std::bind(&receiveCallBack, std::placeholders::_1, std::placeholders::_2, content,
+                                    false, &isFailedOnConsumerClosed, &count));
+
+    // check strategically
+    for (int i = 0; i < 3; i++) {
+        if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
+            break;
+        }
+        usleep(1 * 1000 * 1000);
+    }
+
+    ASSERT_TRUE(isFailedOnConsumerClosing);
+    ASSERT_TRUE(isFailedOnConsumerClosed);
+    ASSERT_EQ(count, 0);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName = "persistent://public/default/test-prevent-dup-consumers";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    // Since this is a shared consumer over same client cnx
+    // closing consumerA should result in consumerB also being closed.
+    ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
+}
+
+TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName =
+        "persistent://public/default/testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    ASSERT_EQ(ResultOk, consumerA.unsubscribe());
+    // If dup consumers are allowed BrokerMetadataError will be the result of close()
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
 }

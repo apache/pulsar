@@ -26,7 +26,8 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertNotNull;
 
 public class DeadLetterTopicTest extends ProducerConsumerBase {
 
@@ -63,7 +64,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -97,7 +99,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         deadLetterConsumer.close();
         consumer.close();
 
-        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -111,6 +113,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
+        newPulsarClient.close();
     }
 
     /**
@@ -215,7 +218,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                         .build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-custom-topic-my-subscription-custom-DLQ")
                 .subscriptionName("my-subscription")
                 .subscribe();
@@ -243,7 +247,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
         consumer.close();
-        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        Consumer<byte[]> checkConsumer = newPulsarClient1.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -254,6 +259,36 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
+        newPulsarClient.close();
+        newPulsarClient1.close();
         checkConsumer.close();
+    }
+
+    /**
+     * issue https://github.com/apache/pulsar/issues/3077
+     */
+    @Test(timeOut = 200000)
+    public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic-without-consumer-receive-immediately";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-subscription")
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        producer.send(("a message").getBytes());
+
+        // Wait a while, message should not be send to DLQ
+        Thread.sleep(5000L);
+
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(msg);
     }
 }

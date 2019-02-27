@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.storm;
 
-import com.google.common.base.Preconditions;
+import java.util.Objects;
 
 /**
  * Class used to specify Pulsar bolt configuration
@@ -51,7 +51,7 @@ public class PulsarBoltConfiguration extends PulsarStormConfiguration {
      * @param mapper
      */
     public void setTupleToMessageMapper(TupleToMessageMapper mapper) {
-        this.tupleToMessageMapper = Preconditions.checkNotNull(mapper);
+        this.tupleToMessageMapper = Objects.requireNonNull(mapper);
     }
 
 }

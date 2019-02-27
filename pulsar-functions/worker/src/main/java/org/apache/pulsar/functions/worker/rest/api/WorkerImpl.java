@@ -18,24 +18,29 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics.InstanceMetrics;
-import org.apache.pulsar.functions.runtime.Runtime;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
+import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.RestException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -69,36 +74,33 @@ public class WorkerImpl {
         return true;
     }
 
-    public Response getCluster() {
+    public List<WorkerInfo> getCluster() {
         if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
         List<WorkerInfo> workers = worker().getMembershipManager().getCurrentMembership();
-        String jsonString = new Gson().toJson(workers);
-        return Response.status(Status.OK).type(MediaType.APPLICATION_JSON).entity(jsonString).build();
+        return workers;
     }
 
-    public Response getClusterLeader() {
+    public WorkerInfo getClusterLeader() {
         if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
 
         MembershipManager membershipManager = worker().getMembershipManager();
         WorkerInfo leader = membershipManager.getLeader();
 
         if (leader == null) {
-            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Leader cannot be determined")).build();
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Leader cannot be determined");
         }
 
-        String jsonString = new Gson().toJson(leader);
-        return Response.status(Status.OK).type(MediaType.APPLICATION_JSON).entity(jsonString).build();
+        return leader;
     }
 
-    public Response getAssignments() {
+    public Map<String, Collection<String>> getAssignments() {
 
         if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
@@ -107,93 +109,78 @@ public class WorkerImpl {
         for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {
             ret.put(entry.getKey(), entry.getValue().keySet());
         }
-        return Response.status(Status.OK).type(MediaType.APPLICATION_JSON).entity(new Gson().toJson(ret)).build();
+        return ret;
     }
 
-    private Response getUnavailableResponse() {
-        return Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                .entity(new ErrorData(
-                        "Function worker service is not done initializing. " + "Please try again in a little while."))
-                .build();
-    }
-
-    public boolean isSuperUser(String clientRole) {
+    public boolean isSuperUser(final String clientRole) {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
     }
 
-    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis(String clientRole) throws IOException {
+    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(final String clientRole) {
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
             throw new WebApplicationException(Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(clientRole + " is not authorize to get metrics")).build());
         }
-        return getWorkerMetrcis();
+        return getWorkerMetrics();
     }
 
-    private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis() {
+    private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics() {
         if (!isWorkerServiceAvailable()) {
             throw new WebApplicationException(
                     Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+                            .entity(new ErrorData("Function worker service is not available")).build());
         }
         return worker().getMetricsGenerator().generate();
     }
 
-    public Response getFunctionsMetrics(String clientRole) throws IOException {
+    public List<WorkerFunctionInstanceStats> getFunctionsMetrics(String clientRole) throws IOException {
+
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
-            return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("client is not authorize to perform operation")).build();
+            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
         }
         return getFunctionsMetrics();
     }
 
-    private Response getFunctionsMetrics() throws IOException {
+    private List<WorkerFunctionInstanceStats> getFunctionsMetrics() throws IOException {
         if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
 
         WorkerService workerService = worker();
         Map<String, FunctionRuntimeInfo> functionRuntimes = workerService.getFunctionRuntimeManager()
                 .getFunctionRuntimeInfos();
 
-        Metrics.Builder metricsBuilder = Metrics.newBuilder();
+        List<WorkerFunctionInstanceStats> metricsList = new ArrayList<>(functionRuntimes.size());
+
         for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
             String fullyQualifiedInstanceName = entry.getKey();
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
-            RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
-            if (functionRuntimeSpawner != null) {
-                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
-                if (functionRuntime != null) {
-                    try {
-                        InstanceCommunication.MetricsData metricsData = workerService.getWorkerConfig()
-                                .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
-                                : functionRuntime.getAndResetMetrics().get();
-
-                        String tenant = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getTenant();
-                        String namespace = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getNamespace();
-                        String name = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getName();
-                        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-                        String qualifiedFunctionName = String.format("%s/%s/%s", tenant, namespace, name);
-
-                        InstanceMetrics.Builder instanceBuilder = InstanceMetrics.newBuilder();
-                        instanceBuilder.setName(qualifiedFunctionName);
-                        instanceBuilder.setInstanceId(instanceId);
-                        if (metricsData != null) {
-                            instanceBuilder.setMetricsData(metricsData);
-                        }
-                        metricsBuilder.addMetrics(instanceBuilder.build());
-                    } catch (InterruptedException | ExecutionException e) {
-                        log.warn("Failed to collect metrics for function instance {}", fullyQualifiedInstanceName, e);
-                    }
+            if (workerService.getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+                int parallelism = functionDetails.getParallelism();
+                for (int i = 0; i < parallelism; ++i) {
+                    FunctionStats.FunctionInstanceStats functionInstanceStats =
+                            Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo, i);
+                    WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
+                    workerFunctionInstanceStats.setName(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(
+                            functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName(), i
+                    ));
+                    workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
+                    metricsList.add(workerFunctionInstanceStats);
                 }
+            } else {
+                FunctionStats.FunctionInstanceStats functionInstanceStats =
+                        Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo,
+                                functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
+                workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
+                workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
+                metricsList.add(workerFunctionInstanceStats);
             }
         }
-        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(metricsBuilder);
-        return Response.status(Status.OK).entity(jsonResponse).build();
+        return metricsList;
     }
 }

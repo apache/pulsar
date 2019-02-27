@@ -174,7 +174,7 @@ public class AntiAffinityNamespaceGroupTest {
     private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
         ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort())),
+                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 

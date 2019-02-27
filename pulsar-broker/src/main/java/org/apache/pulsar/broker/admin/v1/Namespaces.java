@@ -226,6 +226,19 @@ public class Namespaces extends NamespacesBase {
         internalGrantPermissionOnNamespace(role, actions);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/permissions/subscription/{subscription}")
+    @ApiOperation(hidden = true, value = "Grant a new permission to roles for a subscription.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
+    public void grantPermissionOnSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("subscription") String subscription, Set<String> roles) {
+        validateNamespaceName(property, cluster, namespace);
+        internalGrantPermissionOnSubscription(subscription, roles);
+    }
+
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/permissions/{role}")
     @ApiOperation(hidden = true, value = "Revoke all permissions to a role on a namespace.")
@@ -236,6 +249,18 @@ public class Namespaces extends NamespacesBase {
             @PathParam("role") String role) {
         validateNamespaceName(property, cluster, namespace);
         internalRevokePermissionsOnNamespace(role);
+    }
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/permissions/{subscription}/{role}")
+    @ApiOperation(hidden = true, value = "Revoke subscription admin-api access permission for a role.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void revokePermissionOnSubscription(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("subscription") String subscription, @PathParam("role") String role) {
+        validateNamespaceName(property, cluster, namespace);
+        internalRevokePermissionsOnSubscription(subscription, role);
     }
 
     @GET

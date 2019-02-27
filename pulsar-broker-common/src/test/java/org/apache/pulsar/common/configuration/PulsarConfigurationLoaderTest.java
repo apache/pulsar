@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.util.internal.PlatformDependent;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -67,10 +69,10 @@ public class PulsarConfigurationLoaderTest {
         // check whether converting correctly
         assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
         assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
-        assertEquals(serviceConfiguration.getBrokerServicePort(), 7650);
-        assertEquals(serviceConfiguration.getBrokerServicePortTls(), 7651);
-        assertEquals(serviceConfiguration.getWebServicePort(), 9080);
-        assertEquals(serviceConfiguration.getWebServicePortTls(), 9443);
+        assertEquals(serviceConfiguration.getBrokerServicePort().get(), new Integer(7650));
+        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
+        assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
+        assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
 
         // check whether exception causes
         try {
@@ -102,6 +104,7 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("brokerServicePort=7777");
         printWriter.println("managedLedgerDefaultMarkDeleteRateLimit=5.0");
         printWriter.println("managedLedgerDigestType=CRC32C");
+        printWriter.println("managedLedgerCacheSizeMB=");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -112,8 +115,9 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
-        assertEquals(serviceConfig.getBrokerServicePort(), 7777);
+        assertEquals(serviceConfig.getBrokerServicePort().get(), new Integer(7777));
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
+        assertTrue(serviceConfig.getManagedLedgerCacheSizeMB() > 0);
     }
 
     @Test

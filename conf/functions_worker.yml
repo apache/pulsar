@@ -32,6 +32,8 @@ workerPortTls: 6751
 
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
+# Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
+# jvmGCMetricsLoggerClassName: 
 
 #################################################################
 # Function metadata managment (assignment, scheduling, and etc)
@@ -53,6 +55,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Number of threads to use for HTTP requests processing. Default is set to 8
+numHttpServerThreads: 8
 
 # function assignment and scheduler
 
@@ -65,7 +69,6 @@ assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
 # Frequency how often worker performs compaction on function-topics
 topicCompactionFrequencySec: 1800
-metricsSamplingPeriodSec: 60
 
 
 ###############################
@@ -80,6 +83,8 @@ processContainerFactory:
   javaInstanceJarLocation:
   # change the python instance location only when you put the python instance jar in a different location
   pythonInstanceLocation:
+  # change the extra dependencies location:
+  extraFunctionDependenciesDir:
 #kubernetesContainerFactory:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:
@@ -102,6 +107,19 @@ processContainerFactory:
 #  pulsarAdminUrl:
 #  # the custom labels that function worker uses to select the nodes for pods
 #  customLabels:
+#  # the directory for dropping extra function dependencies
+#  # if it is not an absolute path, it is relative to `pulsarRootDir`
+#  extraFunctionDependenciesDir:
+#  # Additional memory padding added on top of the memory requested by the function per on a per instance basis
+#  percentMemoryPadding: 10
+
+## A set of the minimum amount of resources functions must request.
+## Support for this depends on function runtime.
+## Only kubernetes runtime currently supports this.
+# functionInstanceMinResources:
+#   cpu: 1
+#   ram: 1073741824
+#   disk: 10737418240
 
 ############################################
 # security settings for worker service
@@ -127,6 +145,8 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+tlsCertRefreshCheckDurationSec: 300
 
 ########################
 # State Management

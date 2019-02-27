@@ -21,17 +21,20 @@ package org.apache.pulsar.functions.worker;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.CollectorRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
@@ -80,7 +83,7 @@ public class SchedulerManagerTest {
     private ScheduledExecutorService executor;
 
     @BeforeMethod
-    public void setup() throws PulsarClientException {
+    public void setup() {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
@@ -127,7 +130,7 @@ public class SchedulerManagerTest {
     public void stop() {
         this.executor.shutdown();
     }
-    
+
     @Test
     public void testSchedule() throws Exception {
 
@@ -140,7 +143,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -152,7 +155,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
@@ -186,7 +189,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -198,7 +201,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
@@ -233,7 +236,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -245,7 +248,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
@@ -293,7 +296,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -312,9 +315,9 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         //TODO: delete this assignment
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -358,7 +361,8 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider
+                (), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -370,7 +374,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -402,7 +406,7 @@ public class SchedulerManagerTest {
         Assert.assertEquals(assignments, assignment2);
 
         // updating assignments
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
 
         // scale up
 
@@ -469,7 +473,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -481,7 +485,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -535,9 +539,9 @@ public class SchedulerManagerTest {
         assertTrue(allAssignments.contains(assignment2_3));
 
         // updating assignments
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
 
         // scale down
 
@@ -596,7 +600,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
@@ -650,7 +654,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -662,7 +666,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -713,9 +717,9 @@ public class SchedulerManagerTest {
         assertTrue(allAssignments.contains(assignment2_3));
 
         // updating assignments
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
-        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
+        currentAssignments.get("worker-1").put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
 
         // update field
 
@@ -783,7 +787,7 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy", new ClearTextSecretsProvider(), new CollectorRegistry());
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
@@ -802,7 +806,7 @@ public class SchedulerManagerTest {
 
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
-        assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        assignmentEntry1.put(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
 
         Map<String, Function.Assignment> assignmentEntry2 = new HashMap<>();

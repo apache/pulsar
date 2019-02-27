@@ -52,6 +52,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
+import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,6 +164,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             String msg = format("Invalid Base64 message-payload error=%s", e.getMessage());
             sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
             return;
+        } catch (NullPointerException e) {
+            // Null payload
+            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+            return;
         }
 
         final long msgSize = rawPayload.length;
@@ -239,7 +244,20 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private void sendAckResponse(ProducerAck response) {
         try {
             String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
-            getSession().getRemote().sendString(msg);
+            getSession().getRemote().sendString(msg, new WriteCallback() {
+                @Override
+                public void writeFailed(Throwable th) {
+                    log.warn("[{}] Failed to send ack {}", producer.getTopic(), th.getMessage(), th);
+                }
+
+                @Override
+                public void writeSuccess() {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ack was sent successfully to {}", producer.getTopic(),
+                                getRemote().getInetSocketAddress().toString());
+                    }
+                }
+            });
         } catch (JsonProcessingException e) {
             log.warn("[{}] Failed to generate ack json-response {}", producer.getTopic(), e.getMessage(), e);
         } catch (Exception e) {

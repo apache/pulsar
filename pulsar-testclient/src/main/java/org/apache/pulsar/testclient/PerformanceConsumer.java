@@ -109,13 +109,12 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = {
-                "--auth_params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
+        @Parameter(
+            names = { "--auth-params" },
+            description = "Authentication parameters, whose format is determined by the implementation " +
+                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
-
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
-        public boolean useTls;
 
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
@@ -178,10 +177,6 @@ public class PerformanceConsumer {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
-                arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                 arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
@@ -218,7 +213,6 @@ public class PerformanceConsumer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(Runtime.getRuntime().availableProcessors()) //
-                .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);

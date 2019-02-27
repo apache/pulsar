@@ -23,10 +23,7 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import javax.net.ssl.SSLContext;
 import javax.servlet.Servlet;
 
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -48,41 +45,42 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 /**
  * Manages web-service startup/stop on jetty server.
  *
  */
 public class ServerManager {
     private final Server server;
-    private final ExecutorService webServiceExecutor;
+    private final ExecutorThreadPool webServiceExecutor;
     private final List<Handler> handlers = Lists.newArrayList();
-    protected final int externalServicePort;
 
     public ServerManager(ServiceConfig config) {
-        this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
-        this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
-        this.externalServicePort = config.getWebServicePort();
+        this.webServiceExecutor = new ExecutorThreadPool();
+        this.webServiceExecutor.setName("pulsar-external-web");
+        this.server = new Server(webServiceExecutor);
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
-        ServerConnector connector = new ServerConnector(server, 1, 1);
-        connector.setPort(externalServicePort);
-        connectors.add(connector);
+        if (config.getWebServicePort().isPresent()) {
+            ServerConnector connector = new ServerConnector(server, 1, 1);
+            connector.setPort(config.getWebServicePort().get());
+            connectors.add(connector);
+        }
 
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(), 
-                        config.getTlsRequireTrustedClientCertOnConnect());
+                        config.getTlsRequireTrustedClientCertOnConnect(),
+                        true,
+                        config.getTlsCertRefreshCheckDurationSec());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
-            } catch (GeneralSecurityException e) {
+            } catch (Exception e) {
                 throw new RestException(e);
             }            
         }
@@ -104,10 +102,6 @@ public class ServerManager {
         holder.setInitParameters(initParameters);
         context.addServlet(holder, path);
         handlers.add(context);
-    }
-
-    public int getExternalServicePort() {
-        return externalServicePort;
     }
 
     public void start() throws Exception {
@@ -134,7 +128,7 @@ public class ServerManager {
 
     public void stop() throws Exception {
         server.stop();
-        webServiceExecutor.shutdown();
+        webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
     

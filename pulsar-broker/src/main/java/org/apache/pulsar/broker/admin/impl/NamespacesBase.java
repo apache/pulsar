@@ -30,6 +30,7 @@ import com.google.common.collect.Sets.SetView;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -63,6 +64,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -73,8 +75,9 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -177,7 +180,9 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
@@ -326,6 +331,38 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+
+    protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
+        /** controlled by system-admin(super-user) to prevent metadata footprint size */
+        validateSuperUserAccess();
+
+        try {
+            AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+            if (null != authService) {
+                authService.grantSubscriptionPermissionAsync(namespaceName, subscription, roles,
+                        null/* additional auth-data json */).get();
+            } else {
+                throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
+            }
+        } catch (InterruptedException e) {
+            log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            } else if (e.getCause() instanceof IllegalStateException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
+            } else {
+                log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
+                throw new RestException(e);
+            }
+        }
+    }
+
     protected void internalRevokePermissionsOnNamespace(String role) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -353,6 +390,19 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to revoke permissions on namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
+        }
+    }
+
+    protected void internalRevokePermissionsOnSubscription(String subscriptionName, String role) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+        if (null != authService) {
+            authService.revokeSubscriptionPermissionAsync(namespaceName, subscriptionName, role,
+                    null/* additional auth-data json */);
+        } else {
+            throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
         }
     }
 
@@ -690,6 +740,55 @@ public abstract class NamespacesBase extends AdminResource {
         } else {
             throw new RestException(Status.NOT_FOUND,
                 "Subscription-Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        }
+    }
+
+    protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
+        log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
+        validateSuperUserAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                    policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
+
+            log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the subscribeRate for cluster on namespace {}: does not exist",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update the subscribeRate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected SubscribeRate internalGetSubscribeRate() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        Policies policies = getNamespacePolicies(namespaceName);
+        SubscribeRate subscribeRate = policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+        if (subscribeRate != null) {
+            return subscribeRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                    "Subscribe-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
         }
     }
 
@@ -1391,6 +1490,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private void validatePolicies(NamespaceName ns, Policies policies) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
+            // Default to local cluster
+            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        }
+
         // Validate cluster names and permissions
         policies.replication_clusters.forEach(cluster -> validateClusterForTenant(ns.getTenant(), cluster));
 

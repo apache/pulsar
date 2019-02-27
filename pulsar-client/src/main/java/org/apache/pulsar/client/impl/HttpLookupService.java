@@ -40,6 +40,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.GetSchemaResponse;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +105,7 @@ class HttpLookupService implements LookupService {
     }
 
     public String getServiceUrl() {
-    	return httpClient.url.toString();
+    	return httpClient.getServiceUrl();
     }
 
     @Override
@@ -141,7 +142,7 @@ class HttpLookupService implements LookupService {
         String path = String.format("admin/v2/schemas/%s/schema", schemaName);
 
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
-            future.complete(Optional.of(new SchemaInfo(schemaName, response)));
+            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
         }).exceptionally(ex -> {
             if (ex.getCause() instanceof NotFoundException) {
                 future.complete(Optional.empty());

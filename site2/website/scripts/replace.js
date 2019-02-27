@@ -37,6 +37,10 @@ function connectorReleaseUrl(version) {
     }
 }
 
+function offloaderReleaseUrl(version) {
+    return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
+}
+
 function prestoPulsarReleaseUrl(version) {
     if (version.includes('incubating')) {
         return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/pulsar-presto-connector-${version}.tar.gz`
@@ -50,7 +54,7 @@ function rpmReleaseUrl(version, type) {
   if (version.includes('incubating')) {
       return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
   } else {
-      return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+      return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}-1.x86_64.rpm`
   }
 }
 
@@ -59,6 +63,23 @@ function debReleaseUrl(version, type) {
         return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
     } else {
         return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
+    }
+}
+
+function rpmDistUrl(version, type) {
+  rpmVersion = version.replace('incubating', '1_incubating');
+  if (version.includes('incubating')) {
+      return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+  } else {
+      return `https://archive.apache.org/dist/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+  }
+}
+
+function debDistUrl(version, type) {
+    if (version.includes('incubating')) {
+        return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
+    } else {
+        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
     }
 }
 
@@ -86,6 +107,7 @@ const from = [
   /{{pulsar:version}}/g,
   /pulsar:binary_release_url/g,
   /pulsar:connector_release_url/g,
+  /pulsar:offloader_release_url/g,
   /pulsar:presto_pulsar_connector_release_url/g,
   /pulsar:download_page_url/g,
   /{{pulsar:rpm:client}}/g,
@@ -93,6 +115,12 @@ const from = [
   /{{pulsar:rpm:client-devel}}/g,
   /{{pulsar:deb:client}}/g,
   /{{pulsar:deb:client-devel}}/g,
+
+  /{{pulsar:dist_rpm:client}}/g,
+  /{{pulsar:dist_rpm:client-debuginfo}}/g,
+  /{{pulsar:dist_rpm:client-devel}}/g,
+  /{{pulsar:dist_deb:client}}/g,
+  /{{pulsar:dist_deb:client-devel}}/g,
 ];
 
 const options = {
@@ -107,6 +135,7 @@ const options = {
     `${latestVersion}`,
     binaryReleaseUrl(`${latestVersion}`),
     connectorReleaseUrl(`${latestVersion}`),
+    offloaderReleaseUrl(`${latestVersion}`),
     prestoPulsarReleaseUrl(`${latestVersion}`),
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}`, ""),
@@ -114,6 +143,12 @@ const options = {
     rpmReleaseUrl(`${latestVersion}`, "-devel"),
     debReleaseUrl(`${latestVersion}`, ""),
     debReleaseUrl(`${latestVersion}`, "-dev"),
+
+    rpmDistUrl(`${latestVersion}`, ""),
+    rpmDistUrl(`${latestVersion}`, "-debuginfo"),
+    rpmDistUrl(`${latestVersion}`, "-devel"),
+    debDistUrl(`${latestVersion}`, ""),
+    debDistUrl(`${latestVersion}`, "-dev"),
   ],
   dry: false
 };

@@ -92,6 +92,14 @@ public interface Brokers {
     List<String> getDynamicConfigurationNames() throws PulsarAdminException;
 
     /**
+     * Get values of runtime configuration
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<String, String> getRuntimeConfigurations() throws PulsarAdminException;
+
+    /**
      * Get values of all overridden dynamic-configs
      * 
      * @return
@@ -105,4 +113,11 @@ public interface Brokers {
      * @return internal configuration data.
      */
     InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
+
+    /**
+     * Run a healthcheck on the broker.
+     *
+     * @throws an exception if the healthcheck fails.
+     */
+    void healthcheck() throws PulsarAdminException;
 }

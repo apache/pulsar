@@ -74,7 +74,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setTlsEnabled(true);
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
@@ -105,7 +106,6 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setTlsEnabledInProxy(true);
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -154,7 +154,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     public void testTlsSyncProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
+        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);

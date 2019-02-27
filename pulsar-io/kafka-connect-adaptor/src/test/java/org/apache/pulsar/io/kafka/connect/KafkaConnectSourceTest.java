@@ -18,34 +18,19 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.kafka.connect.file.FileStreamSourceTask.FILENAME_FIELD;
-import static org.apache.kafka.connect.file.FileStreamSourceTask.POSITION_FIELD;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import java.io.File;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
-import org.apache.kafka.connect.file.FileStreamSourceTask;
 import org.apache.kafka.connect.runtime.TaskConfig;
-import org.apache.kafka.connect.source.SourceRecord;
-import org.apache.kafka.connect.util.Callback;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -70,9 +55,9 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         super.internalSetup();
         super.producerBaseSetup();
 
-        config.put(TaskConfig.TASK_CLASS_CONFIG, org.apache.kafka.connect.file.FileStreamSourceTask.class);
-        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, org.apache.kafka.connect.storage.StringConverter.class);
-        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, org.apache.kafka.connect.storage.StringConverter.class);
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
+        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
 
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
         config.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
@@ -91,36 +76,57 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         tempFile.delete();
         super.internalCleanup();
     }
+    protected void completedFlush(Throwable error, Void result) {
+        if (error != null) {
+            log.error("Failed to flush {} offsets to storage: ", this, error);
+        } else {
+            log.info("Finished flushing {} offsets to storage", this);
+        }
+    }
 
     @Test
     public void testOpenAndRead() throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, null);
 
+        // use FileStreamSourceConnector, each line is a record, need "\n" and end of each record.
         OutputStream os = Files.newOutputStream(tempFile.toPath());
+
         String line1 = "This is the first line\n";
         os.write(line1.getBytes());
         os.flush();
         log.info("write 2 lines.");
-        kafkaConnectSource.getOffsetWriter().offset(
-            Collections.singletonMap(FILENAME_FIELD, config.get(FileStreamSourceConnector.FILE_CONFIG).toString()),
-            Collections.singletonMap(POSITION_FIELD, /*tempFile.getTotalSpace()*/0L));
 
-        // offset of second line
-        long offset = tempFile.getTotalSpace();
         String line2 = "This is the second line\n";
         os.write(line2.getBytes());
         os.flush();
-        kafkaConnectSource.getOffsetWriter().offset(
-            Collections.singletonMap(FILENAME_FIELD, config.get(FileStreamSourceConnector.FILE_CONFIG).toString()),
-            Collections.singletonMap(POSITION_FIELD, offset));
 
         log.info("finish write, will read 2 lines");
 
-        Record<byte[]> record = kafkaConnectSource.read();
-        assertTrue(line1.contains(new String(record.getValue())));
+        // Note: FileStreamSourceTask read the whole line as Value, and set Key as null.
+        Record<KeyValue<byte[], byte[]>> record = kafkaConnectSource.read();
+        String readBack1 = new String(record.getValue().getValue());
+        assertTrue(line1.contains(readBack1));
+        assertEquals(record.getValue().getKey(), null);
+        log.info("read line1: {}", readBack1);
+        record.ack();
 
         record = kafkaConnectSource.read();
-        assertTrue(line2.contains(new String(record.getValue())));
+        String readBack2 = new String(record.getValue().getValue());
+        assertTrue(line2.contains(readBack2));
+        assertEquals(record.getValue().getKey(), null);
+        log.info("read line2: {}", readBack2);
+        record.ack();
+
+        String line3 = "This is the 3rd line\n";
+        os.write(line3.getBytes());
+        os.flush();
+
+        record = kafkaConnectSource.read();
+        String readBack3 = new String(record.getValue().getValue());
+        assertTrue(line3.contains(readBack3));
+        assertEquals(record.getValue().getKey(), null);
+        log.info("read line3: {}", readBack3);
+        record.ack();
     }
 }

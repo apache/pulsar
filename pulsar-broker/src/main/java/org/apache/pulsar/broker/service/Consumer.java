@@ -256,8 +256,8 @@ public class Consumer {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, entry id {}", topicName, subscription,
-                            consumerId, pos.getEntryId());
+                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
+                            consumerId, pos.getLedgerId(), pos.getEntryId());
                 }
 
                 // We only want to pass the "real" promise on the last entry written
@@ -581,8 +581,11 @@ public class Consumer {
         }
 
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        if (ackOwnedConsumer != null) {
-            int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
+        LongPair ackedPosition = ackOwnedConsumer != null
+                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
+                : null;
+        if (ackedPosition != null) {
+            int totalAckedMsgs = (int) ackedPosition.first;
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
                 return;
@@ -654,12 +657,10 @@ public class Consumer {
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
 
-        int numberOfBlockedPermits = Math.min(totalRedeliveryMessages,
-                PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this));
+        int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
 
         // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
         if (numberOfBlockedPermits > 0) {
-            PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, -numberOfBlockedPermits);
             MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }

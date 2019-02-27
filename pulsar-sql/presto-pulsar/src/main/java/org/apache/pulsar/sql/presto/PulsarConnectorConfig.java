@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 
 import javax.validation.constraints.NotNull;
-import java.lang.reflect.Type;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -125,9 +124,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
     }
 
     @Config("pulsar.stats-provider-configs")
-    public PulsarConnectorConfig setStatsProviderConfigs(String statsProviderConfigs) {
-        Type type = new TypeToken<Map<String, String>>(){}.getType();
-        this.statsProviderConfigs = new Gson().fromJson(statsProviderConfigs, type);
+    public PulsarConnectorConfig setStatsProviderConfigs(String statsProviderConfigs) throws IOException {
+        this.statsProviderConfigs = new ObjectMapper().readValue(statsProviderConfigs, Map.class);
         return this;
     }
 

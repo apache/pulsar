@@ -39,6 +39,8 @@ DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
 JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
 DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
 PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
+DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR=$PULSAR_HOME/instances/deps
+FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR}"}
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
 
@@ -94,7 +96,7 @@ fi
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
-    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/runtime/target/python-instance/python_instance_main.py"
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
     if [ -z "${BUILT_PY_INSTANCE_FILE}" ]; then
         echo "\nCouldn't find pulsar-functions python instance.";
         echo "Make sure you've run 'mvn package'\n";
@@ -135,6 +137,7 @@ where command is one of:
     initialize-cluster-metadata     One-time metadata initialization
     compact-topic       Run compaction against a topic
     zookeeper-shell     Open a ZK shell client
+    tokens              Utility to create authentication tokens
 
     help                This help message
 
@@ -180,9 +183,15 @@ add_maven_deps_to_classpath() {
 
 if [ -d "$PULSAR_HOME/lib" ]; then
 	PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
+    ASPECTJ_AGENT_PATH=`ls -1 $PULSAR_HOME/lib/org.aspectj-aspectjweaver-*.jar`
 else
     add_maven_deps_to_classpath
+
+    ASPECTJ_VERSION=`grep '<aspectj.version>' $PULSAR_HOME/pom.xml | awk -F'>' '{print $2}' | awk -F'<' '{print $1}'`
+    ASPECTJ_AGENT_PATH="$HOME/.m2/repository/org/aspectj/aspectjweaver/$ASPECTJ_VERSION/aspectjweaver-$ASPECTJ_VERSION.jar"
 fi
+
+ASPECTJ_AGENT="-javaagent:$ASPECTJ_AGENT_PATH"
 
 # if no args specified, show usage
 if [ $# = 0 ]; then
@@ -212,7 +221,6 @@ fi
 
 if [ -z "$PULSAR_GLOBAL_ZK_CONF" ]; then
     PULSAR_GLOBAL_ZK_CONF=$DEFAULT_GLOBAL_ZK_CONF
-    PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_GLOBAL_ZK_CONF
 fi
 
 if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then
@@ -273,6 +281,7 @@ OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
 # instance
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
+OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR}"
 
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
 
@@ -280,23 +289,23 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-broker.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
+    exec $JAVA ${ZK_OPTS} $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
@@ -311,7 +320,7 @@ elif [ $COMMAND == "functions-worker" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
@@ -322,7 +331,9 @@ elif [ $COMMAND == "sql" ]; then
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
-elif [ $COMMAND == "help" ]; then
+elif [ $COMMAND == "tokens" ]; then
+      exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
+elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else
     echo ""

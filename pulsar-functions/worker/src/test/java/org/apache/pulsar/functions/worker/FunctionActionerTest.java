@@ -25,20 +25,18 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
-import java.net.UnknownHostException;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
-import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.testng.Assert.*;
+import static org.testng.AssertJUnit.assertFalse;
 
 /**
  * Unit test of {@link FunctionActioner}.
@@ -65,11 +63,10 @@ public class FunctionActionerTest {
         // throw exception when dlogNamespace is accessed by actioner and verify it
         final String exceptionMsg = "dl namespace not-found";
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
-        LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
-                new ConnectorsManager(workerConfig));
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
+                new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
         Runtime runtime = mock(Runtime.class);
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
@@ -79,13 +76,14 @@ public class FunctionActionerTest {
                 .build();
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
 
         // actioner should try to download file from bk-dlogNamespace and fails with exception
         try {
             actioner.startFunction(functionRuntimeInfo);
-            fail("should have failed with dlogNamespace open");
-        } catch (IllegalArgumentException ie) {
-            assertEquals(ie.getMessage(), exceptionMsg);
+            assertFalse(true);
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
         }
     }
 
@@ -108,11 +106,10 @@ public class FunctionActionerTest {
         Namespace dlogNamespace = mock(Namespace.class);
         final String exceptionMsg = "dl namespace not-found";
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
-        LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
-                new ConnectorsManager(workerConfig));
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
+                new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
@@ -140,12 +137,13 @@ public class FunctionActionerTest {
         instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0).build();
         functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
 
         try {
             actioner.startFunction(functionRuntimeInfo);
-            fail("Function-Actioner should have tried to donwload file from http-location");
-        } catch (UnknownHostException ue) {
-            // ok
+            assertFalse(true);
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
         }
     }
 

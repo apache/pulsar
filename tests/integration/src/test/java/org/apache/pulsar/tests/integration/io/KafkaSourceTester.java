@@ -43,7 +43,7 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 @Slf4j
 public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
-    private static final String NAME = "kafka";
+    private static final String SOURCE_TYPE = "kafka";
 
     private final String kafkaTopicName;
 
@@ -51,16 +51,17 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     private KafkaConsumer<String, String> kafkaConsumer;
 
-    public KafkaSourceTester() {
-        super(NAME);
+    public KafkaSourceTester(String containerName) {
+        super(SOURCE_TYPE);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_source_topic_" + suffix;
 
-        sourceConfig.put("bootstrapServers", NAME + ":9092");
+        sourceConfig.put("bootstrapServers", containerName + ":9092");
         sourceConfig.put("groupId", "test-source-group");
         sourceConfig.put("fetchMinBytes", 1L);
         sourceConfig.put("autoCommitIntervalMs", 10L);
         sourceConfig.put("sessionTimeoutMs", 10000L);
+        sourceConfig.put("heartbeatIntervalMs", 5000L);
         sourceConfig.put("topic", kafkaTopicName);
         sourceConfig.put("valueDeserializationClass", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     }

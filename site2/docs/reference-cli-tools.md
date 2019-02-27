@@ -288,7 +288,7 @@ Commands
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, for example key1:val1,key2:val2||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}"||
 |`--auth-plugin`|Authentication plugin class name||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/|
 
@@ -323,7 +323,7 @@ Options
 |---|---|---|
 |`--hex`|Display binary messages in hexadecimal format.|false|
 |`-n`, `--num-messages`|Number of messages to consume, 0 means to consume forever.|0|
-|`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-r`, `--rate`|Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible|0.0|
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover.|Exclusive|
 
@@ -383,6 +383,7 @@ Commands
 * `simulation-controller`
 
 Environment variables
+
 The table below lists the environment variables that you can use to configure the pulsar-perf tool.
 
 |Variable|Description|Default|
@@ -407,19 +408,21 @@ Options
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, or ZLIB.||
+|`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
+|`-k`, `--encryption-key-name`|The private key name to decrypt payload||
+|`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`--conf-file`|Configuration file||
-|`-c`, `--max-connections`|Max number of TCP connections to a single broker|0|
-|`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
-|`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
-|`-n`, `--num-producers`|The number of producers (per topic)|1|
+|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
+|`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-t`, `--num-topic`|The number of topics|1|
-|`-f`, `--payload-file`|Use payload from a file instead of an empty buffer||
-|`-r`, `--rate`|Publish rate msg/s across topics|100|
+|`-r`, `--rate`|Simulate a slow message consumer (rate in msg/s)|0|
+|`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
-|`-s`, `--size`|Message size (in bytes)|1024|
-|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration in secs. If set to 0, it will keep publishing.|0|
+|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
+|`-s`, `--subscriber-name`|Subscriber name prefix|sub|
+|`-st`, `--subscription-type`|Subscriber name prefix. Possible values are Exclusive, Shared, Failover.|Exclusive|
+|`--trust-cert-file`|Path for the trusted TLS certificate file||
+|`--use-tls`|Use TLS encryption on the connection|false|
 
 
 ### `produce`
@@ -436,9 +439,9 @@ Options
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, or ZLIB.||
+|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB or ZSTD.||
 |`--conf-file`|Configuration file||
-|`-c`, `--max-connections`|Max number of TCP connections to a single broker|0|
+|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
 |`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
@@ -449,6 +452,9 @@ Options
 |`-s`, `--size`|Message size (in bytes)|1024|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
 |`-time`, `--test-duration`|Test duration in secs. If set to 0, it will keep publishing.|0|
+|`--trust-cert-file`|Path for the trusted TLS certificate file||
+|`--use-tls`|Use TLS encryption on the connection|false|
+|`--warmup-time`|Warm-up time in seconds |1|
 
 
 
@@ -508,6 +514,7 @@ Commands
 
 
 Environment variables
+
 The table below lists the environment variables that you can use to configure the bookkeeper tool.
 
 |Variable|Description|Default|

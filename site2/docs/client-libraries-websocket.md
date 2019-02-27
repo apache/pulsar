@@ -4,7 +4,7 @@ title: Pulsar's WebSocket API
 sidebar_label: WebSocket
 ---
 
-Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSockets you can publish and consume messages and use all the features available in the [Java](client-libraries-java.md), [Python](client-libraries-python.md), and [C++](client-libraries-cpp.md) client libraries.
+Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSockets you can publish and consume messages and use all the features available in the [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md) client libraries.
 
 
 > You can use Pulsar's WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
@@ -30,14 +30,14 @@ webSocketServiceEnabled=true
 
 In this mode, the WebSocket service will be run from a Pulsar [broker](reference-terminology.md#broker) as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
 
-* [`globalZookeeperServers`](reference-configuration.md#websocket-globalZookeeperServers)
+* [`configurationStoreServers`](reference-configuration.md#websocket-configurationStoreServers)
 * [`webServicePort`](reference-configuration.md#websocket-webServicePort)
 * [`clusterName`](reference-configuration.md#websocket-clusterName)
 
 Here's an example:
 
 ```properties
-globalZookeeperServers=zk1:2181,zk2:2181,zk3:2181
+configurationStoreServers=zk1:2181,zk2:2181,zk3:2181
 webServicePort=8080
 clusterName=my-cluster
 ```
@@ -142,6 +142,13 @@ Key | Type | Required? | Explanation
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
 `priorityLevel` | int | no | Define a [priority](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-) for the consumer
+`maxRedeliverCount` | int | no | Define a [maxRedeliverCount](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-) for the consumer (default: 0). Activates [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) feature.
+`deadLetterTopic` | string | no | Define a [deadLetterTopic](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-) for the consumer (default: {topic}-{subscription}-DLQ). Activates [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) feature.
+`pullMode` | boolean | no | Enable pull mode (default: false). See "Flow Control" below.
+
+NB: these parameter (except `pullMode`) apply to the internal consumer of the WebSocket service.
+So messages will be subject to the redelivery settings as soon as the get into the receive queue,
+even if the client doesn't consume on the WebSocket.
 
 ##### Receiving messages
 
@@ -179,6 +186,33 @@ Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
+#### Flow control
+
+##### Push Mode
+
+By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its
+internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
+In this mode, if you don't send acknowledgements, the Pulsar WebSocket service will stop sending messages after reaching
+`receiverQueueSize` unacked messages sent to the WebSocket client.
+
+##### Pull Mode
+
+If you set `pullMode` to `true`, the WebSocket client will need to send `permit` commands to permit the
+Pulsar WebSocket service to send more messages.
+
+```json
+{
+  "type": "permit",
+  "permitMessages": 100
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`type`| string | yes | Type of command. Must be `permit`
+`permitMessages`| int | yes | Number of messages to permit
+
+NB: in this mode it's possible to acknowledge messages in a different connection.
 
 ### Reader endpoint
 
@@ -273,7 +307,7 @@ Here's an example Python producer that sends a simple message to a Pulsar [topic
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/producer/persistent/public/default/my-topic'
+TOPIC = 'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -355,7 +389,7 @@ Here's an example Node.js producer that sends a simple message to a Pulsar topic
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/producer/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 var message = {
@@ -383,7 +417,7 @@ Here's an example Node.js consumer that listens on the same topic used by the pr
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
@@ -397,7 +431,7 @@ ws.on('message', function(message) {
 #### NodeJS reader
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/reader/persistent/my-tenant/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {

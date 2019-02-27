@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.ClientSslContextRefresher;
+import org.apache.pulsar.common.util.NettySslContextBuilder;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -33,28 +39,54 @@ import io.netty.handler.ssl.SslContext;
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
-    private ProxyConfiguration serviceConfig;
-    private ProxyService proxyService;
-    private boolean enableTLS;
+    private final ProxyService proxyService;
+    private final NettySslContextBuilder serverSslCtxRefresher;
+    private final ClientSslContextRefresher clientSslCtxRefresher;
+    private final boolean enableTls;
 
-    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTLS) {
+    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTls)
+            throws Exception {
         super();
-        this.serviceConfig = serviceConfig;
         this.proxyService = proxyService;
-        this.enableTLS = enableTLS;
+        this.enableTls = enableTls;
+
+        if (enableTls) {
+            serverSslCtxRefresher = new NettySslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
+                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getTlsCertRefreshCheckDurationSec());
+        } else {
+            this.serverSslCtxRefresher = null;
+        }
+
+        if (serviceConfig.isTlsEnabledWithBroker()) {
+            AuthenticationDataProvider authData = null;
+
+            if (!isEmpty(serviceConfig.getBrokerClientAuthenticationPlugin())) {
+                authData = AuthenticationFactory.create(serviceConfig.getBrokerClientAuthenticationPlugin(),
+                        serviceConfig.getBrokerClientAuthenticationParameters()).getAuthData();
+            }
+
+            clientSslCtxRefresher = new ClientSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
+                    serviceConfig.getBrokerClientTrustCertsFilePath(), authData);
+
+        } else {
+            this.clientSslCtxRefresher = null;
+        }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (enableTLS) {
-            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
-                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
-            ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+        if (serverSslCtxRefresher != null && this.enableTls) {
+            SslContext sslContext = serverSslCtxRefresher.get();
+            if (sslContext != null) {
+                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
+            }
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ProxyConnection(proxyService));
+        ch.pipeline().addLast("handler",
+                new ProxyConnection(proxyService, clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get()));
     }
 }

@@ -21,17 +21,14 @@ package org.apache.pulsar.proxy.server;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLSession;
 
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.util.SecurityUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +47,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import io.prometheus.client.Counter;
 
 public class DirectProxyHandler {
 
@@ -58,16 +56,21 @@ public class DirectProxyHandler {
     private String originalPrincipal;
     private String clientAuthData;
     private String clientAuthMethod;
+    private int protocolVersion;
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
+    private final SslContext sslCtx;
 
-    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
+    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
+            int protocolVersion, SslContext sslCtx) {
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
+        this.protocolVersion = protocolVersion;
+        this.sslCtx = sslCtx;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -80,23 +83,12 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                if (config.isTlsEnabledWithBroker()) {
-                    SslContext sslCtx;
-                    // Set client certificate if available
-                    AuthenticationDataProvider authData = authentication.getAuthData();
-                    if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getBrokerClientTrustCertsFilePath(),
-                                (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
-                    } else {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getBrokerClientTrustCertsFilePath());
-                    }
+                if (sslCtx != null) {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder",
                         new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-                ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config));
+                ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config, protocolVersion));
             }
         });
 
@@ -135,9 +127,11 @@ public class DirectProxyHandler {
         private String remoteHostName;
         protected ChannelHandlerContext ctx;
         private ProxyConfiguration config;
+        private int protocolVersion;
 
-        public ProxyBackendHandler(ProxyConfiguration config) {
+        public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion) {
             this.config = config;
+            this.protocolVersion = protocolVersion;
         }
 
         @Override
@@ -149,7 +143,7 @@ public class DirectProxyHandler {
                 authData = authentication.getAuthData().getCommandData();
             }
             ByteBuf command = null;
-            command = Commands.newConnect(authentication.getAuthMethodName(), authData, "Pulsar proxy",
+            command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command);
             outboundChannel.read();
@@ -169,6 +163,10 @@ public class DirectProxyHandler {
                 break;
 
             case HandshakeCompleted:
+                ProxyService.opsCounter.inc();
+                if (msg instanceof ByteBuf) {
+                    ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                }
                 inboundChannel.writeAndFlush(msg).addListener(this);
                 break;
 

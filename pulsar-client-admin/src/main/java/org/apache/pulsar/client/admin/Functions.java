@@ -24,12 +24,11 @@ import java.util.Set;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 
 /**
  * Admin interface for function management.
@@ -78,18 +77,18 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+    FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Create a new function.
      *
-     * @param functionDetails
+     * @param functionConfig
      *            the function configuration object
      *
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+    void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
 
     /**
      * <pre>
@@ -99,19 +98,19 @@ public interface Functions {
      * Http: http://www.repo.com/fileName.jar
      * </pre>
      *
-     * @param functionDetails
+     * @param functionConfig
      *            the function configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
      * @throws PulsarAdminException
      */
-    void createFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
+    void createFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
      * <p>
      *
-     * @param functionDetails
+     * @param functionConfig
      *            the function configuration object
      *
      * @throws NotAuthorizedException
@@ -121,7 +120,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+    void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
@@ -132,7 +131,7 @@ public interface Functions {
      * Http: http://www.repo.com/fileName.jar
      * </pre>
      *
-     * @param functionDetails
+     * @param functionConfig
      *            the function configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
@@ -143,7 +142,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
+    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Delete an existing function
@@ -181,7 +180,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+    FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Gets the current status of a function instance.
@@ -197,7 +196,40 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus getFunctionStatus(String tenant, String namespace, String function, int id)
+    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(String tenant, String namespace, String function, int id)
+            throws PulsarAdminException;
+
+    /**
+     * Gets the current stats of a function instance.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param id
+     *            Function instance-id
+     * @return
+     * @throws PulsarAdminException
+     */
+    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id)
+            throws PulsarAdminException;
+
+    /**
+     * Gets the current stats of a function.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @return
+     * @throws PulsarAdminException
+     */
+
+    FunctionStats getFunctionStats(String tenant, String namespace, String function)
             throws PulsarAdminException;
 
     /**
@@ -253,6 +285,39 @@ public interface Functions {
     void stopFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
 
     /**
+     * Start all function instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+
+    /**
+     * Start function instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @param instanceId
+     *            Function instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void startFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
+
+    /**
      * Stop all function instances
      *
      * @param tenant
@@ -266,6 +331,7 @@ public interface Functions {
      *             Unexpected error
      */
     void stopFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+
 
     /**
      * Triggers the function by writing to the input topic.
@@ -366,6 +432,5 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
-
+    FunctionState getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
 }

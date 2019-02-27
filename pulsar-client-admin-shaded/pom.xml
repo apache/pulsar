@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.4.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -57,8 +57,6 @@
 
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-functions-proto</include>
-                  <include>org.apache.pulsar:pulsar-io-core</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <include>org.apache.commons:commons-lang3</include>
@@ -101,12 +99,6 @@
               </artifactSet>
               <filters>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-io-core</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-                <filter>
                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
@@ -125,6 +117,9 @@
                 <relocation>
                   <pattern>com.google</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
+                  <excludes>
+                    <exclude>com.google.protobuf.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>

@@ -67,7 +67,16 @@ public class TestBasicPresto extends PulsarTestSuite {
     }
 
     @Test
-    public void testSimpleSQLQuery() throws Exception {
+    public void testSimpleSQLQueryBatched() throws Exception {
+        testSimpleSQLQuery(true);
+    }
+
+    @Test
+    public void testSimpleSQLQueryNonBatched() throws Exception {
+        testSimpleSQLQuery(false);
+    }
+    
+    public void testSimpleSQLQuery(boolean isBatched) throws Exception {
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
@@ -79,13 +88,21 @@ public class TestBasicPresto extends PulsarTestSuite {
         @Cleanup
         Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
                 .topic(stocksTopic)
+                .enableBatching(isBatched)
                 .create();
-
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
             final Stock stock = new Stock(i,"STOCK_" + i , 100.0 + i * 10);
             producer.send(stock);
         }
+
+        ContainerExecResult result = execQuery("show schemas in pulsar;");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("public/default");
+
+        result = execQuery("show tables in pulsar.\"public/default\";");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("stocks");
 
         ContainerExecResult containerExecResult = execQuery("select * from pulsar.\"public/default\".stocks order by entryid;");
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);

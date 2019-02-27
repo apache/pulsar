@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.util.EnumSet;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -47,11 +48,13 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
@@ -72,6 +75,9 @@ public class PulsarAdminToolTest {
         brokers.run(split("list use"));
         verify(mockBrokers).getActiveBrokers("use");
 
+        brokers.run(split("namespaces use --url http://my-service.url:8080"));
+        verify(mockBrokers).getOwnedNamespaces("use", "http://my-service.url:8080");
+
         brokers.run(split("get-all-dynamic-config"));
         verify(mockBrokers).getAllDynamicConfigurations();
 
@@ -83,6 +89,12 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("get-internal-config"));
         verify(mockBrokers).getInternalConfigurationData();
+
+        brokers.run(split("get-runtime-config"));
+        verify(mockBrokers).getRuntimeConfigurations();
+
+        brokers.run(split("healthcheck"));
+        verify(mockBrokers).healthcheck();
     }
 
     @Test
@@ -391,6 +403,49 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
+
+        mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("set-dispatch-rate myprop/clust/ns1 -md -1 -bd -1 -dt 2"));
+        verify(mockNamespaces).setDispatchRate("myprop/clust/ns1", new DispatchRate(-1, -1, 2));
+
+        namespaces.run(split("get-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).getDispatchRate("myprop/clust/ns1");
+
+        namespaces.run(split("set-subscribe-rate myprop/clust/ns1 -sr 2 -st 60"));
+        verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", new SubscribeRate(2, 60));
+
+        namespaces.run(split("get-subscribe-rate myprop/clust/ns1"));
+        verify(mockNamespaces).getSubscribeRate("myprop/clust/ns1");
+
+        namespaces.run(split("set-subscription-dispatch-rate myprop/clust/ns1 -md -1 -bd -1 -dt 2"));
+        verify(mockNamespaces).setSubscriptionDispatchRate("myprop/clust/ns1", new DispatchRate(-1, -1, 2));
+
+        namespaces.run(split("get-subscription-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).getSubscriptionDispatchRate("myprop/clust/ns1");
+
+        namespaces.run(split("get-compaction-threshold myprop/clust/ns1"));
+        verify(mockNamespaces).getCompactionThreshold("myprop/clust/ns1");
+
+        namespaces.run(split("set-compaction-threshold myprop/clust/ns1 -t 1G"));
+        verify(mockNamespaces).setCompactionThreshold("myprop/clust/ns1", 1024 * 1024 * 1024);
+
+        namespaces.run(split("get-offload-threshold myprop/clust/ns1"));
+        verify(mockNamespaces).getOffloadThreshold("myprop/clust/ns1");
+
+        namespaces.run(split("set-offload-threshold myprop/clust/ns1 -s 1G"));
+        verify(mockNamespaces).setOffloadThreshold("myprop/clust/ns1", 1024 * 1024 * 1024);
+
+        namespaces.run(split("get-offload-deletion-lag myprop/clust/ns1"));
+        verify(mockNamespaces).getOffloadDeleteLagMs("myprop/clust/ns1");
+
+        namespaces.run(split("set-offload-deletion-lag myprop/clust/ns1 -l 1d"));
+        verify(mockNamespaces).setOffloadDeleteLag("myprop/clust/ns1", 24 * 60 * 60, TimeUnit.SECONDS);
+
+        namespaces.run(split("clear-offload-deletion-lag myprop/clust/ns1"));
+        verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
     }
 
     @Test

@@ -103,6 +103,8 @@ from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
 from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
+from pulsar import schema
+_schema = schema
 
 import re
 _retype = type(re.compile('x'))
@@ -143,9 +145,15 @@ class Message:
 
     def data(self):
         """
-        Returns object typed bytes with the content of the message.
+        Returns object typed bytes with the payload of the message.
         """
         return self._message.data()
+
+    def value(self):
+        """
+        Returns object with the de-serialized version of the message content
+        """
+        return self._schema.decode(self._message.data())
 
     def properties(self):
         """
@@ -167,11 +175,23 @@ class Message:
         """
         return self._message.publish_timestamp()
 
+    def event_timestamp(self):
+        """
+        Get the timestamp in milliseconds with the message event time.
+        """
+        return self._message.event_timestamp()
+
     def message_id(self):
         """
         The message ID that can be used to refere to this particular message.
         """
         return self._message.message_id()
+
+    def topic_name(self):
+        """
+        Get the topic Name from which this message originated from
+        """
+        return self._message.topic_name()
 
 
 class Authentication:
@@ -194,6 +214,7 @@ class Authentication:
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
+
 class AuthenticationTLS(Authentication):
     """
     TLS Authentication implementation
@@ -210,6 +231,25 @@ class AuthenticationTLS(Authentication):
         _check_type(str, certificate_path, 'certificate_path')
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+
+class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
+
 
 class AuthenticationAthenz(Authentication):
     """
@@ -315,6 +355,7 @@ class Client:
 
     def create_producer(self, topic,
                         producer_name=None,
+                        schema=schema.BytesSchema(),
                         initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
@@ -344,6 +385,12 @@ class Client:
            with `Producer.producer_name()`. When specifying a name, it is app to
            the user to ensure that, for a given topic, the producer name is unique
            across all Pulsar's clusters.
+        * `schema`:
+           Define the schema of the data that will be published by this producer.
+           The schema will be used for two purposes:
+             - Validate the data format against the topic defined schema
+             - Perform serialization/deserialization between data and objects
+           An example for this parameter would be to pass `schema=JsonSchema(MyRecordClass)`.
         * `initial_sequence_id`:
            Set the baseline for the sequence ids for messages
            published by the producer. First message will be using
@@ -355,7 +402,9 @@ class Client:
         * `compression_type`:
           Set the compression type for the producer. By default, message
           payloads are not compressed. Supported compression types are
-          `CompressionType.LZ4` and `CompressionType.ZLib`.
+          `CompressionType.LZ4`, `CompressionType.ZLib` and `CompressionType.ZSTD`.
+          ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with ZSTD.
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.
@@ -373,6 +422,7 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
         _check_type(int, send_timeout_millis, 'send_timeout_millis')
         _check_type(CompressionType, compression_type, 'compression_type')
@@ -404,12 +454,16 @@ class Client:
             for k, v in properties.items():
                 conf.property(k, v)
 
+        conf.schema(schema.schema_info())
+
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
+        p._schema = schema
         return p
 
     def subscribe(self, topic, subscription_name,
                   consumer_type=ConsumerType.Exclusive,
+                  schema=schema.BytesSchema(),
                   message_listener=None,
                   receiver_queue_size=1000,
                   max_total_receiver_queue_size_across_partitions=50000,
@@ -436,6 +490,8 @@ class Client:
 
         * `consumer_type`:
           Select the subscription type to be used when subscribing to the topic.
+        * `schema`:
+           Define the schema of the data that will be received by this consumer.
         * `message_listener`:
           Sets a message listener for the consumer. When the listener is set,
           the application will receive messages through it. Calls to
@@ -483,6 +539,7 @@ class Client:
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type(int, max_total_receiver_queue_size_across_partitions,
                     'max_total_receiver_queue_size_across_partitions')
@@ -496,7 +553,7 @@ class Client:
         conf.consumer_type(consumer_type)
         conf.read_compacted(is_read_compacted)
         if message_listener:
-            conf.message_listener(message_listener)
+            conf.message_listener(_listener_wrapper(message_listener, schema))
         conf.receiver_queue_size(receiver_queue_size)
         conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
         if consumer_name:
@@ -507,6 +564,8 @@ class Client:
         if properties:
             for k, v in properties.items():
                 conf.property(k, v)
+
+        conf.schema(schema.schema_info())
 
         c = Consumer()
         if isinstance(topic, str):
@@ -522,10 +581,12 @@ class Client:
             raise ValueError("Argument 'topic' is expected to be of a type between (str, list, re.pattern)")
 
         c._client = self
+        c._schema = schema
         self._consumers.append(c)
         return c
 
     def create_reader(self, topic, start_message_id,
+                      schema=schema.BytesSchema(),
                       reader_listener=None,
                       receiver_queue_size=1000,
                       reader_name=None,
@@ -555,6 +616,8 @@ class Client:
 
         **Options**
 
+        * `schema`:
+           Define the schema of the data that will be received by this reader.
         * `reader_listener`:
           Sets a message listener for the reader. When the listener is set,
           the application will receive messages through it. Calls to
@@ -578,23 +641,42 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
-            conf.reader_listener(reader_listener)
+            conf.reader_listener(_listener_wrapper(reader_listener, schema))
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
         if subscription_role_prefix:
             conf.subscription_role_prefix(subscription_role_prefix)
+        conf.schema(schema.schema_info())
+
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
+        c._schema = schema
         self._consumers.append(c)
         return c
+
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
 
     def close(self):
         """
@@ -639,7 +721,8 @@ class Producer:
              partition_key=None,
              sequence_id=None,
              replication_clusters=None,
-             disable_replication=False
+             disable_replication=False,
+             event_timestamp=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -665,9 +748,11 @@ class Producer:
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -675,7 +760,8 @@ class Producer:
                    partition_key=None,
                    sequence_id=None,
                    replication_clusters=None,
-                   disable_replication=False
+                   disable_replication=False,
+                   event_timestamp=None
                    ):
         """
         Send a message asynchronously.
@@ -715,10 +801,21 @@ class Producer:
           configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         self._producer.send_async(msg, callback)
+
+
+    def flush(self):
+        """
+        Flush all the messages buffered in the client and wait until all messages have been
+        successfully persisted
+        """
+        self._producer.flush()
+        
 
     def close(self):
         """
@@ -727,16 +824,19 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication):
-        _check_type(bytes, content, 'content')
+                   replication_clusters, disable_replication, event_timestamp):
+        data = self._schema.encode(content)
+
+        _check_type(bytes, data, 'data')
         _check_type_or_none(dict, properties, 'properties')
         _check_type_or_none(str, partition_key, 'partition_key')
         _check_type_or_none(int, sequence_id, 'sequence_id')
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
+        _check_type_or_none(int, event_timestamp, 'event_timestamp')
 
         mb = _pulsar.MessageBuilder()
-        mb.content(content)
+        mb.content(data)
         if properties:
             for k, v in properties.items():
                 mb.property(k, v)
@@ -748,6 +848,8 @@ class Producer:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
             mb.disable_replication(disable_replication)
+        if event_timestamp:
+            mb.event_timestamp(event_timestamp)
         return mb.build()
 
 
@@ -778,7 +880,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -791,13 +893,18 @@ class Consumer:
 
         * `timeout_millis`:
           If specified, the receive will raise an exception if a message is not
-          availble within the timeout.
+          available within the timeout.
         """
         if timeout_millis is None:
-            return self._consumer.receive()
+            msg = self._consumer.receive()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            return self._consumer.receive(timeout_millis)
+            msg = self._consumer.receive(timeout_millis)
+
+        m = Message()
+        m._message = msg
+        m._schema = self._schema
+        return m
 
     def acknowledge(self, message):
         """
@@ -811,7 +918,10 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge(message._message)
+        else:
+            self._consumer.acknowledge(message)
 
     def acknowledge_cumulative(self, message):
         """
@@ -826,7 +936,10 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge_cumulative(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge_cumulative(message._message)
+        else:
+            self._consumer.acknowledge_cumulative(message)
 
     def pause_message_listener(self):
         """
@@ -901,10 +1014,15 @@ class Reader:
           available within the timeout.
         """
         if timeout_millis is None:
-            return self._reader.read_next()
+            msg = self._reader.read_next()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            return self._reader.read_next(timeout_millis)
+            msg = self._reader.read_next(timeout_millis)
+
+        m = Message()
+        m._message = msg
+        m._schema = self._schema
+        return m
 
     def has_message_available(self):
         """
@@ -922,10 +1040,22 @@ class Reader:
 
 def _check_type(var_type, var, name):
     if not isinstance(var, var_type):
-        raise ValueError("Argument %s is expected to be of type '%s'" % (name, var_type.__name__))
+        raise ValueError("Argument %s is expected to be of type '%s' and not '%s'"
+                         % (name, var_type.__name__, type(var).__name__))
 
 
 def _check_type_or_none(var_type, var, name):
     if var is not None and not isinstance(var, var_type):
         raise ValueError("Argument %s is expected to be either None or of type '%s'"
                          % (name, var_type.__name__))
+
+
+def _listener_wrapper(listener, schema):
+    def wrapper(consumer, msg):
+        c = Consumer()
+        c._consumer = consumer
+        m = Message()
+        m._message = msg
+        m._schema = schema
+        listener(c, m)
+    return wrapper

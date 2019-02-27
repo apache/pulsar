@@ -79,7 +79,7 @@ Directory | Contains
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
 * [Local ZooKeeper](#deploying-local-zookeeper) operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Global ZooKeeper](#deploying-global-zookeeper) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The global ZooKeeper quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
+* [Configuration Store](#deploying-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
 
 ### Deploying local ZooKeeper
 
@@ -137,12 +137,12 @@ As before, create the `myid` files for each server on `data/global-zookeeper/myi
 
 #### Multi-cluster Pulsar instance
 
-When deploying a global Pulsar instance, with clusters distributed across different geographical regions, the global ZooKeeper serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.
+When deploying a global Pulsar instance, with clusters distributed across different geographical regions, the configuration store serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.
 
 The key here is to make sure the ZK quorum members are spread across at least 3
 regions and that other regions are running as observers.
 
-Again, given the very low expected load on the global ZooKeeper servers, we can
+Again, given the very low expected load on the configuration store servers, we can
 share the same hosts used for the local ZooKeeper quorum.
 
 For example, let's assume a Pulsar instance with the following clusters `us-west`,
@@ -157,7 +157,7 @@ In this scenario we want to pick the quorum participants from few clusters and
 let all the others be ZK observers. For example, to form a 7 servers quorum, we
 can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
 
-This will guarantee that writes to global ZooKeeper will be possible even if one
+This will guarantee that writes to configuration store will be possible even if one
 of these regions is unreachable.
 
 The ZK configuration in all the servers will look like:
@@ -189,10 +189,10 @@ peerType=observer
 
 ##### Starting the service
 
-Once your global ZooKeeper configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
+Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
 
 ```shell
-$ bin/pulsar-daemon start global-zookeeper
+$ bin/pulsar-daemon start configuration-store
 ```
 
 ## Cluster metadata initialization
@@ -275,7 +275,7 @@ Once you've set up ZooKeeper, initialized cluster metadata, and spun up BookKeep
 
 Brokers can be configured using the [`conf/broker.conf`](reference-configuration.md#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
 

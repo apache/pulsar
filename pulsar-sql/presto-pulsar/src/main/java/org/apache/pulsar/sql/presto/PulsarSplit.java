@@ -47,6 +47,9 @@ public class PulsarSplit implements ConnectorSplit {
     private final long endPositionLedgerId;
     private final TupleDomain<ColumnHandle> tupleDomain;
 
+    private final PositionImpl startPosition;
+    private final PositionImpl endPosition;
+
     @JsonCreator
     public PulsarSplit(
             @JsonProperty("splitId") long splitId,
@@ -73,6 +76,8 @@ public class PulsarSplit implements ConnectorSplit {
         this.startPositionLedgerId = startPositionLedgerId;
         this.endPositionLedgerId = endPositionLedgerId;
         this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
+        this.startPosition = PositionImpl.get(startPositionLedgerId, startPositionEntryId);
+        this.endPosition = PositionImpl.get(endPositionLedgerId, endPositionEntryId);
     }
 
     @JsonProperty
@@ -136,11 +141,11 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     public PositionImpl getStartPosition() {
-        return PositionImpl.get(startPositionLedgerId, startPositionEntryId);
+        return startPosition;
     }
 
     public PositionImpl getEndPosition() {
-        return PositionImpl.get(endPositionLedgerId, endPositionEntryId);
+        return endPosition;
     }
 
     @Override

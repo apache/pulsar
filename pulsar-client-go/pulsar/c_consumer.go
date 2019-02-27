@@ -100,6 +100,10 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.Type))
 	}
 
+	if options.SubscriptionInitPos != Latest {
+		C.pulsar_consumer_set_subscription_initial_position(conf, C.initial_position(options.SubscriptionInitPos))
+	}
+
 	// ReceiverQueueSize==0 means to use the default queue size
 	// -1 means to disable the consumer prefetching
 	if options.ReceiverQueueSize > 0 {
@@ -277,4 +281,28 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 
 func (c *consumer) RedeliverUnackedMessages() {
 	C.pulsar_consumer_redeliver_unacknowledged_messages(c.ptr)
+}
+
+func (c *consumer) Seek(msgID MessageID) error {
+	channel := make(chan error)
+	c.SeekAsync(msgID, func(err error) {
+		channel <- err
+		close(channel)
+	})
+	return <-channel
+}
+
+func (c *consumer) SeekAsync(msgID MessageID, callback func(error)) {
+	C._pulsar_consumer_seek_async(c.ptr, msgID.(*messageID).ptr, savePointer(callback))
+}
+
+//export pulsarConsumerSeekCallbackProxy
+func pulsarConsumerSeekCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func(err error))
+
+	if res != C.pulsar_result_Ok {
+		go callback(newError(res, "Failed to seek Consumer"))
+	} else {
+		go callback(nil)
+	}
 }
