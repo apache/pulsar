@@ -405,7 +405,7 @@ public class PersistentTopicsBase extends AdminResource {
     		getOrCreateTopic(topicName);
     		log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
     	} catch (Exception e) {
-    		log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+    		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
     		throw new RestException(e);
     	}
     }
