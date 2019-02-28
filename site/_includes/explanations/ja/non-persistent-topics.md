@@ -64,16 +64,3 @@ PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
 Producer producer = client.createProducer(
             "non-persistent://sample/standalone/ns1/my-topic");
 ```
-
-### Brokerの設定
-
-多くの場合、ノンパーシステントトピック提供するためだけにクラスタ内に専用のBrokerを設定する必要はほとんどないでしょう。
-
-Brokerが特定のタイプのトピックのみを所有できるようにするための設定は次の通りです:
-
-```
-# Brokerによるパーシステントトピックのロードを無効化
-enablePersistentTopics=false
-# Brokerによるノンパーシステントトピックのロードを有効化
-enableNonPersistentTopics=true
-```
