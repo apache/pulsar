@@ -92,7 +92,7 @@ class BatchMessageContainer {
             sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
             batchedMessageMetadataAndPayload = PooledByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES), PulsarDecoder.MaxMessageSize);
+                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
         }
 
         if (previousCallback != null) {
