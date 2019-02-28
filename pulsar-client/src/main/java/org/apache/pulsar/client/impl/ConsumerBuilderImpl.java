@@ -58,7 +58,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
 
-    private static long MIN_ACK_TIMEOUT_MILLIS = 10;
+    private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
     private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +31,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 class NegativeAcksTracker {
 
-    private final Set<MessageId> nackedMessages = new HashSet<>();
+    private HashMap<MessageId, Long> nackedMessages = null;
 
     private final ConsumerBase<?> consumer;
     private final Timer timer;
@@ -44,15 +45,28 @@ class NegativeAcksTracker {
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
-        this.nackDelayMicros = Math.max(conf.getNegativeAckRedeliveryDelayMicros(), MIN_NACK_DELAY_MICROS);
+        this.nackDelayMicros = Math.max(conf.getNegativeAckRedeliveryDelayMicros() / 3, MIN_NACK_DELAY_MICROS);
     }
 
     private synchronized void triggerRedelivery() {
-        // Group all the nacked messages into one single re-delivery request
-        consumer.redeliverUnacknowledgedMessages(nackedMessages);
-        nackedMessages.clear();
+        if (nackedMessages.isEmpty()) {
+            this.timeout = null;
+            return;
+        }
 
-        this.timeout = null;
+        // Group all the nacked messages into one single re-delivery request
+        Set<MessageId> messagesToRedeliver = new HashSet<>();
+        long now = System.nanoTime();
+        nackedMessages.forEach((msgId, timestamp) -> {
+            if (timestamp < now) {
+                messagesToRedeliver.add(msgId);
+            }
+        });
+
+        messagesToRedeliver.forEach(nackedMessages::remove);
+        consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
+
+        this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), nackDelayMicros, TimeUnit.MICROSECONDS);
     }
 
     public synchronized void add(MessageId messageId) {
@@ -62,7 +76,10 @@ class NegativeAcksTracker {
                     batchMessageId.getPartitionIndex());
         }
 
-        nackedMessages.add(messageId);
+        if (nackedMessages == null) {
+            nackedMessages = new HashMap<>();
+        }
+        nackedMessages.put(messageId, System.nanoTime());
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period
