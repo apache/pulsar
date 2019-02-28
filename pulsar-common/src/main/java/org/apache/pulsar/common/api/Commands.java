@@ -404,6 +404,21 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newSeek(long consumerId, long requestId, long timestamp) {
+        CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
+        seekBuilder.setConsumerId(consumerId);
+        seekBuilder.setRequestId(requestId);
+
+        seekBuilder.setMessagePublishTime(timestamp);
+
+        CommandSeek seek = seekBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEEK).setSeek(seek));
+
+        seekBuilder.recycle();
+        seek.recycle();
+        return res;
+    }
+
     public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
         CommandCloseConsumer.Builder closeConsumerBuilder = CommandCloseConsumer.newBuilder();
         closeConsumerBuilder.setConsumerId(consumerId);
