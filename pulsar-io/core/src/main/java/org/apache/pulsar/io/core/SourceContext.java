@@ -72,4 +72,11 @@ public interface SourceContext {
      * @return the logger object
      */
     Logger getLogger();
+
+    /**
+     * Get the secret associated with this key
+     * @param secretName The name of the secret
+     * @return The secret if anything was found or null
+     */
+    String getSecret(String secretName);
 }
