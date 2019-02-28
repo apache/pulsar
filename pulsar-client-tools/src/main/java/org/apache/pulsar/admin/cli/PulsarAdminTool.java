@@ -53,8 +53,10 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
     Boolean tlsAllowInsecureConnection;
-
-
+    
+    @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
+    String tlsTrustCertsFilePath;
+    
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
@@ -74,7 +76,9 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+                ? this.tlsTrustCertsFilePath
+                : properties.getProperty("tlsTrustCertsFilePath");
 
         adminBuilder = PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
