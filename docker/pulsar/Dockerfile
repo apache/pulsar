@@ -22,7 +22,7 @@ FROM openjdk:8-jdk
 RUN echo "deb http://ftp.de.debian.org/debian testing main" >> /etc/apt/sources.list
 
 # Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3.7 python3-pip
+RUN (apt-get update || apt-get update) && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3.7 python3-pip
 
 # Install python 3 packages
 pip3 install pyyaml kazoo
