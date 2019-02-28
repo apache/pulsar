@@ -313,7 +313,7 @@ public abstract class ZooKeeperCache implements Watcher {
         checkNotNull(deserializer);
 
         CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
-        dataCache.get(path, (p, executor) -> {
+        dataCache.get(path, (p, cacheExecutor) -> {
             // Return a future for the z-node to be fetched from ZK
             CompletableFuture<Entry<Object, Stat>> zkFuture = new CompletableFuture<>();
 
@@ -324,16 +324,16 @@ public abstract class ZooKeeperCache implements Watcher {
                         try {
                             T obj = deserializer.deserialize(path, content);
                             // avoid using the zk-client thread to process the result
-                            executor.execute(
+                            this.executor.execute(
                                     () -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                         } catch (Exception e) {
-                            executor.execute(() -> zkFuture.completeExceptionally(e));
+                            this.executor.execute(() -> zkFuture.completeExceptionally(e));
                         }
                     } else if (rc == Code.NONODE.intValue()) {
                         // Return null values for missing z-nodes, as this is not "exceptional" condition
-                        executor.execute(() -> zkFuture.complete(null));
+                        this.executor.execute(() -> zkFuture.complete(null));
                     } else {
-                        executor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
+                        this.executor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
                 }, null);
             } catch (Exception e) {
