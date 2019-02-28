@@ -362,11 +362,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        return producer.sendAsync(object).exceptionally(e -> {
+        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        future.exceptionally(e -> {
             this.statsManager.incrSysExceptions(e);
             logger.error("Failed to publish to topic {} with error {}", topicName, e);
             return null;
-        }).thenApply(msgId -> null);
+        });
+        return future;
     }
 
     @Override
