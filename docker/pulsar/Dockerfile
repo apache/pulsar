@@ -24,6 +24,9 @@ RUN echo "deb http://ftp.de.debian.org/debian testing main" >> /etc/apt/sources.
 # Install some utilities
 RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3.7 python3-pip
 
+# Install python 3 packages
+pip3 install pyyaml kazoo
+
 ARG PULSAR_TARBALL
 
 ADD ${PULSAR_TARBALL} /
