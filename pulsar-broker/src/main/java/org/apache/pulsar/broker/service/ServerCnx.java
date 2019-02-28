@@ -34,7 +34,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
-import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -517,13 +516,13 @@ public class ServerCnx extends PulsarHandler {
                     connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                     sslSession);
 
-                authenticationData = authenticationProvider.getAuthDataSource(clientData, remoteAddress, sslSession);
+                authenticationData = authenticationProvider.newAuthDataSource(clientData, remoteAddress, sslSession);
                 authState = authenticationProvider.newAuthState(authenticationData);
             }
 
             AuthData brokerData = authState.authenticate(clientData);
             // authentication has completed, will send newConnected command.
-            if (brokerData == null || brokerData.getBytes() == null) {
+            if (authState.isComplete()) {
                 authRole = authState.getAuthRole();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",

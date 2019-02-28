@@ -32,19 +32,18 @@ import org.apache.pulsar.common.api.AuthData;
  */
 public interface AuthenticationState {
     /**
-     * Get AuthenticationDataSource for this authentication state.
-     */
-    AuthenticationDataSource getAuthData();
-
-    /**
      * After the authentication between client and broker completed,
      * get authentication role represent for the client.
      */
     String getAuthRole() throws AuthenticationException;
 
     /**
-     * Returns null if authentication has completed, and no auth data is required to send back to client.
-     * Do auth and Returns the auth data back to client, if authentication has not completed.
+     * Challenge passed in auth data and get response data.
      */
     AuthData authenticate(AuthData authData) throws IOException;
+
+    /**
+     * Whether the authentication is completed or not
+     */
+    boolean isComplete();
 }

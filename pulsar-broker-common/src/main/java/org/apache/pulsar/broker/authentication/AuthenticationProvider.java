@@ -61,9 +61,9 @@ public interface AuthenticationProvider extends Closeable {
     String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
 
     /**
-     * Get/Create an authentication data provider which provides the data that this broker will be sent to the client.
+     * Create an authentication data provider which provides the data that this broker will be sent to the client.
      */
-    default AuthenticationDataSource getAuthDataSource(AuthData authData,
+    default AuthenticationDataSource newAuthDataSource(AuthData authData,
                                                        SocketAddress remoteAddress,
                                                        SSLSession sslSession) throws IOException {
         return new AuthenticationDataCommand(

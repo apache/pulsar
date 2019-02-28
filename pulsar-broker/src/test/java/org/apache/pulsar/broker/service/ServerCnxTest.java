@@ -67,7 +67,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -346,11 +345,14 @@ public class ServerCnxTest {
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
         doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
         doReturn(authenticationDataSource).when(authenticationProvider)
-            .getAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+            .newAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
         doReturn(authenticationState).when(authenticationProvider)
             .newAuthState(authenticationDataSource);
         doReturn(authData).when(authenticationState)
             .authenticate(authData);
+        doReturn(true).when(authenticationState)
+            .isComplete();
+
         doReturn("appid1").when(authenticationState)
             .getAuthRole();
 

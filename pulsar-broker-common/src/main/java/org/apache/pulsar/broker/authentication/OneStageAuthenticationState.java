@@ -31,8 +31,8 @@ import org.apache.pulsar.common.api.AuthData;
  */
 public class OneStageAuthenticationState implements AuthenticationState {
 
-    private AuthenticationDataSource authenticationDataSource;
-    AuthenticationProvider provider;
+    private final AuthenticationDataSource authenticationDataSource;
+    private final AuthenticationProvider provider;
 
     public OneStageAuthenticationState(AuthenticationDataSource authenticationDataSource,
                                        AuthenticationProvider provider) {
@@ -45,16 +45,16 @@ public class OneStageAuthenticationState implements AuthenticationState {
         return provider.authenticate(authenticationDataSource);
     }
 
-    @Override
-    public AuthenticationDataSource getAuthData() {
-        return authenticationDataSource;
-    }
-
     /**
-     * Returns null if authentication has completed, and no auth data is required to send back to client.
-     * Do auth and Returns the auth data back to client, if authentication has not completed.
+     * Challenge passed in auth data and get response data.
      */
+    @Override
     public AuthData authenticate(AuthData authData) {
         return null;
+    }
+
+    @Override
+    public boolean isComplete() {
+        return true;
     }
 }
