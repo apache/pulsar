@@ -98,7 +98,7 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -472,7 +472,8 @@ class Client:
                   broker_consumer_stats_cache_time_ms=30000,
                   is_read_compacted=False,
                   properties=None,
-                  pattern_auto_discovery_period=60
+                  pattern_auto_discovery_period=60,
+                  initial_position=InitialPosition.Latest
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -536,6 +537,10 @@ class Client:
           can be used for identify a consumer at broker side.
         * `pattern_auto_discovery_period`:
           Periods of seconds for consumer to auto discover match topics.
+        * `initial_position`:
+          Set the initial position of a consumer  when subscribing to the topic.
+          It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
+          Default: `Latest`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -548,6 +553,7 @@ class Client:
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(InitialPosition, initial_position, 'initial_position')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -564,6 +570,7 @@ class Client:
         if properties:
             for k, v in properties.items():
                 conf.property(k, v)
+        conf.subscription_initial_position(initial_position)
 
         conf.schema(schema.schema_info())
 
@@ -815,7 +822,7 @@ class Producer:
         successfully persisted
         """
         self._producer.flush()
-        
+
 
     def close(self):
         """

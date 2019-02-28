@@ -94,4 +94,8 @@ void export_enums() {
             .value("KEY_VALUE", KEY_VALUE)
             ;
 
+    enum_<InitialPosition>("InitialPosition", "Supported initial position")
+            .value("Latest", InitialPositionLatest)
+            .value("Earliest", InitialPositionEarliest)
+            ;
 }
