@@ -34,19 +34,19 @@ import org.testng.annotations.Test;
  * Unit testing generic schemas.
  */
 @Slf4j
-public class GenericSchemaTest {
+public class GenericSchemaImplTest {
 
     @Test
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
-        GenericSchema decodeSchema = GenericSchema.of(encodeSchema.getSchemaInfo());
+        GenericSchemaImpl decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
     @Test
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
-        GenericSchema decodeSchema = GenericSchema.of(encodeSchema.getSchemaInfo());
+        GenericSchemaImpl decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
@@ -54,7 +54,7 @@ public class GenericSchemaTest {
     public void testAutoAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
-        decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
+        decodeSchema.setSchema(GenericSchemaImpl.of(encodeSchema.getSchemaInfo()));
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
@@ -62,7 +62,7 @@ public class GenericSchemaTest {
     public void testAutoJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
-        decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
+        decodeSchema.setSchema(GenericSchemaImpl.of(encodeSchema.getSchemaInfo()));
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
