@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
@@ -514,6 +515,17 @@ public class ModularLoadManagerImplTest {
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
         ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
+        BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
+            @Override
+            public boolean isEnablePersistentTopics(String brokerUrl) {
+                return true;
+            }
+
+            @Override
+            public boolean isEnableNonPersistentTopics(String brokerUrl) {
+                return true;
+            }
+        };
 
         // (1) now we have isolation policy : primary=broker1, secondary=broker2, minLimit=1
 
@@ -521,7 +533,7 @@ public class ModularLoadManagerImplTest {
         Set<String> brokerCandidateCache = Sets.newHashSet();
         Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker1Address));
 
@@ -529,7 +541,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
@@ -537,7 +549,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
@@ -551,7 +563,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 2);
         assertTrue(brokerCandidateCache.contains(broker1Address));
         assertTrue(brokerCandidateCache.contains(broker2Address));
@@ -560,7 +572,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
@@ -568,7 +580,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
     }

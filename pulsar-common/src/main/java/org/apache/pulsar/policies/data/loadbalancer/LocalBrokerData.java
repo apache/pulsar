@@ -38,6 +38,8 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
+    private boolean persistentTopicsEnabled=true;
+    private boolean nonPersistentTopicsEnabled=true;
 
     // Most recently available system resource usage.
     private ResourceUsage cpu;
@@ -399,6 +401,24 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     @Override
     public String getPulsarServiceUrlTls() {
         return pulsarServiceUrlTls;
+    }
+
+    @Override
+    public boolean isPersistentTopicsEnabled() {
+        return persistentTopicsEnabled;
+    }
+
+    public void setPersistentTopicsEnabled(boolean persistentTopicsEnabled) {
+        this.persistentTopicsEnabled = persistentTopicsEnabled;
+    }
+
+    @Override
+    public boolean isNonPersistentTopicsEnabled() {
+        return nonPersistentTopicsEnabled;
+    }
+
+    public void setNonPersistentTopicsEnabled(boolean nonPersistentTopicsEnabled) {
+        this.nonPersistentTopicsEnabled = nonPersistentTopicsEnabled;
     }
 
     @Override
