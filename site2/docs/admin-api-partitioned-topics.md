@@ -53,17 +53,16 @@ When creating a non-partitioned topic, you need to provide a topic name.
 
 #### pulsar-admin
 
-You can create non-partitioned topics using the [`create-non-partitioned-topic`](reference-pulsar-admin.md#create-non-partitioned-topic)
+You can create non-partitioned topics using the [`create`](reference-pulsar-admin.md#create)
 command and specifying the topic name as an argument. This is an example command:
 
 ```shell
-$ bin/pulsar-admin topics create-non-partitioned-topic \
-  persistent://my-tenant/my-namespace/my-topic
+$ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
 ``` 
 
 #### REST API
 
-{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic/nonpartitioned|operation/createNonPartitionedTopic}
+{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
 
 #### Java
 

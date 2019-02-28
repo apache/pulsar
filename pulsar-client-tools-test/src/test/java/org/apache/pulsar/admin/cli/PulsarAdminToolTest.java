@@ -560,7 +560,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
 
-        cmdTopics.run(split("create-non-partitioned-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("create persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
