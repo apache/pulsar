@@ -373,7 +373,12 @@ public class NamespaceService {
             }
 
             if (candidateBroker == null) {
-                if (!this.loadManager.get().isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
+                if (!this.loadManager.get().isCentralized()
+                        || pulsar.getLeaderElectionService().isLeader()
+
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        || !isBrokerActive(pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl())
+                    ) {
                     Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                     if (!availableBroker.isPresent()) {
                         lookupFuture.complete(Optional.empty());
@@ -977,7 +982,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
      public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
@@ -986,7 +991,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 
