@@ -36,6 +36,7 @@ class NegativeAcksTracker {
     private final ConsumerBase<?> consumer;
     private final Timer timer;
     private final long nackDelayNanos;
+    private final long timerIntervalNanos;
 
     private Timeout timeout;
 
@@ -45,11 +46,15 @@ class NegativeAcksTracker {
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
-        this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()) / 3,
+        this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
                 MIN_NACK_DELAY_NANOS);
+
+        // Select the timer interval such that the timer execution is not likely to be
+        // triggered exactly on the "nackDelay" timeout for a particular message.
+        this.timerIntervalNanos = (long)(nackDelayNanos / 3 * 1.1);
     }
 
-    private synchronized void triggerRedelivery() {
+    private synchronized void triggerRedelivery(Timeout t) {
         if (nackedMessages.isEmpty()) {
             this.timeout = null;
             return;
@@ -67,7 +72,7 @@ class NegativeAcksTracker {
         messagesToRedeliver.forEach(nackedMessages::remove);
         consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
 
-        this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), nackDelayNanos, TimeUnit.NANOSECONDS);
+        this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
     }
 
     public synchronized void add(MessageId messageId) {
@@ -85,8 +90,7 @@ class NegativeAcksTracker {
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
             // nack immedietaly following the current one will be batched into the same redelivery request.
-            this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), (long) (nackDelayNanos * 1.1),
-                    TimeUnit.NANOSECONDS);
+            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
         }
     }
 }
