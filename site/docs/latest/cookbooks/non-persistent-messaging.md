@@ -49,6 +49,14 @@ $ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
 
 {% include admonition.html type="success" content="For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](../../admin-api/non-persistent-topics) guide." %}
 
+## Enabling non-persistent topics {#enabling}
+
+In order to enable non-persistent topics in a Pulsar {% popover broker %}, the [`enableNonPersistentTopics`](../../reference/Configuration#broker-enableNonPersistentTopics) must be set to `true`. This is the default, and so you won't need to take any action to enable non-persistent messaging.
+
+{% include admonition.html type="info" title="Configuration for standalone mode" content="If you're running Pulsar in standalone mode, the same configurable parameters are available but in the [`standalone.conf`](../../reference/Configuration#standalone) configuration file." %}
+
+If you'd like to enable *only* non-persistent topics in a broker, you can set the [`enablePersistentTopics`](../../reference/Configuration#broker-enablePersistentTopics) parameter to `false` and the `enableNonPersistentTopics` parameter to `true`.
+
 ## Managing non-persistent topics via the CLI {#cli}
 
 Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](../../reference/CliTools#pulsar-admin-non-persistent) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](../../reference/CliTools#pulsar-admin-non-persistent-create-partitioned-topic), get [stats](../../reference/CliTools#pulsar-admin-non-persistent-stats) for a non-persistent topic, [list](../../) non-persistent topics under a namespace, and more.
