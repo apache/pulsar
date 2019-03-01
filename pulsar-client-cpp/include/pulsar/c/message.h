@@ -87,7 +87,7 @@ void pulsar_message_set_sequence_id(pulsar_message_t *message, int64_t sequenceI
  *
  * @param clusters where to send this message.
  */
-void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters);
+void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters, size_t size);
 
 /**
  * Do not replicate this message
