@@ -359,7 +359,10 @@ public class FunctionActioner implements AutoCloseable {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
                 File archive = connectorsManager.getSourceArchive(sourceSpec.getBuiltin()).toFile();
-                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSourceClass();
+                /* Used to pull in the archive and assume that there is only one source/sink. 
+                 * now we use the className provided in the Source Specification
+                 */
+                String sourceClass = sourceSpec.getClassName(); 
                 SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
@@ -373,7 +376,10 @@ public class FunctionActioner implements AutoCloseable {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 File archive = connectorsManager.getSinkArchive(sinkSpec.getBuiltin()).toFile();
-                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSinkClass();
+                /* Used to pull in the archive and assume that there is only one source/sink. 
+                 * now we use the className provided in the Source Specification
+                 */
+                String sinkClass = sinkSpec.getClassName(); 
                 SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);

@@ -106,7 +106,7 @@ public class SourceApiV3ResourceTest {
     private static final String className = TwitterFireHose.class.getName();
     private static final int parallelism = 1;
     private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
-    private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra-2.3.0-SNAPSHOT.nar";
     private String JAR_FILE_PATH;
     private String INVALID_JAR_FILE_PATH;
 
@@ -772,7 +772,7 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
-        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+        ConnectorUtils.getIOSourceClass(anyString(), any(NarClassLoader.class));
 
         mockStatic(org.apache.pulsar.functions.utils.Utils.class);
         doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
@@ -842,7 +842,7 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
-        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+        ConnectorUtils.getIOSourceClass(anyString(), any(NarClassLoader.class));
 
         mockStatic(org.apache.pulsar.functions.utils.Utils.class);
         doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
@@ -932,7 +932,7 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
-        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+        ConnectorUtils.getIOSourceClass(anyString(), any(NarClassLoader.class));
 
         mockStatic(org.apache.pulsar.functions.utils.Utils.class);
         doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);

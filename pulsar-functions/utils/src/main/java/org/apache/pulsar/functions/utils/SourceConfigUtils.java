@@ -212,21 +212,21 @@ public class SourceConfigUtils {
         if (!isEmpty(sourceConfig.getClassName())) {
             sourceClassName = sourceConfig.getClassName();
             try {
-            	String ext = null;
-            	if (!isEmpty(functionPkgUrl)) {
-            		File file = Utils.extractFileFromPkg(functionPkgUrl);
-            		ext = FilenameUtils.getExtension(file.getName());
-            	} else if (archivePath != null) {
-            		ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
-            	} else if (uploadedInputStreamAsFile != null) {
-            		ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
-            	}
+                String ext = null;
+                if (!isEmpty(functionPkgUrl)) {
+                    File file = Utils.extractFileFromPkg(functionPkgUrl);
+                    ext = FilenameUtils.getExtension(file.getName());
+                } else if (archivePath != null) {
+                    ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
+                } else if (uploadedInputStreamAsFile != null) {
+                    ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
+                }
 
-            	if ("nar".equalsIgnoreCase(ext)) {
-            		classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            	} else {
-            		classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            	}
+                if ("nar".equalsIgnoreCase(ext)) {
+                    classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                } else {
+                    classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                }
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Source Jar");
             }
@@ -238,7 +238,7 @@ public class SourceConfigUtils {
                 throw new IllegalArgumentException("Source Package is not provided");
             }
             try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
+                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getName(), (NarClassLoader) classLoader);
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }

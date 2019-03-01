@@ -300,20 +300,20 @@ public class SinkConfigUtils {
             sinkClassName = sinkConfig.getClassName();
             try {
                 String ext = null;
-            	if (!isEmpty(functionPkgUrl)) {
-            		File file = Utils.extractFileFromPkg(functionPkgUrl);
-            		ext = FilenameUtils.getExtension(file.getName());
-            	} else if (archivePath != null) {
-            		ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
-            	} else if (uploadedInputStreamAsFile != null) {
-            		ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
-            	}
-            	
-            	if ("nar".equalsIgnoreCase(ext)) {
-            	   classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            	} else {
-                   classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            	}
+                if (!isEmpty(functionPkgUrl)) {
+                    File file = Utils.extractFileFromPkg(functionPkgUrl);
+                    ext = FilenameUtils.getExtension(file.getName());
+                } else if (archivePath != null) {
+                    ext = FilenameUtils.getExtension(archivePath.getFileName().toString());
+                } else if (uploadedInputStreamAsFile != null) {
+                    ext = FilenameUtils.getExtension(uploadedInputStreamAsFile.getName());
+                }
+
+                if ("nar".equalsIgnoreCase(ext)) {
+                    classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                } else {
+                    classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                }
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Sink Jar");
             }
@@ -325,7 +325,7 @@ public class SinkConfigUtils {
                 throw new IllegalArgumentException("Sink Package is not provided");
             }
             try {
-                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+                sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getName(), classLoader);
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
             }
