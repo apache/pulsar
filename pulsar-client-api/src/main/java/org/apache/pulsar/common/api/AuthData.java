@@ -21,7 +21,7 @@ package org.apache.pulsar.common.api;
 import lombok.Data;
 
 @Data(staticConstructor="of")
-public class AuthData {
+public final class AuthData {
     private final byte[] bytes;
 
     public boolean isComplete() {

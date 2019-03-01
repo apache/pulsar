@@ -100,11 +100,8 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * For mutual authentication, This method use passed in `data` to evaluate and challenge,
-     * then returns null if authentication has completed;
-     * returns authenticated data back to client side, if authentication has not completed.
-     *
-     * used for mutual authentication like sasl.
+     * Evaluate and challenge the data that passed in, and return processed data back.
+     * It is used for mutual authentication like SASL.
      */
     default AuthData authenticate(AuthData data) throws IOException {
         throw new UnsupportedOperationException();

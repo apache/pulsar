@@ -483,7 +483,7 @@ public class ServerCnx extends PulsarHandler {
         // auth not complete, continue auth with client side.
         ctx.writeAndFlush(Commands.newAuthResponse(authMethod, brokerData, clientProtocolVersion));
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Client authenticated with {}  continue auth with client.",
+            log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
         }
         state = State.Connecting;

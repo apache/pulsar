@@ -113,7 +113,7 @@ public class AuthenticationService implements Closeable {
         if (StringUtils.isNotBlank(anonymousUserRole)) {
             return anonymousUserRole;
         }
-        // If at least a provider was configured, then the authentication needs to be provider
+        // If at least a provider was configured, then the authentication needs to be provided
         throw new AuthenticationException("Authentication required");
     }
 
