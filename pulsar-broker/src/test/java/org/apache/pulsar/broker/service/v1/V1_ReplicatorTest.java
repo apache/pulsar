@@ -95,18 +95,18 @@ public class V1_ReplicatorTest extends V1_ReplicatorTestBase {
     protected String methodName;
 
     @BeforeMethod
-    public void beforeMethod(Method m) throws Exception {
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 
     @Override
-    @BeforeClass(timeOut = 30000)
+    @BeforeClass(timeOut = 60000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 30000)
+    @AfterClass(timeOut = 60000)
     void shutdown() throws Exception {
         super.shutdown();
     }
