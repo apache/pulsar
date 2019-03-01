@@ -18,33 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
-import java.lang.reflect.Field;
-import java.net.InetAddress;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReference;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -85,11 +63,31 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Start two brokers in the same cluster and have them connect to the same zookeeper. When the PulsarService starts, it
@@ -101,7 +99,7 @@ import com.google.common.collect.Sets;
 public class LoadBalancerTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
 
@@ -127,7 +125,7 @@ public class LoadBalancerTest {
                 "{\"loadBalancerStrategy\":\"leastLoadedServer\"}".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
-        final String localhost = InetAddress.getLocalHost().getHostName();
+        final String localhost = "localhost";
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             brokerWebServicePorts[i] = PortManager.nextFreePort();
@@ -136,7 +134,7 @@ public class LoadBalancerTest {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setClusterName("use");
-            config.setAdvertisedAddress("localhost");
+            config.setAdvertisedAddress(localhost);
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
@@ -984,7 +982,7 @@ public class LoadBalancerTest {
         zkCacheField.set(pulsarServices[0], mockCache);
 
         int totalAvailabilityWeight = 0;
-        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<Long, Set<ResourceUnit>>();
+        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<>();
         for (int i = 1; i <= 3; i++) {
             PulsarResourceDescription rd = createResourceDescription(memoryMB * i, cpuPercent * i, bInMbps * i,
                     bOutMbps * 2, threads * i);
