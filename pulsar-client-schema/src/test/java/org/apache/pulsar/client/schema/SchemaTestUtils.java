@@ -32,10 +32,14 @@ public class SchemaTestUtils {
     @ToString
     @EqualsAndHashCode
     public static class Foo {
+        @Nullable
         private String field1;
+        @Nullable
         private String field2;
         private int field3;
+        @Nullable
         private Bar field4;
+        @Nullable
         private Color color;
     }
 
@@ -85,13 +89,12 @@ public class SchemaTestUtils {
     }
 
     public static final String SCHEMA_JSON
-            = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache.pulsar.client.schema" +
-            ".SchemaTestUtils$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"],\"default\":null}," +
-            "{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field3\"," +
-            "\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bar\"," +
-            "\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null},{\"name\":\"color\"," +
-            "\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"BLUE\"]}]," +
-            "\"default\":null}]}";
+            = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache.pulsar.client.schema.SchemaTestUtils$\"," +
+            "\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field2\"," +
+            "\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\"," +
+            "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}]," +
+            "\"default\":null},{\"name\":\"color\",\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\"," +
+            "\"BLUE\"]}],\"default\":null}]}";
 
     public static final String SCHEMA_JSON_NOTNULL
             = "{\"type\":\"record\",\"name\":\"Foo1\",\"namespace\":\"org.apache.pulsar.client.schema.SchemaTestUtils$\"" +
