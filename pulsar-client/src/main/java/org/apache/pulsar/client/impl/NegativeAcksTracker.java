@@ -35,17 +35,18 @@ class NegativeAcksTracker {
 
     private final ConsumerBase<?> consumer;
     private final Timer timer;
-    private final long nackDelayMicros;
+    private final long nackDelayNanos;
 
     private Timeout timeout;
 
     // Set a min delay to allow for grouping nacks within a single batch
-    private static final long MIN_NACK_DELAY_MICROS = 100_000;
+    private static final long MIN_NACK_DELAY_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
 
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
-        this.nackDelayMicros = Math.max(conf.getNegativeAckRedeliveryDelayMicros() / 3, MIN_NACK_DELAY_MICROS);
+        this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()) / 3,
+                MIN_NACK_DELAY_NANOS);
     }
 
     private synchronized void triggerRedelivery() {
@@ -66,7 +67,7 @@ class NegativeAcksTracker {
         messagesToRedeliver.forEach(nackedMessages::remove);
         consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
 
-        this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), nackDelayMicros, TimeUnit.MICROSECONDS);
+        this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), nackDelayNanos, TimeUnit.NANOSECONDS);
     }
 
     public synchronized void add(MessageId messageId) {
@@ -79,11 +80,13 @@ class NegativeAcksTracker {
         if (nackedMessages == null) {
             nackedMessages = new HashMap<>();
         }
-        nackedMessages.put(messageId, System.nanoTime());
+        nackedMessages.put(messageId, System.nanoTime() + nackDelayNanos);
 
         if (this.timeout == null) {
-            // Schedule a task and group all the redeliveries for same period
-            this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), nackDelayMicros, TimeUnit.MICROSECONDS);
+            // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
+            // nack immedietaly following the current one will be batched into the same redelivery request.
+            this.timeout = timer.newTimeout(timeout -> triggerRedelivery(), (long) (nackDelayNanos * 1.1),
+                    TimeUnit.NANOSECONDS);
         }
     }
 }
