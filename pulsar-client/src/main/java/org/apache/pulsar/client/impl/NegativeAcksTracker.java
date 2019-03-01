@@ -48,10 +48,7 @@ class NegativeAcksTracker {
         this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
         this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
                 MIN_NACK_DELAY_NANOS);
-
-        // Select the timer interval such that the timer execution is not likely to be
-        // triggered exactly on the "nackDelay" timeout for a particular message.
-        this.timerIntervalNanos = (long)(nackDelayNanos / 3 * 1.1);
+        this.timerIntervalNanos = nackDelayNanos / 3;
     }
 
     private synchronized void triggerRedelivery(Timeout t) {
