@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.client.schema;
 
-import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.*;
 import static org.testng.Assert.assertEquals;
 
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +53,23 @@ public class AvroSchemaTest {
     }
 
     @Test
+    public void testSchemaTwo() {
+        AvroSchema<SchemaTestUtils.Foo1> avroSchema = AvroSchema.of(SchemaTestUtils.Foo1.class);
+        assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
+        Schema.Parser parser = new Schema.Parser();
+        String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
+        assertEquals(schemaJson, SCHEMA_JSON_NOTNULL);
+        Schema schema = parser.parse(schemaJson);
+        for (String fieldName : FOO_FIELDS) {
+            Schema.Field field = schema.getField(fieldName);
+            Assert.assertNotNull(field);
+            if (field.name().equals("field4")) {
+                Assert.assertNotNull(field.schema().getFields().get(0));
+            }
+        }
+    }
+
+    @Test
     public void testEncodeAndDecode() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
 
@@ -74,6 +90,39 @@ public class AvroSchemaTest {
 
         Foo object1 = avroSchema.decode(bytes1);
         Foo object2 = avroSchema.decode(bytes2);
+
+        assertEquals(object1, foo1);
+        assertEquals(object2, foo2);
+    }
+
+    @Test
+    public void testNotNullEncodeAndDecode() {
+        AvroSchema<Foo1> avroSchema = AvroSchema.of(Foo1.class, null);
+
+        Foo1 foo1 = new Foo1();
+        foo1.setField1("foo1");
+        foo1.setField2("bar1");
+        foo1.setField4(new Bar());
+        foo1.setColor(Color.RED);
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo1 foo2 = new Foo1();
+        foo2.setField1("foo2");
+        foo2.setField2("bar2");
+        foo2.setField4(bar);
+        foo2.setColor(Color.RED);
+        foo2.setField3(15);
+
+        byte[] bytes1 = avroSchema.encode(foo1);
+        Assert.assertTrue(bytes1.length > 0);
+
+        byte[] bytes2 = avroSchema.encode(foo2);
+        Assert.assertTrue(bytes2.length > 0);
+
+        Foo1 object1 = avroSchema.decode(bytes1);
+        Foo1 object2 = avroSchema.decode(bytes2);
 
         assertEquals(object1, foo1);
         assertEquals(object2, foo2);

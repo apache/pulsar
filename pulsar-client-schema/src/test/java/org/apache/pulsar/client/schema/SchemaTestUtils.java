@@ -21,6 +21,7 @@ package org.apache.pulsar.client.schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.apache.avro.reflect.Nullable;
 
 /**
  * Utils for testing avro.
@@ -31,6 +32,17 @@ public class SchemaTestUtils {
     @ToString
     @EqualsAndHashCode
     public static class Foo {
+        private String field1;
+        private String field2;
+        private int field3;
+        private Bar field4;
+        private Color color;
+    }
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class Foo1 {
         private String field1;
         private String field2;
         private int field3;
@@ -63,9 +75,12 @@ public class SchemaTestUtils {
     @ToString
     @EqualsAndHashCode
     public static class DerivedDerivedFoo extends DerivedFoo {
+        @Nullable
         private String field7;
         private int field8;
+        @Nullable
         private DerivedFoo derivedFoo;
+        @Nullable
         private Foo foo2;
     }
 
@@ -77,6 +92,12 @@ public class SchemaTestUtils {
             "\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null},{\"name\":\"color\"," +
             "\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"BLUE\"]}]," +
             "\"default\":null}]}";
+
+    public static final String SCHEMA_JSON_NOTNULL
+            = "{\"type\":\"record\",\"name\":\"Foo1\",\"namespace\":\"org.apache.pulsar.client.schema.SchemaTestUtils$\"" +
+            ",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},{\"name\":\"field2\",\"type\":\"string\"},{\"name\":\"field3\"" +
+            ",\"type\":\"int\"},{\"name\":\"field4\",\"type\":{\"type\":\"record\",\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\"," +
+            "\"type\":\"boolean\"}]}},{\"name\":\"color\",\"type\":{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"BLUE\"]}}]}";
 
     public static String[] FOO_FIELDS = {
             "field1",
