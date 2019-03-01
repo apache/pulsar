@@ -24,7 +24,7 @@ import time
 import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS, Authentication, AuthenticationToken
+            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -130,6 +130,38 @@ class PulsarTest(TestCase):
         msg = consumer.receive(1000)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    def test_consumer_initial_position(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('my-python-topic-producer-consumer')
+
+        # Sending 5 messages before consumer creation.
+        # These should be received with initial_position set to Earliest but not with Latest.
+        for i in range(5):
+            producer.send(b'hello-%d' % i)
+
+        consumer = client.subscribe('my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    initial_position=InitialPosition.Earliest)
+
+        # Sending 5 other messages that should be received regardless of the initial_position.
+        for i in range(5, 10):
+            producer.send(b'hello-%d' % i)
+
+        for i in range(10):
+            msg = consumer.receive(1000)
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
 
         try:
             msg = consumer.receive(100)
