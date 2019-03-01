@@ -72,6 +72,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -453,28 +454,56 @@ public class ServerCnx extends PulsarHandler {
         return originalPrincipal;
     }
 
-    // called in handleConnect method below.
-    private void completeConnect(CommandConnect connect) {
-        ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
+    // complete the connect and sent newConnected command
+    private void completeConnect(int clientProtoVersion, String clientVersion) {
+        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion));
         state = State.Connected;
-        remoteEndpointProtocolVersion = connect.getProtocolVersion();
-        String version = connect.hasClientVersion() ? connect.getClientVersion() : null;
-        if (isNotBlank(version) && !version.contains(" ") /* ignore default version: pulsar client */) {
-            this.clientVersion = version.intern();
+        remoteEndpointProtocolVersion = clientProtoVersion;
+        if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
+            this.clientVersion = clientVersion.intern();
         }
+    }
+
+    // According to auth result, send newConnected or newAuthResponse command.
+    private void doingAuthentication(AuthData clientData,
+                                     int clientProtocolVersion,
+                                     String clientVersion) throws Exception {
+        AuthData brokerData = authState.authenticate(clientData);
+        // authentication has completed, will send newConnected command.
+        if (authState.isComplete()) {
+            authRole = authState.getAuthRole();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                    remoteAddress, authMethod, authRole, originalPrincipal);
+            }
+            completeConnect(clientProtocolVersion, clientVersion);
+            return;
+        }
+
+        // auth not complete, continue auth with client side.
+        ctx.writeAndFlush(Commands.newAuthResponse(authMethod, brokerData, clientProtocolVersion));
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Client authenticated with {}  continue auth with client.",
+                remoteAddress, authMethod);
+        }
+        state = State.Connecting;
+        return;
     }
 
     @Override
     protected void handleConnect(CommandConnect connect) {
-        checkArgument(state == State.Start  || state == State.Connecting);
+        checkArgument(state == State.Start);
 
         if (log.isDebugEnabled()) {
             log.debug("Received CONNECT from {}, auth enabled: {}",
                 remoteAddress, service.isAuthenticationEnabled());
         }
 
+        String clientVersion = connect.getClientVersion();
+        int clientProtocolVersion = connect.getProtocolVersion();
+
         if (!service.isAuthenticationEnabled()) {
-            completeConnect(connect);
+            completeConnect(clientProtocolVersion, clientVersion);
             return;
         }
 
@@ -482,66 +511,68 @@ public class ServerCnx extends PulsarHandler {
             AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
 
             // init authentication
-            if (state == State.Start) {
-                if (connect.hasAuthMethodName()) {
-                    authMethod = connect.getAuthMethodName();
-                } else if (connect.hasAuthMethod()) {
-                    // Legacy client is passing enum
-                    authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
-                } else {
-                    authMethod = "none";
-                }
-
-                authenticationProvider = getBrokerService()
-                    .getAuthenticationService()
-                    .getAuthenticationProvider(authMethod);
-
-                // Not find provider named authMethod. Most used for tests.
-                // In AuthenticationDisabled, it will set authMethod "none".
-                if (authenticationProvider == null) {
-                    authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole();
-                    completeConnect(connect);
-                    return;
-                }
-
-                // init authState and other var
-                ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-                SSLSession sslSession = null;
-                if (sslHandler != null) {
-                    sslSession = ((SslHandler) sslHandler).engine().getSession();
-                }
-                originalPrincipal = getOriginalPrincipal(
-                    connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
-                    connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
-                    connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
-                    sslSession);
-
-                authenticationData = authenticationProvider.newAuthDataSource(clientData, remoteAddress, sslSession);
-                authState = authenticationProvider.newAuthState(authenticationData);
+            if (connect.hasAuthMethodName()) {
+                authMethod = connect.getAuthMethodName();
+            } else if (connect.hasAuthMethod()) {
+                // Legacy client is passing enum
+                authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
+            } else {
+                authMethod = "none";
             }
 
-            AuthData brokerData = authState.authenticate(clientData);
-            // authentication has completed, will send newConnected command.
-            if (authState.isComplete()) {
-                authRole = authState.getAuthRole();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                        remoteAddress, authMethod, authRole, originalPrincipal);
-                }
-                completeConnect(connect);
+            authenticationProvider = getBrokerService()
+                .getAuthenticationService()
+                .getAuthenticationProvider(authMethod);
+
+            // Not find provider named authMethod. Most used for tests.
+            // In AuthenticationDisabled, it will set authMethod "none".
+            if (authenticationProvider == null) {
+                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole();
+                completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
 
-            // auth not complete, continue auth with client side.
-            ctx.writeAndFlush(Commands.newConnecting(authMethod, brokerData));
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Client authenticated with {}  continue auth with client.",
-                    remoteAddress, authMethod);
+            // init authState and other var
+            ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+            SSLSession sslSession = null;
+            if (sslHandler != null) {
+                sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
-            state = State.Connecting;
-            return;
+            originalPrincipal = getOriginalPrincipal(
+                connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
+                connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
+                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
+                sslSession);
+
+            authenticationData = authenticationProvider.newAuthDataSource(clientData, remoteAddress, sslSession);
+            authState = authenticationProvider.newAuthState(authenticationData);
+
+
+            doingAuthentication(clientData, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             String msg = "Unable to authenticate";
+            log.warn("[{}] {} ", remoteAddress, msg, e);
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+            close();
+        }
+    }
+
+    @Override
+    protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
+        checkArgument(state == State.Connecting);
+        checkArgument(authChallenge.hasChallenge());
+        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthMethodName());
+
+        if (log.isDebugEnabled()) {
+            log.debug("Received AuthChallenge from {}, auth method: {}",
+                remoteAddress, authChallenge.getChallenge().getAuthMethodName());
+        }
+
+        try {
+            AuthData clientData = AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray());
+            doingAuthentication(clientData, authChallenge.getProtocolVersion(), authChallenge.getClientVersion());
+        } catch (Exception e) {
+            String msg = "Unable to handleAuthChallenge";
             log.warn("[{}] {} ", remoteAddress, msg, e);
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();

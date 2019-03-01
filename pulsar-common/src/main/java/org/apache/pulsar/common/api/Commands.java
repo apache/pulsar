@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -46,6 +45,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -211,18 +212,49 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnecting(String authMethod, AuthData authData) {
-        CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
-        connectedBuilder.setServerVersion("Pulsar Server Mutual Authn");
+    public static ByteBuf newAuthResponse(String authMethod, AuthData brokerData, int clientProtocolVersion) {
+        CommandAuthResponse.Builder responseBuilder = CommandAuthResponse.newBuilder();
 
-        CommandConnected connected = connectedBuilder
-            .setProtocolVersion(getCurrentProtocolVersion())
-            .setAuthMethodName(authMethod)
-            .setAuthData(ByteString.copyFrom(authData.getBytes())).build();
+        // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
+        // client supports, to avoid confusing the client.
+        int currentProtocolVersion = getCurrentProtocolVersion();
+        int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
-        connected.recycle();
-        connectedBuilder.recycle();
+        responseBuilder.setProtocolVersion(versionToAdvertise);
+        responseBuilder.setServerVersion("Pulsar Server");
+
+        CommandAuthResponse response = responseBuilder
+            .setResponse(PulsarApi.AuthData.newBuilder()
+                .setAuthData(copyFrom(brokerData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .build())
+            .build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthResponse(response));
+        response.recycle();
+        responseBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAuthChallenge(String authMethod,
+                                           AuthData clientData,
+                                           int clientProtocolVersion,
+                                           String clientVersion) {
+        CommandAuthChallenge.Builder challengeBuilder  = CommandAuthChallenge.newBuilder();
+
+        challengeBuilder.setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client");
+        challengeBuilder.setProtocolVersion(clientProtocolVersion);
+
+        CommandAuthChallenge challenge = challengeBuilder
+            .setChallenge(PulsarApi.AuthData.newBuilder()
+                .setAuthData(copyFrom(clientData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .build())
+            .build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
+        challenge.recycle();
+        challengeBuilder.recycle();
         return res;
     }
 

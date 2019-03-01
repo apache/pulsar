@@ -23,4 +23,8 @@ import lombok.Data;
 @Data(staticConstructor="of")
 public class AuthData {
     private final byte[] bytes;
+
+    public boolean isComplete() {
+        return bytes == null;
+    }
 }

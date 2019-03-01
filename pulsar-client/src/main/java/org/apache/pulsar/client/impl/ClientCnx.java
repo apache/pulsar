@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
 import java.io.IOException;
@@ -49,6 +50,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -132,7 +134,7 @@ public class ClientCnx extends PulsarHandler {
     private AuthenticationDataProvider authenticationDataProvider;
 
     enum State {
-        None, SentConnectFrame, Ready, Failed
+        None, SentConnectFrame, Ready, Failed, Connecting
     }
 
     static class RequestTime {
@@ -272,32 +274,7 @@ public class ClientCnx extends PulsarHandler {
             return;
         }
 
-        // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
-        if (connected.hasAuthData()) {
-            try {
-                AuthData authData = authenticationDataProvider
-                    .authenticate(AuthData.of(connected.getAuthData().toByteArray()));
-
-                ByteBuf request = Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                    getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
-
-                ctx.writeAndFlush(request).addListener(writeFuture -> {
-                    if (!writeFuture.isSuccess()) {
-                        log.warn("{} Failed to send request for mutual auth to broker: {}", ctx.channel(),
-                            writeFuture.cause().getMessage());
-                        connectionFuture.completeExceptionally(writeFuture.cause());
-                    }
-                });
-
-                return;
-            } catch (IOException e) {
-                log.error("{} Error mutual verify: {}", ctx.channel(), e);
-                connectionFuture.completeExceptionally(e);
-                return;
-            }
-        }
-
-        checkArgument(state == State.SentConnectFrame);
+        checkArgument(state == State.SentConnectFrame || state == State.Connecting);
 
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
@@ -306,6 +283,42 @@ public class ClientCnx extends PulsarHandler {
         remoteEndpointProtocolVersion = connected.getProtocolVersion();
         connectionFuture.complete(null);
         state = State.Ready;
+    }
+
+    @Override
+    protected void handleAuthResponse(CommandAuthResponse authResponse) {
+        checkArgument(authResponse.hasResponse());
+        checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthData());
+
+        // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
+        try {
+            AuthData authData = authenticationDataProvider
+                .authenticate(AuthData.of(authResponse.getResponse().getAuthData().toByteArray()));
+
+            checkState(!authData.isComplete());
+
+            ByteBuf request = Commands.newAuthChallenge(authentication.getAuthMethodName(),
+                authData,
+                this.protocolVersion,
+                getPulsarClientVersion());
+
+            if (log.isDebugEnabled()) {
+                log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
+            }
+
+            ctx.writeAndFlush(request).addListener(writeFuture -> {
+                if (!writeFuture.isSuccess()) {
+                    log.warn("{} Failed to send request for mutual auth to broker: {}", ctx.channel(),
+                        writeFuture.cause().getMessage());
+                    connectionFuture.completeExceptionally(writeFuture.cause());
+                }
+            });
+            state = State.Connecting;
+        } catch (IOException e) {
+            log.error("{} Error mutual verify: {}", ctx.channel(), e);
+            connectionFuture.completeExceptionally(e);
+            return;
+        }
     }
 
     @Override
