@@ -31,7 +31,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic json schema.
  */
-class GenericJsonSchema extends GenericSchema {
+class GenericJsonSchema extends GenericSchemaImpl {
 
     private final ObjectMapper objectMapper;
 

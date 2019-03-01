@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.client.api.schema;
 
-import org.apache.pulsar.common.schema.SchemaType;
+import java.util.List;
+import org.apache.pulsar.client.api.Schema;
 
 /**
- * {@link SchemaCompatibilityCheck} for {@link SchemaType#AVRO}.
+ * A schema that serializes and deserializes between {@link GenericRecord} and bytes.
  */
-public class AvroSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCheck {
+public interface GenericSchema extends Schema<GenericRecord> {
 
-    @Override
-    public SchemaType getSchemaType() {
-        return SchemaType.AVRO;
-    }
+    /**
+     * Returns the list of fields.
+     *
+     * @return the list of fields of generic record.
+     */
+    List<Field> getFields();
 
 }
