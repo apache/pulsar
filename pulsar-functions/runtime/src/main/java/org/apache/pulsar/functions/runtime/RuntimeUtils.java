@@ -36,6 +36,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -188,23 +189,27 @@ public class RuntimeUtils {
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         if (authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                args.add("--client_auth_plugin");
-                args.add(authConfig.getClientAuthenticationPlugin());
-                args.add("--client_auth_params");
-                args.add(authConfig.getClientAuthenticationParameters());
-            }
-            args.add("--use_tls");
-            args.add(Boolean.toString(authConfig.isUseTls()));
-            args.add("--tls_allow_insecure");
-            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
-            args.add("--hostname_verification_enabled");
-            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
-            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
-                args.add("--tls_trust_cert_path");
-                args.add(authConfig.getTlsTrustCertsFilePath());
-            }
+
+            args.add("--auth_config");
+            args.add(ObjectMapperFactory.getThreadLocal().writeValueAsString(authConfig));
+
+//            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+//                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+//                args.add("--client_auth_plugin");
+//                args.add(authConfig.getClientAuthenticationPlugin());
+//                args.add("--client_auth_params");
+//                args.add(authConfig.getClientAuthenticationParameters());
+//            }
+//            args.add("--use_tls");
+//            args.add(Boolean.toString(authConfig.isUseTls()));
+//            args.add("--tls_allow_insecure");
+//            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
+//            args.add("--hostname_verification_enabled");
+//            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
+//            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+//                args.add("--tls_trust_cert_path");
+//                args.add(authConfig.getTlsTrustCertsFilePath());
+//            }
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));

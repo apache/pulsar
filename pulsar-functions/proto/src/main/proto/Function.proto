@@ -66,6 +66,11 @@ message FunctionDetails {
     Resources resources = 13;
     string packageUrl = 14; //present only if function submitted with package-url
     RetryDetails retryDetails = 15;
+    FunctionAuthenticationSpec functionAuthSpec = 17;
+}
+
+message FunctionAuthenticationSpec {
+    string id = 1;
 }
 
 message ConsumerSpec {

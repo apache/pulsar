@@ -50,7 +50,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
@@ -77,11 +76,11 @@ import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -91,7 +90,6 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
@@ -294,7 +292,8 @@ public abstract class ComponentImpl {
                                  final String functionPkgUrl,
                                  final String functionDetailsJson,
                                  final String componentConfigJson,
-                                 final String clientRole) {
+                                 final String clientRole,
+                                 AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -377,9 +376,27 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
         }
 
+        // cache auth if need
+        try {
+            Function.FunctionAuthenticationSpec authenticationSpec = worker().getFunctionRuntimeManager()
+                    .getRuntimeFactory()
+                    .cacheAuthData(clientAuthenticationDataHttps);
+
+            if (authenticationSpec != null) {
+                functionDetails = FunctionDetails.newBuilder(functionDetails)
+                        .setFunctionAuthSpec(authenticationSpec)
+                        .build();
+            }
+        } catch (Exception e) {
+            log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName);
+            throw new RestException(Status.BAD_REQUEST, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+        }
+
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
 
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;

@@ -420,7 +420,7 @@ public class SinkApiV3ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sinkConfig),
-                null);
+                null, null);
 
     }
 
@@ -435,7 +435,7 @@ public class SinkApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sinkConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink already exists")
@@ -529,7 +529,7 @@ public class SinkApiV3ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sinkConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")

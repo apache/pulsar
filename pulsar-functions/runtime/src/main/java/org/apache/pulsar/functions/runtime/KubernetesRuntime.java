@@ -44,12 +44,15 @@ import io.kubernetes.client.models.V1PodList;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodTemplateSpec;
 import io.kubernetes.client.models.V1ResourceRequirements;
+import io.kubernetes.client.models.V1SecretVolumeSource;
 import io.kubernetes.client.models.V1Service;
 import io.kubernetes.client.models.V1ServicePort;
 import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
+import io.kubernetes.client.models.V1Volume;
+import io.kubernetes.client.models.V1VolumeMount;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -794,6 +797,7 @@ public class KubernetesRuntime implements Runtime {
 
         statefulSet.spec(statefulSetSpec);
 
+
         return statefulSet;
     }
 
@@ -845,6 +849,19 @@ public class KubernetesRuntime implements Runtime {
         List<V1Container> containers = new LinkedList<>();
         containers.add(getFunctionContainer(instanceCommand, resource));
         podSpec.containers(containers);
+
+        // set authentication token
+        Function.FunctionAuthenticationSpec authenticationSpec = instanceConfig.getFunctionDetails().getFunctionAuthSpec();
+        if (authenticationSpec != null) {
+            podSpec.setVolumes(Collections.singletonList(
+                    new V1Volume()
+                            .name("function-auth")
+                            .secret(
+                                    new V1SecretVolumeSource()
+                                            .secretName(authenticationSpec.getId())
+
+                                            .defaultMode(256))));
+        }
 
         // Configure secrets
         secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME, instanceConfig.getFunctionDetails());
@@ -904,6 +921,15 @@ public class KubernetesRuntime implements Runtime {
 
         // set container ports
         container.setPorts(getFunctionContainerPorts());
+
+        // auth
+        if (instanceConfig.getFunctionDetails().getFunctionAuthSpec())
+        container.setVolumeMounts(Collections.singletonList(
+                new V1VolumeMount()
+                        .name("function-auth")
+                        .mountPath(authPath)
+//                        .mountPath("/etc/auth")
+                        .readOnly(true)));
 
         return container;
     }

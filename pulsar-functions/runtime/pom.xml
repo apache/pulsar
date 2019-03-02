@@ -63,6 +63,12 @@
       </exclusions>
     </dependency>
 
+      <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-broker-common</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+
   </dependencies>
 
 </project>

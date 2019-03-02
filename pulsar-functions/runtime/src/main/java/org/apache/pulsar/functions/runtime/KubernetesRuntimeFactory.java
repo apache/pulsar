@@ -21,10 +21,13 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.ApiClient;
+import io.kubernetes.client.ApiException;
 import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ConfigMap;
+import io.kubernetes.client.models.V1ObjectMeta;
+import io.kubernetes.client.models.V1Secret;
 import io.kubernetes.client.util.Config;
 import java.nio.file.Paths;
 import lombok.Getter;
@@ -32,18 +35,24 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
+import javax.naming.AuthenticationException;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
+import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
 
 /**
  * Kubernetes based function container factory implementation.
@@ -307,6 +316,68 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     functionDetails.getResources().getRam(), minRam));
                 }
             }
+        }
+    }
+
+    @Override
+    public Function.FunctionAuthenticationSpec cacheAuthData(AuthenticationDataSource authenticationDataSource) {
+        String id = null;
+        try {
+            String token = getToken(authenticationDataSource);
+            if (token != null) {
+                id = createSecret(token);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        if (id != null) {
+            return Function.FunctionAuthenticationSpec.newBuilder().setId(id).build();
+        }
+        return null;
+    }
+
+    static final String FUNCTION_AUTH_TOKEN = "token";
+    private String createSecret(String token) throws ApiException {
+        try {
+            setupClient();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        String id = UUID.randomUUID().toString();
+        V1Secret v1Secret = new V1Secret()
+                .metadata(new V1ObjectMeta().name(id))
+                .data(Collections.singletonMap(FUNCTION_AUTH_TOKEN, token.getBytes()));
+        coreClient.createNamespacedSecret(kubernetesInfo.getJobNamespace(), v1Secret, "true");
+        return id;
+    }
+
+    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
+        if (authData.hasDataFromCommand()) {
+            // Authenticate Pulsar binary connection
+            return authData.getCommandData();
+        } else if (authData.hasDataFromHttp()) {
+            // Authentication HTTP request. The format here should be compliant to RFC-6750
+            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
+            String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
+            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                throw new AuthenticationException("Invalid HTTP Authorization header");
+            }
+
+            // Remove prefix
+            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            return validateToken(token);
+        } else {
+            return null;
+        }
+    }
+
+    private String validateToken(final String token) throws AuthenticationException {
+        if (StringUtils.isNotBlank(token)) {
+            return token;
+        } else {
+            throw new AuthenticationException("Blank token found");
         }
     }
 }

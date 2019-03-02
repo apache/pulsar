@@ -33,7 +33,6 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -61,7 +60,7 @@ public class SourceApiV3Resource extends FunctionApiResource {
                                    final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sourceConfigJson, clientAppId());
+                functionPkgUrl, null, sourceConfigJson, clientAppId(), null);
 
     }
 

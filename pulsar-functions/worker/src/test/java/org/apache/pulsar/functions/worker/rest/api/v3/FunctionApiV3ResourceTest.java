@@ -50,7 +50,6 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
-import org.apache.pulsar.functions.worker.rest.api.ComponentImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -488,7 +487,7 @@ public class FunctionApiV3ResourceTest {
                 functionPkgUrl,
                 null,
                 new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -503,7 +502,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
@@ -1447,7 +1446,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null);
+                null, new Gson().toJson(functionConfig), null, null);
 
     }
 
@@ -1479,7 +1478,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null);
+                null, new Gson().toJson(functionConfig), null, null);
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

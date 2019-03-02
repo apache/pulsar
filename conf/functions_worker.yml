@@ -44,10 +44,12 @@ downloadDirectory: /tmp/pulsar_functions
 # points 
 pulsarServiceUrl: pulsar://localhost:6650
 pulsarWebServiceUrl: http://localhost:8080
+
 # the authentication plugin to be used by the pulsar client used in worker service
-# clientAuthenticationPlugin:
+clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
 # the authentication parameter to be used by the pulsar client used in worker service
-# clientAuthenticationParameters:
+clientAuthenticationParameters: file:///etc/auth/token
+
 
 # pulsar topics used for function metadata management
 

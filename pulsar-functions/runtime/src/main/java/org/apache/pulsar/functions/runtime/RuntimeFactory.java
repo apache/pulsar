@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 
@@ -42,6 +43,10 @@ public interface RuntimeFactory extends AutoCloseable {
     default boolean externallyManaged() { return false; }
 
     default void doAdmissionChecks(Function.FunctionDetails functionDetails) { }
+
+    default Function.FunctionAuthenticationSpec cacheAuthData(AuthenticationDataSource AuthenticationDataSource) {
+        return null;
+    }
 
     @Override
     void close();

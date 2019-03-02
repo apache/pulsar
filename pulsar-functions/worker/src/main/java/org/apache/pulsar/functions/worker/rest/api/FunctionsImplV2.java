@@ -90,7 +90,7 @@ public class FunctionsImplV2 {
             uploadedInputStream, FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                              functionDetailsJson, String functionConfigJson, String clientAppId) {
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId);
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId, null);
         return Response.ok().build();
     }
 

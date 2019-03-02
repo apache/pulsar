@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd $BINDIR/..;pwd`
 . "$PULSAR_HOME/bin/pulsar-admin-common.sh"

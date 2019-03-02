@@ -35,6 +35,7 @@ import lombok.ToString;
 @ToString
 @Builder
 public class AuthenticationConfig {
+    private String functionAuthProviderPlugin;
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
     private String tlsTrustCertsFilePath;
