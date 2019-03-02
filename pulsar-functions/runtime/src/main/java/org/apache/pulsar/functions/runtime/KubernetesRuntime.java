@@ -44,17 +44,16 @@ import io.kubernetes.client.models.V1PodList;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodTemplateSpec;
 import io.kubernetes.client.models.V1ResourceRequirements;
-import io.kubernetes.client.models.V1SecretVolumeSource;
 import io.kubernetes.client.models.V1Service;
+import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1ServicePort;
 import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
-import io.kubernetes.client.models.V1Volume;
-import io.kubernetes.client.models.V1VolumeMount;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -82,6 +81,7 @@ import java.util.regex.Pattern;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Kubernetes based runtime for running functions.
@@ -95,9 +95,6 @@ import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 @Slf4j
 @VisibleForTesting
 public class KubernetesRuntime implements Runtime {
-
-    private static int NUM_RETRIES = 5;
-    private static long SLEEP_BETWEEN_RETRIES_MS = 500;
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;
@@ -136,7 +133,8 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
-
+    private final KubernetesFunctionAuthProvider functionAuthDataCacheProvider;
+    private final AuthenticationConfig authConfig;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -160,7 +158,8 @@ public class KubernetesRuntime implements Runtime {
                       AuthenticationConfig authConfig,
                       SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsCollectionInterval,
-                      int percentMemoryPadding) throws Exception {
+                      int percentMemoryPadding,
+                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -189,11 +188,16 @@ public class KubernetesRuntime implements Runtime {
                 break;
         }
 
+        this.authConfig = authConfig;
+
+        this.functionAuthDataCacheProvider = functionAuthDataCacheProvider;
+
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
         // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
         // so that when we kill the pod, the signal will get propagated to the function code
         this.processArgs.add("exec");
+
         this.processArgs.addAll(
                 RuntimeUtils.getCmd(
                         instanceConfig,
@@ -223,16 +227,23 @@ public class KubernetesRuntime implements Runtime {
      */
     @Override
     public void start() throws Exception {
-        submitService();
+
         try {
+            if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+                createServiceAccount();
+            }
+            submitService();
             submitStatefulSet();
+
         } catch (Exception e) {
-            log.error("Could not submit statefulset for {}/{}/{}, deleting service as well",
+            log.error("Failed start function {}/{}/{} in Kubernetes",
                     instanceConfig.getFunctionDetails().getTenant(),
                     instanceConfig.getFunctionDetails().getNamespace(),
                     instanceConfig.getFunctionDetails().getName(), e);
-            deleteService();
+            stop();
+            throw e;
         }
+
         if (channel == null && stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
@@ -247,6 +258,66 @@ public class KubernetesRuntime implements Runtime {
         }
     }
 
+    private String generateServiceAccount(InstanceConfig instanceConfig) {
+        return instanceConfig.getFunctionDetails().getTenant()
+                + "-" + instanceConfig.getFunctionDetails().getNamespace()
+                + "-" + instanceConfig.getFunctionDetails().getName()
+                + "-" + instanceConfig.getFunctionAuthenticationSpec().getData();
+    }
+
+    private void createServiceAccount() throws ApiException, InterruptedException {
+
+        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        Function.FunctionAuthenticationSpec authenticationSpec = instanceConfig.getFunctionAuthenticationSpec();
+        String serviceAccountName = generateServiceAccount(instanceConfig);
+        V1ServiceAccount serviceAccount = new V1ServiceAccount()
+                .metadata(
+                        new V1ObjectMeta()
+                                .name(serviceAccountName)
+                                .namespace(jobNamespace));
+
+        // configure service account for auth data if necessary
+        functionAuthDataCacheProvider.configureAuthDataKubernetesServiceAccount(authenticationSpec, serviceAccount);
+
+        log.info("Creating service account with the following spec to k8 {} for function {}", appsClient.getApiClient().getJSON().serialize(serviceAccount), fqfn);
+
+        RuntimeUtils.Actions.Action createServiceAccount = RuntimeUtils.Actions.Action.builder()
+                .actionName(String.format("Creating service account %s for function %s", serviceAccountName, fqfn))
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .supplier(() -> {
+                    try {
+                        coreClient.createNamespacedServiceAccount(jobNamespace, serviceAccount, "true");
+                     } catch (ApiException e) {
+                        // already exists
+                        if (e.getCode() == HTTP_CONFLICT) {
+                            log.warn("Service account {} already present for function {}", serviceAccountName, fqfn);
+                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                        }
+
+                        String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(errorMsg)
+                                .build();
+                    }
+
+                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                })
+                .build();
+
+        AtomicBoolean success = new AtomicBoolean(false);
+        RuntimeUtils.Actions.newBuilder()
+                .addAction(createServiceAccount.toBuilder()
+                        .onSuccess(() -> success.set(true))
+                        .build())
+                .run();
+
+        if (!success.get()) {
+            throw new RuntimeException(String.format("Failed to create service account %s for function %s", serviceAccountName, fqfn));
+        }
+    }
+
     @Override
     public void join() throws Exception {
         // K8 functions never return
@@ -257,6 +328,7 @@ public class KubernetesRuntime implements Runtime {
     public void stop() throws Exception {
         deleteStatefulSet();
         deleteService();
+        deleteServiceAccounts();
 
         if (channel != null) {
             for (ManagedChannel cn : channel) {
@@ -365,8 +437,8 @@ public class KubernetesRuntime implements Runtime {
 
         RuntimeUtils.Actions.Action createService = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Submitting service for function %s", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     final V1Service response;
                     try {
@@ -430,6 +502,11 @@ public class KubernetesRuntime implements Runtime {
 
     private void submitStatefulSet() throws Exception {
         final V1StatefulSet statefulSet = createStatefulSet();
+        // Configure function authentication if needed
+        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+            functionAuthDataCacheProvider.configureAuthDataStatefulSet(
+                    instanceConfig.getFunctionAuthenticationSpec(), statefulSet);
+        }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
 
@@ -437,8 +514,8 @@ public class KubernetesRuntime implements Runtime {
 
         RuntimeUtils.Actions.Action createStatefulSet = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Submitting statefulset for function %s", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
@@ -484,8 +561,8 @@ public class KubernetesRuntime implements Runtime {
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         RuntimeUtils.Actions.Action deleteStatefulSet = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Deleting statefulset for function %s", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     Response response;
                     try {
@@ -533,8 +610,8 @@ public class KubernetesRuntime implements Runtime {
         RuntimeUtils.Actions.Action waitForStatefulSetDeletion = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
                 // set retry period to be about 2x the graceshutdown time
-                .numRetries(NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS* 2)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS* 2)
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
@@ -562,8 +639,8 @@ public class KubernetesRuntime implements Runtime {
         // Need to wait for all pods to die so we can cleanup subscriptions.
         RuntimeUtils.Actions.Action waitForStatefulPodsToTerminate = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Waiting for pods for function %s to terminate", fqfn))
-                .numRetries(NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS * 2)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS * 2)
                 .supplier(() -> {
                     String labels = String.format("tenant=%s,namespace=%s,name=%s",
                             instanceConfig.getFunctionDetails().getTenant(),
@@ -635,8 +712,8 @@ public class KubernetesRuntime implements Runtime {
 
         RuntimeUtils.Actions.Action deleteService = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Deleting service for function %s", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     final Response response;
                     try {
@@ -681,8 +758,8 @@ public class KubernetesRuntime implements Runtime {
 
         RuntimeUtils.Actions.Action waitForServiceDeletion = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     V1Service response;
                     try {
@@ -729,6 +806,85 @@ public class KubernetesRuntime implements Runtime {
         }
     }
 
+    private void deleteServiceAccounts() throws InterruptedException {
+        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+
+        String serviceAccountName = generateServiceAccount(instanceConfig);
+        RuntimeUtils.Actions.Action deleteServiceAccount = RuntimeUtils.Actions.Action.builder()
+                .actionName(String.format("Deleting service account %s for function %s", serviceAccountName, fqfn))
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .supplier(() -> {
+                    try {
+                        V1DeleteOptions v1DeleteOptions = new V1DeleteOptions();
+                        v1DeleteOptions.setGracePeriodSeconds(0L);
+                        v1DeleteOptions.setPropagationPolicy("Foreground");
+
+                        coreClient.deleteNamespacedServiceAccount(serviceAccountName, jobNamespace,
+                                v1DeleteOptions, null, null, null, null);
+                    } catch (ApiException e) {
+                        // if already deleted
+                        if (e.getCode() == HTTP_NOT_FOUND) {
+                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                        }
+
+                        String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(errorMsg)
+                                .build();
+                    }
+                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                })
+                .build();
+
+        RuntimeUtils.Actions.Action waitForServiceAccountDeletion = RuntimeUtils.Actions.Action.builder()
+                .actionName(String.format("Waiting for service account %s for function %s to complete deletion", serviceAccountName, fqfn))
+                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .supplier(() -> {
+                    try {
+                        coreClient.readNamespacedServiceAccount(serviceAccountName, jobNamespace, null, null, null);
+
+                    } catch (ApiException e) {
+                        // statefulset is gone
+                        if (e.getCode() == HTTP_NOT_FOUND) {
+                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                        }
+                        String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
+                        return RuntimeUtils.Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(errorMsg)
+                                .build();
+                    }
+                    return RuntimeUtils.Actions.ActionResult.builder()
+                            .success(false)
+                            .build();
+                })
+                .build();
+
+        AtomicBoolean success = new AtomicBoolean(false);
+        RuntimeUtils.Actions.newBuilder()
+                .addAction(deleteServiceAccount.toBuilder()
+                        .continueOn(true)
+                        .build())
+                .addAction(waitForServiceAccountDeletion.toBuilder()
+                        .continueOn(false)
+                        .onSuccess(() -> success.set(true))
+                        .build())
+                .addAction(deleteServiceAccount.toBuilder()
+                        .continueOn(true)
+                        .build())
+                .addAction(waitForServiceAccountDeletion.toBuilder()
+                        .onSuccess(() -> success.set(true))
+                        .build())
+                .run();
+
+        if (!success.get()) {
+            throw new RuntimeException(String.format("Failed to delete service account %s for function %s", serviceAccountName, fqfn));
+        }
+    }
+
     protected List<String> getExecutorCommand() {
         return Arrays.asList(
                 "sh",
@@ -740,6 +896,28 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
+
+        // add auth plugin and parameters if necessary
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                return Arrays.asList(
+                        pulsarRootDir + "/bin/pulsar-admin",
+                        "--auth-plugin",
+                        authConfig.getClientAuthenticationPlugin(),
+                        "--auth-params",
+                        authConfig.getClientAuthenticationParameters(),
+                        "--admin-url",
+                        pulsarAdminUrl,
+                        "functions",
+                        "download",
+                        "--path",
+                        bkPath,
+                        "--destination-file",
+                        userCodeFilePath);
+            }
+        }
+
         return Arrays.asList(
                 pulsarRootDir + "/bin/pulsar-admin",
                 "--admin-url",
@@ -850,21 +1028,11 @@ public class KubernetesRuntime implements Runtime {
         containers.add(getFunctionContainer(instanceCommand, resource));
         podSpec.containers(containers);
 
-        // set authentication token
-        Function.FunctionAuthenticationSpec authenticationSpec = instanceConfig.getFunctionDetails().getFunctionAuthSpec();
-        if (authenticationSpec != null) {
-            podSpec.setVolumes(Collections.singletonList(
-                    new V1Volume()
-                            .name("function-auth")
-                            .secret(
-                                    new V1SecretVolumeSource()
-                                            .secretName(authenticationSpec.getId())
-
-                                            .defaultMode(256))));
-        }
-
         // Configure secrets
         secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME, instanceConfig.getFunctionDetails());
+
+        log.info("Setting service account {} for function {}", generateServiceAccount(instanceConfig), FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        podSpec.setServiceAccount(generateServiceAccount(instanceConfig));
 
         return podSpec;
     }
@@ -921,15 +1089,6 @@ public class KubernetesRuntime implements Runtime {
 
         // set container ports
         container.setPorts(getFunctionContainerPorts());
-
-        // auth
-        if (instanceConfig.getFunctionDetails().getFunctionAuthSpec())
-        container.setVolumeMounts(Collections.singletonList(
-                new V1VolumeMount()
-                        .name("function-auth")
-                        .mountPath(authPath)
-//                        .mountPath("/etc/auth")
-                        .readOnly(true)));
 
         return container;
     }

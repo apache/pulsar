@@ -125,6 +125,12 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
+
+        // configure auth if necessary
+        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+            getAuthProvider().configureAuthenticationConfig(authConfig, instanceConfig.getFunctionAuthenticationSpec());
+        }
+
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,

@@ -120,7 +120,8 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import net.jodah.typetools.TypeResolver;
 
 @Slf4j
-public abstract class ComponentImpl {
+public abstract class
+ComponentImpl {
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     protected final Supplier<WorkerService> workerServiceSupplier;
@@ -376,28 +377,29 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
         }
 
-        // cache auth if need
-        try {
-            Function.FunctionAuthenticationSpec authenticationSpec = worker().getFunctionRuntimeManager()
-                    .getRuntimeFactory()
-                    .cacheAuthData(clientAuthenticationDataHttps);
-
-            if (authenticationSpec != null) {
-                functionDetails = FunctionDetails.newBuilder(functionDetails)
-                        .setFunctionAuthSpec(authenticationSpec)
-                        .build();
-            }
-        } catch (Exception e) {
-            log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
-        }
-
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails)
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
+        // cache auth if need
+        if (clientAuthenticationDataHttps != null) {
+            try {
+                Function.FunctionAuthenticationSpec authenticationSpec = worker().getFunctionRuntimeManager()
+                        .getRuntimeFactory()
+                        .getAuthProvider()
+                        .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+
+                if (authenticationSpec != null) {
+                    functionMetaDataBuilder.setFunctionAuthSpec(authenticationSpec).build();
+                }
+            } catch (Exception e) {
+                log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+            }
+        }
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         try {
@@ -513,6 +515,7 @@ public abstract class ComponentImpl {
         String existingComponentConfigJson;
 
         FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+
         if (componentType.equals(FUNCTION)) {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
@@ -585,6 +588,9 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        //merge new functiondetails with existing function details
+        functionDetails = existingComponent.getFunctionDetails().toBuilder().mergeFrom(functionDetails).build();
+
         try {
             worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
         } catch (Exception e) {
@@ -592,9 +598,9 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
         }
 
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+        // merge from existing metadata
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
+                .setFunctionDetails(functionDetails);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         if (isNotBlank(functionPkgUrl) || uploadedInputStreamAsFile != null) {
@@ -609,6 +615,7 @@ public abstract class ComponentImpl {
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
         updateRequest(functionMetaDataBuilder.build());
     }
 

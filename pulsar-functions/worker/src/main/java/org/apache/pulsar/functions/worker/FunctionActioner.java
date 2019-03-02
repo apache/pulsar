@@ -156,6 +156,7 @@ public class FunctionActioner {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
+                instance.getFunctionMetaData().getFunctionAuthSpec(),
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
@@ -166,7 +167,8 @@ public class FunctionActioner {
     }
 
 
-    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, int instanceId, String clusterName) {
+    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
+            functionAuthSpec, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
@@ -176,6 +178,7 @@ public class FunctionActioner {
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
+        instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         return instanceConfig;
     }
 
@@ -233,17 +236,9 @@ public class FunctionActioner {
         }
     }
 
-    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        FunctionDetails details = functionMetaData.getFunctionDetails();
-        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
-                instance.getInstanceId());
-        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
-            functionRuntimeInfo.getRuntimeSpawner().close();
-            functionRuntimeInfo.setRuntimeSpawner(null);
-        }
-
         // clean up function package
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
@@ -252,7 +247,7 @@ public class FunctionActioner {
         if (pkgDir.exists()) {
             try {
                 MoreFiles.deleteRecursively(
-                    Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
+                        Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
             } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
                         FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
@@ -260,14 +255,42 @@ public class FunctionActioner {
         }
     }
 
-    public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                .getFunctionDetails();
-        log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
-                functionRuntimeInfo.getFunctionInstance().getInstanceId());
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
+    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        FunctionDetails details = functionMetaData.getFunctionDetails();
+        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
+                instance.getInstanceId());
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().stop();
+            functionRuntimeInfo.setRuntimeSpawner(null);
+        }
 
-        stopFunction(functionRuntimeInfo);
+        cleanupFunctionFiles(functionRuntimeInfo);
+    }
+
+    private void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
+        log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().close();
+            // cleanup any auth data cached
+            try {
+                functionRuntimeInfo.getRuntimeSpawner()
+                        .getRuntimeFactory().getAuthProvider()
+                        .cleanUpAuthData(
+                                details.getTenant(), details.getNamespace(), details.getName(),
+                                functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec());
+            } catch (Exception e) {
+                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+            }
+            functionRuntimeInfo.setRuntimeSpawner(null);
+        }
+
+        cleanupFunctionFiles(functionRuntimeInfo);
+
         //cleanup subscriptions
         if (details.getSource().getCleanupSubscription()) {
             Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();

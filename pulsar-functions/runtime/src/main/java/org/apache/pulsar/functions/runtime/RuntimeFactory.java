@@ -19,7 +19,8 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.functions.auth.ClearTextFunctionTokenAuthProvider;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 
@@ -44,11 +45,12 @@ public interface RuntimeFactory extends AutoCloseable {
 
     default void doAdmissionChecks(Function.FunctionDetails functionDetails) { }
 
-    default Function.FunctionAuthenticationSpec cacheAuthData(AuthenticationDataSource AuthenticationDataSource) {
-        return null;
+    default FunctionAuthProvider getAuthProvider() throws IllegalAccessException, InstantiationException {
+        return ClearTextFunctionTokenAuthProvider.class.newInstance();
     }
 
     @Override
     void close();
 
 }
+ 
