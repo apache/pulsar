@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
@@ -72,7 +71,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -464,7 +463,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    // According to auth result, send newConnected or newAuthResponse command.
+    // According to auth result, send newConnected or newAuthChallenge command.
     private void doingAuthentication(AuthData clientData,
                                      int clientProtocolVersion,
                                      String clientVersion) throws Exception {
@@ -481,7 +480,7 @@ public class ServerCnx extends PulsarHandler {
         }
 
         // auth not complete, continue auth with client side.
-        ctx.writeAndFlush(Commands.newAuthResponse(authMethod, brokerData, clientProtocolVersion));
+        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
         if (log.isDebugEnabled()) {
             log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
@@ -558,21 +557,21 @@ public class ServerCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
+    protected void handleAuthResponse(CommandAuthResponse authResponse) {
         checkArgument(state == State.Connecting);
-        checkArgument(authChallenge.hasChallenge());
-        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthMethodName());
+        checkArgument(authResponse.hasResponse());
+        checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthMethodName());
 
         if (log.isDebugEnabled()) {
-            log.debug("Received AuthChallenge from {}, auth method: {}",
-                remoteAddress, authChallenge.getChallenge().getAuthMethodName());
+            log.debug("Received AuthResponse from {}, auth method: {}",
+                remoteAddress, authResponse.getResponse().getAuthMethodName());
         }
 
         try {
-            AuthData clientData = AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray());
-            doingAuthentication(clientData, authChallenge.getProtocolVersion(), authChallenge.getClientVersion());
+            AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData().toByteArray());
+            doingAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
         } catch (Exception e) {
-            String msg = "Unable to handleAuthChallenge";
+            String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();

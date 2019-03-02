@@ -212,49 +212,49 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAuthResponse(String authMethod, AuthData brokerData, int clientProtocolVersion) {
-        CommandAuthResponse.Builder responseBuilder = CommandAuthResponse.newBuilder();
+    public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
+        CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
 
         // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
         // client supports, to avoid confusing the client.
         int currentProtocolVersion = getCurrentProtocolVersion();
         int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
-        responseBuilder.setProtocolVersion(versionToAdvertise);
-        responseBuilder.setServerVersion("Pulsar Server");
+        challengeBuilder.setProtocolVersion(versionToAdvertise);
+        challengeBuilder.setServerVersion("Pulsar Server");
 
-        CommandAuthResponse response = responseBuilder
-            .setResponse(PulsarApi.AuthData.newBuilder()
+        CommandAuthChallenge challenge = challengeBuilder
+            .setChallenge(PulsarApi.AuthData.newBuilder()
                 .setAuthData(copyFrom(brokerData.getBytes()))
                 .setAuthMethodName(authMethod)
                 .build())
             .build();
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthResponse(response));
-        response.recycle();
-        responseBuilder.recycle();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthChallenge(challenge));
+        challenge.recycle();
+        challengeBuilder.recycle();
         return res;
     }
 
-    public static ByteBuf newAuthChallenge(String authMethod,
+    public static ByteBuf newAuthResponse(String authMethod,
                                            AuthData clientData,
                                            int clientProtocolVersion,
                                            String clientVersion) {
-        CommandAuthChallenge.Builder challengeBuilder  = CommandAuthChallenge.newBuilder();
+        CommandAuthResponse.Builder responseBuilder  = CommandAuthResponse.newBuilder();
 
-        challengeBuilder.setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client");
-        challengeBuilder.setProtocolVersion(clientProtocolVersion);
+        responseBuilder.setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client");
+        responseBuilder.setProtocolVersion(clientProtocolVersion);
 
-        CommandAuthChallenge challenge = challengeBuilder
-            .setChallenge(PulsarApi.AuthData.newBuilder()
+        CommandAuthResponse response = responseBuilder
+            .setResponse(PulsarApi.AuthData.newBuilder()
                 .setAuthData(copyFrom(clientData.getBytes()))
                 .setAuthMethodName(authMethod)
                 .build())
             .build();
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
-        challenge.recycle();
-        challengeBuilder.recycle();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthResponse(response));
+        response.recycle();
+        responseBuilder.recycle();
         return res;
     }
 

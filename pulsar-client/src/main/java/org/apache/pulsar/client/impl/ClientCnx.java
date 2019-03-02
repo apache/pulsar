@@ -50,7 +50,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -286,18 +286,18 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAuthResponse(CommandAuthResponse authResponse) {
-        checkArgument(authResponse.hasResponse());
-        checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthData());
+    protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
+        checkArgument(authChallenge.hasChallenge());
+        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
 
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         try {
             AuthData authData = authenticationDataProvider
-                .authenticate(AuthData.of(authResponse.getResponse().getAuthData().toByteArray()));
+                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray()));
 
             checkState(!authData.isComplete());
 
-            ByteBuf request = Commands.newAuthChallenge(authentication.getAuthMethodName(),
+            ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
                 authData,
                 this.protocolVersion,
                 getPulsarClientVersion());

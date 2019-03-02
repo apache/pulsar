@@ -6789,534 +6789,12 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConnected)
   }
   
-  public interface CommandAuthChallengeOrBuilder
+  public interface CommandAuthResponseOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string client_version = 1;
     boolean hasClientVersion();
     String getClientVersion();
-    
-    // required .pulsar.proto.AuthData challenge = 2;
-    boolean hasChallenge();
-    org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge();
-    
-    // optional int32 protocol_version = 3 [default = 0];
-    boolean hasProtocolVersion();
-    int getProtocolVersion();
-  }
-  public static final class CommandAuthChallenge extends
-      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
-      implements CommandAuthChallengeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
-    // Use CommandAuthChallenge.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandAuthChallenge(io.netty.util.Recycler.Handle handle) {
-      this.handle = handle;
-    }
-    
-     private static final io.netty.util.Recycler<CommandAuthChallenge> RECYCLER = new io.netty.util.Recycler<CommandAuthChallenge>() {
-            protected CommandAuthChallenge newObject(Handle handle) {
-              return new CommandAuthChallenge(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
-        }
-         
-    private CommandAuthChallenge(boolean noInit) {}
-    
-    private static final CommandAuthChallenge defaultInstance;
-    public static CommandAuthChallenge getDefaultInstance() {
-      return defaultInstance;
-    }
-    
-    public CommandAuthChallenge getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-    
-    private int bitField0_;
-    // required string client_version = 1;
-    public static final int CLIENT_VERSION_FIELD_NUMBER = 1;
-    private java.lang.Object clientVersion_;
-    public boolean hasClientVersion() {
-      return ((bitField0_ & 0x00000001) == 0x00000001);
-    }
-    public String getClientVersion() {
-      java.lang.Object ref = clientVersion_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
-            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
-          clientVersion_ = s;
-        }
-        return s;
-      }
-    }
-    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getClientVersionBytes() {
-      java.lang.Object ref = clientVersion_;
-      if (ref instanceof String) {
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
-            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
-        clientVersion_ = b;
-        return b;
-      } else {
-        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
-      }
-    }
-    
-    // required .pulsar.proto.AuthData challenge = 2;
-    public static final int CHALLENGE_FIELD_NUMBER = 2;
-    private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_;
-    public boolean hasChallenge() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge() {
-      return challenge_;
-    }
-    
-    // optional int32 protocol_version = 3 [default = 0];
-    public static final int PROTOCOL_VERSION_FIELD_NUMBER = 3;
-    private int protocolVersion_;
-    public boolean hasProtocolVersion() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public int getProtocolVersion() {
-      return protocolVersion_;
-    }
-    
-    private void initFields() {
-      clientVersion_ = "";
-      challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
-      protocolVersion_ = 0;
-    }
-    private byte memoizedIsInitialized = -1;
-    public final boolean isInitialized() {
-      byte isInitialized = memoizedIsInitialized;
-      if (isInitialized != -1) return isInitialized == 1;
-      
-      if (!hasClientVersion()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasChallenge()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getChallenge().isInitialized()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      memoizedIsInitialized = 1;
-      return true;
-    }
-    
-    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
-                        throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
-      getSerializedSize();
-      if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeBytes(1, getClientVersionBytes());
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeMessage(2, challenge_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeInt32(3, protocolVersion_);
-      }
-    }
-    
-    private int memoizedSerializedSize = -1;
-    public int getSerializedSize() {
-      int size = memoizedSerializedSize;
-      if (size != -1) return size;
-    
-      size = 0;
-      if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeBytesSize(1, getClientVersionBytes());
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeMessageSize(2, challenge_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeInt32Size(3, protocolVersion_);
-      }
-      memoizedSerializedSize = size;
-      return size;
-    }
-    
-    private static final long serialVersionUID = 0L;
-    @java.lang.Override
-    protected java.lang.Object writeReplace()
-        throws java.io.ObjectStreamException {
-      return super.writeReplace();
-    }
-    
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
-        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(byte[] data)
-        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        byte[] data,
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        java.io.InputStream input,
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseDelimitedFrom(
-        java.io.InputStream input,
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
-        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
-        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    
-    public static Builder newBuilder() { return Builder.create(); }
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge prototype) {
-      return newBuilder().mergeFrom(prototype);
-    }
-    public Builder toBuilder() { return newBuilder(this); }
-    
-    public static final class Builder extends
-        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge, Builder>
-        implements org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallengeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
-        this.handle = handle;
-        maybeForceBuilderInitialization();
-      }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
-            }
-      
-      private void maybeForceBuilderInitialization() {
-      }
-      private static Builder create() {
-        return RECYCLER.get();
-      }
-      
-      public Builder clear() {
-        super.clear();
-        clientVersion_ = "";
-        bitField0_ = (bitField0_ & ~0x00000001);
-        challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000002);
-        protocolVersion_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000004);
-        return this;
-      }
-      
-      public Builder clone() {
-        return create().mergeFrom(buildPartial());
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge getDefaultInstanceForType() {
-        return org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.getDefaultInstance();
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge build() {
-        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return result;
-      }
-      
-      private org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge buildParsed()
-          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
-        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(
-            result).asInvalidProtocolBufferException();
-        }
-        return result;
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge buildPartial() {
-        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.RECYCLER.get();
-        int from_bitField0_ = bitField0_;
-        int to_bitField0_ = 0;
-        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
-          to_bitField0_ |= 0x00000001;
-        }
-        result.clientVersion_ = clientVersion_;
-        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
-          to_bitField0_ |= 0x00000002;
-        }
-        result.challenge_ = challenge_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
-        }
-        result.protocolVersion_ = protocolVersion_;
-        result.bitField0_ = to_bitField0_;
-        return result;
-      }
-      
-      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge other) {
-        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.getDefaultInstance()) return this;
-        if (other.hasClientVersion()) {
-          setClientVersion(other.getClientVersion());
-        }
-        if (other.hasChallenge()) {
-          mergeChallenge(other.getChallenge());
-        }
-        if (other.hasProtocolVersion()) {
-          setProtocolVersion(other.getProtocolVersion());
-        }
-        return this;
-      }
-      
-      public final boolean isInitialized() {
-        if (!hasClientVersion()) {
-          
-          return false;
-        }
-        if (!hasChallenge()) {
-          
-          return false;
-        }
-        if (!getChallenge().isInitialized()) {
-          
-          return false;
-        }
-        return true;
-      }
-      
-      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
-                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
-      public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        while (true) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              
-              return this;
-            default: {
-              if (!input.skipField(tag)) {
-                
-                return this;
-              }
-              break;
-            }
-            case 10: {
-              bitField0_ |= 0x00000001;
-              clientVersion_ = input.readBytes();
-              break;
-            }
-            case 18: {
-              org.apache.pulsar.common.api.proto.PulsarApi.AuthData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.newBuilder();
-              if (hasChallenge()) {
-                subBuilder.mergeFrom(getChallenge());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setChallenge(subBuilder.buildPartial());
-              subBuilder.recycle();
-              break;
-            }
-            case 24: {
-              bitField0_ |= 0x00000004;
-              protocolVersion_ = input.readInt32();
-              break;
-            }
-          }
-        }
-      }
-      
-      private int bitField0_;
-      
-      // required string client_version = 1;
-      private java.lang.Object clientVersion_ = "";
-      public boolean hasClientVersion() {
-        return ((bitField0_ & 0x00000001) == 0x00000001);
-      }
-      public String getClientVersion() {
-        java.lang.Object ref = clientVersion_;
-        if (!(ref instanceof String)) {
-          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
-          clientVersion_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setClientVersion(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-        clientVersion_ = value;
-        
-        return this;
-      }
-      public Builder clearClientVersion() {
-        bitField0_ = (bitField0_ & ~0x00000001);
-        clientVersion_ = getDefaultInstance().getClientVersion();
-        
-        return this;
-      }
-      void setClientVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
-        bitField0_ |= 0x00000001;
-        clientVersion_ = value;
-        
-      }
-      
-      // required .pulsar.proto.AuthData challenge = 2;
-      private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
-      public boolean hasChallenge() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge() {
-        return challenge_;
-      }
-      public Builder setChallenge(org.apache.pulsar.common.api.proto.PulsarApi.AuthData value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        challenge_ = value;
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder setChallenge(
-          org.apache.pulsar.common.api.proto.PulsarApi.AuthData.Builder builderForValue) {
-        challenge_ = builderForValue.build();
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder mergeChallenge(org.apache.pulsar.common.api.proto.PulsarApi.AuthData value) {
-        if (((bitField0_ & 0x00000002) == 0x00000002) &&
-            challenge_ != org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance()) {
-          challenge_ =
-            org.apache.pulsar.common.api.proto.PulsarApi.AuthData.newBuilder(challenge_).mergeFrom(value).buildPartial();
-        } else {
-          challenge_ = value;
-        }
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder clearChallenge() {
-        challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
-        
-        bitField0_ = (bitField0_ & ~0x00000002);
-        return this;
-      }
-      
-      // optional int32 protocol_version = 3 [default = 0];
-      private int protocolVersion_ ;
-      public boolean hasProtocolVersion() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public int getProtocolVersion() {
-        return protocolVersion_;
-      }
-      public Builder setProtocolVersion(int value) {
-        bitField0_ |= 0x00000004;
-        protocolVersion_ = value;
-        
-        return this;
-      }
-      public Builder clearProtocolVersion() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        protocolVersion_ = 0;
-        
-        return this;
-      }
-      
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandAuthChallenge)
-    }
-    
-    static {
-      defaultInstance = new CommandAuthChallenge(true);
-      defaultInstance.initFields();
-    }
-    
-    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandAuthChallenge)
-  }
-  
-  public interface CommandAuthResponseOrBuilder
-      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
-    
-    // required string server_version = 1;
-    boolean hasServerVersion();
-    String getServerVersion();
     
     // required .pulsar.proto.AuthData response = 2;
     boolean hasResponse();
@@ -7361,14 +6839,14 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required string server_version = 1;
-    public static final int SERVER_VERSION_FIELD_NUMBER = 1;
-    private java.lang.Object serverVersion_;
-    public boolean hasServerVersion() {
+    // required string client_version = 1;
+    public static final int CLIENT_VERSION_FIELD_NUMBER = 1;
+    private java.lang.Object clientVersion_;
+    public boolean hasClientVersion() {
       return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    public String getServerVersion() {
-      java.lang.Object ref = serverVersion_;
+    public String getClientVersion() {
+      java.lang.Object ref = clientVersion_;
       if (ref instanceof String) {
         return (String) ref;
       } else {
@@ -7376,17 +6854,17 @@ public final class PulsarApi {
             (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
         if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
-          serverVersion_ = s;
+          clientVersion_ = s;
         }
         return s;
       }
     }
-    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getServerVersionBytes() {
-      java.lang.Object ref = serverVersion_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getClientVersionBytes() {
+      java.lang.Object ref = clientVersion_;
       if (ref instanceof String) {
         org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
             org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
-        serverVersion_ = b;
+        clientVersion_ = b;
         return b;
       } else {
         return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
@@ -7414,7 +6892,7 @@ public final class PulsarApi {
     }
     
     private void initFields() {
-      serverVersion_ = "";
+      clientVersion_ = "";
       response_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
       protocolVersion_ = 0;
     }
@@ -7423,7 +6901,7 @@ public final class PulsarApi {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasServerVersion()) {
+      if (!hasClientVersion()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -7448,7 +6926,7 @@ public final class PulsarApi {
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeBytes(1, getServerVersionBytes());
+        output.writeBytes(1, getClientVersionBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeMessage(2, response_);
@@ -7466,7 +6944,7 @@ public final class PulsarApi {
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeBytesSize(1, getServerVersionBytes());
+          .computeBytesSize(1, getClientVersionBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
@@ -7589,7 +7067,7 @@ public final class PulsarApi {
       
       public Builder clear() {
         super.clear();
-        serverVersion_ = "";
+        clientVersion_ = "";
         bitField0_ = (bitField0_ & ~0x00000001);
         response_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000002);
@@ -7631,7 +7109,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
           to_bitField0_ |= 0x00000001;
         }
-        result.serverVersion_ = serverVersion_;
+        result.clientVersion_ = clientVersion_;
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
@@ -7646,8 +7124,8 @@ public final class PulsarApi {
       
       public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse other) {
         if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse.getDefaultInstance()) return this;
-        if (other.hasServerVersion()) {
-          setServerVersion(other.getServerVersion());
+        if (other.hasClientVersion()) {
+          setClientVersion(other.getClientVersion());
         }
         if (other.hasResponse()) {
           mergeResponse(other.getResponse());
@@ -7659,7 +7137,7 @@ public final class PulsarApi {
       }
       
       public final boolean isInitialized() {
-        if (!hasServerVersion()) {
+        if (!hasClientVersion()) {
           
           return false;
         }
@@ -7698,7 +7176,7 @@ public final class PulsarApi {
             }
             case 10: {
               bitField0_ |= 0x00000001;
-              serverVersion_ = input.readBytes();
+              clientVersion_ = input.readBytes();
               break;
             }
             case 18: {
@@ -7722,39 +7200,39 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required string server_version = 1;
-      private java.lang.Object serverVersion_ = "";
-      public boolean hasServerVersion() {
+      // required string client_version = 1;
+      private java.lang.Object clientVersion_ = "";
+      public boolean hasClientVersion() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
       }
-      public String getServerVersion() {
-        java.lang.Object ref = serverVersion_;
+      public String getClientVersion() {
+        java.lang.Object ref = clientVersion_;
         if (!(ref instanceof String)) {
           String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
-          serverVersion_ = s;
+          clientVersion_ = s;
           return s;
         } else {
           return (String) ref;
         }
       }
-      public Builder setServerVersion(String value) {
+      public Builder setClientVersion(String value) {
         if (value == null) {
     throw new NullPointerException();
   }
   bitField0_ |= 0x00000001;
-        serverVersion_ = value;
+        clientVersion_ = value;
         
         return this;
       }
-      public Builder clearServerVersion() {
+      public Builder clearClientVersion() {
         bitField0_ = (bitField0_ & ~0x00000001);
-        serverVersion_ = getDefaultInstance().getServerVersion();
+        clientVersion_ = getDefaultInstance().getClientVersion();
         
         return this;
       }
-      void setServerVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+      void setClientVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
-        serverVersion_ = value;
+        clientVersion_ = value;
         
       }
       
@@ -7831,6 +7309,528 @@ public final class PulsarApi {
     }
     
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandAuthResponse)
+  }
+  
+  public interface CommandAuthChallengeOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string server_version = 1;
+    boolean hasServerVersion();
+    String getServerVersion();
+    
+    // required .pulsar.proto.AuthData challenge = 2;
+    boolean hasChallenge();
+    org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge();
+    
+    // optional int32 protocol_version = 3 [default = 0];
+    boolean hasProtocolVersion();
+    int getProtocolVersion();
+  }
+  public static final class CommandAuthChallenge extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements CommandAuthChallengeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandAuthChallenge.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private CommandAuthChallenge(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandAuthChallenge> RECYCLER = new io.netty.util.Recycler<CommandAuthChallenge>() {
+            protected CommandAuthChallenge newObject(Handle handle) {
+              return new CommandAuthChallenge(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private CommandAuthChallenge(boolean noInit) {}
+    
+    private static final CommandAuthChallenge defaultInstance;
+    public static CommandAuthChallenge getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandAuthChallenge getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required string server_version = 1;
+    public static final int SERVER_VERSION_FIELD_NUMBER = 1;
+    private java.lang.Object serverVersion_;
+    public boolean hasServerVersion() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public String getServerVersion() {
+      java.lang.Object ref = serverVersion_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          serverVersion_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getServerVersionBytes() {
+      java.lang.Object ref = serverVersion_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        serverVersion_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    // required .pulsar.proto.AuthData challenge = 2;
+    public static final int CHALLENGE_FIELD_NUMBER = 2;
+    private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_;
+    public boolean hasChallenge() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge() {
+      return challenge_;
+    }
+    
+    // optional int32 protocol_version = 3 [default = 0];
+    public static final int PROTOCOL_VERSION_FIELD_NUMBER = 3;
+    private int protocolVersion_;
+    public boolean hasProtocolVersion() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public int getProtocolVersion() {
+      return protocolVersion_;
+    }
+    
+    private void initFields() {
+      serverVersion_ = "";
+      challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
+      protocolVersion_ = 0;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasServerVersion()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasChallenge()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!getChallenge().isInitialized()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getServerVersionBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeMessage(2, challenge_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeInt32(3, protocolVersion_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getServerVersionBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(2, challenge_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(3, protocolVersion_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallengeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        serverVersion_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        protocolVersion_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge result = org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.serverVersion_ = serverVersion_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.challenge_ = challenge_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.protocolVersion_ = protocolVersion_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.getDefaultInstance()) return this;
+        if (other.hasServerVersion()) {
+          setServerVersion(other.getServerVersion());
+        }
+        if (other.hasChallenge()) {
+          mergeChallenge(other.getChallenge());
+        }
+        if (other.hasProtocolVersion()) {
+          setProtocolVersion(other.getProtocolVersion());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasServerVersion()) {
+          
+          return false;
+        }
+        if (!hasChallenge()) {
+          
+          return false;
+        }
+        if (!getChallenge().isInitialized()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              serverVersion_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              org.apache.pulsar.common.api.proto.PulsarApi.AuthData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.newBuilder();
+              if (hasChallenge()) {
+                subBuilder.mergeFrom(getChallenge());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setChallenge(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              protocolVersion_ = input.readInt32();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string server_version = 1;
+      private java.lang.Object serverVersion_ = "";
+      public boolean hasServerVersion() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getServerVersion() {
+        java.lang.Object ref = serverVersion_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          serverVersion_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setServerVersion(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        serverVersion_ = value;
+        
+        return this;
+      }
+      public Builder clearServerVersion() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        serverVersion_ = getDefaultInstance().getServerVersion();
+        
+        return this;
+      }
+      void setServerVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        serverVersion_ = value;
+        
+      }
+      
+      // required .pulsar.proto.AuthData challenge = 2;
+      private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
+      public boolean hasChallenge() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge() {
+        return challenge_;
+      }
+      public Builder setChallenge(org.apache.pulsar.common.api.proto.PulsarApi.AuthData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        challenge_ = value;
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder setChallenge(
+          org.apache.pulsar.common.api.proto.PulsarApi.AuthData.Builder builderForValue) {
+        challenge_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder mergeChallenge(org.apache.pulsar.common.api.proto.PulsarApi.AuthData value) {
+        if (((bitField0_ & 0x00000002) == 0x00000002) &&
+            challenge_ != org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance()) {
+          challenge_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.AuthData.newBuilder(challenge_).mergeFrom(value).buildPartial();
+        } else {
+          challenge_ = value;
+        }
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder clearChallenge() {
+        challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      // optional int32 protocol_version = 3 [default = 0];
+      private int protocolVersion_ ;
+      public boolean hasProtocolVersion() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public int getProtocolVersion() {
+        return protocolVersion_;
+      }
+      public Builder setProtocolVersion(int value) {
+        bitField0_ |= 0x00000004;
+        protocolVersion_ = value;
+        
+        return this;
+      }
+      public Builder clearProtocolVersion() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        protocolVersion_ = 0;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandAuthChallenge)
+    }
+    
+    static {
+      defaultInstance = new CommandAuthChallenge(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandAuthChallenge)
   }
   
   public interface AuthDataOrBuilder

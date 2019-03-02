@@ -200,15 +200,15 @@ message CommandConnected {
 	optional int32 protocol_version = 2 [default = 0];
 }
 
-message CommandAuthChallenge {
+message CommandAuthResponse {
 	required string client_version = 1;
-	required AuthData challenge = 2;
+	required AuthData response = 2;
 	optional int32 protocol_version = 3 [default = 0];
 }
 
-message CommandAuthResponse {
+message CommandAuthChallenge {
 	required string server_version = 1;
-	required AuthData response = 2;
+	required AuthData challenge = 2;
 	optional int32 protocol_version = 3 [default = 0];
 }
 
