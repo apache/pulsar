@@ -19,11 +19,12 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO;
 import static org.testng.Assert.assertEquals;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -39,7 +40,7 @@ public class AvroSchemaTest {
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_JSON);
+        assertEquals(schemaJson, SCHEMA_AVRO);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -48,6 +49,9 @@ public class AvroSchemaTest {
 
             if (field.name().equals("field4")) {
                 Assert.assertNotNull(field.schema().getTypes().get(1).getField("field1"));
+            }
+            if (field.name().equals("fieldUnableNull")) {
+                Assert.assertNotNull(field.schema().getType());
             }
         }
     }
@@ -60,22 +64,26 @@ public class AvroSchemaTest {
         foo1.setField1("foo1");
         foo1.setField2("bar1");
         foo1.setField4(new Bar());
+        foo1.setFieldUnableNull("notNull");
 
         Foo foo2 = new Foo();
         foo2.setField1("foo2");
         foo2.setField2("bar2");
 
         byte[] bytes1 = avroSchema.encode(foo1);
-        Assert.assertTrue(bytes1.length > 0);
-
-        byte[] bytes2 = avroSchema.encode(foo2);
-        Assert.assertTrue(bytes2.length > 0);
-
         Foo object1 = avroSchema.decode(bytes1);
-        Foo object2 = avroSchema.decode(bytes2);
-
+        Assert.assertTrue(bytes1.length > 0);
         assertEquals(object1, foo1);
-        assertEquals(object2, foo2);
+
+        try {
+
+           avroSchema.encode(foo2);
+
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof SchemaSerializationException);
+        }
+
     }
+
 
 }

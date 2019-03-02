@@ -133,6 +133,7 @@ public class KeyValueSchemaTest {
         foo.setField3(3);
         foo.setField4(bar);
         foo.setColor(Color.RED);
+        foo.setFieldUnableNull("notNull");
 
         byte[] fooBytes = fooAvroSchema.encode(foo);
         byte[] barBytes = barAvroSchema.encode(bar);

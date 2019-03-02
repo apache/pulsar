@@ -100,7 +100,7 @@ public class AvroSchema<T> implements Schema<T> {
     }
 
     private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo) {
-        return ReflectData.AllowNull.get().getSchema(pojo);
+        return ReflectData.get().getSchema(pojo);
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
