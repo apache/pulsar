@@ -149,5 +149,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         // There should be no more messages
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        consumer.close();
+        producer.close();
     }
 }
