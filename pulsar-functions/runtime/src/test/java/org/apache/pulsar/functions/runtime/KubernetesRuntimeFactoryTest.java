@@ -165,8 +165,6 @@ public class KubernetesRuntimeFactoryTest {
         factory = createKubernetesRuntimeFactory(null, null);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
-        verify(factory, times(1)).setupClient();
-
     }
 
     @Test

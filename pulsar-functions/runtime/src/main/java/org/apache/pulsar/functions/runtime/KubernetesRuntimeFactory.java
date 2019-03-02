@@ -236,7 +236,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @VisibleForTesting
-    void setupClient() throws Exception {
+    public void setupClient() throws Exception {
         if (appsClient == null) {
             if (this.kubernetesInfo.getK8Uri() == null) {
                 log.info("k8Uri is null thus going by defaults");

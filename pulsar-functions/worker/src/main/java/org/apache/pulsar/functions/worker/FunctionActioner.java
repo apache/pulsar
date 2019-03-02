@@ -269,7 +269,7 @@ public class FunctionActioner {
         cleanupFunctionFiles(functionRuntimeInfo);
     }
 
-    private void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
         log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
