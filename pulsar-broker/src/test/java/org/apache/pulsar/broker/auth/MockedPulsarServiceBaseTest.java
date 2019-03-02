@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.test.PortManager;
@@ -93,7 +92,6 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
@@ -158,7 +156,7 @@ public abstract class MockedPulsarServiceBaseTest {
                 pulsar.close();
             }
             if (mockBookKeeper != null) {
-                mockBookKeeper.reallyShutdow();
+                mockBookKeeper.reallyShutdown();
             }
             if (mockZookKeeper != null) {
                 mockZookKeeper.shutdown();
@@ -187,7 +185,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void stopBroker() throws Exception {
         pulsar.close();
         // Simulate cleanup of ephemeral nodes
-        //mockZookKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
+        //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
     }
 
     protected void startBroker() throws Exception {
@@ -199,7 +197,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
         setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
-        // enable authrorization to initialize authorization service which is used by grant-permission
+        // enable authorization to initialize authorization service which is used by grant-permission
         conf.setAuthorizationEnabled(true);
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
@@ -223,7 +221,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-        List<ACL> dummyAclList = new ArrayList<ACL>(0);
+        List<ACL> dummyAclList = new ArrayList<>(0);
 
         ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
                 "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList, CreateMode.PERSISTENT);
@@ -246,7 +244,7 @@ public abstract class MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void close() throws InterruptedException, BKException {
+        public void close() {
             // no-op
         }
 
@@ -255,7 +253,7 @@ public abstract class MockedPulsarServiceBaseTest {
             // no-op
         }
 
-        public void reallyShutdow() {
+        public void reallyShutdown() {
             super.shutdown();
         }
     }
@@ -273,7 +271,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
