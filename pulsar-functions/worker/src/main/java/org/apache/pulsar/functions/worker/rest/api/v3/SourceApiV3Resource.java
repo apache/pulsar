@@ -60,7 +60,7 @@ public class SourceApiV3Resource extends FunctionApiResource {
                                    final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sourceConfigJson, clientAppId(), null);
+                functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
 
     }
 

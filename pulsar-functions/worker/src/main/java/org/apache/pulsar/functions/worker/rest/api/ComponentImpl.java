@@ -120,8 +120,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import net.jodah.typetools.TypeResolver;
 
 @Slf4j
-public abstract class
-ComponentImpl {
+public abstract class ComponentImpl {
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     protected final Supplier<WorkerService> workerServiceSupplier;

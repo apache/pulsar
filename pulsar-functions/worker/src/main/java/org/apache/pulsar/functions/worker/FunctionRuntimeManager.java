@@ -63,7 +63,6 @@ import java.util.stream.Collectors;
  * This class managers all aspects of functions assignments and running of function assignments for this worker
  */
 @Slf4j
-
 public class FunctionRuntimeManager implements AutoCloseable{
 
     // all assignments
