@@ -80,7 +80,7 @@ public class HbaseSinkTester extends SinkTester<HbaseContainer> {
 
 
    public HbaseSinkTester() {
-      super(HbaseContainer.NAME, SinkType.ELASTIC_SEARCH);
+      super(HbaseContainer.NAME, SinkType.HBASE);
 
       sinkConfig.put("zookeeperQuorum", HbaseContainer.NAME);
       sinkConfig.put("zookeeperClientPort", "2181");
