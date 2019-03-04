@@ -236,9 +236,17 @@ public class FunctionActioner {
         }
     }
 
-    private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        FunctionDetails details = functionMetaData.getFunctionDetails();
+        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
+                instance.getInstanceId());
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().close();
+            functionRuntimeInfo.setRuntimeSpawner(null);
+        }
+
         // clean up function package
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
@@ -255,42 +263,14 @@ public class FunctionActioner {
         }
     }
 
-    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
-        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        FunctionDetails details = functionMetaData.getFunctionDetails();
-        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
-                instance.getInstanceId());
-        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
-            functionRuntimeInfo.getRuntimeSpawner().stop();
-            functionRuntimeInfo.setRuntimeSpawner(null);
-        }
-
-        cleanupFunctionFiles(functionRuntimeInfo);
-    }
-
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                .getFunctionDetails();
+        log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
+                functionRuntimeInfo.getFunctionInstance().getInstanceId());
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
-        log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
 
-        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
-            functionRuntimeInfo.getRuntimeSpawner().close();
-            // cleanup any auth data cached
-            try {
-                functionRuntimeInfo.getRuntimeSpawner()
-                        .getRuntimeFactory().getAuthProvider()
-                        .cleanUpAuthData(
-                                details.getTenant(), details.getNamespace(), details.getName(),
-                                functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec());
-            } catch (Exception e) {
-                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
-            }
-            functionRuntimeInfo.setRuntimeSpawner(null);
-        }
-
-        cleanupFunctionFiles(functionRuntimeInfo);
-
+        stopFunction(functionRuntimeInfo);
         //cleanup subscriptions
         if (details.getSource().getCleanupSubscription()) {
             Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();

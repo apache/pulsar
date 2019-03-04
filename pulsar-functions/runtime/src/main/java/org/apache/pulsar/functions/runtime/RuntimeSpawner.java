@@ -139,30 +139,8 @@ public class RuntimeSpawner implements AutoCloseable {
         });
     }
 
-    /**
-     * Terminates the runtime
-     */
     @Override
     public void close() {
-        // cancel liveness checker before terminating runtime.
-        if (processLivenessCheckTimer != null) {
-            processLivenessCheckTimer.cancel(true);
-            processLivenessCheckTimer = null;
-        }
-        if (null != runtime) {
-            try {
-                runtime.terminate();
-            } catch (Exception e) {
-                log.warn("Failed to terminate function runtime: {}", e, e);
-            }
-            runtime = null;
-        }
-    }
-
-    /**
-     * Stops the runtime
-     */
-    public void stop() {
         // cancel liveness checker before stopping runtime.
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel(true);
