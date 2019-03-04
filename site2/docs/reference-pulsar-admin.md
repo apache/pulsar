@@ -1684,6 +1684,7 @@ Subcommands
 * `offload-status`
 * `create-partitioned-topic`
 * `delete-partitioned-topic`
+* `create`
 * `get-partitioned-topic-metadata`
 * `update-partitioned-topic`
 * `list`
@@ -1773,13 +1774,20 @@ Options
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
 
-
 ### `delete-partitioned-topic`
 Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
 
 Usage
 ```bash
 $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
+```
+
+### `create`
+Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
+
+Usage
+```bash
+$ pulsar-admin topics create {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ### `get-partitioned-topic-metadata`

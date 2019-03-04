@@ -140,6 +140,22 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreatePartitionedTopic(numPartitions, authoritative);
     }
 
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}")
+    @ApiOperation(value="Create a non-partitioned topic.", notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 409, message = "Partitioned topic already exist"),
+        @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
+        @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void createNonPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic, 
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateGlobalNamespaceOwnership(tenant,namespace);
+        internalCreateNonPartitionedTopic(authoritative);
+    }
+
     /**
      * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
