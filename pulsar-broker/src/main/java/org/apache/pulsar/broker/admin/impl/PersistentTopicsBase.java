@@ -398,6 +398,18 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalCreateNonPartitionedTopic(boolean authoritative) {
+    	validateAdminAccessForTenant(topicName.getTenant());
+    	
+    	try {
+    		getOrCreateTopic(topicName);
+    		log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
+    	} catch (Exception e) {
+    		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+    		throw new RestException(e);
+    	}
+    }
+
     /**
      * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
