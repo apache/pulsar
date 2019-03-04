@@ -24,9 +24,31 @@ import org.apache.pulsar.functions.proto.Function;
 
 public interface FunctionAuthProvider {
 
-    void configureAuthenticationConfig(AuthenticationConfig authConfig, Function.FunctionAuthenticationSpec functionAuthenticationSpec);
+    /**
+     * Set authentication configs for function instance based on the data in FunctionAuthenticationSpec
+     * @param authConfig authentication configs passed to the function instance
+     * @param functionAuthData function authentication data that is provider specific
+     */
+    void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData);
 
-    Function.FunctionAuthenticationSpec cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception;
+    /**
+     * Cache auth data in as part of function metadata for function that runtime may need to configure authentication
+     * @param tenant tenant that the function is running under
+     * @param namespace namespace that is the function is running under
+     * @param name name of the function
+     * @param authenticationDataSource auth data
+     * @return
+     * @throws Exception
+     */
+    FunctionAuthData cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception;
 
-    void cleanUpAuthData(String tenant, String namespace, String name, Function.FunctionAuthenticationSpec functionAuthenticationSpec) throws Exception;
+    /**
+     * Clean up operation for auth when function is terminated
+     * @param tenant tenant that the function is running under
+     * @param namespace namespace that is the function is running under
+     * @param name name of the function
+     * @param functionAuthData function auth data
+     * @throws Exception
+     */
+    void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception;
 }

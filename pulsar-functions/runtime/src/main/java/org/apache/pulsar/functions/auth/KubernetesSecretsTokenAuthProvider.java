@@ -36,7 +36,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
@@ -68,18 +67,17 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void configureAuthDataStatefulSet(Function.FunctionAuthenticationSpec functionAuthenticationSpec, V1StatefulSet statefulSet) {
+    public void configureAuthDataStatefulSet(V1StatefulSet statefulSet, FunctionAuthData functionAuthData) {
 
         V1PodSpec podSpec = statefulSet.getSpec().getTemplate().getSpec();
 
         // configure pod mount secret with auth token
-        Function.FunctionAuthenticationSpec authenticationSpec = functionAuthenticationSpec;
         podSpec.setVolumes(Collections.singletonList(
                 new V1Volume()
                         .name(SECRET_NAME)
                         .secret(
                                 new V1SecretVolumeSource()
-                                        .secretName(getSecretName(authenticationSpec.getData()))
+                                        .secretName(getSecretName(functionAuthData.getData()))
                                         .defaultMode(256))));
 
         podSpec.getContainers().forEach(container -> container.setVolumeMounts(Collections.singletonList(
@@ -91,19 +89,19 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Function.FunctionAuthenticationSpec functionAuthenticationSpec) {
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
         authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
         authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
     }
 
     @Override
-    public void configureAuthDataKubernetesServiceAccount(Function.FunctionAuthenticationSpec functionAuthenticationSpec, V1ServiceAccount sa) {
-       sa.addSecretsItem(new V1ObjectReference().name("pf-secret-" + functionAuthenticationSpec.getData()).namespace(kubeNamespace));
+    public void configureAuthDataKubernetesServiceAccount(V1ServiceAccount serviceAccount, FunctionAuthData functionAuthData) {
+       serviceAccount.addSecretsItem(new V1ObjectReference().name("pf-secret-" + functionAuthData.getData()).namespace(kubeNamespace));
     }
 
     @Override
-    public Function.FunctionAuthenticationSpec cacheAuthData(String tenant, String namespace, String name,
-                                                             AuthenticationDataSource authenticationDataSource) {
+    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name,
+                                          AuthenticationDataSource authenticationDataSource) {
         String id = null;
         try {
             String token = getToken(authenticationDataSource);
@@ -115,17 +113,16 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (id != null) {
-            return Function.FunctionAuthenticationSpec.newBuilder().setData(id).build();
+            return FunctionAuthData.builder().data(id).build();
         }
         return null;
     }
 
     @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, Function.FunctionAuthenticationSpec
-            functionAuthenticationSpec) throws Exception {
+    public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
 
-        String secretName = functionAuthenticationSpec.getData();
+        String secretName = functionAuthData.getData();
         RuntimeUtils.Actions.Action deleteSecrets = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))
                 .numRetries(NUM_RETRIES)

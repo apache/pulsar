@@ -29,6 +29,8 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
 
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+
 /**
  * Thread based function container factory implementation.
  */
@@ -128,7 +130,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         // configure auth if necessary
         if (instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, instanceConfig.getFunctionAuthenticationSpec());
+            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
 
         return new ProcessRuntime(

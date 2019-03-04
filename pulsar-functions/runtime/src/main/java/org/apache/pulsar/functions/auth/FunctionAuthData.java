@@ -18,25 +18,11 @@
  */
 package org.apache.pulsar.functions.auth;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import lombok.Builder;
+import lombok.Data;
 
-public class NoOpFunctionAuthProvider implements FunctionAuthProvider{
-    @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
-
-    }
-
-    @Override
-    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name,
-                                          AuthenticationDataSource authenticationDataSource)
-            throws Exception {
-        return null;
-    }
-
-    @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
-
-    }
+@Data
+@Builder
+public class FunctionAuthData {
+    private String data;
 }

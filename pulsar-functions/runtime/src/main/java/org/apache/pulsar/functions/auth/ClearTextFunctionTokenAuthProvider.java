@@ -31,13 +31,13 @@ import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HE
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Function.FunctionAuthenticationSpec functionAuthenticationSpec) {
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
         authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters("token://" + functionAuthenticationSpec.getData());
+        authConfig.setClientAuthenticationParameters("token://" + functionAuthData.getData());
     }
 
     @Override
-    public Function.FunctionAuthenticationSpec cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
+    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
         String token = null;
         try {
             token = getToken(authenticationDataSource);
@@ -46,14 +46,13 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
         }
 
         if (token != null) {
-            return Function.FunctionAuthenticationSpec.newBuilder().setData(token).build();
+            return FunctionAuthData.builder().data(token).build();
         }
         return null;
     }
 
     @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, Function.FunctionAuthenticationSpec
-            functionAuthenticationSpec) throws Exception {
+    public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
         //no-op
     }
 

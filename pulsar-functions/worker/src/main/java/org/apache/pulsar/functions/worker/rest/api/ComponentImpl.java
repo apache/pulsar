@@ -93,6 +93,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -385,13 +386,15 @@ public abstract class ComponentImpl {
         // cache auth if need
         if (clientAuthenticationDataHttps != null) {
             try {
-                Function.FunctionAuthenticationSpec authenticationSpec = worker().getFunctionRuntimeManager()
+                FunctionAuthData functionAuthData = worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider()
                         .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
 
-                if (authenticationSpec != null) {
-                    functionMetaDataBuilder.setFunctionAuthSpec(authenticationSpec).build();
+                if (functionAuthData != null) {
+                    functionMetaDataBuilder.setFunctionAuthSpec(
+                            Function.FunctionAuthenticationSpec.newBuilder()
+                                    .setData(functionAuthData.getData())).build();
                 }
             } catch (Exception e) {
                 log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);

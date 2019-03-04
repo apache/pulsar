@@ -82,6 +82,7 @@ import java.util.regex.Pattern;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
  * Kubernetes based runtime for running functions.
@@ -277,7 +278,7 @@ public class KubernetesRuntime implements Runtime {
                                 .namespace(jobNamespace));
 
         // configure service account for auth data if necessary
-        functionAuthDataCacheProvider.configureAuthDataKubernetesServiceAccount(authenticationSpec, serviceAccount);
+        functionAuthDataCacheProvider.configureAuthDataKubernetesServiceAccount(serviceAccount, getFunctionAuthData(authenticationSpec));
 
         log.info("Creating service account with the following spec to k8 {} for function {}", appsClient.getApiClient().getJSON().serialize(serviceAccount), fqfn);
 
@@ -505,7 +506,7 @@ public class KubernetesRuntime implements Runtime {
         // Configure function authentication if needed
         if (instanceConfig.getFunctionAuthenticationSpec() != null) {
             functionAuthDataCacheProvider.configureAuthDataStatefulSet(
-                    instanceConfig.getFunctionAuthenticationSpec(), statefulSet);
+                    statefulSet, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));

@@ -47,6 +47,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
  * Kubernetes based function container factory implementation.
@@ -167,6 +168,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         try {
             setupClient();
         } catch (Exception e) {
+            log.error("Failed to setup client", e);
             throw new RuntimeException(e);
         }
     }
@@ -194,7 +196,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
         // adjust the auth config to support auth
         if (instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, instanceConfig.getFunctionAuthenticationSpec());
+            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
 
         return new KubernetesRuntime(
