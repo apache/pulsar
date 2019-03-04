@@ -183,7 +183,7 @@ public interface Message<T> {
 
     /**
      * Get schema version of the message.
-     * @since 2.3.1
+     * @since 2.4.0
      * @return Schema version of the message if the message is produced with schema otherwise null.
      */
     byte[] getSchemaVersion();
