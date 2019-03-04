@@ -127,7 +127,9 @@ public class SchedulerManager implements AutoCloseable {
                             .build())
                     .run();
         } catch (InterruptedException e) {
-
+            log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
         if (producer.get() == null) {
             throw new RuntimeException("Can't create a producer on assignment topic "
