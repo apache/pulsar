@@ -180,4 +180,11 @@ public interface Message<T> {
      * @return message redelivery count
      */
     int getRedeliveryCount();
+
+    /**
+     * Get schema version of the message.
+     * @since 2.3.1
+     * @return Schema version of the message if the message is produced with schema otherwise null.
+     */
+    byte[] getSchemaVersion();
 }
