@@ -26,6 +26,7 @@
 #include "HandlerBase.h"
 #include "ClientConnection.h"
 #include "lib/UnAckedMessageTrackerEnabled.h"
+#include "NegativeAcksTracker.h"
 #include "Commands.h"
 #include "ExecutorService.h"
 #include "ConsumerImplBase.h"
@@ -92,7 +93,12 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void receiveAsync(ReceiveCallback& callback);
     Result fetchSingleMessageFromBroker(Message& msg);
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
+
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+
+    virtual void redeliverMessages(const std::set<MessageId>& messageIds);
+    virtual void negativeAcknowledge(const MessageId& msgId);
+
     virtual void closeAsync(ResultCallback callback);
     virtual void start();
     virtual void shutdown();
@@ -169,6 +175,7 @@ class ConsumerImpl : public ConsumerImplBase,
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
+    NegativeAcksTracker negativeAcksTracker_;
 
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
