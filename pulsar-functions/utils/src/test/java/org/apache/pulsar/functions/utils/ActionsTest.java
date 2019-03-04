@@ -23,6 +23,7 @@ import org.testng.annotations.Test;
 
 import java.util.function.Supplier;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -42,8 +43,8 @@ public class ActionsTest {
         Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
         when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        Runnable onFail = mock(Runnable.class);
-        Runnable onSucess = mock(Runnable.class);
+        java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onSucess = mock(java.util.function.Consumer.class);
 
         Actions.Action action1 = spy(
                 Actions.Action.builder()
@@ -71,8 +72,8 @@ public class ActionsTest {
 
         assertEquals(actions.numActions(), 2);
         verify(supplier1, times(1)).get();
-        verify(onFail, times(0)).run();
-        verify(onSucess, times(1)).run();
+        verify(onFail, times(0)).accept(any());
+        verify(onSucess, times(1)).accept(any());
         verify(supplier2, times(1)).get();
 
         // test only run 1 action
@@ -83,8 +84,8 @@ public class ActionsTest {
         supplier2 = mock(Supplier.class);
         when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        onFail = mock(Runnable.class);
-        onSucess = mock(Runnable.class);
+        onFail = mock(java.util.function.Consumer.class);
+        onSucess = mock(java.util.function.Consumer.class);
 
         action1 = spy(
                 Actions.Action.builder()
@@ -114,8 +115,8 @@ public class ActionsTest {
 
         assertEquals(actions.numActions(), 2);
         verify(supplier1, times(1)).get();
-        verify(onFail, times(0)).run();
-        verify(onSucess, times(1)).run();
+        verify(onFail, times(0)).accept(any());
+        verify(onSucess, times(1)).accept(any());
         verify(supplier2, times(0)).get();
 
         // test retry
@@ -126,8 +127,8 @@ public class ActionsTest {
         supplier2 = mock(Supplier.class);
         when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        onFail = mock(Runnable.class);
-        onSucess = mock(Runnable.class);
+        onFail = mock(java.util.function.Consumer.class);
+        onSucess = mock(java.util.function.Consumer.class);
 
         action1 = spy(
                 Actions.Action.builder()
@@ -155,8 +156,8 @@ public class ActionsTest {
 
         assertEquals(actions.numActions(), 2);
         verify(supplier1, times(10)).get();
-        verify(onFail, times(1)).run();
-        verify(onSucess, times(0)).run();
+        verify(onFail, times(1)).accept(any());
+        verify(onSucess, times(0)).accept(any());
         verify(supplier2, times(1)).get();
 
     }
