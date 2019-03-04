@@ -155,7 +155,7 @@ public class ActionsTest {
         actions.run();
 
         assertEquals(actions.numActions(), 2);
-        verify(supplier1, times(10)).get();
+        verify(supplier1, times(11)).get();
         verify(onFail, times(1)).accept(any());
         verify(onSucess, times(0)).accept(any());
         verify(supplier2, times(1)).get();
