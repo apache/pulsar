@@ -1,0 +1,129 @@
+diff --git site2/docs/cookbooks-retention-expiry.md site2/docs/cookbooks-retention-expiry.md
+index bd428fadd..0845c9d60 100644
+--- site2/docs/cookbooks-retention-expiry.md
++++ site2/docs/cookbooks-retention-expiry.md
+@@ -202,10 +202,10 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
+ 
+ #### pulsar-admin
+ 
+-Use the [`remove-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
++Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
+ 
+ ```shell
+-$ pulsar-admin namespaces remove-backlog-quotas my-tenant/my-ns
++$ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
+ ```
+ 
+ #### REST API
+diff --git site2/docs/getting-started-standalone.md site2/docs/getting-started-standalone.md
+index c0ee32e36..af661569a 100644
+--- site2/docs/getting-started-standalone.md
++++ site2/docs/getting-started-standalone.md
+@@ -217,7 +217,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
+diff --git site2/website/versioned_docs/version-2.1.0-incubating/cookbooks-retention-expiry.md site2/website/versioned_docs/version-2.1.0-incubating/cookbooks-retention-expiry.md
+index f60b691f3..bf3637391 100644
+--- site2/website/versioned_docs/version-2.1.0-incubating/cookbooks-retention-expiry.md
++++ site2/website/versioned_docs/version-2.1.0-incubating/cookbooks-retention-expiry.md
+@@ -203,10 +203,10 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
+ 
+ #### pulsar-admin
+ 
+-Use the [`remove-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
++Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
+ 
+ ```shell
+-$ pulsar-admin namespaces remove-backlog-quotas my-tenant/my-ns
++$ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
+ ```
+ 
+ #### REST API
+diff --git site2/website/versioned_docs/version-2.1.0-incubating/getting-started-standalone.md site2/website/versioned_docs/version-2.1.0-incubating/getting-started-standalone.md
+index 26dfe9ad3..940411579 100644
+--- site2/website/versioned_docs/version-2.1.0-incubating/getting-started-standalone.md
++++ site2/website/versioned_docs/version-2.1.0-incubating/getting-started-standalone.md
+@@ -157,7 +157,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
+diff --git site2/website/versioned_docs/version-2.1.1-incubating/getting-started-standalone.md site2/website/versioned_docs/version-2.1.1-incubating/getting-started-standalone.md
+index caf5ae9e9..dc05725f3 100644
+--- site2/website/versioned_docs/version-2.1.1-incubating/getting-started-standalone.md
++++ site2/website/versioned_docs/version-2.1.1-incubating/getting-started-standalone.md
+@@ -172,7 +172,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
+diff --git site2/website/versioned_docs/version-2.2.0/getting-started-standalone.md site2/website/versioned_docs/version-2.2.0/getting-started-standalone.md
+index de5923180..a111cb6c9 100644
+--- site2/website/versioned_docs/version-2.2.0/getting-started-standalone.md
++++ site2/website/versioned_docs/version-2.2.0/getting-started-standalone.md
+@@ -218,7 +218,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
+diff --git site2/website/versioned_docs/version-2.2.1/getting-started-standalone.md site2/website/versioned_docs/version-2.2.1/getting-started-standalone.md
+index b4ff75cd6..5845bce9e 100644
+--- site2/website/versioned_docs/version-2.2.1/getting-started-standalone.md
++++ site2/website/versioned_docs/version-2.2.1/getting-started-standalone.md
+@@ -218,7 +218,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
+diff --git site2/website/versioned_docs/version-2.3.0/cookbooks-retention-expiry.md site2/website/versioned_docs/version-2.3.0/cookbooks-retention-expiry.md
+index e3b536540..cdb6ff314 100644
+--- site2/website/versioned_docs/version-2.3.0/cookbooks-retention-expiry.md
++++ site2/website/versioned_docs/version-2.3.0/cookbooks-retention-expiry.md
+@@ -203,10 +203,10 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
+ 
+ #### pulsar-admin
+ 
+-Use the [`remove-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
++Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
+ 
+ ```shell
+-$ pulsar-admin namespaces remove-backlog-quotas my-tenant/my-ns
++$ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
+ ```
+ 
+ #### REST API
+diff --git site2/website/versioned_docs/version-2.3.0/getting-started-standalone.md site2/website/versioned_docs/version-2.3.0/getting-started-standalone.md
+index 68d80b129..7ca6fccde 100644
+--- site2/website/versioned_docs/version-2.3.0/getting-started-standalone.md
++++ site2/website/versioned_docs/version-2.3.0/getting-started-standalone.md
+@@ -218,7 +218,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
+ ```java
+ String localClusterUrl = "pulsar://localhost:6650";
+ 
+-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
++PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
+ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+ ```
+ 
