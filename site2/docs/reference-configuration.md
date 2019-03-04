@@ -104,6 +104,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 
 |Name|Description|Default|
 |---|---|---|
+|enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
+|enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
 |zookeeperServers|  Zookeeper quorum connection string  ||
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||

@@ -32,6 +32,8 @@ Configuration:
         value: "pulsar.log"
       - name: "pulsar.log.appender"
         value: "RoutingAppender"
+      - name: "pulsar.log.root.level"
+        value: "debug"
       - name: "pulsar.log.level"
         value: "info"
       - name: "pulsar.routing.appender.default"
@@ -128,7 +130,7 @@ Configuration:
 
     # Default root logger configuration
     Root:
-      level: info
+      level: "${sys:pulsar.log.root.level}"
       additivity: true
       AppenderRef:
         - ref: "${sys:pulsar.log.appender}"
