@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
@@ -61,8 +61,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -283,9 +281,9 @@ public class FunctionActioner {
                             : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
 
                     try {
-                        RuntimeUtils.Actions.newBuilder()
+                        Actions.newBuilder()
                                 .addAction(
-                                        RuntimeUtils.Actions.Action.builder()
+                                        Actions.Action.builder()
                                                 .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
                                                 .numRetries(10)
                                                 .sleepBetweenInvocationsMs(1000)
@@ -300,7 +298,7 @@ public class FunctionActioner {
                                                         }
                                                     } catch (PulsarAdminException e) {
                                                         if (e instanceof PulsarAdminException.NotFoundException) {
-                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                            return Actions.ActionResult.builder()
                                                                     .success(true)
                                                                     .build();
                                                         } else {
@@ -319,14 +317,14 @@ public class FunctionActioner {
                                                             }
 
                                                             String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
-                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                            return Actions.ActionResult.builder()
                                                                     .success(false)
                                                                     .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
                                                                     .build();
                                                         }
                                                     }
 
-                                                    return RuntimeUtils.Actions.ActionResult.builder()
+                                                    return Actions.ActionResult.builder()
                                                             .success(true)
                                                             .build();
 
