@@ -1282,15 +1282,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             int totalReceiveMessages = 0;
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnackedMessages);
-            Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
-
-            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-            Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
-                    .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
-
+                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared);
+            Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+            Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/my-ns/unacked-topic").create();
 
@@ -1358,7 +1354,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.close();
             consumer1.close();
             consumer2.close();
-            newPulsarClient.close();
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
             fail();
@@ -1885,25 +1880,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testPriorityConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1);
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
-
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer3 = newPulsarClient1.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
-
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer4 = newPulsarClient2.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(2).subscribe();
-
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.clone().priorityLevel(2).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
                 .create();
         List<Future<MessageId>> futures = Lists.newArrayList();
@@ -1944,9 +1928,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer2.close();
         consumer3.close();
         consumer4.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -1969,22 +1950,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int maxUnAckMsgs = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(queueSize);
 
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
+        Consumer<byte[]> c1 = consumerBuilder.subscribe();
+        Consumer<byte[]> c2 = consumerBuilder.subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> c1 = newPulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> c2 = newPulsarClient1.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
         // Asynchronously produce messages
@@ -2023,23 +1998,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(queueSize * 2, messages.size());
 
         // create new consumers with the same priority
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> c3 = newPulsarClient2.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-
-        PulsarClient newPulsarClient3 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> c4 = newPulsarClient3.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-
-        PulsarClient newPulsarClient4 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> c5 = newPulsarClient4.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> c3 = consumerBuilder.subscribe();
+        Consumer<byte[]> c4 = consumerBuilder.subscribe();
+        Consumer<byte[]> c5 = consumerBuilder.subscribe();
 
         // c1 and c2 are blocked: so, let c3, c4 and c5 consume rest of the messages
 
@@ -2081,11 +2042,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         c3.close();
         c4.close();
         c5.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
-        newPulsarClient3.close();
-        newPulsarClient4.close();
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnAckMsgs);
         log.info("-- Exiting {} test --", methodName);
     }
@@ -2437,18 +2393,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         int numberOfMessages = 100;
@@ -2487,9 +2440,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer1.close();
         consumer2.close();
         consumer3.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -2895,43 +2845,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertFalse(latch.await(1, TimeUnit.SECONDS));
         assertEquals(latch.getCount(), 1);
         consumer.close();
-    }
-
-    // Issue 3226: https://github.com/apache/pulsar/issues/3226
-    // Pull 3312: https://github.com/apache/pulsar/pull/3312
-    // Bugfix preventing duplicated consumers on same client cnx with shared subscription mode
-    @Test()
-    public void testPreventDupConsumersOnClientCnx() throws Exception {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
-            if (t1 != null) {
-                future.completeExceptionally(t1);
-                return;
-            }
-
-            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
-                if (t2 != null) {
-                    future.completeExceptionally(t2);
-                    return;
-                }
-                future.complete(null);
-            });
-        });
-
-        future.get(5, TimeUnit.SECONDS);
-        Assert.assertTrue(future.isDone());
-        Assert.assertFalse(future.isCompletedExceptionally());
     }
 }
