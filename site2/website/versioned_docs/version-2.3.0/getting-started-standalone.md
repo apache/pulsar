@@ -206,6 +206,21 @@ If the message has been successfully published to the topic, you should see a co
 > #### No need to explicitly create new topics
 > You may have noticed that we did not explicitly create the `my-topic` topic to which we sent the `hello-pulsar` message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.
 
+## Using CLI pulsar clients 
+
+Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client) that enables you to do things like receive messages from a Pulsar topic in a running cluster. This command will receive a simple message saying `hello-pulsar` to the `my-topic` topic:
+
+```bash
+$ bin/pulsar-client consume my-topic -t Shared -s demo-sub -n 0
+```
+
+If the message has been successfully published to the topic as above, you should see a confirmation like this in the `pulsar-client` logs:
+
+```
+----- got message -----
+hello-pulsar
+```
+
 ## Using Pulsar clients locally
 
 Pulsar currently offers client libraries for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
