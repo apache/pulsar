@@ -535,6 +535,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
         checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
