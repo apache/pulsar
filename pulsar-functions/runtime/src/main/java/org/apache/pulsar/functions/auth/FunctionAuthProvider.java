@@ -22,6 +22,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 
+/**
+ * This is a generic interface that functions can use to cache and distribute appropriate authentication
+ * data that is needed to configure the runtime of functions to support appropriate authentication of function instances
+ */
 public interface FunctionAuthProvider {
 
     /**

@@ -23,6 +23,9 @@ import lombok.Data;
 
 @Data
 @Builder
+/**
+ * A wrapper for authentication data for functions
+ */
 public class FunctionAuthData {
     private String data;
 }

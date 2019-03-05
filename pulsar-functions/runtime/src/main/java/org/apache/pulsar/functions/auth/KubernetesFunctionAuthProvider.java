@@ -21,6 +21,9 @@ package org.apache.pulsar.functions.auth;
 import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 
+/**
+ * Kubernetes runtime specific functions authentication provider
+ */
 public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
 
     /**
