@@ -164,19 +164,18 @@ void pulsar_consumer_acknowledge_cumulative_async_id(pulsar_consumer_t *consumer
                                                      pulsar_message_id_t *messageId,
                                                      pulsar_result_callback callback, void *ctx);
 
-
 /**
-     * Acknowledge the failure to process a single message.
-     * <p>
-     * When a message is "negatively acked" it will be marked for redelivery after
-     * some fixed delay. The delay is configurable when constructing the consumer
-     * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
-     * <p>
-     * This call is not blocking.
-     *
-     * @param message
-     *            The {@code Message} to be acknowledged
-     */
+ * Acknowledge the failure to process a single message.
+ * <p>
+ * When a message is "negatively acked" it will be marked for redelivery after
+ * some fixed delay. The delay is configurable when constructing the consumer
+ * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+ * <p>
+ * This call is not blocking.
+ *
+ * @param message
+ *            The {@code Message} to be acknowledged
+ */
 void pulsar_consumer_negative_acknowledge(pulsar_consumer_t *consumer, pulsar_message_t *message);
 void pulsar_consumer_negative_acknowledge_id(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId);
 

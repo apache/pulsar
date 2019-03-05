@@ -170,10 +170,10 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(pulsar_consumer_configurati
  *            unit in which the timeout is provided.
  * @return the consumer builder instance
  */
-void pulsar_configure_set_negative_ack_redelivery_delay_ms(pulsar_consumer_configuration_t *consumer_configuration,
-                                                            long redeliveryDelayMillis);
-long pulsar_configure_get_negative_ack_redelivery_delay_ms(pulsar_consumer_configuration_t *consumer_configuration);
-
+void pulsar_configure_set_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis);
+long pulsar_configure_get_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration);
 
