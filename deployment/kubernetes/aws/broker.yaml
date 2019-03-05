@@ -54,6 +54,9 @@ spec:
                 app: pulsar
                 component: broker
                 role: broker
+                # Specify cluster to allow aggregation by cluster in
+                # the metrics
+                cluster: us-east
             annotations:
                 prometheus.io/scrape: "true"
                 prometheus.io/port: "8080"
@@ -63,7 +66,7 @@ spec:
 #            dnsPolicy: ClusterFirstWithHostNet
             containers:
               - name: broker
-                image: apachepulsar/pulsar:1.20.0-incubating
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
@@ -127,7 +130,7 @@ metadata:
 spec:
     containers:
       - name: pulsar-admin
-        image: apachepulsar/pulsar:1.20.0-incubating
+        image: apachepulsar/pulsar:latest
         command: ["sh", "-c"]
         args:
           - >
@@ -141,4 +144,6 @@ spec:
             value: http://broker:8080/
           - name: brokerServiceUrl
             value: pulsar://broker:6650/
-
+# Uncomment the following if broker should be deployed on a specific instance type
+#    nodeSelector:
+#      beta.kubernetes.io/instance-type: m4.2xlarge

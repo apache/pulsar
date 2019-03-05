@@ -27,7 +27,7 @@ metadata:
 provisioner: kubernetes.io/aws-ebs
 parameters:
   type: gp2
-  zones: us-east-2a
+  zones: us-east-2a, us-east-2b, us-east-2c
   fsType: xfs
 #  To create encrypted ebs volume using kms
 #  encrypted: "true"
@@ -42,7 +42,7 @@ metadata:
 provisioner: kubernetes.io/aws-ebs
 parameters:
   type: st1
-  zones: us-east-2a
+  zones: us-east-2a, us-east-2b, us-east-2c
   fsType: xfs
 #  To create encrypted ebs volume using kms
 #  encrypted: "true"
@@ -79,10 +79,10 @@ spec:
             labels:
                 app: pulsar
                 component: bookkeeper
+                role: bookie
                 # Specify cluster to allow aggregation by cluster in
                 # the metrics
                 cluster: us-east
-                role: bookie
             annotations:
                 prometheus.io/scrape: "true"
                 prometheus.io/port: "8000"

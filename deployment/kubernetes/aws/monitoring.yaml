@@ -17,6 +17,45 @@
 # under the License.
 #
 
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: prometheus-role
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-account
+  namespace: pulsar
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-role
+subjects:
+- kind: ServiceAccount
+  name: prometheus-account
+  namespace: pulsar
+
+---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -103,7 +142,7 @@ metadata:
 provisioner: kubernetes.io/aws-ebs
 parameters:
     type: gp2
-    zones: us-west-2a, us-west-2b, us-west-2c
+    zones: us-east-2a, us-east-2b, us-east-2c
 
 ---
 
@@ -118,10 +157,15 @@ spec:
             labels:
                 app: pulsar
                 component: prometheus
+                # Specify cluster to allow aggregation by cluster in
+                # the metrics
+                cluster: us-east
         spec:
+            securityContext:
+              runAsUser: 0
             containers:
               - name: prometheus
-                image: prom/prometheus:v1.6.3
+                image: prom/prometheus:v2.7.1
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/prometheus
@@ -136,6 +180,10 @@ spec:
               - name: data-volume
                 persistentVolumeClaim:
                   claimName: prometheus-data-volume
+            serviceAccount: prometheus-account
+# Uncomment the following if prometheus should be deployed on a specific instance type
+#            nodeSelector:
+#              beta.kubernetes.io/instance-type: m4.2xlarge
 
 ---
 
@@ -172,6 +220,9 @@ spec:
             labels:
                 app: pulsar
                 component: grafana
+                # Specify cluster to allow aggregation by cluster in
+                # the metrics
+                cluster: us-east
         spec:
             containers:
               - name: grafana
@@ -181,6 +232,9 @@ spec:
                 env:
                   - name: PROMETHEUS_URL
                     value: http://prometheus:9090/
+# Uncomment the following if grafana should be deployed on a specific instance type
+#            nodeSelector:
+#              beta.kubernetes.io/instance-type: m4.2xlarge
 
 ---
 
@@ -197,7 +251,7 @@ spec:
       - name: grafana
         nodePort: 30004
         port: 3000
-        protocol: TCP 
+        protocol: TCP
     selector:
         app: pulsar
         component: grafana
@@ -229,6 +283,9 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
     name: pulsar-dashboard
+    labels:
+        app: pulsar
+        component: dashboard
 spec:
     replicas: 1
     template:
@@ -236,6 +293,9 @@ spec:
             labels:
                 app: pulsar
                 component: dashboard
+                # Specify cluster to allow aggregation by cluster in
+                # the metrics
+                cluster: us-east
         spec:
             containers:
               - name: grafana
@@ -245,6 +305,9 @@ spec:
                 env:
                   - name: SERVICE_URL
                     value: http://broker:8080/
+# Uncomment the following if pulsar-dashboard should be deployed on a specific instance type
+#            nodeSelector:
+#              beta.kubernetes.io/instance-type: m4.2xlarge
 
 ---
 

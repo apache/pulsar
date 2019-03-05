@@ -25,7 +25,7 @@ data:
   PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
   brokerServiceURL: pulsar://broker:6650
   brokerWebServiceURL: http://broker:8080
-  clusterName: pulsar-eks
+  clusterName: us-east
 
 ---
 apiVersion: apps/v1beta1
@@ -42,6 +42,9 @@ spec:
       labels:
         app: pulsar
         component: proxy
+        # Specify cluster to allow aggregation by cluster in
+        # the metrics
+        cluster: us-east
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
@@ -61,6 +64,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: pulsar-proxy-config
+# Uncomment the following if broker-proxy should be deployed on a specific instance type
+#       nodeSelector:
+#         beta.kubernetes.io/instance-type: m4.2xlarge
+
 ---
 
 apiVersion: v1
