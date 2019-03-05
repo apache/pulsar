@@ -1,34 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_default",
-      "label": "default",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.1.0"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -45,8 +15,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1533285490117,
+  "id": 1,
+  "iteration": 1551348629954,
   "links": [],
   "panels": [
     {
@@ -54,7 +24,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 7,
@@ -100,6 +70,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Local publish rate",
       "tooltip": {
@@ -143,7 +114,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 7,
@@ -188,6 +159,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Local delivery rate",
       "tooltip": {
@@ -231,7 +203,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 7,
@@ -275,6 +247,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Local publish throughput (bytes/s)",
       "tooltip": {
@@ -318,7 +291,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "description": "",
       "fill": 1,
       "gridPos": {
@@ -365,6 +338,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Local delivery throughput (bytes/s)",
       "tooltip": {
@@ -408,7 +382,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "decimals": 0,
       "fill": 1,
       "gridPos": {
@@ -473,6 +447,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Topics - Producers - Subscriptions - Consumers",
       "tooltip": {
@@ -518,7 +493,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 7,
@@ -564,6 +539,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Local backlog",
       "tooltip": {
@@ -620,7 +596,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 5,
       "gridPos": {
         "h": 7,
@@ -758,6 +734,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Storage Write Latency",
       "tooltip": {
@@ -801,7 +778,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 7,
@@ -845,6 +822,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Storage Size",
       "tooltip": {
@@ -888,7 +866,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_default}",
+      "datasource": "Prometheus",
       "fill": 6,
       "gridPos": {
         "h": 7,
@@ -1017,6 +995,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Storage entry size",
       "tooltip": {
@@ -1064,8 +1043,12 @@
     "list": [
       {
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_default}",
+        "current": {
+          "text": "pulsar",
+          "value": "pulsar"
+        },
+        "datasource": "Prometheus",
+        "definition": "",
         "hide": 0,
         "includeAll": false,
         "label": "Cluster",
@@ -1075,6 +1058,7 @@
         "query": "{cluster=~\".+\"}",
         "refresh": 1,
         "regex": "/.*[^_]cluster=\\\"([^\\\"]+)\\\".*/",
+        "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
@@ -1084,8 +1068,12 @@
       },
       {
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_default}",
+        "current": {
+          "text": "ten/ns",
+          "value": "ten/ns"
+        },
+        "datasource": "Prometheus",
+        "definition": "",
         "hide": 0,
         "includeAll": true,
         "label": "Namespace",
@@ -1095,6 +1083,7 @@
         "query": "{namespace=~\".+\"}",
         "refresh": 2,
         "regex": "/.*namespace=\\\"([^\\\"]+)\\\".*/",
+        "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
@@ -1104,8 +1093,12 @@
       },
       {
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_default}",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "",
         "hide": 0,
         "includeAll": true,
         "label": "Topic",
@@ -1115,6 +1108,7 @@
         "query": "{topic=~\".+\"}",
         "refresh": 2,
         "regex": "/.*topic=\\\"([^\\\"]+)\\\".*/",
+        "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
@@ -1125,7 +1119,7 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {
@@ -1156,5 +1150,5 @@
   "timezone": "browser",
   "title": "Pulsar - Topic",
   "uid": "3xEtii5mk",
-  "version": 10
+  "version": 1
 }

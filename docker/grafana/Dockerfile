@@ -17,10 +17,11 @@
 # under the License.
 #
 
-FROM grafana/grafana:4.3.1
+FROM grafana/grafana:5.4.3
 
 COPY grafana.ini /etc/grafana/grafana.ini
 COPY dashboards/* /var/lib/grafana/dashboards/
+COPY default.yaml /etc/grafana/provisioning/dashboards/
 COPY start.sh /start.sh
 
 EXPOSE 3000
