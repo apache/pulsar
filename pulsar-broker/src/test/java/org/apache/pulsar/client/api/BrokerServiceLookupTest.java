@@ -893,7 +893,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 10000)
     public void testModularLoadManagerSplitBundle() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -934,6 +934,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
             Optional<ResourceUnit> res = Optional.of(resourceUnit);
             doReturn(res).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+            doReturn(res).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
             loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
             URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
@@ -944,12 +945,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer1 = pulsarClient2.newConsumer().topic(topic1)
                     .subscriptionName("my-subscriber-name").subscribe();
 
-            Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()
-                    .map(nb -> nb.toString()).collect(Collectors.toSet());
-
             // (4) Broker-1 will own topic-1
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
+            retryStrategically((test) -> pulsar.getNamespaceService().getOwnedServiceUnits().stream()
+                    .map(nb -> nb.toString()).collect(Collectors.toSet()).contains(unsplitBundle), 5, 100);
+            Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()    
+                    .map(nb -> nb.toString()).collect(Collectors.toSet());
             assertTrue(serviceUnits1.contains(unsplitBundle));
+
             // broker-2 should have this bundle into the cache
             TopicName topicName = TopicName.get(topic1);
             NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(topicName);
@@ -1003,7 +1006,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         } finally {
             conf.setLoadManagerClassName(loadBalancerName);
         }
-
     }
 
     @Test
