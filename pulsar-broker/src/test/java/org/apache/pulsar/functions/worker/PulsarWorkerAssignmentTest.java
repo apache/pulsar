@@ -44,7 +44,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
-import java.net.InetAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
@@ -100,9 +99,7 @@ public class PulsarWorkerAssignmentTest {
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config.setBrokerServicePort(brokerServicePort);
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config.setAdvertisedAddress(InetAddress.getLocalHost().getHostAddress());
-
-        log.info("Host address : {}", InetAddress.getLocalHost().getHostAddress());
+        config.setAdvertisedAddress("localhost");
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         final Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
@@ -112,7 +109,7 @@ public class PulsarWorkerAssignmentTest {
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerWeServiceUrl).build());
 
         brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostAddress(), brokerWebServicePort);
+        primaryHost = String.format("http://%s:%d", "localhost", brokerWebServicePort);
 
         // update cluster metadata
         final ClusterData clusterData = new ClusterData(brokerServiceUrl);

@@ -18,16 +18,6 @@
  */
 package org.apache.pulsar.stats.client;
 
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
-import java.net.URL;
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,7 +27,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -49,6 +38,15 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ServerErrorException;
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
+
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
@@ -113,7 +111,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        Message<byte[]> msg = null;
+        Message<byte[]> msg;
         int count = 0;
         for (int i = 0; i < numberOfMsgs; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
