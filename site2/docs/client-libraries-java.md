@@ -186,18 +186,25 @@ Consumer consumer = client.newConsumer()
         .subscribe();
 ```
 
-The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed:
+The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, we use [negative acknowledgement](reference-terminology.md#acknowledgment-ack)
+to have the message redelivered at a later point in time.
 
 ```java
-do {
+while (true) {
   // Wait for a message
   Message msg = consumer.receive();
 
-  System.out.printf("Message received: %s", new String(msg.getData()));
+  try {
+      // Do something with the message
+      System.out.printf("Message received: %s", new String(msg.getData()));
 
-  // Acknowledge the message so that it can be deleted by the message broker
-  consumer.acknowledge(msg);
-} while (true);
+      // Acknowledge the message so that it can be deleted by the message broker
+      consumer.acknowledge(msg);
+  } catch (Exception e) {
+      // Message failed to process, redeliver later
+      consumer.negativeAcknowledge(msg);
+  }
+}
 ```
 
 ### Configuring consumers
