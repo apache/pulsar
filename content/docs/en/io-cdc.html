@@ -72,134 +72,14 @@
             });
         </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/io-cdc.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">CDC Connector</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h2>
 <p>The CDC Source connector is used to capture change log of existing databases like MySQL, MongoDB, PostgreSQL into Pulsar.</p>
-<p>The CDC Source connector is built on top of <a href="https://debezium.io/">Debezium</a>. This connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
-This CDC Source are tested by using MySQL, and you could get more information regarding how it works at <a href="https://debezium.io/docs/connectors/mysql/">this link</a>.
-Regarding how Debezium works, please reference to <a href="https://debezium.io/docs/tutorial/">Debezium tutorial</a>. It is recommended that you go through this tutorial first.</p>
-<h3><a class="anchor" aria-hidden="true" id="source-configuration-options"></a><a href="#source-configuration-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source Configuration Options</h3>
-<p>The Configuration is mostly related to Debezium task config, besides this we should provides the service URL of Pulsar cluster, and topic names that used to store offset and history.</p>
-<table>
-<thead>
-<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
-</thead>
-<tbody>
-<tr><td><code>task.class</code></td><td><code>true</code></td><td><code>null</code></td><td>A source task class that implemented in Debezium.</td></tr>
-<tr><td><code>database.hostname</code></td><td><code>true</code></td><td><code>null</code></td><td>The address of the Database server.</td></tr>
-<tr><td><code>database.port</code></td><td><code>true</code></td><td><code>null</code></td><td>The port number of the Database server..</td></tr>
-<tr><td><code>database.user</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the Database user that has the required privileges.</td></tr>
-<tr><td><code>database.password</code></td><td><code>true</code></td><td><code>null</code></td><td>The password for the Database user that has the required privileges.</td></tr>
-<tr><td><code>database.server.id</code></td><td><code>true</code></td><td><code>null</code></td><td>The connector’s identifier that must be unique within the Database cluster and similar to Database’s server-id configuration property.</td></tr>
-<tr><td><code>database.server.name</code></td><td><code>true</code></td><td><code>null</code></td><td>The logical name of the Database server/cluster, which forms a namespace and is used in all the names of the Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used.</td></tr>
-<tr><td><code>database.whitelist</code></td><td><code>false</code></td><td><code>null</code></td><td>A list of all databases hosted by this server that this connector will monitor. This is optional, and there are other properties for listing the databases and tables to include or exclude from monitoring.</td></tr>
-<tr><td><code>key.converter</code></td><td><code>true</code></td><td><code>null</code></td><td>The converter provided by Kafka Connect to convert record key.</td></tr>
-<tr><td><code>value.converter</code></td><td><code>true</code></td><td><code>null</code></td><td>The converter provided by Kafka Connect to convert record value.</td></tr>
-<tr><td><code>database.history</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history class name.</td></tr>
-<tr><td><code>database.history.pulsar.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history topic where the connector will write and recover DDL statements. This topic is for internal use only and should not be used by consumers.</td></tr>
-<tr><td><code>database.history.pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service url for history topic.</td></tr>
-<tr><td><code>pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service url.</td></tr>
-<tr><td><code>offset.storage.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>Record the last committed offsets that the connector successfully completed.</td></tr>
-</tbody>
-</table>
-<h3><a class="anchor" aria-hidden="true" id="configuration-example"></a><a href="#configuration-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Example</h3>
-<p>Here is a configuration Json example:</p>
-<pre><code class="hljs css language-$json">{
-    <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
-    <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
-    <span class="hljs-attr">"name"</span>: <span class="hljs-string">"debezium-kafka-source"</span>,
-    <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.io.kafka.connect.KafkaConnectSource"</span> ,
-    <span class="hljs-attr">"topicName"</span>: <span class="hljs-string">"kafka-connect-topic"</span>,
-    <span class="hljs-attr">"configs"</span>:
-    {
-        <span class="hljs-attr">"task.class"</span>: <span class="hljs-string">"io.debezium.connector.mysql.MySqlConnectorTask"</span>,
-        <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
-        <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"3306"</span>,
-        <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"debezium"</span>,
-        <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"dbz"</span>,
-        <span class="hljs-attr">"database.server.id"</span>: <span class="hljs-string">"184054"</span>,
-        <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
-        <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-        <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
-        <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"history-topic"</span>,
-        <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
-        <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-        <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-        <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
-        <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
-    },
-    <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
-}
-</code></pre>
-<p>You could also find the yaml example in this <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml">file</a>, which has similar content below:</p>
-<pre><code class="hljs css language-$yaml"><span class="hljs-attribute">tenant</span>: <span class="hljs-string">"public"</span>
-<span class="hljs-attribute">namespace</span>: <span class="hljs-string">"default"</span>
-<span class="hljs-attribute">name</span>: <span class="hljs-string">"debezium-kafka-source"</span>
-<span class="hljs-attribute">topicName</span>: <span class="hljs-string">"kafka-connect-topic"</span>
-<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
-
-##<span class="hljs-attribute">autoAck</span>: true
-<span class="hljs-attribute">parallelism</span>: <span class="hljs-number">1</span>
-
-<span class="hljs-attribute">configs</span>:
-  ## sourceTask
-  task.<span class="hljs-attribute">class</span>: <span class="hljs-string">"io.debezium.connector.mysql.MySqlConnectorTask"</span>
-
-  ## config for mysql, docker <span class="hljs-attribute">image</span>: debezium/<span class="hljs-attribute">example-mysql</span>:<span class="hljs-number">0.8</span>
-  database.<span class="hljs-attribute">hostname</span>: <span class="hljs-string">"localhost"</span>
-  database.<span class="hljs-attribute">port</span>: <span class="hljs-string">"3306"</span>
-  database.<span class="hljs-attribute">user</span>: <span class="hljs-string">"debezium"</span>
-  database.<span class="hljs-attribute">password</span>: <span class="hljs-string">"dbz"</span>
-  database.server.<span class="hljs-attribute">id</span>: <span class="hljs-string">"184054"</span>
-  database.server.<span class="hljs-attribute">name</span>: <span class="hljs-string">"dbserver1"</span>
-  database.<span class="hljs-attribute">whitelist</span>: <span class="hljs-string">"inventory"</span>
-
-  database.<span class="hljs-attribute">history</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>
-  database.history.pulsar.<span class="hljs-attribute">topic</span>: <span class="hljs-string">"history-topic"</span>
-  database.history.pulsar.service.<span class="hljs-attribute">url</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
-  ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
-  key.<span class="hljs-attribute">converter</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
-  value.<span class="hljs-attribute">converter</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
-  ## PULSAR_SERVICE_URL_CONFIG
-  pulsar.service.<span class="hljs-attribute">url</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
-  ## OFFSET_STORAGE_TOPIC_CONFIG
-  offset.storage.<span class="hljs-attribute">topic</span>: <span class="hljs-string">"offset-topic"</span>
-</code></pre>
-<h3><a class="anchor" aria-hidden="true" id="usage-example"></a><a href="#usage-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage example</h3>
-<p>Here is a simple example to store MySQL change data using above example config.</p>
+<p>The CDC Source connector is built on top of <a href="https://debezium.io/">Debezium</a> and <a href="https://github.com/alibaba/canal">Canal</a>. This connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
+This CDC Source are tested by using MySQL, and you could get more information regarding how it works at <a href="https://debezium.io/docs/connectors/mysql/">this debezium link</a> or <a href="https://github.com/alibaba/canal/wiki">this canal link</a>.
+Regarding how Debezium works, please reference to <a href="https://debezium.io/docs/tutorial/">Debezium tutorial</a>. Regarding how Canal works, please reference to <a href="https://github.com/alibaba/canal/wiki">Canal tutorial</a>. It is recommended that you go through this tutorial first.</p>
 <ul>
-<li>Start a MySQL server with an example database, from which Debezium can capture changes.</li>
+<li><a href="/docs/en/io-cdc-debezium">Debezium Connector</a></li>
+<li><a href="/docs/en/io-cdc-canal">Alibaba Canal Connector</a></li>
 </ul>
-<pre><code class="hljs css language-$bash"> docker <span class="hljs-builtin-name">run</span> -it --rm --name mysql -p 3306:3306 -e <span class="hljs-attribute">MYSQL_ROOT_PASSWORD</span>=debezium -e <span class="hljs-attribute">MYSQL_USER</span>=mysqluser -e <span class="hljs-attribute">MYSQL_PASSWORD</span>=mysqlpw debezium/example-mysql:0.8
-</code></pre>
-<ul>
-<li>Start a Pulsar service locally in standalone mode.</li>
-</ul>
-<pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar </span>standalone
-</code></pre>
-<ul>
-<li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar</code>.</li>
-</ul>
-<pre><code class="hljs css language-$bash"> bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --sourceConfigFile debezium-mysql-<span class="hljs-keyword">source</span>-config.yaml
-</code></pre>
-<ul>
-<li>Subscribe the topic for table <code>inventory.products</code>.</li>
-</ul>
-<pre><code class="hljs"> bin/pulsar-<span class="hljs-keyword">client</span> consume -s <span class="hljs-string">"sub-products"</span> <span class="hljs-keyword">public</span>/<span class="hljs-keyword">default</span>/dbserver1.inventory.products -n <span class="hljs-number">0</span>
-</code></pre>
-<ul>
-<li>start a MySQL cli docker connector, and use it we could change to the table <code>products</code> in MySQL server.</li>
-</ul>
-<pre><code class="hljs css language-$bash"><span class="hljs-variable">$docker</span> <span class="hljs-keyword">run</span> -it --<span class="hljs-keyword">rm</span> --name mysqlterm --link mysql --<span class="hljs-keyword">rm</span> mysql:5.7 <span class="hljs-keyword">sh</span> -c 'exec mysql -<span class="hljs-keyword">h</span><span class="hljs-string">"$MYSQL_PORT_3306_TCP_ADDR"</span> -P<span class="hljs-string">"$MYSQL_PORT_3306_TCP_PORT"</span> -uroot -p<span class="hljs-string">"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"</span>'
-</code></pre>
-<p>This command will pop out MySQL cli, in this cli, we could do a change in table products, use commands below to change the name of 2 items in table products:</p>
-<pre><code class="hljs">mysql&gt; use inventory;
-mysql&gt; <span class="hljs-keyword">show</span> <span class="hljs-keyword">tables</span>;
-mysql&gt; <span class="hljs-keyword">SELECT</span> * <span class="hljs-keyword">FROM</span>  products ;
-mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> <span class="hljs-type">name</span>=<span class="hljs-string">'1111111111'</span> <span class="hljs-keyword">WHERE</span> id=<span class="hljs-number">101</span>;
-mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> <span class="hljs-type">name</span>=<span class="hljs-string">'1111111111'</span> <span class="hljs-keyword">WHERE</span> id=<span class="hljs-number">107</span>;
-</code></pre>
-<ul>
-<li>In above subscribe topic terminal tab, we could find that 2 changes has been kept into products topic.</li>
-</ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/io-develop"><span class="arrow-prev">← </span><span>Developing Connectors</span></a><a class="docs-next button" href="/docs/en/sql-overview"><span>Overview</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li><li><a href="#configuration-example">Configuration Example</a></li><li><a href="#usage-example">Usage example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/io-develop"><span class="arrow-prev">← </span><span>Developing Connectors</span></a><a class="docs-next button" href="/docs/en/sql-overview"><span>Overview</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

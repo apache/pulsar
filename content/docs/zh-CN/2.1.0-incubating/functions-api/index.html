@@ -646,7 +646,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
         logger = context.get_logger()
         wotd = context.get_user_config_value(<span class="hljs-string">'word-of-the-day'</span>)
-        <span class="hljs-keyword">if</span> wotd <span class="hljs-keyword">is</span> <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> wotd <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
             logger.warn(<span class="hljs-string">'No word of the day provided'</span>)
         <span class="hljs-keyword">else</span>:
             logger.info(<span class="hljs-string">"The word of the day is {0}"</span>.format(wotd))

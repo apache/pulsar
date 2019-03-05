@@ -76,9 +76,9 @@
 <tr><th style="text-align:left">Delivery semantics</th><th style="text-align:left">说明：</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><strong>At-most-once</strong> delivery</td><td style="text-align:left">Each message that is sent to the function will most likely be processed but also may not be (hence the &quot;at most&quot;)</td></tr>
-<tr><td style="text-align:left"><strong>At-least-once</strong> delivery</td><td style="text-align:left">Each message that is sent to the function could be processed more than once (hence the &quot;at least&quot;)</td></tr>
-<tr><td style="text-align:left"><strong>Effectively-once</strong> delivery</td><td style="text-align:left">Each message that is sent to the function will have one output associated with it</td></tr>
+<tr><td style="text-align:left"><strong>At-most-once</strong> delivery</td><td style="text-align:left">发送给函数的每个消息最多会被处理一次</td></tr>
+<tr><td style="text-align:left"><strong>At-least-once</strong> delivery</td><td style="text-align:left">发送给函数的每条消息至少被处理一次</td></tr>
+<tr><td style="text-align:left"><strong>Effectively-once</strong> delivery</td><td style="text-align:left">发送函数的每条消息没精确的处理一次</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="applying-processing-guarantees-to-a-function"></a><a href="#applying-processing-guarantees-to-a-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Applying processing guarantees to a function</h2>

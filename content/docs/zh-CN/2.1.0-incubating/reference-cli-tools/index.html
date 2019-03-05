@@ -299,7 +299,7 @@ $ pulsar command
 <tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth-params</code></td><td>Authentication parameters, for example key1:val1,key2:val2</td><td></td></tr>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
 <tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
 </tbody>

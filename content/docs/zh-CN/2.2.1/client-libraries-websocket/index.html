@@ -355,7 +355,7 @@ TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/consumer/persistent
 
 ws = websocket.create_connection(TOPIC)
 
-<span class="hljs-keyword">while</span> <span class="hljs-keyword">True</span>:
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
     msg = json.loads(ws.recv())
     <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> msg: <span class="hljs-keyword">break</span>
 
@@ -374,7 +374,7 @@ TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/reader/persistent/p
 
 ws = websocket.create_connection(TOPIC)
 
-<span class="hljs-keyword">while</span> <span class="hljs-keyword">True</span>:
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
     msg = json.loads(ws.recv())
     <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> msg: <span class="hljs-keyword">break</span>
 
