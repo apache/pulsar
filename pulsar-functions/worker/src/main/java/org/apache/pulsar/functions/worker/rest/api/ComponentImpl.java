@@ -26,6 +26,7 @@ import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 
 import com.google.gson.Gson;
 
+import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -394,7 +395,7 @@ public abstract class ComponentImpl {
                 if (functionAuthData != null) {
                     functionMetaDataBuilder.setFunctionAuthSpec(
                             Function.FunctionAuthenticationSpec.newBuilder()
-                                    .setData(functionAuthData.getData())).build();
+                                    .setData(ByteString.copyFrom(functionAuthData.getData())).build());
                 }
             } catch (Exception e) {
                 log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);

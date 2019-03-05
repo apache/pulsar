@@ -27,5 +27,5 @@ import lombok.Data;
  * A wrapper for authentication data for functions
  */
 public class FunctionAuthData {
-    private String data;
+    private byte[] data;
 }

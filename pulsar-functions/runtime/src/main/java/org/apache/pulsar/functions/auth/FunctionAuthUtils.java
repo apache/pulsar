@@ -23,6 +23,6 @@ import org.apache.pulsar.functions.proto.Function;
 public final class FunctionAuthUtils {
 
     public static final FunctionAuthData getFunctionAuthData(Function.FunctionAuthenticationSpec functionAuthenticationSpec) {
-        return FunctionAuthData.builder().data(functionAuthenticationSpec.getData()).build();
+        return FunctionAuthData.builder().data(functionAuthenticationSpec.getData().toByteArray()).build();
     }
 }

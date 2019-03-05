@@ -46,7 +46,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
         }
 
         if (token != null) {
-            return FunctionAuthData.builder().data(token).build();
+            return FunctionAuthData.builder().data(token.getBytes()).build();
         }
         return null;
     }

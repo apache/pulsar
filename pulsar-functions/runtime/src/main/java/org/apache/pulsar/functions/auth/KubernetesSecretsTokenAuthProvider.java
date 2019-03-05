@@ -77,7 +77,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         .name(SECRET_NAME)
                         .secret(
                                 new V1SecretVolumeSource()
-                                        .secretName(getSecretName(functionAuthData.getData()))
+                                        .secretName(getSecretName(new String(functionAuthData.getData())))
                                         .defaultMode(256))));
 
         podSpec.getContainers().forEach(container -> container.setVolumeMounts(Collections.singletonList(
@@ -113,7 +113,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (id != null) {
-            return FunctionAuthData.builder().data(id).build();
+            return FunctionAuthData.builder().data(id.getBytes()).build();
         }
         return null;
     }
@@ -122,7 +122,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
 
-        String secretName = functionAuthData.getData();
+        String secretName = new String(functionAuthData.getData());
         RuntimeUtils.Actions.Action deleteSecrets = RuntimeUtils.Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
