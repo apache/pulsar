@@ -24,6 +24,7 @@ import io.netty.channel.EventLoopGroup;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -148,6 +149,30 @@ class HttpLookupService implements LookupService {
                 future.complete(Optional.empty());
             } else {
                 log.warn("Failed to get schema for topic {} : {}", topicName, ex.getCause().getClass());
+                future.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
+        CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
+
+        String schemaName = topicName.getSchemaName();
+        String path = String.format("admin/v2/schemas/%s/schema/%s",
+                schemaName,
+                new String(version, StandardCharsets.UTF_8));
+
+        httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
+            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof NotFoundException) {
+                future.complete(Optional.empty());
+            } else {
+                log.warn("Failed to get schema for topic {} version {} : {}",
+                        topicName, version, ex.getCause().getClass());
                 future.completeExceptionally(ex);
             }
             return null;
