@@ -139,7 +139,7 @@ public class PulsarFunctionAdminTest {
                         .allowTlsInsecureConnection(true).authentication(authTls).build());
 
         brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(), brokerWebServicePort);
+        primaryHost = String.format("http://%s:%d", "localhost", brokerWebServicePort);
 
         // update cluster metadata
         ClusterData clusterData = new ClusterData(urlTls.toString());

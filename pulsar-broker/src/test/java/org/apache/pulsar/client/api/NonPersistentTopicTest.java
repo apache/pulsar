@@ -615,6 +615,157 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
+     * verifies load manager assigns topic only if broker started in non-persistent mode
+     *
+     * <pre>
+     * 1. Start broker with disable non-persistent topic mode
+     * 2. Create namespace with non-persistency set
+     * 3. Create non-persistent topic
+     * 4. Load-manager should not be able to find broker
+     * 5. Create producer on that topic should fail
+     * </pre>
+     */
+    @Test(dataProvider = "loadManager")
+    public void testLoadManagerAssignmentForNonPersistentTestAssignment(String loadManagerName) throws Exception {
+
+        final String namespace = "my-property/my-ns";
+        final String topicName = "non-persistent://" + namespace + "/loadManager";
+        final String defaultLoadManagerName = conf.getLoadManagerClassName();
+        final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
+        try {
+            // start broker to not own non-persistent namespace and create non-persistent namespace
+            stopBroker();
+            conf.setEnableNonPersistentTopics(false);
+            conf.setLoadManagerClassName(loadManagerName);
+            startBroker();
+
+            Field field = PulsarService.class.getDeclaredField("loadManager");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
+            LoadManager manager = LoadManager.create(pulsar);
+            manager.start();
+            loadManagerRef.set(manager);
+
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+            LoadManager loadManager = pulsar.getLoadManager().get();
+            ResourceUnit broker = null;
+            try {
+                broker = loadManager.getLeastLoaded(fdqn).get();
+            } catch (Exception e) {
+                // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
+            }
+            assertNull(broker);
+
+            try {
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
+                producer.close();
+                fail("topic loading should have failed");
+            } catch (Exception e) {
+                // Ok
+            }
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        } finally {
+            conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
+            conf.setLoadManagerClassName(defaultLoadManagerName);
+        }
+
+    }
+
+    /**
+     * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic
+     *
+     * @param loadManagerName
+     * @throws Exception
+     */
+    @Test
+    public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
+
+        final String namespace = "my-property/my-ns";
+        final String topicName = "non-persistent://" + namespace + "/persitentNamespace";
+
+        final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
+        try {
+            conf.setEnableNonPersistentTopics(false);
+            stopBroker();
+            startBroker();
+            try {
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
+                producer.close();
+                fail("topic loading should have failed");
+            } catch (Exception e) {
+                // Ok
+            }
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        } finally {
+            conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
+        }
+    }
+
+    /**
+     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic
+     *
+     * @param loadManagerName
+     * @throws Exception
+     */
+    @Test(dataProvider = "loadManager")
+    public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
+
+        final String namespace = "my-property/my-ns";
+        final String topicName = "persistent://" + namespace + "/loadManager";
+        final String defaultLoadManagerName = conf.getLoadManagerClassName();
+        final boolean defaultEnablePersistentTopic = conf.isEnablePersistentTopics();
+        final boolean defaultEnableNonPersistentTopic = conf.isEnableNonPersistentTopics();
+        try {
+            // start broker to not own non-persistent namespace and create non-persistent namespace
+            stopBroker();
+            conf.setEnableNonPersistentTopics(true);
+            conf.setEnablePersistentTopics(false);
+            conf.setLoadManagerClassName(loadManagerName);
+            startBroker();
+
+            Field field = PulsarService.class.getDeclaredField("loadManager");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
+            LoadManager manager = LoadManager.create(pulsar);
+            manager.start();
+            loadManagerRef.set(manager);
+
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+            LoadManager loadManager = pulsar.getLoadManager().get();
+            ResourceUnit broker = null;
+            try {
+                broker = loadManager.getLeastLoaded(fdqn).get();
+            } catch (Exception e) {
+                // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
+            }
+            assertNull(broker);
+
+            try {
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
+                producer.close();
+                fail("topic loading should have failed");
+            } catch (Exception e) {
+                // Ok
+            }
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        } finally {
+            conf.setEnablePersistentTopics(defaultEnablePersistentTopic);
+            conf.setEnableNonPersistentTopics(defaultEnableNonPersistentTopic);
+            conf.setLoadManagerClassName(defaultLoadManagerName);
+        }
+
+    }
+
+    /**
      * Verifies msg-drop stats
      *
      * @throws Exception
