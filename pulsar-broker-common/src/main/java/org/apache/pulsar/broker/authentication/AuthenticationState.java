@@ -26,7 +26,6 @@ import org.apache.pulsar.common.api.AuthData;
 /**
  * Interface for authentication state.
  *
- * It is basically holding the authentication state.
  * It tell broker whether the authentication is completed or not,
  * if completed, what is the AuthRole is.
  */
@@ -34,6 +33,7 @@ public interface AuthenticationState {
     /**
      * After the authentication between client and broker completed,
      * get authentication role represent for the client.
+     * It should throw exception if auth not complete.
      */
     String getAuthRole() throws AuthenticationException;
 
@@ -41,6 +41,11 @@ public interface AuthenticationState {
      * Challenge passed in auth data and get response data.
      */
     AuthData authenticate(AuthData authData) throws IOException;
+
+    /**
+     * Return AuthenticationDataSource.
+     */
+    AuthenticationDataSource getAuthDataSource();
 
     /**
      * Whether the authentication is completed or not

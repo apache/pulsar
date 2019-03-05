@@ -70,7 +70,11 @@ public interface AuthenticationProvider extends Closeable {
             new String(authData.getBytes(), Charset.forName("UTF-8")), remoteAddress, sslSession);
     }
 
-    default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource) {
+    /**
+     * Create an authentication data State use passed in AuthenticationDataSource.
+     */
+    default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource)
+        throws AuthenticationException{
         return new OneStageAuthenticationState(authenticationDataSource, this);
     }
 

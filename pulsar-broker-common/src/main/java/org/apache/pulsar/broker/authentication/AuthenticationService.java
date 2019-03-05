@@ -109,12 +109,12 @@ public class AuthenticationService implements Closeable {
         return providers.get(authMethodName);
     }
 
+    // called when authn enabled, but no authentication provided
     public String getAnonymousUserRole() throws AuthenticationException {
         if (StringUtils.isNotBlank(anonymousUserRole)) {
             return anonymousUserRole;
         }
-        // If at least a provider was configured, then the authentication needs to be provided
-        throw new AuthenticationException("Authentication required");
+        throw new AuthenticationException("Authentication method required");
     }
 
     @Override

@@ -260,7 +260,7 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().canLookupAsync(topicName, authRole,
-                        authenticationData);
+                        authState.getAuthDataSource());
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -464,9 +464,9 @@ public class ServerCnx extends PulsarHandler {
     }
 
     // According to auth result, send newConnected or newAuthChallenge command.
-    private void doingAuthentication(AuthData clientData,
-                                     int clientProtocolVersion,
-                                     String clientVersion) throws Exception {
+    private void doAuthentication(AuthData clientData,
+                                  int clientProtocolVersion,
+                                  String clientVersion) throws Exception {
         AuthData brokerData = authState.authenticate(clientData);
         // authentication has completed, will send newConnected command.
         if (authState.isComplete()) {
@@ -543,11 +543,11 @@ public class ServerCnx extends PulsarHandler {
                 connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                 sslSession);
 
-            authenticationData = authenticationProvider.newAuthDataSource(clientData, remoteAddress, sslSession);
+            AuthenticationDataSource authenticationData = authenticationProvider
+                .newAuthDataSource(clientData, remoteAddress, sslSession);
             authState = authenticationProvider.newAuthState(authenticationData);
 
-
-            doingAuthentication(clientData, clientProtocolVersion, clientVersion);
+            doAuthentication(clientData, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             String msg = "Unable to authenticate";
             log.warn("[{}] {} ", remoteAddress, msg, e);
@@ -569,7 +569,7 @@ public class ServerCnx extends PulsarHandler {
 
         try {
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData().toByteArray());
-            doingAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
+            doAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
         } catch (Exception e) {
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);

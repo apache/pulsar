@@ -25,29 +25,30 @@ import org.apache.pulsar.common.api.AuthData;
 /**
  * Interface for authentication state.
  *
- * It is basically holding the the authentication state.
  * It tell broker whether the authentication is completed or not,
  * if completed, what is the AuthRole is.
  */
 public class OneStageAuthenticationState implements AuthenticationState {
 
     private final AuthenticationDataSource authenticationDataSource;
-    private final AuthenticationProvider provider;
+    private final String authRole;
 
     public OneStageAuthenticationState(AuthenticationDataSource authenticationDataSource,
-                                       AuthenticationProvider provider) {
+                                       AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = authenticationDataSource;
-        this.provider = provider;
+        this.authRole = provider.authenticate(authenticationDataSource);
     }
 
     @Override
-    public String getAuthRole() throws AuthenticationException {
-        return provider.authenticate(authenticationDataSource);
+    public String getAuthRole() {
+        return authRole;
     }
 
-    /**
-     * Challenge passed in auth data and get response data.
-     */
+    @Override
+    public AuthenticationDataSource getAuthDataSource() {
+        return authenticationDataSource;
+    }
+
     @Override
     public AuthData authenticate(AuthData authData) {
         return null;

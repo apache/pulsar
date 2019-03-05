@@ -159,13 +159,6 @@ public class Commands {
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
 
-        if ("ycav1".equals(authMethodName)) {
-            // Handle the case of a client that gets updated before the broker and starts sending the string auth method
-            // name. An example would be in broker-to-broker replication. We need to make sure the clients are still
-            // passing both the enum and the string until all brokers are upgraded.
-            connectBuilder.setAuthMethod(AuthMethod.AuthMethodYcaV1);
-        }
-
         if (targetBroker != null) {
             // When connecting through a proxy, we need to specify which broker do we want to be proxied through
             connectBuilder.setProxyToBrokerUrl(targetBroker);
@@ -230,7 +223,7 @@ public class Commands {
                 .build())
             .build();
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthChallenge(challenge));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
         challenge.recycle();
         challengeBuilder.recycle();
         return res;
@@ -252,7 +245,7 @@ public class Commands {
                 .build())
             .build();
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthResponse(response));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthResponse(response));
         response.recycle();
         responseBuilder.recycle();
         return res;
