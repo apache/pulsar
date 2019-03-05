@@ -77,7 +77,7 @@ public class ContextImplTest {
             client,
             new ArrayList<>(),
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                Utils.ComponentType.FUNCTION);
+                Utils.ComponentType.FUNCTION, null);
     }
 
     @Test(expected = IllegalStateException.class)

@@ -215,7 +215,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType);
+                collectorRegistry, metricsLabels, this.componentType, this.stats);
     }
 
     /**
