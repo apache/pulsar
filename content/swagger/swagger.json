@@ -7096,18 +7096,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -7131,6 +7119,18 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
         }
       }
     },
@@ -7290,13 +7290,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -8004,13 +8004,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -8112,11 +8112,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
