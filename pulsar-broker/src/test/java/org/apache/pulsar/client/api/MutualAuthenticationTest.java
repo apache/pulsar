@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -49,6 +50,8 @@ import static org.testng.Assert.assertEquals;
 public class MutualAuthenticationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MutualAuthenticationTest.class);
 
+    private MutualAuthentication mutualAuth;
+
     private static String[] clientAuthStrings = {
         "MutualClientAuthInit", // step 0
         "MutualClientStep1"     // step 1
@@ -59,23 +62,25 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         "ResponseMutualClientStep1"     // step 1
     };
 
-    private static int authStep = 0;
-
     public static class MutualAuthenticationDataProvider implements AuthenticationDataProvider {
+        private int authStep = 0;
+
         @Override
         public boolean hasDataFromCommand() {
             return true;
         }
 
         @Override
-        public AuthData authenticate(AuthData data) throws IOException {
+        public AuthData authenticate(AuthData data) throws AuthenticationException {
             String dataString = new String(data.getBytes(), Charset.forName("UTF-8"));
             if (!dataString.equalsIgnoreCase("init")) {
-                assertEquals(dataString, serverAuthStrings[authStep - 1]);
+                if (!dataString.equals(serverAuthStrings[authStep - 1])) {
+                    throw new AuthenticationException();
+                }
             }
             log.debug("authenticate in client. passed in :{}, send: clientAuthStrings[{}]: {}",
                 dataString, authStep, clientAuthStrings[authStep]);
-            return AuthData.of(clientAuthStrings[authStep].getBytes());
+            return AuthData.of(clientAuthStrings[authStep ++].getBytes());
         }
     }
 
@@ -112,15 +117,19 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
 
     public static class MutualAuthenticationState implements AuthenticationState {
+        private int authStep = 0;
+
         @Override
         public String getAuthRole() throws AuthenticationException {
             return "admin";
         }
 
         @Override
-        public AuthData authenticate(AuthData authData) throws IOException {
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
             String clientData = new String(authData.getBytes(), Charset.forName("UTF-8"));
-            assertEquals(clientData, clientAuthStrings[authStep]);
+            if (!clientData.equals(clientAuthStrings[authStep])) {
+                throw new AuthenticationException();
+            }
             log.debug("authenticate in server. passed in :{}, send: serverAuthStrings[{}]: {}",
                 clientData, authStep, serverAuthStrings[authStep]);
             AuthData serverData =  AuthData.of(serverAuthStrings[authStep ++].getBytes());
@@ -168,6 +177,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        mutualAuth = new MutualAuthentication();
         Set<String> superUserRoles = new HashSet<String>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
@@ -180,7 +190,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         super.init();
         URI brokerServiceUrl = new URI("pulsar://localhost:" + BROKER_PORT);
         pulsarClient = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString())
-            .authentication(new MutualAuthentication())
+            .authentication(mutualAuth)
             .build();
         super.producerBaseSetup();
     }
@@ -216,9 +226,6 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
         consumer.acknowledgeCumulative(msg);
-
-        // mutual auth happened.
-        assertEquals(authStep, 2);
 
         log.info("-- Exiting {} test --", methodName);
     }

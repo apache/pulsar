@@ -27,6 +27,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * Provider of authentication mechanism
@@ -49,7 +50,9 @@ public interface AuthenticationProvider extends Closeable {
     String getAuthMethodName();
 
     /**
-     * Validate the authentication for the given credentials with the specified authentication data
+     * Validate the authentication for the given credentials with the specified authentication data.
+     * This method is useful in one stage authn, if you're not doing one stage or if you're providing
+     * your own state implementation for one stage authn, it should throw an exception.
      *
      * @param authData
      *            provider specific authentication data
@@ -57,7 +60,9 @@ public interface AuthenticationProvider extends Closeable {
      * @throws AuthenticationException
      *             if the credentials are not valid
      */
-    String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
+    default String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Create an authentication data State use passed in AuthenticationDataSource.

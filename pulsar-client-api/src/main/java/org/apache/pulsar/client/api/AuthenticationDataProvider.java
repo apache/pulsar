@@ -24,6 +24,7 @@ import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
 import java.util.Set;
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -116,7 +117,7 @@ public interface AuthenticationDataProvider extends Serializable {
      *
      * Mainly used for mutual authentication like sasl.
      */
-    default AuthData authenticate(AuthData data) throws IOException {
+    default AuthData authenticate(AuthData data) throws IOException, AuthenticationException {
         byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes("UTF-8");
         return AuthData.of(bytes);
     }

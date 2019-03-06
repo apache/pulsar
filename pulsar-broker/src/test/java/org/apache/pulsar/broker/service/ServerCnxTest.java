@@ -344,8 +344,6 @@ public class ServerCnxTest {
 
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
         doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
-        //doReturn(authenticationDataSource).when(authenticationProvider)
-        //    .newAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
         doReturn(authenticationState).when(authenticationProvider)
             .newAuthState(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
         doReturn(authData).when(authenticationState)

@@ -40,7 +40,7 @@ public interface AuthenticationState {
     /**
      * Challenge passed in auth data and get response data.
      */
-    AuthData authenticate(AuthData authData) throws IOException;
+    AuthData authenticate(AuthData authData) throws IOException, AuthenticationException;
 
     /**
      * Return AuthenticationDataSource.

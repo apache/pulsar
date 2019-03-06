@@ -20,10 +20,11 @@
 package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
-import java.nio.charset.Charset;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.common.api.AuthData;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Interface for authentication state.
@@ -41,7 +42,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
                                        SSLSession sslSession,
                                        AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = new AuthenticationDataCommand(
-            new String(authData.getBytes(), Charset.forName("UTF-8")), remoteAddress, sslSession);;
+            new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);;
         this.authRole = provider.authenticate(authenticationDataSource);
     }
 

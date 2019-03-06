@@ -195,7 +195,7 @@ public class ClientCnx extends PulsarHandler {
                 });
     }
 
-    protected ByteBuf newConnectCommand() throws IOException {
+    protected ByteBuf newConnectCommand() throws Exception {
         // mutual authentication is to auth between `remoteHostName` and this client for this channel.
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
@@ -314,7 +314,7 @@ public class ClientCnx extends PulsarHandler {
                 }
             });
             state = State.Connecting;
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
             return;

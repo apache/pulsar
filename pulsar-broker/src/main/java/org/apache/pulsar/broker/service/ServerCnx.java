@@ -526,7 +526,9 @@ public class ServerCnx extends PulsarHandler {
             // Not find provider named authMethod. Most used for tests.
             // In AuthenticationDisabled, it will set authMethod "none".
             if (authenticationProvider == null) {
-                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole().get();
+                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
+                    .orElseThrow(() ->
+                        new AuthenticationException("No anonymous role, and no authentication provider configured"));
                 completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
