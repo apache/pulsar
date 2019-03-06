@@ -194,7 +194,7 @@ public class WorkerService {
             // Start function runtime manager
             this.functionRuntimeManager.start();
 
-            // indicate function worker service is done intializing
+            // indicate function worker service is done initializing
             this.isInitialized = true;
 
             this.connectorsManager = new ConnectorsManager(workerConfig);

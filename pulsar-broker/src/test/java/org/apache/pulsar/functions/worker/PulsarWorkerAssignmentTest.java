@@ -54,8 +54,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Test Pulsar sink on function
- *
+ * Test Pulsar Function worker assignment
  */
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -79,7 +78,7 @@ public class PulsarWorkerAssignmentTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarWorkerAssignmentTest.class);
 
-    @BeforeMethod(timeOut = 60000)
+    @BeforeMethod(timeOut = 30000, alwaysRun = true)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -126,7 +125,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod(timeOut = 60000)
+    @AfterMethod(timeOut = 30000, alwaysRun = true)
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
@@ -166,7 +165,7 @@ public class PulsarWorkerAssignmentTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 30000)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -216,7 +215,7 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 30000)
     public void testFunctionAssignmentsWithRestart() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -233,6 +232,7 @@ public class PulsarWorkerAssignmentTest {
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
         final String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+
         FunctionConfig functionConfig;
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
@@ -245,8 +245,8 @@ public class PulsarWorkerAssignmentTest {
         }
         retryStrategically((test) -> {
             try {
-                Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == (totalFunctions * parallelism);
+                final Map<String, Assignment> assignmentMap = runtimeManager.getCurrentAssignments().values().iterator().next();
+                return assignmentMap.size() == (totalFunctions * parallelism);
             } catch (Exception e) {
                 return false;
             }
@@ -274,8 +274,8 @@ public class PulsarWorkerAssignmentTest {
         }
         retryStrategically((test) -> {
             try {
-                Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
+                final Map<String, Assignment> assignmentMap = runtimeManager.getCurrentAssignments().values().iterator().next();
+                return assignmentMap.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
             } catch (Exception e) {
                 return false;
             }
@@ -293,8 +293,8 @@ public class PulsarWorkerAssignmentTest {
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
         retryStrategically((test) -> {
             try {
-                Map<String, Assignment> assgn = runtimeManager2.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
+                final Map<String, Assignment> assignmentMap = runtimeManager2.getCurrentAssignments().values().iterator().next();
+                return assignmentMap.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
             } catch (Exception e) {
                 return false;
             }

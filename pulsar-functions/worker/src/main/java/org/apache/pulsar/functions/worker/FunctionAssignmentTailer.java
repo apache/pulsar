@@ -18,16 +18,13 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.IOException;
-import java.util.function.Function;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.function.Function;
 
 @Slf4j
 public class FunctionAssignmentTailer
@@ -36,10 +33,8 @@ public class FunctionAssignmentTailer
         private final FunctionRuntimeManager functionRuntimeManager;
         private final Reader<byte[]> reader;
 
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader)
-            throws PulsarClientException {
+    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader) {
         this.functionRuntimeManager = functionRuntimeManager;
-
         this.reader = reader;
     }
 
@@ -65,7 +60,7 @@ public class FunctionAssignmentTailer
     }
 
     public void processAssignment(Message<byte[]> msg) {
-        if(msg.getData()==null || (msg.getData().length==0)) {
+        if(msg.getData() == null || (msg.getData().length == 0)) {
             log.info("Received assignment delete: {}", msg.getKey());
             this.functionRuntimeManager.deleteAssignment(msg.getKey());
         } else {
