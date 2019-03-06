@@ -161,7 +161,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // produce messages
         Map<String, String> kvs;
         if (tester instanceof JdbcSinkTester) {
-            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class, true));
         } else {
             kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
         }

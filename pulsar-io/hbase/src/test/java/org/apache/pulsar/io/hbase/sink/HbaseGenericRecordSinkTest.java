@@ -108,7 +108,7 @@ public class HbaseGenericRecordSinkTest {
         obj.setAddress("address_value");
         obj.setAge(30);
         obj.setFlag(true);
-        AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
+        AvroSchema<Foo> schema = AvroSchema.of(Foo.class, true);
 
         byte[] bytes = schema.encode(obj);
         ByteBuf payload = Unpooled.copiedBuffer(bytes);
