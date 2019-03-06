@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -177,6 +179,27 @@ public interface Schema<T> {
     }
 
     /**
+     * Create a Avro schema type using the provided avro schema definition.
+     *
+     * @param schemaDefinition avro schema definition
+     * @return a Schema instance
+     */
+    static <T> Schema<T> AVRO(String schemaDefinition) {
+        return AVRO(schemaDefinition, Collections.emptyMap());
+    }
+
+    /**
+     * Create a Avro schema type using the provided avro schema definition.
+     *
+     * @param schemaDefinition avro schema definition
+     * @param properties pulsar schema properties
+     * @return a Schema instance
+     */
+    static <T> Schema<T> AVRO(String schemaDefinition, Map<String, String> properties) {
+        return DefaultImplementation.newAvroSchema(schemaDefinition, properties);
+    }
+
+    /**
      * Create a JSON schema type by extracting the fields of the specified class.
      *
      * @param clazz the POJO class to be used to extract the JSON schema
@@ -184,6 +207,20 @@ public interface Schema<T> {
      */
     static <T> Schema<T> JSON(Class<T> clazz) {
         return DefaultImplementation.newJSONSchema(clazz);
+    }
+
+    /**
+     * Create a JSON schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the POJO class to be used to extract the JSON schema
+     * @param schemaDefinition schema definition json string (using avro schema syntax)
+     * @param properties pulsar schema properties
+     * @return a Schema instance
+     */
+    static <T> Schema<T> JSON(Class<T> clazz,
+                              String schemaDefinition,
+                              Map<String, String> properties) {
+        return DefaultImplementation.newJSONSchema(clazz, schemaDefinition, properties);
     }
 
     /**
