@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.FunctionInstanceId;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import javax.ws.rs.WebApplicationException;
@@ -290,7 +291,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         return assignments;
     }
-
 
     /**
      * Removes a collection of assignments
@@ -693,7 +693,22 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 this.conditionallyStopFunction(functionRuntimeInfo);
             } else {
                 // function doesn't exist anymore thus we should terminate
-                this.conditionallyTerminateFunction(functionRuntimeInfo);
+
+                FunctionInstanceId functionInstanceId
+                        = new FunctionInstanceId(fullyQualifiedInstanceId);
+                String name = functionInstanceId.getName();
+                String namespace = functionInstanceId.getNamespace();
+                String tenant = functionInstanceId.getTenant();
+
+                // only run the termination logic if
+                // this is the last/only instance from a function left on the worker
+                Collection<Assignment> assignments = findFunctionAssignments(tenant, namespace, name, this
+                        .workerIdToAssignments);
+                if (assignments.size() > 1) {
+                    this.conditionallyStopFunction(functionRuntimeInfo);
+                } else {
+                    this.conditionallyTerminateFunction(functionRuntimeInfo);
+                }
             }
             this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
         }

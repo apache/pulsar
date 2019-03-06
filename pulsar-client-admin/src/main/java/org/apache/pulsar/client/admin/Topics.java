@@ -203,6 +203,18 @@ public interface Topics {
     void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
+     * Create a non-partitioned topic.
+     * 
+     * <p>
+     * Create a non-partitioned topic. 
+     * <p>
+     * 
+     * @param topic Topic name
+     * @throws PulsarAdminException
+     */
+    void createNonPartitionedTopic(String topic) throws PulsarAdminException;
+
+    /**
      * Create a partitioned topic asynchronously.
      * <p>
      * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
@@ -216,6 +228,13 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic is created
      */
     CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
+
+    /**
+     * Create a non-partitioned topic asynchronously.
+     * 
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic);
 
     /**
      * Update number of partitions of a non-global partitioned topic.

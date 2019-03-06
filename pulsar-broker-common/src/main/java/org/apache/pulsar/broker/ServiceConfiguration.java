@@ -146,7 +146,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
         )
-    private int numHttpServerThreads = 2 * Runtime.getRuntime().availableProcessors();
+    private int numHttpServerThreads = Math.max(4, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -394,6 +394,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
     private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable broker to load persistent topics"
+    )
+    private boolean enablePersistentTopics = true;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable broker to load non-persistent topics"
+    )
+    private boolean enableNonPersistentTopics = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,
