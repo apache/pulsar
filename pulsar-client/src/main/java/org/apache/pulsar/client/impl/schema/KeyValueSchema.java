@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 import lombok.Getter;
 
@@ -45,18 +46,18 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
-    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type) {
+    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type ,Boolean allowNull) {
         checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
         if (SchemaType.JSON == type) {
-            return new KeyValueSchema<>(JSONSchema.of(key), JSONSchema.of(value));
+            return new KeyValueSchema<>(JSONSchema.of(key,allowNull), JSONSchema.of(value,allowNull),allowNull);
         } else {
             // AVRO
-            return new KeyValueSchema<>(AvroSchema.of(key), AvroSchema.of(value));
+            return new KeyValueSchema<>(AvroSchema.of(key,allowNull), AvroSchema.of(value,allowNull),allowNull);
         }
     }
 
     public KeyValueSchema(Schema<K> keySchema,
-                          Schema<V> valueSchema) {
+                          Schema<V> valueSchema ,Boolean allowNull) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
 
@@ -64,6 +65,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfo = new SchemaInfo()
             .setName("KeyValue")
             .setType(SchemaType.KEY_VALUE);
+        this.schemaInfo.setProperties(new HashMap<>());
+        this.schemaInfo.getProperties().put("allowNull",allowNull?"true":"false");
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();

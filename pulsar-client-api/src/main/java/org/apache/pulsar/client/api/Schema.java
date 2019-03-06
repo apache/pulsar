@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -50,11 +51,9 @@ public interface Schema<T> {
     /**
      * Encode an object representing the message content into a byte array.
      *
-     * @param message
-     *            the message object
+     * @param message the message object
      * @return a byte array with the serialized content
-     * @throws SchemaSerializationException
-     *             if the serialization fails
+     * @throws SchemaSerializationException if the serialization fails
      */
     byte[] encode(T message);
 
@@ -78,8 +77,7 @@ public interface Schema<T> {
     /**
      * Decode a byte array into an object using the schema definition and deserializer implementation
      *
-     * @param bytes
-     *            the byte array to decode
+     * @param bytes the byte array to decode
      * @return the deserialized object
      */
     default T decode(byte[] bytes) {
@@ -90,10 +88,8 @@ public interface Schema<T> {
     /**
      * Decode a byte array into an object using a given version.
      *
-     * @param bytes
-     *            the byte array to decode
-     * @param schemaVersion
-     *            the schema version to decode the object. null indicates using latest version.
+     * @param bytes         the byte array to decode
+     * @param schemaVersion the schema version to decode the object. null indicates using latest version.
      * @return the deserialized object
      */
     default T decode(byte[] bytes, byte[] schemaVersion) {
@@ -167,49 +163,95 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a Avro schema type by extracting the fields of the specified class.
+     * Create a allow null Avro schema type by extracting the fields of the specified class.
      *
      * @param clazz the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(clazz);
+        return DefaultImplementation.newAvroSchema(clazz, true);
     }
 
     /**
-     * Create a JSON schema type by extracting the fields of the specified class.
+     * Create a Avro schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the POJO class to be used to extract the Avro schema
+     *              allowNull the create a allow null or not null Avro schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> AVRO(Class<T> clazz, Boolean allowNull) {
+        return DefaultImplementation.newAvroSchema(clazz, allowNull);
+    }
+
+
+    /**
+     * Create a allow null JSON schema type by extracting the fields of the specified class.
      *
      * @param clazz the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(clazz);
+        return DefaultImplementation.newJSONSchema(clazz, true);
     }
+
+    /**
+     * Create a allow null JSON schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the POJO class to be used to extract the JSON schema
+     *              allowNull the create a allow null or not null JSON schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> JSON(Class<T> clazz, Boolean allowNull) {
+        return DefaultImplementation.newJSONSchema(clazz, allowNull);
+    }
+
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type);
+        return DefaultImplementation.newKeyValueSchema(key, value, type,true);
     }
+
+    /**
+     * Key Value Schema using passed in schema type, support JSON and AVRO currently.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type, Boolean allowNull) {
+        return DefaultImplementation.newKeyValueSchema(key, value, type, allowNull);
+    }
+
 
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES);
+    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES, true);
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON);
+        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON,true);
     }
 
     /**
      * Key Value Schema using passed in key and value schemas.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value);
+        return DefaultImplementation.newKeyValueSchema(key, value, true);
+    }
+
+    /**
+     * Key Value Schema whose underneath key and value schemas are JSONSchema.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, Boolean allowNull) {
+        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON ,allowNull);
+    }
+
+    /**
+     * Key Value Schema using passed in key and value schemas.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value, Boolean allowNull) {
+        return DefaultImplementation.newKeyValueSchema(key, value, allowNull);
     }
 
     @Deprecated

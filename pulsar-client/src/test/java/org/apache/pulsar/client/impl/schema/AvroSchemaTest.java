@@ -19,7 +19,8 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
 
 import lombok.extern.slf4j.Slf4j;
@@ -31,16 +32,18 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
+
 @Slf4j
 public class AvroSchemaTest {
 
     @Test
-    public void testSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class);
+    public void testNotAllowNullSchema() {
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,false);
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_AVRO);
+        assertEquals(schemaJson, SCHEMA_AVRO_NOT_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -57,8 +60,30 @@ public class AvroSchemaTest {
     }
 
     @Test
-    public void testEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
+    public void testAllowNullSchema() {
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,true);
+        assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
+        Schema.Parser parser = new Schema.Parser();
+        String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
+        assertEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
+        Schema schema = parser.parse(schemaJson);
+
+        for (String fieldName : FOO_FIELDS) {
+            Schema.Field field = schema.getField(fieldName);
+            Assert.assertNotNull(field);
+
+            if (field.name().equals("field4")) {
+                Assert.assertNotNull(field.schema().getTypes().get(1).getField("field1"));
+            }
+            if (field.name().equals("fieldUnableNull")) {
+                Assert.assertNotNull(field.schema().getType());
+            }
+        }
+    }
+
+    @Test
+    public void testNotAllowNullEncodeAndDecode() {
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,false);
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -82,6 +107,33 @@ public class AvroSchemaTest {
         } catch (Exception e) {
             Assert.assertTrue(e instanceof SchemaSerializationException);
         }
+
+    }
+    @Test
+    public void testAllowNullEncodeAndDecode() {
+
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, new HashMap<>());
+
+        Foo foo1 = new Foo();
+        foo1.setField1("foo1");
+        foo1.setField2("bar1");
+        foo1.setField4(new Bar());
+
+        Foo foo2 = new Foo();
+        foo2.setField1("foo2");
+        foo2.setField2("bar2");
+
+        byte[] bytes1 = avroSchema.encode(foo1);
+        Assert.assertTrue(bytes1.length > 0);
+
+        byte[] bytes2 = avroSchema.encode(foo2);
+        Assert.assertTrue(bytes2.length > 0);
+
+        Foo object1 = avroSchema.decode(bytes1);
+        Foo object2 = avroSchema.decode(bytes2);
+
+        assertEquals(object1, foo1);
+        assertEquals(object2, foo2);
 
     }
 
