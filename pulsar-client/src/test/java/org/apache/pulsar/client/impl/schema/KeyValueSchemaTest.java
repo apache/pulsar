@@ -73,13 +73,13 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
-                SchemaType.AVRO);
+            SchemaType.AVRO);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
-                SchemaType.AVRO);
+            SchemaType.AVRO);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
-                SchemaType.AVRO);
+            SchemaType.AVRO);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
-                SchemaType.AVRO);
+            SchemaType.AVRO);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
         String schemaInfo2 = new String(keyValueSchema2.getSchemaInfo().getSchema());
@@ -133,17 +133,17 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema3.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
         assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
-                SchemaType.JSON);
+            SchemaType.JSON);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
         String schemaInfo2 = new String(keyValueSchema2.getSchemaInfo().getSchema());

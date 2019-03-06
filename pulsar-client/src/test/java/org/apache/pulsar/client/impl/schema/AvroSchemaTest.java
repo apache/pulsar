@@ -112,7 +112,6 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullEncodeAndDecode() {
-
         AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, new HashMap<>());
 
         Foo foo1 = new Foo();

@@ -80,7 +80,7 @@ public class SchemaTestUtils {
         private Foo foo;
     }
 
-    public enum Color {
+    public enum  Color {
         RED,
         BLUE
     }
