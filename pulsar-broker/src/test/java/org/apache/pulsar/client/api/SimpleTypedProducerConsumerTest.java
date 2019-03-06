@@ -63,7 +63,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         JSONSchema<JsonEncodedPojo> jsonSchema =
-            JSONSchema.of(JsonEncodedPojo.class);
+            JSONSchema.of(JsonEncodedPojo.class, true);
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
             .newConsumer(jsonSchema)
@@ -108,7 +108,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         JSONSchema<JsonEncodedPojo> jsonSchema =
-            JSONSchema.of(JsonEncodedPojo.class);
+            JSONSchema.of(JsonEncodedPojo.class, true);
 
         pulsar.getSchemaRegistryService()
             .putSchemaIfAbsent("my-property/my-ns/my-topic1",
@@ -166,7 +166,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             ).get();
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
-            .newConsumer(JSONSchema.of(JsonEncodedPojo.class))
+            .newConsumer(JSONSchema.of(JsonEncodedPojo.class, true))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
@@ -194,7 +194,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             ).get();
 
         Producer<JsonEncodedPojo> producer = pulsarClient
-            .newProducer(JSONSchema.of(JsonEncodedPojo.class))
+            .newProducer(JSONSchema.of(JsonEncodedPojo.class, true))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .create();
 
@@ -273,7 +273,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                 ).get();
 
         Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong> consumer = pulsarClient
-                .newConsumer(AvroSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class))
+                .newConsumer(AvroSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class, true))
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
@@ -286,7 +286,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(AvroEncodedPojo.class, true);
 
        Consumer<AvroEncodedPojo> consumer = pulsarClient
            .newConsumer(avroSchema)
@@ -355,7 +355,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             ).get();
 
         Consumer<AvroEncodedPojo> consumer = pulsarClient
-            .newConsumer(AvroSchema.of(AvroEncodedPojo.class))
+            .newConsumer(AvroSchema.of(AvroEncodedPojo.class, true))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
@@ -454,7 +454,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(AvroEncodedPojo.class, true);
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
@@ -502,7 +502,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(AvroEncodedPojo.class, true);
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
@@ -548,7 +548,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         AvroSchema<AvroEncodedPojo> avroSchema =
-            AvroSchema.of(AvroEncodedPojo.class);
+            AvroSchema.of(AvroEncodedPojo.class, true);
 
         try (Producer<AvroEncodedPojo> producer = pulsarClient
             .newProducer(avroSchema)
