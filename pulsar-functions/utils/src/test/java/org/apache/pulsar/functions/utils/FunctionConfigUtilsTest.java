@@ -157,6 +157,15 @@ public class FunctionConfigUtilsTest {
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Input Specs mismatch")
+    public void testMergeDifferentInputSpec() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(false).serdeClassName("my-serde").build());
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("inputSpecs", inputSpecs);
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output topics differ")
     public void testMergeDifferentOutput() {
         FunctionConfig functionConfig = createFunctionConfig();

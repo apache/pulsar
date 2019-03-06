@@ -120,6 +120,15 @@ public class SinkConfigUtilsTest {
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Input Specs mismatch")
+    public void testMergeDifferentInputSpec() {
+        SinkConfig sinkConfig = createSinkConfig();
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(false).serdeClassName("my-serde").build());
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
+        SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be alterted")
     public void testMergeDifferentProcessingGuarantees() {
         SinkConfig sinkConfig = createSinkConfig();
