@@ -225,10 +225,7 @@ func TestReaderHasNext(t *testing.T) {
 	ctx := context.Background()
 
 	client, err := NewClient(ClientOptions{
-		URL:                     "pulsar://localhost:6650",
-		//Logger: func(level logutil.LoggerLevel, file string, line int, message string) {
-		//	// no-op to reduce noise in the log messages for this test.
-		//},
+		URL: "pulsar://localhost:6650",
 	})
 	assert.Nil(t, err)
 	defer client.Close()
