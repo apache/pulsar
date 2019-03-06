@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -217,4 +218,50 @@ func TestReaderCompaction(t *testing.T) {
 	msg, err = reader2.Next(ctx)
 	assert.Nil(t, msg)
 	assert.NotNil(t, err)
+}
+
+func TestReaderHasNext(t *testing.T) {
+	topic := fmt.Sprintf("TestReaderHasNext-%d", rand.Int())
+	ctx := context.Background()
+
+	client, err := NewClient(ClientOptions{
+		URL:                     "pulsar://localhost:6650",
+		//Logger: func(level logutil.LoggerLevel, file string, line int, message string) {
+		//	// no-op to reduce noise in the log messages for this test.
+		//},
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topic,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	// Send a message.
+	err = producer.Send(ctx, ProducerMessage{})
+	assert.Nil(t, err)
+
+	reader, err := client.CreateReader(ReaderOptions{
+		Topic:          topic,
+		StartMessageID: EarliestMessage,
+	})
+	assert.Nil(t, err)
+	defer reader.Close()
+
+	var hasNext bool
+
+	// Now we have 1 message to read
+	hasNext, err = reader.HasNext()
+	assert.Nil(t, err)
+	assert.True(t, hasNext)
+
+	_, err = reader.Next(ctx)
+	assert.Nil(t, err)
+
+	// Now there is no message left
+	hasNext, err = reader.HasNext()
+	assert.Nil(t, err)
+	assert.False(t, hasNext)
 }
