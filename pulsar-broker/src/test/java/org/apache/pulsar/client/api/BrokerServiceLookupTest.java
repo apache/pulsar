@@ -163,6 +163,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         /**** started broker-2 ****/
@@ -254,6 +255,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager2));
+        
+        LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
+        doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
+        
         /**** started broker-2 ****/
 
         // load namespace-bundle by calling Broker2
@@ -413,13 +419,16 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // mock: redirect request to leader [2]
         doReturn(true).when(loadManager2).isCentralized();
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
+        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         // mock: return Broker2 as a Least-loaded broker when leader receies
         // request [3]
         doReturn(true).when(loadManager1).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
+        doReturn(true).when(loadManager2).isCentralized();
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
-        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
+        
 
         /**** started broker-2 ****/
 
@@ -460,7 +469,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         pulsar2.close();
         loadManager1 = null;
         loadManager2 = null;
-
     }
 
     /**
@@ -826,6 +834,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
@@ -1008,7 +1017,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
         final String cluster = "use2";
