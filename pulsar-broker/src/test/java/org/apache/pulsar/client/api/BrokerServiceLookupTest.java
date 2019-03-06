@@ -255,11 +255,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager2));
-        
-        LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
-        doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
-        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
-        
         /**** started broker-2 ****/
 
         // load namespace-bundle by calling Broker2
@@ -293,7 +288,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         pulsarClient2.close();
         pulsar2.close();
         loadManager2 = null;
-
     }
 
     /**
