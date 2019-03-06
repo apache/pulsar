@@ -18,6 +18,12 @@
 #
 
 configs:
+- name: enablePersistentTopics
+  default: 'true'
+  description: Whether persistent topics are enabled on the broker
+- name: enableNonPersistentTopics
+  default: 'true'
+  description: Whether non-persistent topics are enabled on the broker
 - name: functionsWorkerEnabled
   description: Whether the Pulsar Functions worker service is enabled in the broker
   default: 'false'
