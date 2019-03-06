@@ -184,12 +184,7 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return client.getCnxPool().getConnection(serviceNameResolver.resolveHost()).thenCompose(clientCnx -> {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(), Optional.empty());
-
-            return clientCnx.sendGetSchema(request, requestId);
-        });
+        return getSchema(topicName, null);
     }
 
 
@@ -198,7 +193,7 @@ public class BinaryProtoLookupService implements LookupService {
         return client.getCnxPool().getConnection(serviceNameResolver.resolveHost()).thenCompose(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
-                    Optional.of(new BytesSchemaVersion(version)));
+                    Optional.ofNullable(BytesSchemaVersion.of(version)));
             return clientCnx.sendGetSchema(request, requestId);
         });
     }

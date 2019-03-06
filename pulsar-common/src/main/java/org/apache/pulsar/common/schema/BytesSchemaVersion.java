@@ -23,14 +23,18 @@ package org.apache.pulsar.common.schema;
  */
 public class BytesSchemaVersion implements SchemaVersion {
 
-    private byte[] bytes;
+    private final byte[] bytes;
 
-    public BytesSchemaVersion(byte[] bytes) {
+    private BytesSchemaVersion(byte[] bytes) {
         this.bytes = bytes;
     }
 
     @Override
     public byte[] bytes() {
         return bytes;
+    }
+
+    public static BytesSchemaVersion of(byte[] bytes) {
+        return bytes != null ? new BytesSchemaVersion(bytes) : null;
     }
 }
