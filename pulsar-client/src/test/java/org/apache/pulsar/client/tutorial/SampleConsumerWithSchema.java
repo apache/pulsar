@@ -30,7 +30,7 @@ public class SampleConsumerWithSchema {
 
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        Consumer<JsonPojo> consumer = pulsarClient.newConsumer(JSONSchema.of(JsonPojo.class,true)) //
+        Consumer<JsonPojo> consumer = pulsarClient.newConsumer(JSONSchema.of(JsonPojo.class, true)) //
                 .topic("persistent://my-property/use/my-ns/my-topic") //
                 .subscriptionName("my-subscription-name").subscribe();
 

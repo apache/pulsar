@@ -124,10 +124,10 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(clazz,true);
+            return AvroSchema.of(clazz, true);
 
         case JSON:
-            return JSONSchema.of(clazz,true);
+            return JSONSchema.of(clazz, true);
 
         case KEY_VALUE:
             return (Schema<T>)Schema.KV_BYTES;

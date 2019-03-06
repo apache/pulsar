@@ -77,7 +77,7 @@ public class GenericSchemaImplTest {
             Bar bar = new Bar();
             bar.setField1(i % 2 == 0);
             foo.setField4(bar);
-            foo.setFieldUnableNull("fieldUnableNull-1-"+i);
+            foo.setFieldUnableNull("fieldUnableNull-1-" + i);
             byte[] data = encodeSchema.encode(foo);
 
             log.info("Decoding : {}", new String(data, UTF_8));
