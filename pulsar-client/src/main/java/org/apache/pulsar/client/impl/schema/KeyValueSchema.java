@@ -46,34 +46,34 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
-    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type ,Boolean allowNull) {
+    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type, Boolean allowNull) {
         checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
         if (SchemaType.JSON == type) {
-            return new KeyValueSchema<>(JSONSchema.of(key,allowNull), JSONSchema.of(value,allowNull),allowNull);
+            return new KeyValueSchema<>(JSONSchema.of(key, allowNull), JSONSchema.of(value, allowNull), allowNull);
         } else {
             // AVRO
-            return new KeyValueSchema<>(AvroSchema.of(key,allowNull), AvroSchema.of(value,allowNull),allowNull);
+            return new KeyValueSchema<>(AvroSchema.of(key, allowNull), AvroSchema.of(value, allowNull), allowNull);
         }
     }
 
     public KeyValueSchema(Schema<K> keySchema,
-                          Schema<V> valueSchema ,Boolean allowNull) {
+                          Schema<V> valueSchema, Boolean allowNull) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
-            .setName("KeyValue")
-            .setType(SchemaType.KEY_VALUE);
+                .setName("KeyValue")
+                .setType(SchemaType.KEY_VALUE);
         this.schemaInfo.setProperties(new HashMap<>());
-        this.schemaInfo.getProperties().put("allowNull",allowNull?"true":"false");
+        this.schemaInfo.getProperties().put("allowNull", allowNull ? "true" : "false");
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keySchemaInfo.length + 4 + valueSchemaInfo.length);
         byteBuffer.putInt(keySchemaInfo.length).put(keySchemaInfo)
-            .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
+                .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
         this.schemaInfo.setSchema(byteBuffer.array());
     }
 

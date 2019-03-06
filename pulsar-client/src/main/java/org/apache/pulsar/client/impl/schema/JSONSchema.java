@@ -39,7 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-public class JSONSchema<T> implements Schema<T>{
+public class JSONSchema<T> implements Schema<T> {
 
     private final org.apache.avro.Schema schema;
     private final SchemaInfo schemaInfo;
@@ -57,15 +57,15 @@ public class JSONSchema<T> implements Schema<T>{
 
     private final ObjectMapper objectMapper;
 
-    private JSONSchema(Class<T> pojo,Boolean allowNull, Map<String, String> properties) {
+    private JSONSchema(Class<T> pojo, Boolean allowNull, Map<String, String> properties) {
         this.pojo = pojo;
         this.properties = properties;
 
-        this.schema = allowNull?ReflectData.AllowNull.get().getSchema(pojo):ReflectData.get().getSchema(pojo);
+        this.schema = allowNull ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
         this.schemaInfo.setProperties(properties);
-        this.schemaInfo.getProperties().put("allowNull",allowNull?"true":"false");
+        this.schemaInfo.getProperties().put("allowNull", allowNull ? "true" : "false");
         this.schemaInfo.setType(SchemaType.JSON);
         this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
         this.objectMapper = JSON_MAPPER.get();
@@ -117,11 +117,11 @@ public class JSONSchema<T> implements Schema<T>{
         return backwardsCompatibleSchemaInfo;
     }
 
-    public static <T> JSONSchema<T> of(Class<T> pojo,Boolean allowNull) {
-        return new JSONSchema<>(pojo,allowNull ,new HashMap<>());
+    public static <T> JSONSchema<T> of(Class<T> pojo, Boolean allowNull) {
+        return new JSONSchema<>(pojo, allowNull, new HashMap<>());
     }
 
-    public static <T> JSONSchema<T> of(Class<T> pojo,Boolean allowNull ,Map<String, String> properties) {
-        return new JSONSchema<>(pojo,allowNull,properties);
+    public static <T> JSONSchema<T> of(Class<T> pojo, Boolean allowNull, Map<String, String> properties) {
+        return new JSONSchema<>(pojo, allowNull, properties);
     }
 }

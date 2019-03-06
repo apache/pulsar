@@ -7,8 +7,8 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -56,7 +56,7 @@ public class AvroSchema<T> implements Schema<T> {
                        Boolean allowNull,
                        Map<String, String> properties) {
 
-        properties.put("allowNull", allowNull?"true":"false");
+        properties.put("allowNull", allowNull ? "true" : "false");
 
         this.schema = schema;
 
@@ -99,26 +99,27 @@ public class AvroSchema<T> implements Schema<T> {
         }
     }
 
+
     @Override
     public SchemaInfo getSchemaInfo() {
         return this.schemaInfo;
     }
 
-    private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo,Boolean allowNull) {
+    private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo, Boolean allowNull) {
 
-        return allowNull?ReflectData.AllowNull.get().getSchema(pojo):ReflectData.get().getSchema(pojo);
+        return allowNull ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo,true), true, new HashMap<>());
+        return new AvroSchema<>(createAvroSchema(pojo, true), true, new HashMap<>());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Boolean allowNull) {
-        return new AvroSchema<>(createAvroSchema(pojo,allowNull), allowNull, new HashMap<>());
+        return new AvroSchema<>(createAvroSchema(pojo, allowNull), allowNull, new HashMap<>());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Boolean allowNull, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo,allowNull), true, properties);
+        return new AvroSchema<>(createAvroSchema(pojo, allowNull), true, properties);
     }
 
 }

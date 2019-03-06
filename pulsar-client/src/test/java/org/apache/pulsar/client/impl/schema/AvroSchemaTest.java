@@ -39,7 +39,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,false);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, false);
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -61,7 +61,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,true);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, true);
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -83,7 +83,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class,false);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, false);
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -102,13 +102,14 @@ public class AvroSchemaTest {
 
         try {
 
-           avroSchema.encode(foo2);
+            avroSchema.encode(foo2);
 
         } catch (Exception e) {
             Assert.assertTrue(e instanceof SchemaSerializationException);
         }
 
     }
+
     @Test
     public void testAllowNullEncodeAndDecode() {
 

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -214,7 +214,7 @@ public interface Schema<T> {
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type,true);
+        return DefaultImplementation.newKeyValueSchema(key, value, type, true);
     }
 
     /**
@@ -234,7 +234,7 @@ public interface Schema<T> {
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON,true);
+        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON, true);
     }
 
     /**
@@ -248,7 +248,7 @@ public interface Schema<T> {
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, Boolean allowNull) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON ,allowNull);
+        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON, allowNull);
     }
 
     /**
