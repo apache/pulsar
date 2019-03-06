@@ -1040,8 +1040,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    getLastMessageIdAsync([this, lastDequed, callback](Result result,
-                                                       MessageId messageId) {
+    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
