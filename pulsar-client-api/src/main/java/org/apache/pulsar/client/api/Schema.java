@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -51,9 +50,11 @@ public interface Schema<T> {
     /**
      * Encode an object representing the message content into a byte array.
      *
-     * @param message the message object
+     * @param message
+     *            the message object
      * @return a byte array with the serialized content
-     * @throws SchemaSerializationException if the serialization fails
+     * @throws SchemaSerializationException
+     *             if the serialization fails
      */
     byte[] encode(T message);
 
@@ -77,7 +78,8 @@ public interface Schema<T> {
     /**
      * Decode a byte array into an object using the schema definition and deserializer implementation
      *
-     * @param bytes the byte array to decode
+     * @param bytes
+     *            the byte array to decode
      * @return the deserialized object
      */
     default T decode(byte[] bytes) {
@@ -88,8 +90,10 @@ public interface Schema<T> {
     /**
      * Decode a byte array into an object using a given version.
      *
-     * @param bytes         the byte array to decode
-     * @param schemaVersion the schema version to decode the object. null indicates using latest version.
+     * @param bytes
+     *            the byte array to decode
+     * @param schemaVersion
+     *            the schema version to decode the object. null indicates using latest version.
      * @return the deserialized object
      */
     default T decode(byte[] bytes, byte[] schemaVersion) {
