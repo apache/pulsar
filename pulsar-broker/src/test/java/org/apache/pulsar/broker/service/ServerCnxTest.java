@@ -344,10 +344,10 @@ public class ServerCnxTest {
 
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
         doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
-        doReturn(authenticationDataSource).when(authenticationProvider)
-            .newAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        //doReturn(authenticationDataSource).when(authenticationProvider)
+        //    .newAuthDataSource(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
         doReturn(authenticationState).when(authenticationProvider)
-            .newAuthState(authenticationDataSource);
+            .newAuthState(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
         doReturn(authData).when(authenticationState)
             .authenticate(authData);
         doReturn(true).when(authenticationState)
@@ -373,10 +373,9 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testConnectCommandWithAuthenticationNegative() throws Exception {
-        AuthenticationException e = new AuthenticationException();
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doThrow(e).when(authenticationService).getAnonymousUserRole();
+        doReturn(Optional.empty()).when(authenticationService).getAnonymousUserRole();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
 
         resetChannel();

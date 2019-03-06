@@ -214,7 +214,6 @@ public class Commands {
         int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
         challengeBuilder.setProtocolVersion(versionToAdvertise);
-        challengeBuilder.setServerVersion("Pulsar Server");
 
         CommandAuthChallenge challenge = challengeBuilder
             .setChallenge(PulsarApi.AuthData.newBuilder()

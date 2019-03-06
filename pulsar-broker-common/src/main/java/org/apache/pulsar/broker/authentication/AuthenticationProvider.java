@@ -22,7 +22,6 @@ import java.io.Closeable;
 import java.io.IOException;
 
 import java.net.SocketAddress;
-import java.nio.charset.Charset;
 import javax.naming.AuthenticationException;
 
 import javax.net.ssl.SSLSession;
@@ -61,21 +60,13 @@ public interface AuthenticationProvider extends Closeable {
     String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
 
     /**
-     * Create an authentication data provider which provides the data that this broker will be sent to the client.
-     */
-    default AuthenticationDataSource newAuthDataSource(AuthData authData,
-                                                       SocketAddress remoteAddress,
-                                                       SSLSession sslSession) throws IOException {
-        return new AuthenticationDataCommand(
-            new String(authData.getBytes(), Charset.forName("UTF-8")), remoteAddress, sslSession);
-    }
-
-    /**
      * Create an authentication data State use passed in AuthenticationDataSource.
      */
-    default AuthenticationState newAuthState(AuthenticationDataSource authenticationDataSource)
+    default AuthenticationState newAuthState(AuthData authData,
+                                             SocketAddress remoteAddress,
+                                             SSLSession sslSession)
         throws AuthenticationException{
-        return new OneStageAuthenticationState(authenticationDataSource, this);
+        return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
     }
 
 }

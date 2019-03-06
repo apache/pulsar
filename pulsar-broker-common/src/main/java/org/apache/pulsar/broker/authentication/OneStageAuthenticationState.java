@@ -19,7 +19,10 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import java.net.SocketAddress;
+import java.nio.charset.Charset;
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -33,9 +36,12 @@ public class OneStageAuthenticationState implements AuthenticationState {
     private final AuthenticationDataSource authenticationDataSource;
     private final String authRole;
 
-    public OneStageAuthenticationState(AuthenticationDataSource authenticationDataSource,
+    public OneStageAuthenticationState(AuthData authData,
+                                       SocketAddress remoteAddress,
+                                       SSLSession sslSession,
                                        AuthenticationProvider provider) throws AuthenticationException {
-        this.authenticationDataSource = authenticationDataSource;
+        this.authenticationDataSource = new AuthenticationDataCommand(
+            new String(authData.getBytes(), Charset.forName("UTF-8")), remoteAddress, sslSession);;
         this.authRole = provider.authenticate(authenticationDataSource);
     }
 

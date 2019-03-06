@@ -6792,11 +6792,11 @@ public final class PulsarApi {
   public interface CommandAuthResponseOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
-    // required string client_version = 1;
+    // optional string client_version = 1;
     boolean hasClientVersion();
     String getClientVersion();
     
-    // required .pulsar.proto.AuthData response = 2;
+    // optional .pulsar.proto.AuthData response = 2;
     boolean hasResponse();
     org.apache.pulsar.common.api.proto.PulsarApi.AuthData getResponse();
     
@@ -6839,7 +6839,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required string client_version = 1;
+    // optional string client_version = 1;
     public static final int CLIENT_VERSION_FIELD_NUMBER = 1;
     private java.lang.Object clientVersion_;
     public boolean hasClientVersion() {
@@ -6871,7 +6871,7 @@ public final class PulsarApi {
       }
     }
     
-    // required .pulsar.proto.AuthData response = 2;
+    // optional .pulsar.proto.AuthData response = 2;
     public static final int RESPONSE_FIELD_NUMBER = 2;
     private org.apache.pulsar.common.api.proto.PulsarApi.AuthData response_;
     public boolean hasResponse() {
@@ -6901,18 +6901,6 @@ public final class PulsarApi {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasClientVersion()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasResponse()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getResponse().isInitialized()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -7137,18 +7125,6 @@ public final class PulsarApi {
       }
       
       public final boolean isInitialized() {
-        if (!hasClientVersion()) {
-          
-          return false;
-        }
-        if (!hasResponse()) {
-          
-          return false;
-        }
-        if (!getResponse().isInitialized()) {
-          
-          return false;
-        }
         return true;
       }
       
@@ -7200,7 +7176,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required string client_version = 1;
+      // optional string client_version = 1;
       private java.lang.Object clientVersion_ = "";
       public boolean hasClientVersion() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -7236,7 +7212,7 @@ public final class PulsarApi {
         
       }
       
-      // required .pulsar.proto.AuthData response = 2;
+      // optional .pulsar.proto.AuthData response = 2;
       private org.apache.pulsar.common.api.proto.PulsarApi.AuthData response_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
       public boolean hasResponse() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -7314,11 +7290,11 @@ public final class PulsarApi {
   public interface CommandAuthChallengeOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
-    // required string server_version = 1;
+    // optional string server_version = 1;
     boolean hasServerVersion();
     String getServerVersion();
     
-    // required .pulsar.proto.AuthData challenge = 2;
+    // optional .pulsar.proto.AuthData challenge = 2;
     boolean hasChallenge();
     org.apache.pulsar.common.api.proto.PulsarApi.AuthData getChallenge();
     
@@ -7361,7 +7337,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required string server_version = 1;
+    // optional string server_version = 1;
     public static final int SERVER_VERSION_FIELD_NUMBER = 1;
     private java.lang.Object serverVersion_;
     public boolean hasServerVersion() {
@@ -7393,7 +7369,7 @@ public final class PulsarApi {
       }
     }
     
-    // required .pulsar.proto.AuthData challenge = 2;
+    // optional .pulsar.proto.AuthData challenge = 2;
     public static final int CHALLENGE_FIELD_NUMBER = 2;
     private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_;
     public boolean hasChallenge() {
@@ -7423,18 +7399,6 @@ public final class PulsarApi {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasServerVersion()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasChallenge()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getChallenge().isInitialized()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -7659,18 +7623,6 @@ public final class PulsarApi {
       }
       
       public final boolean isInitialized() {
-        if (!hasServerVersion()) {
-          
-          return false;
-        }
-        if (!hasChallenge()) {
-          
-          return false;
-        }
-        if (!getChallenge().isInitialized()) {
-          
-          return false;
-        }
         return true;
       }
       
@@ -7722,7 +7674,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required string server_version = 1;
+      // optional string server_version = 1;
       private java.lang.Object serverVersion_ = "";
       public boolean hasServerVersion() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -7758,7 +7710,7 @@ public final class PulsarApi {
         
       }
       
-      // required .pulsar.proto.AuthData challenge = 2;
+      // optional .pulsar.proto.AuthData challenge = 2;
       private org.apache.pulsar.common.api.proto.PulsarApi.AuthData challenge_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthData.getDefaultInstance();
       public boolean hasChallenge() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -7836,11 +7788,11 @@ public final class PulsarApi {
   public interface AuthDataOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
-    // required string auth_method_name = 1;
+    // optional string auth_method_name = 1;
     boolean hasAuthMethodName();
     String getAuthMethodName();
     
-    // required bytes auth_data = 2;
+    // optional bytes auth_data = 2;
     boolean hasAuthData();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData();
   }
@@ -7879,7 +7831,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required string auth_method_name = 1;
+    // optional string auth_method_name = 1;
     public static final int AUTH_METHOD_NAME_FIELD_NUMBER = 1;
     private java.lang.Object authMethodName_;
     public boolean hasAuthMethodName() {
@@ -7911,7 +7863,7 @@ public final class PulsarApi {
       }
     }
     
-    // required bytes auth_data = 2;
+    // optional bytes auth_data = 2;
     public static final int AUTH_DATA_FIELD_NUMBER = 2;
     private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_;
     public boolean hasAuthData() {
@@ -7930,14 +7882,6 @@ public final class PulsarApi {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasAuthMethodName()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasAuthData()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -8146,14 +8090,6 @@ public final class PulsarApi {
       }
       
       public final boolean isInitialized() {
-        if (!hasAuthMethodName()) {
-          
-          return false;
-        }
-        if (!hasAuthData()) {
-          
-          return false;
-        }
         return true;
       }
       
@@ -8195,7 +8131,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required string auth_method_name = 1;
+      // optional string auth_method_name = 1;
       private java.lang.Object authMethodName_ = "";
       public boolean hasAuthMethodName() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -8231,7 +8167,7 @@ public final class PulsarApi {
         
       }
       
-      // required bytes auth_data = 2;
+      // optional bytes auth_data = 2;
       private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasAuthData() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -27377,18 +27313,6 @@ public final class PulsarApi {
           return false;
         }
       }
-      if (hasAuthChallenge()) {
-        if (!getAuthChallenge().isInitialized()) {
-          memoizedIsInitialized = 0;
-          return false;
-        }
-      }
-      if (hasAuthResponse()) {
-        if (!getAuthResponse().isInitialized()) {
-          memoizedIsInitialized = 0;
-          return false;
-        }
-      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -28352,18 +28276,6 @@ public final class PulsarApi {
         }
         if (hasGetSchemaResponse()) {
           if (!getGetSchemaResponse().isInitialized()) {
-            
-            return false;
-          }
-        }
-        if (hasAuthChallenge()) {
-          if (!getAuthChallenge().isInitialized()) {
-            
-            return false;
-          }
-        }
-        if (hasAuthResponse()) {
-          if (!getAuthResponse().isInitialized()) {
             
             return false;
           }

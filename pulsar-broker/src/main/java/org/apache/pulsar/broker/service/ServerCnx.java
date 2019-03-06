@@ -260,7 +260,7 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().canLookupAsync(topicName, authRole,
-                        authState.getAuthDataSource());
+                    authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -526,7 +526,7 @@ public class ServerCnx extends PulsarHandler {
             // Not find provider named authMethod. Most used for tests.
             // In AuthenticationDisabled, it will set authMethod "none".
             if (authenticationProvider == null) {
-                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole();
+                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole().get();
                 completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
@@ -543,10 +543,7 @@ public class ServerCnx extends PulsarHandler {
                 connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                 sslSession);
 
-            AuthenticationDataSource authenticationData = authenticationProvider
-                .newAuthDataSource(clientData, remoteAddress, sslSession);
-            authState = authenticationProvider.newAuthState(authenticationData);
-
+            authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
             doAuthentication(clientData, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             String msg = "Unable to authenticate";
