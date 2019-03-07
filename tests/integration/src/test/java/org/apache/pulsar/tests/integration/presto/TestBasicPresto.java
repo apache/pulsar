@@ -22,6 +22,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -86,7 +87,7 @@ public class TestBasicPresto extends PulsarTestSuite {
         final String stocksTopic = "stocks";
 
         @Cleanup
-        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class, true))
+        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(new SchemaDefinition<>(Stock.class)))
                 .topic(stocksTopic)
                 .enableBatching(isBatched)
                 .create();

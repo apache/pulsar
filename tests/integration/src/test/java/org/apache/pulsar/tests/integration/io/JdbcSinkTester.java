@@ -33,6 +33,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.MySQLContainer;
@@ -60,7 +61,7 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
     private static final String NAME = "jdbc";
     private static final String MYSQL = "mysql";
 
-    private AvroSchema<Foo> schema = AvroSchema.of(Foo.class, true);
+    private AvroSchema<Foo> schema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(true));
     private String tableName = "test";
     private Connection connection;
 

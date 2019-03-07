@@ -37,12 +37,13 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.KeyValueSchemaDefinition;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 @SuppressWarnings("unchecked")
 @UtilityClass
@@ -182,10 +183,10 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <T> Schema<T> newAvroSchema(Class<T> clazz, Boolean allowNull) {
+    public static <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", Class.class, Boolean.class)
-                        .invoke(null, clazz, allowNull));
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", SchemaDefinition.class)
+                        .invoke(null,schemaDefinition));
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
@@ -194,10 +195,10 @@ public class DefaultImplementation {
                         .invoke(null, clazz));
     }
 
-    public static <T> Schema<T> newJSONSchema(Class<T> clazz, Boolean allowNull) {
+    public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class, Boolean.class)
-                        .invoke(null, clazz, allowNull));
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
     }
 
     public static Schema<GenericRecord> newAutoConsumeSchema() {
@@ -212,18 +213,11 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema, Boolean allowNull) {
-        return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getConstructor("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        Schema.class, Schema.class , Boolean.class).newInstance(keySchema, valueSchema, allowNull));
-    }
-
-    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type, Boolean allowNull) {
+    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(KeyValueSchemaDefinition keyValueSchemaDefinition) {
         return catchExceptions(
                 () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        "of", Class.class, Class.class, SchemaType.class, Boolean.class).invoke(null, key, value, type, allowNull));
+                        "of", KeyValueSchemaDefinition.class).invoke(null, keyValueSchemaDefinition));
     }
-
 
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return catchExceptions(

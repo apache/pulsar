@@ -26,6 +26,8 @@ import java.util.HashMap;
 import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.KeyValueSchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -46,36 +48,45 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
-    public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type, Boolean allowNull) {
-        checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
+    public static <K, V> Schema<KeyValue<K, V>> of(KeyValueSchemaDefinition<K, V> keyValueSchemaDefinition) {
+        SchemaType type = keyValueSchemaDefinition.getType();
+        Class<K> key = keyValueSchemaDefinition.getKey();
+        Class<V> value = keyValueSchemaDefinition.getValue();
+        boolean alwaysNull = keyValueSchemaDefinition.getAlwaysNull();
+        checkArgument((SchemaType.JSON == type || SchemaType.AVRO == type) ||
+                (keyValueSchemaDefinition.getKeySchema() != null && keyValueSchemaDefinition.getValueSchema() != null));
         if (SchemaType.JSON == type) {
-            return new KeyValueSchema<>(JSONSchema.of(key, allowNull), JSONSchema.of(value, allowNull), allowNull);
-        } else {
+            return new KeyValueSchema<>(keyValueSchemaDefinition.keySchema(JSONSchema.of(new SchemaDefinition<>(key).alwaysNull(alwaysNull))).
+                    valueSchema(JSONSchema.of(new SchemaDefinition<>(value).alwaysNull(alwaysNull))));
+        } else if (SchemaType.AVRO == type) {
             // AVRO
-            return new KeyValueSchema<>(AvroSchema.of(key, allowNull), AvroSchema.of(value, allowNull), allowNull);
+            return new KeyValueSchema<>(keyValueSchemaDefinition.keySchema(AvroSchema.of(new SchemaDefinition<>(key).alwaysNull(alwaysNull))).
+                    valueSchema(AvroSchema.of(new SchemaDefinition<>(value).alwaysNull(alwaysNull))));
+        } else {
+            return new KeyValueSchema<>(keyValueSchemaDefinition);
         }
     }
 
-    public KeyValueSchema(Schema<K> keySchema,
-                          Schema<V> valueSchema, Boolean allowNull) {
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
+    public KeyValueSchema(KeyValueSchemaDefinition<K, V> keyValueSchemaDefinition) {
+        this.keySchema = keyValueSchemaDefinition.getKeySchema();
+        this.valueSchema = keyValueSchemaDefinition.getValueSchema();
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
-            .setName("KeyValue")
-            .setType(SchemaType.KEY_VALUE);
-        this.schemaInfo.setProperties(new HashMap<>());
-        this.schemaInfo.getProperties().put("allowNull", allowNull ? "true" : "false");
+                .setName("KeyValue")
+                .setType(SchemaType.KEY_VALUE);
+
+        this.schemaInfo.setProperties(keyValueSchemaDefinition.getProperties());
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keySchemaInfo.length + 4 + valueSchemaInfo.length);
         byteBuffer.putInt(keySchemaInfo.length).put(keySchemaInfo)
-            .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
+                .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
         this.schemaInfo.setSchema(byteBuffer.array());
     }
+
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes]
     public byte[] encode(KeyValue<K, V> message) {

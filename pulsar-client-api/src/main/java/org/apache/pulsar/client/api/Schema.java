@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.KeyValueSchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -167,46 +169,44 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a allow null Avro schema type by extracting the fields of the specified class.
+     * Create a  Avro schema type by default configuration of the class
      *
      * @param clazz the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(clazz, true);
+        return DefaultImplementation.newAvroSchema(new SchemaDefinition<>(clazz));
     }
 
     /**
-     * Create a Avro schema type by extracting the fields of the specified class.
+     * Create a Avro schema type with schema definition
      *
-     * @param clazz the POJO class to be used to extract the Avro schema
-     *              allowNull the create a allow null or not null Avro schema
+     * @param schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    static <T> Schema<T> AVRO(Class<T> clazz, Boolean allowNull) {
-        return DefaultImplementation.newAvroSchema(clazz, allowNull);
+    static <T> Schema<T> AVRO(SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newAvroSchema(schemaDefinition);
     }
 
 
     /**
-     * Create a allow null JSON schema type by extracting the fields of the specified class.
+     * Create a JSON schema type by default configuration of the class
      *
      * @param clazz the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(clazz, true);
+        return DefaultImplementation.newJSONSchema(new SchemaDefinition<>(clazz));
     }
 
     /**
-     * Create a allow null JSON schema type by extracting the fields of the specified class.
+     * Create a JSON schema type with schema definition
      *
-     * @param clazz the POJO class to be used to extract the JSON schema
-     *              allowNull the create a allow null or not null JSON schema
+     * @param schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    static <T> Schema<T> JSON(Class<T> clazz, Boolean allowNull) {
-        return DefaultImplementation.newJSONSchema(clazz, allowNull);
+    static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
+        return DefaultImplementation.newJSONSchema(schemaDefinition);
     }
 
 
@@ -214,48 +214,33 @@ public interface Schema<T> {
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type, true);
+        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value, type));
     }
-
-    /**
-     * Key Value Schema using passed in schema type, support JSON and AVRO currently.
-     */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type, Boolean allowNull) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type, allowNull);
-    }
-
 
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES, true);
+    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(BYTES,BYTES));
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON, true);
+        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value, SchemaType.JSON));
     }
 
     /**
      * Key Value Schema using passed in key and value schemas.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value, true);
+        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value));
     }
 
     /**
-     * Key Value Schema whose underneath key and value schemas are JSONSchema.
+     * Create key and value schema by keyValueSchemaDefinition.
      */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, Boolean allowNull) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON, allowNull);
-    }
-
-    /**
-     * Key Value Schema using passed in key and value schemas.
-     */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value, Boolean allowNull) {
-        return DefaultImplementation.newKeyValueSchema(key, value, allowNull);
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(KeyValueSchemaDefinition keyValueSchemaDefinition) {
+        return DefaultImplementation.newKeyValueSchema(keyValueSchemaDefinition);
     }
 
     @Deprecated
@@ -266,9 +251,9 @@ public interface Schema<T> {
     /**
      * Create a schema instance that automatically deserialize messages
      * based on the current topic schema.
-     * <p>
+     *
      * The messages values are deserialized into a {@link GenericRecord} object.
-     * <p>
+     *
      * Currently this is only supported with Avro and JSON schema types.
      *
      * @return the auto schema instance

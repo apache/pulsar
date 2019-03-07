@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -39,7 +40,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, false);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -61,7 +62,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, true);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(true));
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -83,7 +84,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, false);
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -112,7 +113,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, new HashMap<>());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class));
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");

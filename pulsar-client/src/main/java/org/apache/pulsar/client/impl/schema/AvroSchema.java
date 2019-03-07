@@ -30,13 +30,12 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -53,16 +52,11 @@ public class AvroSchema<T> implements Schema<T> {
             new ThreadLocal<>();
 
     private AvroSchema(org.apache.avro.Schema schema,
-                       Boolean allowNull,
-                       Map<String, String> properties) {
-
-        properties.put("allowNull", allowNull ? "true" : "false");
-
+                       SchemaDefinition<T> schemaDefinition) {
         this.schema = schema;
-
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
-        this.schemaInfo.setProperties(properties);
+        this.schemaInfo.setProperties(schemaDefinition.getProperties());
         this.schemaInfo.setType(SchemaType.AVRO);
         this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
 
@@ -105,21 +99,21 @@ public class AvroSchema<T> implements Schema<T> {
         return this.schemaInfo;
     }
 
-    private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo, Boolean allowNull) {
+    private static <T> org.apache.avro.Schema createAvroSchema(SchemaDefinition<T> schemaDefinition) {
 
-        return allowNull ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
+        Class<T> clazz = schemaDefinition.getClazz();
+
+        return schemaDefinition.getAlwaysNull() ? ReflectData.AllowNull.get().getSchema(clazz) : ReflectData.get().getSchema(clazz);
+    }
+
+    public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo, true), true, new HashMap<>());
+        SchemaDefinition<T> schemaDefinition = new SchemaDefinition<>(pojo).properties(properties);
+        return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
     }
 
-    public static <T> AvroSchema<T> of(Class<T> pojo, Boolean allowNull) {
-        return new AvroSchema<>(createAvroSchema(pojo, allowNull), allowNull, new HashMap<>());
-    }
-
-    public static <T> AvroSchema<T> of(Class<T> pojo, Boolean allowNull, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo, allowNull), true, properties);
-    }
 
 }
