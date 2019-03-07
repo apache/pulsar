@@ -146,7 +146,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
         )
-    private int numHttpServerThreads = Math.max(4, 2 * Runtime.getRuntime().availableProcessors());
+    // Use at least 8 threads to avoid having Jetty go into threads starving and
+    // having the possibility of getting into a deadlock where a Jetty thread is
+    // waiting for another HTTP call to complete in same thread.
+    private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
