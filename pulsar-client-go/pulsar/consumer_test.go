@@ -100,7 +100,7 @@ func TestConsumer(t *testing.T) {
 		assert.NotNil(t, msg)
 
 		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
-		assert.Equal(t, string(msg.Topic()), "persistent://public/default/" + topic)
+		assert.Equal(t, msg.Topic(), "persistent://public/default/" + topic)
 		fmt.Println("Send time: ", sendTime)
 		fmt.Println("Publish time: ", msg.PublishTime())
 		fmt.Println("Receive time: ", recvTime)
