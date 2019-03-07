@@ -207,6 +207,25 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
+    public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
+    	try {
+    		createNonPartitionedTopicAsync(topic).get();
+    	} catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+    
+    @Override
+    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
+    	TopicName tn = validateTopic(topic);
+    	WebTarget path = topicPath(tn);
+    	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+    
+    @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
         TopicName tn = validateTopic(topic);
