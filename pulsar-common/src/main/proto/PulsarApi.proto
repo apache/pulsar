@@ -397,6 +397,7 @@ message CommandSeek {
 	required uint64 request_id  = 2;
 
 	optional MessageIdData message_id = 3;
+	optional uint64 message_publish_time = 4;
 }
 
 // Message sent by broker to client when a topic

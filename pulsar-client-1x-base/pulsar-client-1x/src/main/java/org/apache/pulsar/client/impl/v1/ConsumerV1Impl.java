@@ -138,6 +138,14 @@ public class ConsumerV1Impl implements Consumer {
         consumer.seek(arg0);
     }
 
+    public void seek(long arg0) throws PulsarClientException {
+        consumer.seek(arg0);
+    }
+
+    public CompletableFuture<Void> seekAsync(long arg0) {
+        return consumer.seekAsync(arg0);
+    }
+
     public CompletableFuture<Void> seekAsync(MessageId arg0) {
         return consumer.seekAsync(arg0);
     }

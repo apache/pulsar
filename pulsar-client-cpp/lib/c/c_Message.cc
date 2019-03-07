@@ -48,11 +48,11 @@ void pulsar_message_set_sequence_id(pulsar_message_t *message, int64_t sequenceI
     message->builder.setSequenceId(sequenceId);
 }
 
-void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters) {
-    const char *c = clusters[0];
+void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters, size_t size) {
+    const char **c = clusters;
     std::vector<std::string> clustersList;
-    while (c) {
-        clustersList.push_back(c);
+    for (size_t i = 0; i < size; i++) {
+        clustersList.push_back(*c);
         ++c;
     }
 

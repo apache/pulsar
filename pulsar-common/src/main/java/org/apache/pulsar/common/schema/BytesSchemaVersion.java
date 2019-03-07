@@ -16,25 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.common.schema;
 
-import lombok.*;
-import lombok.experimental.Accessors;
+/**
+ * Bytes schema version
+ */
+public class BytesSchemaVersion implements SchemaVersion {
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@Accessors(chain = true)
-public class FunctionAction {
+    private final byte[] bytes;
 
-    public enum Action {
-        START,
-        STOP,
-        TERMINATE
+    private BytesSchemaVersion(byte[] bytes) {
+        this.bytes = bytes;
     }
 
-    private Action action;
-    private FunctionRuntimeInfo functionRuntimeInfo;
+    @Override
+    public byte[] bytes() {
+        return bytes;
+    }
+
+    public static BytesSchemaVersion of(byte[] bytes) {
+        return bytes != null ? new BytesSchemaVersion(bytes) : null;
+    }
 }
