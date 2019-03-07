@@ -30,17 +30,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.ByteBufSchema;
-import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
-import org.apache.pulsar.client.impl.schema.ByteSchema;
-import org.apache.pulsar.client.impl.schema.BytesSchema;
-import org.apache.pulsar.client.impl.schema.DoubleSchema;
-import org.apache.pulsar.client.impl.schema.FloatSchema;
-import org.apache.pulsar.client.impl.schema.IntSchema;
-import org.apache.pulsar.client.impl.schema.LongSchema;
-import org.apache.pulsar.client.impl.schema.ShortSchema;
-import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -49,7 +40,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PrimitiveSchemaTest {
 
-    final private Map<Schema, List<Object>> testData = new HashMap() {
+    private static final Map<Schema, List<Object>> testData = new HashMap() {
         {
             put(BooleanSchema.of(), Arrays.asList(false, true));
             put(StringSchema.utf8(), Arrays.asList("my string"));
@@ -65,8 +56,28 @@ public class PrimitiveSchemaTest {
         }
     };
 
-    @Test
-    public void allSchemasShouldSupportNull() {
+    private static final Map<Schema, List<Object>> testData2 = new HashMap() {
+        {
+            put(Schema.BOOL, Arrays.asList(false, true));
+            put(Schema.STRING, Arrays.asList("my string"));
+            put(Schema.INT8, Arrays.asList((byte) 32767, (byte) -32768));
+            put(Schema.INT16, Arrays.asList((short) 32767, (short) -32768));
+            put(Schema.INT32, Arrays.asList((int) 423412424, (int) -41243432));
+            put(Schema.INT64, Arrays.asList(922337203685477580L, -922337203685477581L));
+            put(Schema.FLOAT, Arrays.asList(5678567.12312f, -5678567.12341f));
+            put(Schema.DOUBLE, Arrays.asList(5678567.12312d, -5678567.12341d));
+            put(Schema.BYTES, Arrays.asList("my string".getBytes(UTF_8)));
+            put(Schema.BYTEBUFFER, Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
+        }
+    };
+
+    @DataProvider(name = "schemas")
+    public Object[][] schemas() {
+        return new Object[][] { { testData }, { testData2 } };
+    }
+
+    @Test(dataProvider = "schemas")
+    public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
             assertNull(schema.encode(null),
                 "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
@@ -75,8 +86,8 @@ public class PrimitiveSchemaTest {
         }
     }
 
-    @Test
-    public void allSchemasShouldRoundtripInput() {
+    @Test(dataProvider = "schemas")
+    public void allSchemasShouldRoundtripInput(Map<Schema, List<Object>> testData) {
         for (Map.Entry<Schema, List<Object>> test : testData.entrySet()) {
             log.info("Test schema {}", test.getKey());
             for (Object value : test.getValue()) {
