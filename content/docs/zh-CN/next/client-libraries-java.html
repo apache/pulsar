@@ -206,16 +206,22 @@ client.close();</p>
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
         .subscribe();
 </code></pre>
-<p><code>subscribe</code> 方法将自动将订阅消费者指定的主题和订阅。 一种让消费者监听主题的方法是使用<code>while</code>循环。 在这个循环示例中，消费者监听消息，打印收到的任何消息的内容，然后[确认](reference-terminology. md#acknowledgment-ack)消息已被处理：</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">do</span> {
+<p><code>subscribe</code> 方法将自动将订阅消费者指定的主题和订阅。 一种让消费者监听主题的方法是使用<code>while</code>循环。 In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then <a href="reference-terminology.md#acknowledgment-ack">acknowledges</a> that the message has been processed. If the processing logic fails, we use <a href="reference-terminology.md#acknowledgment-ack">negative acknowledgement</a> to have the message redelivered at a later point in time.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
   <span class="hljs-comment">// Wait for a message</span>
   Message msg = consumer.receive();
 
-  System.out.printf(<span class="hljs-string">"Message received: %s"</span>, <span class="hljs-keyword">new</span> String(msg.getData()));
+  <span class="hljs-keyword">try</span> {
+      <span class="hljs-comment">// Do something with the message</span>
+      System.out.printf(<span class="hljs-string">"Message received: %s"</span>, <span class="hljs-keyword">new</span> String(msg.getData()));
 
-  <span class="hljs-comment">// 确认消息，以便broker删除消息</span>
-  consumer.acknowledge(msg);
-} <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>);
+      <span class="hljs-comment">// Acknowledge the message so that it can be deleted by the message broker</span>
+      consumer.acknowledge(msg);
+  } <span class="hljs-keyword">catch</span> (Exception e) {
+      <span class="hljs-comment">// Message failed to process, redeliver later</span>
+      consumer.negativeAcknowledge(msg);
+  }
+}
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="消费者配置"></a><a href="#消费者配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者配置</h3>
 <p>如果实例化 <code>消费者</code> 对象, 仅指定主题和订阅名称, 如上面的示例所示, 消费者将采用默认配置。 要使用非默认配置, 你可以设置多种可配置的参数。 有关完整列表, 请参阅 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
