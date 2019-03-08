@@ -317,7 +317,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testFailedConsumer() throws Exception {
+    public void testFailedConsumer() {
         PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();
         pulsarSpoutConf.setServiceUrl(serviceUrl);
         pulsarSpoutConf.setTopic("persistent://invalidTopic");

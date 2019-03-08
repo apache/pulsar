@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -57,22 +58,24 @@ func TestReader(t *testing.T) {
 	assert.Nil(t, err)
 	defer client.Close()
 
+	topic := fmt.Sprintf("my-reader-topic-%d", time.Now().Unix())
+
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic: "my-reader-topic",
+		Topic: topic,
 	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
 
 	reader, err := client.CreateReader(ReaderOptions{
-		Topic:          "my-reader-topic",
+		Topic:          topic,
 		StartMessageID: LatestMessage,
 	})
 
 	assert.Nil(t, err)
 	defer reader.Close()
 
-	assert.Equal(t, reader.Topic(), "persistent://public/default/my-reader-topic")
+	assert.Equal(t, reader.Topic(), "persistent://public/default/" + topic )
 
 	ctx := context.Background()
 
@@ -217,4 +220,47 @@ func TestReaderCompaction(t *testing.T) {
 	msg, err = reader2.Next(ctx)
 	assert.Nil(t, msg)
 	assert.NotNil(t, err)
+}
+
+func TestReaderHasNext(t *testing.T) {
+	topic := fmt.Sprintf("TestReaderHasNext-%d", rand.Int())
+	ctx := context.Background()
+
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topic,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	// Send a message.
+	err = producer.Send(ctx, ProducerMessage{})
+	assert.Nil(t, err)
+
+	reader, err := client.CreateReader(ReaderOptions{
+		Topic:          topic,
+		StartMessageID: EarliestMessage,
+	})
+	assert.Nil(t, err)
+	defer reader.Close()
+
+	var hasNext bool
+
+	// Now we have 1 message to read
+	hasNext, err = reader.HasNext()
+	assert.Nil(t, err)
+	assert.True(t, hasNext)
+
+	_, err = reader.Next(ctx)
+	assert.Nil(t, err)
+
+	// Now there is no message left
+	hasNext, err = reader.HasNext()
+	assert.Nil(t, err)
+	assert.False(t, hasNext)
 }

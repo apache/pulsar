@@ -196,7 +196,9 @@ public interface Schema<T> {
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES);
+    static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {
+        return DefaultImplementation.newKeyValueBytesSchema();
+    }
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.

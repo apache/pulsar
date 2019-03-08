@@ -33,4 +33,11 @@ public interface GenericSchema extends Schema<GenericRecord> {
      */
     List<Field> getFields();
 
+    /**
+     * Create a builder to build {@link GenericRecord}.
+     *
+     * @return generic record builder
+     */
+    GenericRecordBuilder newRecordBuilder();
+
 }

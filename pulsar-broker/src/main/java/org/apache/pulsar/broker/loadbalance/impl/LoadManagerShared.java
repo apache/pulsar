@@ -96,7 +96,7 @@ public class LoadManagerShared {
     // The brokers are put into brokerCandidateCache.
     public static void applyNamespacePolicies(final ServiceUnitId serviceUnit,
             final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
-            final Set<String> availableBrokers) {
+            final Set<String> availableBrokers, final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
         Set<String> primariesCache = localPrimariesCache.get();
         primariesCache.clear();
 
@@ -145,11 +145,27 @@ public class LoadManagerShared {
                     }
 
                 }
-            } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                secondaryCache.add(broker);
-                if (log.isDebugEnabled()) {
-                    log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                            brokerUrl.getHost(), namespace.toString());
+            } else {
+                // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
+                if (isNonPersistentTopic
+                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (!isNonPersistentTopic
+                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                    // persistent topic can be assigned to only brokers that enabled for persistent-topic
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (policies.isSharedBroker(brokerUrl.getHost())) {
+                    secondaryCache.add(broker);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
                 }
             }
         }
@@ -498,6 +514,12 @@ public class LoadManagerShared {
             return candidateBroekrs.size() != leastNsOwnerBrokers;
         }
         return true;
+    }
+
+    public interface BrokerTopicLoadingPredicate {
+        boolean isEnablePersistentTopics(String brokerUrl);
+
+        boolean isEnableNonPersistentTopics(String brokerUrl);
     }
 
     /**
