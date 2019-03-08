@@ -47,7 +47,7 @@ public class TopicSchema {
     }
 
     /**
-     * If there is no other information available, use JSON as default schema type
+     * If there is no other information available, use JSON as default schema type.
      */
     private static final SchemaType DEFAULT_SCHEMA_TYPE = SchemaType.JSON;
 

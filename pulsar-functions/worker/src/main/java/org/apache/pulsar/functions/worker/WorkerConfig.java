@@ -265,7 +265,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean authenticationEnabled = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
-        doc = "Autentication provider name list, which is a list of class names"
+        doc = "Authentication provider name list, which is a list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
     @FieldContext(
@@ -439,7 +439,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "Any config the secret provider configurator might need. \n\nThis is passed on"
-            + " to the init method of the secretproviderconfigurator"
+            + " to the init method of the SecretsProviderConfigurator"
     )
     private Map<String, String> secretsProviderConfiguratorConfig;
     @FieldContext(

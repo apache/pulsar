@@ -47,7 +47,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
- * Util class for common runtime functionality
+ * Util class for common runtime functionality.
  */
 @Slf4j
 public class RuntimeUtils {
@@ -336,7 +336,7 @@ public class RuntimeUtils {
                 ActionResult actionResult = action.getSupplier().get();
 
                 if (actionResult.isSuccess()) {
-                    log.info("Sucessfully completed action [ {} ]", action.getActionName());
+                    log.info("Successfully completed action [ {} ]", action.getActionName());
                     if (action.getOnSuccess() != null) {
                         action.getOnSuccess().run();
                     }
