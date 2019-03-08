@@ -1210,10 +1210,18 @@ public class PulsarFunctionE2ETest {
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
         functionConfig.setOutput(sinkTopic);
-        functionConfig.setCleanupSubscription(true);
+        functionConfig.setCleanupSubscription(false);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        retryStrategically((test) -> {
+            try {
+                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         retryStrategically((test) -> {
             try {
@@ -1224,6 +1232,19 @@ public class PulsarFunctionE2ETest {
         }, 5, 150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        // test update cleanup subscription
+        functionConfig.setCleanupSubscription(true);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertTrue(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
@@ -1269,6 +1290,59 @@ public class PulsarFunctionE2ETest {
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+
+
+        /** test do not cleanup subscription **/
+        functionConfig.setCleanupSubscription(false);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        // validate pulsar source consumer has started on the topic
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // test update another config and making sure that subscription cleanup remains unchanged
+        functionConfig.setParallelism(2);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
     }
 
 
