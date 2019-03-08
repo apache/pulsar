@@ -691,7 +691,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return stats;
     }
-    
+
     protected void internalDeleteSubscription(String subName, boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -953,6 +953,8 @@ public class PersistentTopicsBase extends AdminResource {
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
                         .createSubscription(subscriptionName, InitialPosition.Latest).get();
+                // Mark the cursor as "inactive" as it was created without a real consumer connected
+                subscription.deactivateCursor();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), topicName,
                         subscriptionName, messageId);
