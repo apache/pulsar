@@ -130,6 +130,57 @@ public interface Consumer<T> extends Closeable {
     void acknowledge(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message&lt;String&gt; msg = consumer.receive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(Message<?> message);
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     * <p>
+     * This call is not blocking.
+     * <p>
+     * This variation allows to pass a {@link MessageId} rather than a {@link Message}
+     * object, in order to avoid keeping the payload in memory for extended amount
+     * of time
+     *
+     * @see #negativeAcknowledge(Message)
+     *
+     * @param messageId
+     *            The {@code MessageId} to be acknowledged
+     */
+    void negativeAcknowledge(MessageId messageId);
+
+    /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
      *
      * This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
