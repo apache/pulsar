@@ -26,6 +26,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
+import java.util.function.BiFunction;
+
+import org.apache.pulsar.common.util.collections.LongPairSet.LongPairFunction;
 
 /**
  * Concurrent hash set where values are composed of pairs of longs.
@@ -38,7 +41,7 @@ import java.util.concurrent.locks.StampedLock;
  * <p>
  * Values <strong>MUST</strong> be >= 0.
  */
-public class ConcurrentLongPairSet {
+public class ConcurrentLongPairSet implements LongPairSet {
 
     private static final long EmptyItem = -1L;
     private static final long DeletedItem = -2L;
@@ -52,10 +55,6 @@ public class ConcurrentLongPairSet {
 
     public static interface ConsumerLong {
         void accept(LongPair item);
-    }
-
-    public interface LongPairPredicate {
-        boolean test(long v1, long v2);
     }
 
     public static interface LongPairConsumer {
@@ -190,11 +189,16 @@ public class ConcurrentLongPairSet {
      * @return a new list of keys with max provided numberOfItems (makes a copy)
      */
     public Set<LongPair> items(int numberOfItems) {
-        Set<LongPair> items = new HashSet<>();
+        return items(numberOfItems, (item1, item2) -> new LongPair(item1, item2));
+    }
+
+    @Override
+    public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
+        Set<T> items = new HashSet<>();
         for (Section s : sections) {
             s.forEach((item1, item2) -> {
                 if (items.size() < numberOfItems) {
-                    items.add(new LongPair(item1, item2));
+                    items.add(longPairConverter.apply(item1, item2));
                 }
             });
             if (items.size() >= numberOfItems) {
@@ -203,7 +207,7 @@ public class ConcurrentLongPairSet {
         }
         return items;
     }
-
+    
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section extends StampedLock {
@@ -552,4 +556,5 @@ public class ConcurrentLongPairSet {
         sb.append('}');
         return sb.toString();
     }
+
 }

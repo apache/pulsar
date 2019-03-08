@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.stream.Collectors.toSet;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
@@ -53,7 +52,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
+import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
+import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +72,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private final ManagedCursor cursor;
 
     private CompletableFuture<Void> closeFuture = null;
-    private ConcurrentLongPairSet messagesToReplay;
+    LongPairSet messagesToReplay = new ConcurrentSortedLongPairSet(128, 2);
     private final RedeliveryTracker redeliveryTracker;
 
     private boolean havePendingRead = false;
@@ -102,7 +102,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
-        this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
@@ -288,8 +287,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     return;
                 }
 
-                Set<PositionImpl> messagesToReplayNow = messagesToReplay.items(messagesToRead).stream()
-                        .map(pair -> new PositionImpl(pair.first, pair.second)).collect(toSet());
+                Set<PositionImpl> messagesToReplayNow = messagesToReplay.items(messagesToRead,
+                        (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
@@ -328,6 +327,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
         }
     }
+
 
     @Override
     public boolean isConsumerConnected() {
@@ -503,6 +503,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             havePendingReplayRead = false;
             if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
                 PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
+
                 messagesToReplay.removeIf((ledgerId, entryId) -> {
                     return ComparisonChain.start().compare(ledgerId, markDeletePosition.getLedgerId())
                             .compare(entryId, markDeletePosition.getEntryId()).result() <= 0;
@@ -555,7 +556,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             messagesToReplay.add(ledgerId, entryId);
         });
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, messagesToReplay);
+            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
+                    messagesToReplay);
         }
         readMoreEntries();
     }

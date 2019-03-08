@@ -130,7 +130,7 @@ public class TopicSchema {
             return JSONSchema.of(clazz);
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES;
+            return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
