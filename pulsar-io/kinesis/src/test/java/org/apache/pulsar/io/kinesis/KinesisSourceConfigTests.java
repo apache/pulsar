@@ -23,6 +23,9 @@ import static org.testng.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -41,9 +44,11 @@ public class KinesisSourceConfigTests {
         then.set(Calendar.YEAR, 2019);
         then.set(Calendar.MONTH, Calendar.MARCH);
         then.set(Calendar.DAY_OF_MONTH, 5);
-        then.set(Calendar.HOUR_OF_DAY, 4);
-        then.set(Calendar.MINUTE, 0);
-        then.set(Calendar.SECOND, 0);
+        then.set(Calendar.HOUR_OF_DAY, 19);
+        then.set(Calendar.MINUTE, 28);
+        then.set(Calendar.SECOND, 58);
+        then.set(Calendar.MILLISECOND, 0);
+        then.set(Calendar.ZONE_OFFSET, 0);
         DAY = then.getTime();
     }
 
@@ -63,7 +68,12 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        assertEquals(config.getStartAtTime().toString(), "Tue Mar 05 04:00:00 PST 2019");
+        
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(config.getStartAtTime());
+        ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
+        ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
+        assertEquals(actual, expected);
     }
     
     @Test
@@ -95,7 +105,12 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        assertEquals(config.getStartAtTime().toString(), "Tue Mar 05 04:00:00 PST 2019");
+        
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(config.getStartAtTime());
+        ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
+        ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
+        assertEquals(actual, expected);
     }
     
     @Test(expectedExceptions = IllegalArgumentException.class, 

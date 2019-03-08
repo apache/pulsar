@@ -28,5 +28,5 @@
   "numRetries":"3",
   "receiveQueueSize": 2000,
   "initialPositionInStream": "TRIM_HORIZON",
-  "startAtTime": "2019-03-05T12:00:00.000"
+  "startAtTime": "2019-03-05T19:28:58.000Z"
 }
