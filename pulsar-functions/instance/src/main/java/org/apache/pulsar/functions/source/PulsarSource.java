@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -61,8 +62,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
+        final long consumerOpTimeoutMs = ((org.apache.pulsar.client.impl.PulsarClientImpl) this.pulsarClient)
+                .getConfiguration().getOperationTimeoutMs();
 
-        inputConsumers = configs.entrySet().stream().map(e -> {
+        List<CompletableFuture<Consumer<T>>> consumerFutures = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
             log.info("Creating consumers for topic : {}, schema : {}",  topic, conf.getSchema());
@@ -97,7 +100,11 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
 
             return cb.subscribeAsync();
-        }).collect(Collectors.toList()).stream().map(CompletableFuture::join).collect(Collectors.toList());
+        }).collect(Collectors.toList());
+
+        FutureUtil.waitForAll(consumerFutures).get(consumerOpTimeoutMs, TimeUnit.MILLISECONDS);
+
+        inputConsumers = consumerFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
             return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
