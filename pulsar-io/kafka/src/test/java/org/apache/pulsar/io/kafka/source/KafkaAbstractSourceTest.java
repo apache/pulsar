@@ -113,6 +113,9 @@ public class KafkaAbstractSourceTest {
             public Logger getLogger() {
                 return null;
             }
+
+            @Override
+            public String getSecret(String key) { return null; }
         };
         Map<String, Object> config = new HashMap<>();
         ThrowingRunnable openAndClose = ()->{
