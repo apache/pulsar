@@ -67,39 +67,19 @@ Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
 }
 
 void Consumer_acknowledge(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeAsync(msgId, nullptr);
 }
 
 void Consumer_acknowledge_cumulative(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msgId, nullptr);
 }
 
 void Consumer_close(Consumer& consumer) {
