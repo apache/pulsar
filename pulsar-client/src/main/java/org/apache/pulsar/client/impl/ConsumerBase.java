@@ -73,11 +73,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
         this.consumerEventListener = conf.getConsumerEventListener();
-        if (receiverQueueSize <= 1) {
-            this.incomingMessages = Queues.newArrayBlockingQueue(1);
-        } else {
-            this.incomingMessages = new GrowableArrayBlockingQueue<>();
-        }
+        // Always use growable queue since items can exceed the advertised size
+        this.incomingMessages = new GrowableArrayBlockingQueue<>();
 
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
