@@ -41,7 +41,7 @@ public class SchemaDefinition<T> {
     /**
      * The flag of schema type always null
      */
-    private boolean alwaysNull = true;
+    private boolean alwaysAllNull = true;
     /**
      * The schema info properties
      */
@@ -50,7 +50,7 @@ public class SchemaDefinition<T> {
 
     public SchemaDefinition(Class<T> clazz) {
 
-        properties.put("alwaysNull", "true");
+        properties.put("alwaysAllNull", "true");
         this.clazz = clazz;
 
     }
@@ -58,13 +58,13 @@ public class SchemaDefinition<T> {
     /**
      * Set schema whether always null or not
      *
-     * @param alwaysNull definition null or not
+     * @param alwaysAllNull definition null or not
      * @return record schema definition
      */
-    public SchemaDefinition<T> alwaysNull(boolean alwaysNull) {
+    public SchemaDefinition<T> alwaysAllNull(boolean alwaysAllNull) {
 
-        this.alwaysNull = alwaysNull;
-        properties.put("alwaysNull", alwaysNull ? "true" : "false");
+        this.alwaysAllNull = alwaysAllNull;
+        properties.put("alwaysAllNull", this.alwaysAllNull ? "true" : "false");
         return this;
     }
 
@@ -73,9 +73,9 @@ public class SchemaDefinition<T> {
      *
      * @return schema always null or not
      */
-    public boolean getAlwaysNull() {
+    public boolean getAlwaysAllNull() {
 
-        return alwaysNull;
+        return alwaysAllNull;
     }
 
     /**
@@ -98,7 +98,7 @@ public class SchemaDefinition<T> {
     public SchemaDefinition<T> properties(Map<String, String> properties) {
 
         this.properties = properties;
-        properties.put("alwaysNull", alwaysNull ? "true" : "false");
+        properties.put("alwaysAllNull", alwaysAllNull ? "true" : "false");
         return this;
     }
 }

@@ -96,7 +96,7 @@ public class JdbcSinkTest {
         obj.setField1("ValueOfField1");
         obj.setField2("ValueOfField1");
         obj.setField3(3);
-        AvroSchema<Foo> schema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(true));
+        AvroSchema<Foo> schema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(true));
 
         byte[] bytes = schema.encode(obj);
         ByteBuf payload = Unpooled.copiedBuffer(bytes);

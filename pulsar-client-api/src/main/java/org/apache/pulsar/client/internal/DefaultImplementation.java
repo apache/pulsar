@@ -38,12 +38,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.KeyValueSchemaDefinition;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 @SuppressWarnings("unchecked")
 @UtilityClass
@@ -213,10 +213,16 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(KeyValueSchemaDefinition keyValueSchemaDefinition) {
+    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
+        return catchExceptions(
+                () -> (Schema<KeyValue<K, V>>) getConstructor("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        Schema.class, Schema.class).newInstance(keySchema, valueSchema));
+    }
+
+    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {
         return catchExceptions(
                 () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        "of", KeyValueSchemaDefinition.class).invoke(null, keyValueSchemaDefinition));
+                        "of", Class.class, Class.class, SchemaType.class).invoke(null, key, value, type));
     }
 
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {

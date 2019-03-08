@@ -40,7 +40,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -62,7 +62,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(true));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(true));
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -84,7 +84,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");

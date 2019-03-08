@@ -103,11 +103,15 @@ public class AvroSchema<T> implements Schema<T> {
 
         Class<T> clazz = schemaDefinition.getClazz();
 
-        return schemaDefinition.getAlwaysNull() ? ReflectData.AllowNull.get().getSchema(clazz) : ReflectData.get().getSchema(clazz);
+        return schemaDefinition.getAlwaysAllNull() ? ReflectData.AllowNull.get().getSchema(clazz) : ReflectData.get().getSchema(clazz);
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
+    }
+
+    public static <T> AvroSchema<T> of(Class<T> pojo) {
+        return AvroSchema.of(new SchemaDefinition<>(pojo));
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {

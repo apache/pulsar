@@ -214,33 +214,26 @@ public interface Schema<T> {
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
-        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value, type));
+        return DefaultImplementation.newKeyValueSchema(key, value, type);
     }
 
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(BYTES,BYTES));
+    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES);
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
-        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value, SchemaType.JSON));
+        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON);
     }
 
     /**
      * Key Value Schema using passed in key and value schemas.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.newKeyValueSchema(new KeyValueSchemaDefinition<>(key, value));
-    }
-
-    /**
-     * Create key and value schema by keyValueSchemaDefinition.
-     */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(KeyValueSchemaDefinition keyValueSchemaDefinition) {
-        return DefaultImplementation.newKeyValueSchema(keyValueSchemaDefinition);
+        return DefaultImplementation.newKeyValueSchema(key, value);
     }
 
     @Deprecated

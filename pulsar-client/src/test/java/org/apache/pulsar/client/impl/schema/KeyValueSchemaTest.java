@@ -22,11 +22,7 @@ import static org.testng.Assert.assertEquals;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.KeyValueSchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
@@ -65,11 +61,12 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullAvroSchemaCreate() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
-        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysNull(false));
+        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
+        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(new KeyValueSchemaDefinition<>(Foo.class,Bar.class,SchemaType.AVRO).alwaysNull(false));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(AvroSchema.of(new SchemaDefinition<>
+                (Foo.class).alwaysAllNull(false)),AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -123,12 +120,15 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullJsonSchemaCreate() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
-        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysNull(false));
+        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
+        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(new KeyValueSchemaDefinition<>(Foo.class,Bar.class,false).type(SchemaType.JSON));
-        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(new KeyValueSchemaDefinition<>(Foo.class,Bar.class,false));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false)),
+                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false)),
+                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -181,7 +181,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullSchemaEncodeAndDecode() {
-        Schema keyValueSchema = Schema.KeyValue(new KeyValueSchemaDefinition<>(Foo.class,Bar.class,false));
+        Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class)
+                .alwaysAllNull(false)),JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -235,8 +236,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullBytesSchemaEncodeAndDecode() {
-        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysNull(false));
-        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysNull(false));
+        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
+        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
 
         Bar bar = new Bar();
         bar.setField1(true);
