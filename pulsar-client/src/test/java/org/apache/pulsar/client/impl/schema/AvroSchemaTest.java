@@ -33,7 +33,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
 
 @Slf4j
 public class AvroSchemaTest {
