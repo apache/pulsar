@@ -349,6 +349,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         lock.readLock().lock();
         try {
+            brokerService.checkTopicNsOwnership(getName());
+            
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -483,7 +485,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-
+        
+        try {
+            brokerService.checkTopicNsOwnership(getName());
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
+        
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             future.completeExceptionally(
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));

@@ -95,6 +95,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -104,6 +105,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -462,11 +464,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return getTopic(topic, false /* createIfMissing */);
     }
 
-    public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, true /* createIfMissing */).thenApply(Optional::get);
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic) { 
+        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get); 
     }
 
-    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+    public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -618,7 +620,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return topicFuture;
     }
 
-    private void createPersistentTopic(final String topic, boolean createIfMissing, CompletableFuture<Optional<Topic>> topicFuture) {
+    private void createPersistentTopic(final String topic, boolean createIfMissing, 
+    		CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
@@ -941,7 +944,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    void checkTopicNsOwnership(final String topic) throws RuntimeException {
+    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
         TopicName topicName = TopicName.get(topic);
         boolean ownedByThisInstance;
         try {
@@ -1054,6 +1057,46 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 });
             }
         });
+        
+        // sometimes, some brokers don't receive policies-update watch and miss to remove replication-cluster and still
+        // own the bundle. That can cause data-loss for TODO: git-issue
+        unloadDeletedReplNamespace(data, namespace);
+    }
+
+    /**
+     * Unloads the namespace bundles if local cluster is not part of replication-cluster list into the namespace.
+     * So, broker that owns the bundle and doesn't receive the zk-watch will unload the namespace.
+     * @param data
+     * @param namespace
+     */
+    private void unloadDeletedReplNamespace(Policies data, NamespaceName namespace) {
+        if (!namespace.isGlobal()) {
+            return;
+        }
+        final String localCluster = this.pulsar.getConfiguration().getClusterName();
+        if (!data.replication_clusters.contains(localCluster)) {
+            try {
+                NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundles(namespace);
+                bundles.getBundles().forEach(bundle -> {
+                    pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
+                        if (isExist) {
+                            this.pulsar().getExecutor().submit(() -> {
+                                try {
+                                    pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
+                                            bundle.getBundleRange());
+                                } catch (Exception e) {
+                                    log.error("Failed to unload namespace-bundle {}-{} that not owned by {}, {}",
+                                            namespace.toString(), bundle.toString(), localCluster, e.getMessage());
+                                }
+                            });
+                        }
+                    });
+                });
+            } catch (Exception e) {
+                log.error("Failed to unload locally not owned bundles {}", e.getMessage(), e);
+            }
+        }
     }
 
     public PulsarService pulsar() {
@@ -1336,6 +1379,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return dynamicConfigurationMap.keys();
     }
 
+    public Map<String, String> getRuntimeConfiguration() {
+        Map<String, String> configMap = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = getRuntimeConfigurationMap();
+        runtimeConfigurationMap.forEach((key, value) -> {
+            configMap.put(key, String.valueOf(value));
+        });
+        return configMap;
+    }
+
     public static boolean isDynamicConfiguration(String key) {
         return dynamicConfigurationMap.containsKey(key);
     }
@@ -1358,6 +1410,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         }
         return dynamicConfigurationMap;
+    }
+
+    private ConcurrentOpenHashMap<String, Object> getRuntimeConfigurationMap() {
+        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = new ConcurrentOpenHashMap<>();
+        for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
+            if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                field.setAccessible(true);
+                try {
+                    Object configValue = field.get(pulsar.getConfiguration());
+                    runtimeConfigurationMap.put(field.getName(), configValue == null ? "" : configValue);
+                } catch (Exception e) {
+                    log.error("Failed to get value of field {}, {}", field.getName(), e.getMessage());
+                }
+            }
+        }
+        return runtimeConfigurationMap;
     }
 
     /**

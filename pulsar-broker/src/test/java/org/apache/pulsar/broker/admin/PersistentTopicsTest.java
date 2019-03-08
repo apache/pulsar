@@ -23,6 +23,7 @@ import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.web.PulsarWebResource;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -98,7 +99,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         try {
             persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
         } catch (Exception e) {
-            Assert.assertEquals("Partitioned Topic not found", e.getMessage());
+            Assert.assertEquals("Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has zero partitions", e.getMessage());
         }
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3, true);
         try {
@@ -115,4 +116,18 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.deletePartitionedTopic(testTenant, testNamespace, testLocalTopicName, true, true);
     }
 
+    @Test
+    public void testNonPartitionedTopics() {
+    	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+    	final String nonPartitionTopic = "non-partitioned-topic";
+    	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
+    	try {
+    		persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
+    	} catch (RestException exc) {
+    		Assert.assertTrue(exc.getMessage().contains("zero partitions"));
+    	}
+    	final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
+    	persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true);
+    	Assert.assertEquals(persistentTopics.getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true).partitions, 0);
+    }
 }

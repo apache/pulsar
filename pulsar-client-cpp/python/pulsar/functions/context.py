@@ -124,7 +124,7 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
     The message will have properties specified if any"""
     pass
@@ -142,4 +142,24 @@ class Context(object):
   @abstractmethod
   def ack(self, msgid, topic):
     """ack this message id"""
+    pass
+
+  @abstractmethod
+  def incr_counter(self, key, amount):
+    """incr the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_counter(self, key):
+    """get the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def put_state(self, key, value):
+    """update the value of a given key in the managed state"""
+    pass
+
+  @abstractmethod
+  def get_state(self, key):
+    """get the value of a given key in the managed state"""
     pass

@@ -126,7 +126,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                                          f.complete(null);
                                      }
                                 }, null);
-                        buffer.release();
                         return f;
                     }).toArray(CompletableFuture[]::new)).get();
         lh.close();

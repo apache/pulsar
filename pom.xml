@@ -33,7 +33,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.3.0-SNAPSHOT</version>
+  <version>2.4.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -89,6 +89,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client-tools-test</module>
+    <module>pulsar-client-all</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
@@ -142,9 +143,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.3</bookkeeper.version>
+    <bookkeeper.version>4.9.0</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
-    <netty.version>4.1.22.Final</netty.version>
+    <netty.version>4.1.32.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
     <jersey.version>2.27</jersey.version>
@@ -165,8 +166,8 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.5.1</protobuf3.version>
     <protoc3.version>3.5.1-1</protoc3.version>
-    <grpc.version>1.16.1</grpc.version>
-    <protoc-gen-grpc-java.version>1.0.0</protoc-gen-grpc-java.version>
+    <grpc.version>1.18.0</grpc.version>
+    <protoc-gen-grpc-java.version>1.12.0</protoc-gen-grpc-java.version>
     <gson.version>2.8.2</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
@@ -179,12 +180,13 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>0.8.2</debezium.version>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
-    <opencensus.version>0.12.3</opencensus.version>
+    <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
     <hbase.version>1.4.9</hbase.version>
 
@@ -320,16 +322,30 @@ flexible messaging model and an intuitive client API.</description>
         <version>${reflections.version}</version>
       </dependency>
 
+      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>stream-storage-java-client</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
+      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>stream-storage-server</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -404,10 +420,18 @@ flexible messaging model and an intuitive client API.</description>
         <version>${netty.version}</version>
       </dependency>
 
+      <!-- `netty-codec-http2` is a dependency of grpc, set the version to
+           be aligned with the netty version defined here -->
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-http2</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>2.0.7.Final</version>
+        <version>2.0.20.Final</version>
       </dependency>
 
       <dependency>
@@ -955,6 +979,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1017,11 +1046,31 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
         <exclusion>
           <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
+          <groupId>log4j</groupId>
         </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
+        <exclusion>
+          <groupId>org.jboss.netty</groupId>
+          <artifactId>netty</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-buffer</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-transport-native-epoll</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-tcnative-boringssl-static</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1096,6 +1145,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/*.patch</exclude>
+            <exclude>**/*.avsc</exclude>
+            <exclude>**/*.versionsBackup</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/*.graffle</exclude>
+            <exclude>**/*.hgrm</exclude>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
@@ -1108,11 +1164,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/ByteBufCodedInputStream.java</exclude>
             <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
-            <exclude>**/*.patch</exclude>
             <exclude>conf/schema_example.conf</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
-            <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
@@ -1121,14 +1175,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
             <exclude>pulsar-client-cpp/**/Makefile</exclude>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/django/stats/migrations/*.py</exclude>
             <exclude>site/vendor/**</exclude>
@@ -1147,7 +1197,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/*</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/generated/**</exclude>
             <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
@@ -1194,6 +1245,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
+
+            <!-- These files are generated automatically by the Avro compiler
+                 and are included in source tree for convenience -->
+            <exclude>**/avro/generated/*.java</exclude>
+
+            <!-- Avro schema definitions - JSON format -->
+            <exclude>**/*.avsc</exclude>
 
             <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>

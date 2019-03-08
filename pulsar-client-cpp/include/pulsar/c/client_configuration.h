@@ -133,7 +133,7 @@ void pulsar_client_configuration_set_stats_interval_in_seconds(pulsar_client_con
 int pulsar_client_configuration_is_validate_hostname(pulsar_client_configuration_t *conf);
 
 void pulsar_client_configuration_set_validate_hostname(pulsar_client_configuration_t *conf,
-                                                       const unsigned int validateHostName);
+                                                       int validateHostName);
 
 /*
  * Get the stats interval set in the client.

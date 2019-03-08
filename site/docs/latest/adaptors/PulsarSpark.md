@@ -81,5 +81,5 @@ JavaReceiverInputDStream<byte[]> msgs = jssc
 
 ## Example
 
-You can find a complete example [here]({{ site.pulsar_repo }}/pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
+You can find a complete example [here]({{ site.pulsar_repo }}/tests/pulsar-spark-test/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
 In this example, the number of messages which contain the string "Pulsar" in received messages is counted.

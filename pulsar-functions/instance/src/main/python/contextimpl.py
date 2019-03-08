@@ -26,25 +26,31 @@
 import time
 import os
 import json
+import log
 
 import pulsar
 import util
 
 from prometheus_client import Summary
 from function_stats import Stats
+from functools import partial
+
+Log = log.Log
 
 class ContextImpl(pulsar.Context):
 
   # add label to indicate user metric
   user_metrics_label_names = Stats.metrics_label_names + ["metric"]
 
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers,
+               secrets_provider, metrics_labels, state_context, stats):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
     self.secrets_provider = secrets_provider
+    self.state_context = state_context
     self.publish_producers = {}
     self.publish_serializers = {}
     self.message = None
@@ -62,6 +68,7 @@ class ContextImpl(pulsar.Context):
     self.user_metrics_summary = Summary("pulsar_function_user_metric",
                                     'Pulsar Function user defined metric',
                                         ContextImpl.user_metrics_label_names)
+    self.stats = stats
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, message, topic):
@@ -110,7 +117,7 @@ class ContextImpl(pulsar.Context):
       return self.user_config[key]
     else:
       return None
-  
+
   def get_user_config_map(self):
     return self.user_config
 
@@ -126,12 +133,19 @@ class ContextImpl(pulsar.Context):
 
     self.user_metrics_map[metric_name].observe(metric_value)
 
-
   def get_output_topic(self):
     return self.instance_config.function_details.output
 
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
+
+  def callback_wrapper(self, callback, topic, message_id, result, msg):
+    if result != pulsar.Result.Ok:
+      error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, message_id)
+      Log.error(error_msg)
+      self.stats.incr_total_sys_exceptions(Exception(error_msg))
+    if callback:
+      callback(result, msg)
 
   def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
     # Just make sure that user supplied values are properly typed
@@ -145,8 +159,7 @@ class ContextImpl(pulsar.Context):
         topic_name,
         block_if_queue_full=True,
         batching_enabled=True,
-        batching_max_publish_delay_ms=1,
-        max_pending_messages=100000,
+        batching_max_publish_delay_ms=10,
         compression_type=pulsar_compression_type,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
           self.instance_config.function_details.tenant,
@@ -160,7 +173,7 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
-    self.publish_producers[topic_name].send_async(output_bytes, callback, properties=properties)
+    self.publish_producers[topic_name].send_async(output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()), properties=properties)
 
   def ack(self, msgid, topic):
     if topic not in self.consumers:
@@ -186,3 +199,15 @@ class ContextImpl(pulsar.Context):
       metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = user_metric._count.get()
 
     return metrics_map
+
+  def incr_counter(self, key, amount):
+    return self.state_context.incr(key, amount)
+
+  def get_counter(self, key):
+    return self.state_context.get_amount(key)
+
+  def put_state(self, key, value):
+    return self.state_context.put(key, value)
+
+  def get_state(self, key):
+    return self.state_context.get_value(key)

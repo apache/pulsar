@@ -33,7 +33,7 @@ public interface Message<T> {
 
     /**
      * Return the properties attached to the message.
-     *
+     * <p>
      * Properties are application defined key/value pairs that will be attached to the message
      *
      * @return an unmodifiable view of the properties map
@@ -60,12 +60,20 @@ public interface Message<T> {
     String getProperty(String name);
 
     /**
-     * Get the content of the message
+     * Get the raw payload of the message.
+     * <p>
+     * Even when using the Schema and type-safe API, an application
+     * has access to the underlying raw message payload.
      *
      * @return the byte array with the message payload
      */
     byte[] getData();
 
+    /**
+     * Get the de-serialized value of the message, according the configured {@link Schema}.
+     *
+     * @return the deserialized value of the message
+     */
     T getValue();
 
     /**
@@ -95,6 +103,7 @@ public interface Message<T> {
      *
      * @see MessageBuilder#setEventTime(long)
      * @since 1.20.0
+     * @return the message event time or 0 if event time wasn't set
      */
     long getEventTime();
 
@@ -156,19 +165,26 @@ public interface Message<T> {
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
      *
-     * @return
+     * @return the optiona encryption context
      */
     Optional<EncryptionContext> getEncryptionCtx();
 
     /**
      * Get message redelivery count, redelivery count maintain in pulsar broker. When client acknowledge message
      * timeout, broker will dispatch message again with message redelivery count in CommandMessage defined.
-     *
+     * <p>
      * Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
-     * redelivery count will be recalculate.
+     * redelivery count will be recalculated.
      *
      * @since 2.3.0
      * @return message redelivery count
      */
     int getRedeliveryCount();
+
+    /**
+     * Get schema version of the message.
+     * @since 2.4.0
+     * @return Schema version of the message if the message is produced with schema otherwise null.
+     */
+    byte[] getSchemaVersion();
 }

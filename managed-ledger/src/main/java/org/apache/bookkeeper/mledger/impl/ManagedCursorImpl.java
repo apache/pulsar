@@ -29,6 +29,7 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -37,6 +38,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.nio.charset.StandardCharsets;
 
 import java.time.Clock;
 import java.util.ArrayDeque;
@@ -129,6 +131,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
+
+    private boolean alwaysInactive = false;
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -783,7 +787,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setActive() {
-        ledger.activateCursor(this);
+        if (!alwaysInactive) {
+            ledger.activateCursor(this);
+        }
     }
 
     @Override
@@ -794,6 +800,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void setInactive() {
         ledger.deactivateCursor(this);
+    }
+
+    @Override
+    public void setAlwaysInactive() {
+        setInactive();
+        this.alwaysInactive = true;
     }
 
     @Override
@@ -2015,7 +2027,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
-
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
@@ -2081,7 +2092,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 });
             }));
-        }, Collections.emptyMap());
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
 
     }
 

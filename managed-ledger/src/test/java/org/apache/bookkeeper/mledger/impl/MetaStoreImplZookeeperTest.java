@@ -222,8 +222,10 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void createOptimisticBaseNotExist() throws Exception {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
-                zkc, "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+
+        MetaStoreImplZookeeper store = new MetaStoreImplZookeeper(zkc, executor);
+        store.asyncCreateFullPathOptimistic(
+                "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
                 (rc, path, ctx, name) -> {
                     if (rc != KeeperException.Code.OK.intValue()) {
                         promise.completeExceptionally(KeeperException.create(rc));
@@ -241,10 +243,11 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void createOptimisticBaseExists() throws Exception {
+        MetaStoreImplZookeeper store = new MetaStoreImplZookeeper(zkc, executor);
         zkc.create("/foo", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
-                zkc, "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+        store.asyncCreateFullPathOptimistic(
+                "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
                 (rc, path, ctx, name) -> {
                     if (rc != KeeperException.Code.OK.intValue()) {
                         promise.completeExceptionally(KeeperException.create(rc));
@@ -255,8 +258,8 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
         promise.get();
 
         CompletableFuture<Void> promise2 = new CompletableFuture<>();
-        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
-                zkc, "/foo", "blah", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+        store.asyncCreateFullPathOptimistic(
+                "/foo", "blah", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
                 (rc, path, ctx, name) -> {
                     if (rc != KeeperException.Code.OK.intValue()) {
                         promise2.completeExceptionally(KeeperException.create(rc));

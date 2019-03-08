@@ -142,6 +142,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
@@ -404,7 +406,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
                                                         new AuthenticationService(
                                                                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        proxyService.start();
+        try {
+            proxyService.start();
+        } catch (Exception ex) {
+            if (!expectFailure) {
+                Assert.fail("This test case should not fail");
+            }
+        }
         org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically((test) -> {
             try {
                 return admin.namespaces().getPermissions(namespaceName).containsKey("Proxy")

@@ -21,12 +21,23 @@ package org.apache.pulsar.client.api;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * Configuration for the "dead letter queue" feature in consumer.
+ *
+ * @see ConsumerBuilder#deadLetterPolicy(DeadLetterPolicy)
+ */
 @Builder
 @Data
 public class DeadLetterPolicy {
 
+    /**
+     * Maximum number of times that a message will be redelivered before being sent to the dead letter queue.
+     */
     private int maxRedeliverCount;
 
+    /**
+     * Name of the topic where the failing messages will be sent.
+     */
     private String deadLetterTopic;
 
 }

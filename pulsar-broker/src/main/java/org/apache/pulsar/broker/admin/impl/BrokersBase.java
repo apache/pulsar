@@ -150,6 +150,15 @@ public class BrokersBase extends AdminResource {
         return BrokerService.getDynamicConfiguration();
     }
 
+    @GET
+    @Path("/configuration/runtime")
+    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public Map<String, String> getRuntimeConfiguration() {
+        validateSuperUserAccess();
+        return pulsar().getBrokerService().getRuntimeConfiguration();
+    }
+
     /**
      * if {@link ServiceConfiguration}-field is allowed to be modified dynamically, update configuration-map into zk, so
      * all other brokers get the watch and can see the change and take appropriate action on the change.

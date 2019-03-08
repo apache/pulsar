@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public interface WindowContext {
@@ -133,11 +134,11 @@ public interface WindowContext {
     Map<String, Object> getUserConfigMap();
 
     /**
-     * Get Any user defined key/value
+     * Get any user-defined key/value
      * @param key The key
-     * @return The value specified by the user for that key. null if no such key
+     * @return The Optional value specified by the user for that key.
      */
-    String getUserConfigValue(String key);
+    Optional<Object> getUserConfigValue(String key);
 
     /**
      * Get any user-defined key/value or a default value if none is present

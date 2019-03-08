@@ -20,6 +20,13 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 
+/**
+ * Interface for custom message router that can be passed
+ * to a producer to select the partition that a particular
+ * messsage should be published on.
+ *
+ * @see ProducerBuilder#messageRouter(MessageRouter)
+ */
 public interface MessageRouter extends Serializable {
 
     /**

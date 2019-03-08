@@ -18,31 +18,32 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
+
 
 /**
  * Tests for Pulsar Avro Output Format
  */
 public class PulsarAvroOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenServiceUrlIsNull() {
         new PulsarAvroOutputFormat(null, "testTopic");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenTopicNameIsNull() {
         new PulsarAvroOutputFormat("testServiceUrl", null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenTopicNameIsBlank() {
         new PulsarAvroOutputFormat("testServiceUrl", " ");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenServiceUrlIsBlank() {
         new PulsarAvroOutputFormat(" ", "testTopic");
     }

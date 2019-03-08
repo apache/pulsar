@@ -88,7 +88,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 				C.setString(array, C.CString(s), C.int(i))
 			}
 
-			C.pulsar_message_set_replication_clusters(cMsg, array)
+			C.pulsar_message_set_replication_clusters(cMsg, array, C.size_t(size))
 		}
 	}
 
@@ -201,10 +201,9 @@ func latestMessageID() *messageID {
 }
 
 func timeFromUnixTimestampMillis(timestamp C.ulonglong) time.Time {
-	ts := int64(timestamp)
-	seconds := ts / int64(time.Millisecond)
-	millis := ts - seconds
-	nanos := millis * int64(time.Millisecond)
+	ts := int64(timestamp) * int64(time.Millisecond)
+	seconds := ts / int64(time.Second)
+	nanos := ts - (seconds * int64(time.Second))
 	return time.Unix(seconds, nanos)
 }
 

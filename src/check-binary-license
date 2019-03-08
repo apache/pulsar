@@ -76,6 +76,9 @@ done
 
 # Check all jars mentioned in NOTICE are bundled
 for J in $NOTICEJARS; do
+    if [ $J == "checker-qual.jar" ]; then
+        continue
+    fi
     echo "$JARS" | grep -q $J
     if [ $? != 0 ]; then
         echo $J mentioned in NOTICE, but not bundled

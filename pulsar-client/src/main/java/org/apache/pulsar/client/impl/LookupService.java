@@ -67,7 +67,22 @@ public interface LookupService extends AutoCloseable {
 	 */
 	public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
 
+	/**
+	 * Returns current SchemaInfo {@link SchemaInfo} for a given topic.
+	 *
+	 * @param topicName topic-name
+	 * @return SchemaInfo
+	 */
 	public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
+
+	/**
+	 * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
+	 *
+	 * @param topicName topic-name
+	 * @param version schema info version
+	 * @return SchemaInfo
+	 */
+	public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version);
 
 	/**
 	 * Returns broker-service lookup api url.

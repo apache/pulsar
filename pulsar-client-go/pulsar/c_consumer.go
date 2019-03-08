@@ -100,6 +100,10 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.Type))
 	}
 
+	if options.SubscriptionInitPos != Latest {
+		C.pulsar_consumer_set_subscription_initial_position(conf, C.initial_position(options.SubscriptionInitPos))
+	}
+
 	// ReceiverQueueSize==0 means to use the default queue size
 	// -1 means to disable the consumer prefetching
 	if options.ReceiverQueueSize > 0 {

@@ -18,43 +18,40 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
 
     @BeforeMethod
-    public void beforeMethod(Method m) throws Exception {
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 
     @Override
-    @BeforeClass(timeOut = 30000)
+    @BeforeClass(timeOut = 60000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 30000)
+    @AfterClass(timeOut = 60000)
     void shutdown() throws Exception {
         super.shutdown();
     }

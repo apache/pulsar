@@ -22,7 +22,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.cert.X509Certificate;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -31,11 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +43,8 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslContext;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
@@ -66,14 +58,12 @@ public class ConnectionPool implements Closeable {
 
     protected final DnsNameResolver dnsResolver;
 
-    private static final int MaxMessageSize = 5 * 1024 * 1024;
-    public static final String TLS_HANDLER = "tls";
-
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Supplier<ClientCnx> clientCnxSupplier) {
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+            Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
 
@@ -85,29 +75,13 @@ public class ConnectionPool implements Closeable {
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.getConnectionTimeoutMs());
         bootstrap.option(ChannelOption.TCP_NODELAY, conf.isUseTcpNoDelay());
         bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
-        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-            public void initChannel(SocketChannel ch) throws Exception {
-                if (conf.isUseTls()) {
-                    SslContext sslCtx;
-                    // Set client certificate if available
-                    AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
-                    if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
-                    } else {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath());
-                    }
-                    ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
-                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
-                } else {
-                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
-                }
-                ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
-                ch.pipeline().addLast("handler", clientCnxSupplier.get());
-            }
-        });
+
+        try {
+            bootstrap.handler(new PulsarChannelInitializer(conf, clientCnxSupplier));
+        } catch (Exception e) {
+            log.error("Failed to create channel initializer");
+            throw new PulsarClientException(e);
+        }
 
         this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next()).traceEnabled(true)
                 .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup)).build();
@@ -130,7 +104,8 @@ public class ConnectionPool implements Closeable {
                         // If the future already failed, there's nothing we have to do
                     }
                 } else {
-                    // The future is still pending: just register to make sure it gets closed if the operation will succeed
+                    // The future is still pending: just register to make sure it gets closed if the operation will
+                    // succeed
                     future.thenAccept(ClientCnx::close);
                 }
             });

@@ -137,9 +137,9 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(),
-                                              consumerName_, subscriptionMode_, startMessageId_,
-                                              readCompacted_, config_.getProperties(), config_.getSchema());
+    SharedBuffer cmd = Commands::newSubscribe(
+        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
+        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -503,6 +503,7 @@ void ConsumerImpl::internalListener() {
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
+        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -717,6 +718,17 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 
         case ConsumerFailover:
             return proto::CommandSubscribe::Failover;
+    }
+}
+
+inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
+    InitialPosition initialPosition = config_.getSubscriptionInitialPosition();
+    switch (initialPosition) {
+        case InitialPositionLatest:
+            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Latest;
+
+        case InitialPositionEarliest:
+            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Earliest;
     }
 }
 
@@ -1028,8 +1040,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
-                                                                            MessageId messageId) {
+    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1039,9 +1050,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         } else {
             callback(result, false);
         }
-    };
-
-    getLastMessageIdAsync(callback1);
+    });
 }
 
 void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,

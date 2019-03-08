@@ -78,6 +78,7 @@ class ConsumerImpl : public ConsumerImplBase,
     int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
+    inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
     void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
@@ -176,12 +177,12 @@ class ConsumerImpl : public ConsumerImplBase,
     void brokerGetLastMessageIdListener(Result res, MessageId messageId,
                                         BrokerGetLastMessageIdCallback callback);
 
-    MessageId lastMessageIdDequed() {
-        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId();
+    const MessageId& lastMessageIdDequed() {
+        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId::earliest();
     }
 
-    MessageId lastMessageIdInBroker() {
-        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId();
+    const MessageId& lastMessageIdInBroker() {
+        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
     }
 
     friend class PulsarFriend;

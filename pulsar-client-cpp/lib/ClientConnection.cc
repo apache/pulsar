@@ -158,6 +158,14 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             isTlsAllowInsecureConnection_ = true;
         } else {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
+
+            if (clientConfiguration.isValidateHostName()) {
+                Url service_url;
+                Url::parse(physicalAddress, service_url);
+                LOG_DEBUG("Validating hostname for " << service_url.host() << ":" << service_url.port());
+                ctx.set_verify_callback(boost::asio::ssl::rfc2818_verification(physicalAddress));
+            }
+
             std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
             if (file_exists(trustCertFilePath)) {
                 ctx.load_verify_file(trustCertFilePath);

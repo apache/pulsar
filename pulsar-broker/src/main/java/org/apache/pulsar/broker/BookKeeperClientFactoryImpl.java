@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
@@ -55,6 +56,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNumChannelsPerBookie(16);
         bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
+        bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
+
+        bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
             bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);

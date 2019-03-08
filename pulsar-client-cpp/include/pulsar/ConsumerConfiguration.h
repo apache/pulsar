@@ -27,6 +27,7 @@
 #include <pulsar/Schema.h>
 #include <pulsar/ConsumerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
+#include <pulsar/InitialPosition.h>
 
 #pragma GCC visibility push(default)
 namespace pulsar {
@@ -178,6 +179,9 @@ class ConsumerConfiguration {
      */
     void setPatternAutoDiscoveryPeriod(int periodInSeconds);
     int getPatternAutoDiscoveryPeriod() const;
+
+    void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition);
+    InitialPosition getSubscriptionInitialPosition() const;
 
     /**
      * Check whether the message has a specific property attached.

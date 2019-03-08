@@ -44,13 +44,19 @@ public class PulsarAdminTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
     Boolean tlsAllowInsecureConnection;
-
-
+    
+    @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
+    String tlsTrustCertsFilePath;
+    
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
@@ -70,7 +76,9 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+                ? this.tlsTrustCertsFilePath
+                : properties.getProperty("tlsTrustCertsFilePath");
 
         adminBuilder = PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)

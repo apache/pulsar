@@ -114,6 +114,14 @@ bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacte
 
 void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
 
+void ConsumerConfiguration::setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition) {
+    impl_->subscriptionInitialPosition = subscriptionInitialPosition;
+}
+
+InitialPosition ConsumerConfiguration::getSubscriptionInitialPosition() const {
+    return impl_->subscriptionInitialPosition;
+}
+
 void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
     impl_->patternAutoDiscoveryPeriod = periodInSeconds;
 }

@@ -43,11 +43,13 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * <p>
      * Example:
      *
-     * <pre>
-     * <code>MessageId msgId = producer.newMessage().key(myKey).value(myValue).send();
+     * <pre>{@code
+     * MessageId msgId = producer.newMessage()
+     *                  .key(myKey)
+     *                  .value(myValue)
+     *                  .send();
      * System.out.println("Published message: " + msgId);
-     * </code>
-     * </pre>
+     * }</pre>
      *
      * @return the {@link MessageId} assigned by the broker to the published message.
      */
@@ -62,7 +64,9 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * Example:
      *
      * <pre>
-     * <code>producer.newMessage().value(myValue).sendAsync().thenAccept(messageId -> {
+     * <code>producer.newMessage()
+     *                  .value(myValue)
+     *                  .sendAsync().thenAccept(messageId -> {
      *    System.out.println("Published message: " + messageId);
      * }).exceptionally(e -> {
      *    System.out.println("Failed to publish " + e);
@@ -85,7 +89,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
     /**
      * Sets the key of the message for routing policy
      *
-     * @param key
+     * @param key the partitioning key for the message
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> key(String key);
 
@@ -94,6 +99,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * Internally the bytes will be base64 encoded.
      *
      * @param key routing key for message, in byte array form
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> keyBytes(byte[] key);
 
@@ -102,6 +108,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
      *
      * @param value
      *            the domain object
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> value(T value);
 
@@ -112,11 +119,13 @@ public interface TypedMessageBuilder<T> extends Serializable {
      *            the name of the property
      * @param value
      *            the associated value
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> property(String name, String value);
 
     /**
      * Add all the properties in the provided map
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> properties(Map<String, String> properties);
 
@@ -129,6 +138,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * <p>
      * Note: currently pulsar doesn't support event-time based index. so the subscribers can't seek the messages by
      * event time.
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> eventTime(long timestamp);
 
@@ -146,18 +156,22 @@ public interface TypedMessageBuilder<T> extends Serializable {
      *
      * @param sequenceId
      *            the sequence id to assign to the current message
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> sequenceId(long sequenceId);
 
     /**
-     * Override the replication clusters for this message.
+     * Override the geo-replication clusters for this message.
      *
      * @param clusters
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> replicationClusters(List<String> clusters);
 
     /**
-     * Disable replication for this message.
+     * Disable geo-replication for this message.
+     *
+     * @return the message builder instance
      */
     TypedMessageBuilder<T> disableReplication();
 }

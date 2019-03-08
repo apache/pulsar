@@ -808,6 +808,15 @@ class Producer:
                               replication_clusters, disable_replication, event_timestamp)
         self._producer.send_async(msg, callback)
 
+
+    def flush(self):
+        """
+        Flush all the messages buffered in the client and wait until all messages have been
+        successfully persisted
+        """
+        self._producer.flush()
+        
+
     def close(self):
         """
         Close the producer.

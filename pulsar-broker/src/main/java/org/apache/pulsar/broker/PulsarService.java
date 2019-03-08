@@ -122,7 +122,7 @@ import org.slf4j.LoggerFactory;
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
-    private NamespaceService nsservice = null;
+    private NamespaceService nsService = null;
     private ManagedLedgerClientFactory managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
     private BrokerService brokerService = null;
@@ -264,7 +264,7 @@ public class PulsarService implements AutoCloseable {
                 client = null;
             }
 
-            nsservice = null;
+            nsService = null;
 
             if (compactorExecutor != null) {
                 compactorExecutor.shutdown();
@@ -420,7 +420,7 @@ public class PulsarService implements AutoCloseable {
             this.webService.addStaticResources("/static", "/static");
 
             // Register heartbeat and bootstrap namespaces.
-            this.nsservice.registerBootstrapNamespaces();
+            this.nsService.registerBootstrapNamespaces();
 
             schemaRegistryService = SchemaRegistryService.create(this);
 
@@ -497,14 +497,14 @@ public class PulsarService implements AutoCloseable {
 
             boolean acquiredSLANamespace;
             try {
-                acquiredSLANamespace = nsservice.registerSLANamespace();
+                acquiredSLANamespace = nsService.registerSLANamespace();
                 LOG.info("Register SLA Namespace = {}, returned - {}.", nsName, acquiredSLANamespace);
             } catch (PulsarServerException e) {
                 acquiredSLANamespace = false;
             }
 
             if (!acquiredSLANamespace) {
-                this.nsservice.unloadSLANamespace();
+                this.nsService.unloadSLANamespace();
             }
         } catch (Exception ex) {
             LOG.warn(
@@ -556,7 +556,7 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
 
-        this.nsservice = getNamespaceServiceProvider().get();
+        this.nsService = getNamespaceServiceProvider().get();
     }
 
     public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
@@ -659,7 +659,7 @@ public class PulsarService implements AutoCloseable {
      * @return a reference of the current namespace service instance.
      */
     public NamespaceService getNamespaceService() {
-        return this.nsservice;
+        return this.nsService;
     }
 
     public WorkerService getWorkerService() {

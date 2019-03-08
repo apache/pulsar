@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -56,10 +56,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
-        return schema.decode(bytes);
+        return schema.decode(bytes, schemaVersion);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return BytesSchema.of();
             case JSON:
             case AVRO:
-                return GenericSchema.of(schemaInfo);
+                return GenericSchemaImpl.of(schemaInfo);
             default:
                 throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
                     + schemaInfo.getType() + "' is not supported yet");

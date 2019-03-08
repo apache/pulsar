@@ -18,31 +18,31 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Pulsar Json Output Format
  */
 public class PulsarJsonOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenServiceUrlIsNull() {
         new PulsarJsonOutputFormat(null, "testTopic");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenTopicNameIsNull() {
         new PulsarJsonOutputFormat("testServiceUrl", null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenTopicNameIsBlank() {
         new PulsarJsonOutputFormat("testServiceUrl", " ");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenServiceUrlIsBlank() {
         new PulsarJsonOutputFormat(" ", "testTopic");
     }

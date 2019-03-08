@@ -30,6 +30,7 @@ import com.google.common.collect.Sets.SetView;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -74,9 +75,9 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -404,7 +405,7 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
         }
     }
-    
+
     protected Set<String> internalGetNamespaceReplicationClusters() {
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -583,12 +584,26 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         Policies policies = getNamespacePolicies(namespaceName);
 
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+        NamespaceBundle bundle = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName.toString(), bundleRange);
+        boolean isOwnedByLocalCluster = false;
+        try {
+            isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
+        } catch (Exception e) {
+            if(log.isDebugEnabled()) {
+                log.debug("Failed to validate cluster ownership for {}-{}, {}", namespaceName.toString(), bundleRange, e.getMessage(), e);
+            }
+        }
+        
+        // validate namespace ownership only if namespace is not owned by local-cluster (it happens when broker doesn't
+        // receive replication-cluster change watch and still owning bundle
+        if (!isOwnedByLocalCluster) {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                validateGlobalNamespaceOwnership(namespaceName);
+            } else {
+                validateClusterOwnership(namespaceName.getCluster());
+                validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+            }
         }
 
         validatePoliciesReadOnlyAccess();
@@ -1489,6 +1504,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private void validatePolicies(NamespaceName ns, Policies policies) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
+            // Default to local cluster
+            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        }
+
         // Validate cluster names and permissions
         policies.replication_clusters.forEach(cluster -> validateClusterForTenant(ns.getTenant(), cluster));
 

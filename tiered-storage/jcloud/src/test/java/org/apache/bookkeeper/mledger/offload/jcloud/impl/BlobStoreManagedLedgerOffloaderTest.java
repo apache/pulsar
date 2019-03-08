@@ -42,7 +42,6 @@ import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.LedgerMetadata;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -120,11 +119,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             bytesWrittenCurrentBlock += sizeInBlock;
             i++;
         }
-
-        // workaround mock not closing metadata correctly
-        Method close = LedgerMetadata.class.getDeclaredMethod("close", long.class);
-        close.setAccessible(true);
-        close.invoke(lh.getLedgerMetadata(), lh.getLastAddConfirmed());
 
         lh.close();
 

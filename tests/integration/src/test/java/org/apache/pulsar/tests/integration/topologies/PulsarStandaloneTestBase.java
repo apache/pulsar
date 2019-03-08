@@ -61,7 +61,8 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         String clusterName = PulsarClusterTestBase.randomName(8);
         container = new StandaloneContainer(clusterName, pulsarImageName)
             .withNetwork(network)
-            .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName);
+            .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
+            .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181");
         container.start();
         log.info("Pulsar cluster {} is up running:", clusterName);
         log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());

@@ -77,6 +77,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         buildConf(conf);
         super.internalSetup();
     }

@@ -22,7 +22,6 @@ package pulsar
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -196,7 +195,6 @@ func TestProducerZstd(t *testing.T) {
 	defer producer.Close()
 
 	assert.Equal(t, producer.Topic(), "persistent://public/default/my-topic")
-	assert.Equal(t, producer.Name(), "my-producer-name")
 
 	ctx := context.Background()
 

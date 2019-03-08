@@ -129,6 +129,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 .setAllowShadedLedgerManagerFactoryClass(true)
                 .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
                 .setClientTcpNoDelay(false)
+                .setStickyReadsEnabled(true)
                 .setUseV2WireProtocol(true);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }

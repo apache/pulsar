@@ -19,8 +19,9 @@
 package org.apache.pulsar.client.api;
 
 /**
- * intial position at which the cursor will be set when subscribe
- *
+ * When creating a consumer, if the subscription does not exist, a new subscription will be created. By default the
+ * subscription will be created at the end of the topic. See
+ * {@link #subscriptionInitialPosition(SubscriptionInitialPosition)} to configure the initial position behavior.
  *
  */
 public enum SubscriptionInitialPosition {

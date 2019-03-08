@@ -62,6 +62,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
         conf.setTlsCertificateFilePath(getTlsFile("broker.cert"));
         conf.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.List;
-
 /**
  * A plugin interface that allows you to intercept (and possibly mutate)
  * messages received by the consumer.

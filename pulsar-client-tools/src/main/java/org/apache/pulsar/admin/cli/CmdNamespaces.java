@@ -217,12 +217,12 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Revoke permissions on a namespace")
+    @Parameters(commandDescription = "Revoke permissions to access subscription admin-api")
     private class RevokeSubscriptionPermissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--subscription", description = "Subscription name for which permission will be granted to roles", required = true)
+        @Parameter(names = "--subscription", description = "Subscription name for which permission will be revoked to roles", required = true)
         private String subscription;
         
         @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
@@ -454,7 +454,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Split a namespace-bundle from the current serving broker")
     private class SplitBundle extends CliCommand {
-        @Parameter(description = "tenant/namespace/\n", required = true)
+        @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
@@ -473,7 +473,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Set message-dispatch-rate for all topics of the namespace")
     private class SetDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace/\n", required = true)
+        @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-dispatch-rate",
@@ -511,7 +511,7 @@ public class CmdNamespaces extends CmdBase {
     @Parameters(commandDescription = "Set subscribe-rate per consumer for all topics of the namespace")
     private class SetSubscribeRate extends CliCommand {
 
-        @Parameter(description = "tenant/namespace/\n", required = true)
+        @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--subscribe-rate",
@@ -544,8 +544,8 @@ public class CmdNamespaces extends CmdBase {
 
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
-    private class SetSuscriptionDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace/\n", required = true)
+    private class SetSubscriptionDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--sub-msg-dispatch-rate",
@@ -681,13 +681,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s", "--sub" }, description = "subscription name")
+        @Parameter(names = { "--sub", "-s" }, description = "subscription name")
         private String subscription;
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
         private String bundle;
 
-        @Parameter(names = { "-force", "--force" }, description = "Whether to force clear backlog without prompt")
+        @Parameter(names = { "--force", "-force" }, description = "Whether to force clear backlog without prompt")
         private boolean force;
 
         @Override
@@ -717,7 +717,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s", "--sub" }, description = "subscription name", required = true)
+        @Parameter(names = { "--sub", "-s" }, description = "subscription name", required = true)
         private String subscription;
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
@@ -762,7 +762,8 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-m", "--subscription-auth-mode" }, description = "subscription name", required = true)
+        @Parameter(names = { "-m", "--subscription-auth-mode" }, description = "Subscription authorization mode for "
+                + "Pulsar policies. Valid options are: [None, Prefix]", required = true)
         private String mode;
 
         @Override
@@ -986,7 +987,7 @@ public class CmdNamespaces extends CmdBase {
                                  + "Possible values (Full, Backward, Forward).")
         private String strategyParam = null;
 
-        @Parameter(names = { "--disabled" }, description = "Disable automatic schema updates")
+        @Parameter(names = { "--disabled", "-d" }, description = "Disable automatic schema updates")
         private boolean disabled = false;
 
         @Override
@@ -1060,6 +1061,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+
+        jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
+        jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 

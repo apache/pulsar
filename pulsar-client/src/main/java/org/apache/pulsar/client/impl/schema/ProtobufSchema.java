@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
@@ -72,7 +74,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
             this.schemaInfo.setType(SchemaType.PROTOBUF);
             ProtobufDatumReader datumReader = new ProtobufDatumReader(pojo);
             org.apache.avro.Schema schema = datumReader.getSchema();
-            this.schemaInfo.setSchema(schema.toString().getBytes());
+            this.schemaInfo.setSchema(schema.toString().getBytes(UTF_8));
 
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);

@@ -110,6 +110,8 @@ processContainerFactory:
 #  # the directory for dropping extra function dependencies
 #  # if it is not an absolute path, it is relative to `pulsarRootDir`
 #  extraFunctionDependenciesDir:
+#  # Additional memory padding added on top of the memory requested by the function per on a per instance basis
+#  percentMemoryPadding: 10
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.
@@ -143,6 +145,8 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+tlsCertRefreshCheckDurationSec: 300
 
 ########################
 # State Management

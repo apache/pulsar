@@ -34,22 +34,31 @@ public interface Reader<T> extends Closeable {
     String getTopic();
 
     /**
-     * Read the next message in the topic
+     * Read the next message in the topic.
+     * <p>
+     * This method will block until a message is available.
      *
-     * @return the next messasge
+     * @return the next message
      * @throws PulsarClientException
      */
     Message<T> readNext() throws PulsarClientException;
 
     /**
-     * Read the next message in the topic waiting for a maximum of timeout
-     * time units. Returns null if no message is recieved in that time.
+     * Read the next message in the topic waiting for a maximum time.
+     * <p>
+     * Returns null if no message is received before the timeout.
      *
      * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException
      */
     Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException;
 
+    /**
+     * Read asynchronously the next message in the topic.
+     *
+     * @return a future that will yield a message (when it's available) or {@link PulsarClientException} if the reader
+     *         is already closed.
+     */
     CompletableFuture<Message<T>> readNextAsync();
 
     /**
@@ -60,17 +69,46 @@ public interface Reader<T> extends Closeable {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Return true if the topic was terminated and this reader has reached the end of the topic
+     * Return true if the topic was terminated and this reader has reached the end of the topic.
+     * <p>
+     * Note that this only applies to a "terminated" topic (where the topic is "sealed" and no
+     * more messages can be published) and not just that the reader is simply caught up with
+     * the publishers. Use {@link #hasMessageAvailable()} to check for for that.
      */
     boolean hasReachedEndOfTopic();
 
     /**
      * Check if there is any message available to read from the current position.
+     * <p>
+     * This check can be used by an application to scan through a topic and stop
+     * when the reader reaches the current last published message. For example:
+     *
+     * <pre>
+     * while (reader.hasMessageAvailable()) {
+     *     Message&lt;String&gt; msg = reader.readNext();
+     *     // Do something
+     * }
+     *
+     * // Done reading
+     * </pre>
+     *
+     * Note that this call might be blocking (see {@link #hasMessageAvailableAsync() for async version) and
+     * that even if this call returns true, that will not guarantee that a subsequent call to {@link #readNext()}
+     * will not block.
+     *
+     * @return true if the are messages available to be read, false otherwise
+     * @throws PulsarClientException if there was any error in the operation
      */
     boolean hasMessageAvailable() throws PulsarClientException;
 
     /**
-     * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
+     * Asynchronously check if there is any message available to read from the current position.
+     * <p>
+     * This check can be used by an application to scan through a topic and stop when the reader reaches the current
+     * last published message.
+     *
+     * @return a future that will yield true if the are messages available to be read, false otherwise, or a
+     *         {@link PulsarClientException} if there was any error in the operation
      */
     CompletableFuture<Boolean> hasMessageAvailableAsync();
 

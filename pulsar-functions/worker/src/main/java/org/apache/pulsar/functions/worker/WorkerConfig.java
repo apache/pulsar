@@ -254,6 +254,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean tlsHostnameVerificationEnable = false;
     @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        )
+        private long tlsCertRefreshCheckDurationSec = 300;
+    @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authentication"
     )
@@ -414,6 +419,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The namespace for storing change config map"
         )
         private String changeConfigMapNamespace;
+
+        @FieldContext(
+                doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
+        )
+        private int percentMemoryPadding;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,

@@ -151,6 +151,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         // setup broker cert which has CN = "pulsar" different than broker's hostname="localhost"
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_MIM_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_MIM_SERVER_KEY_FILE_PATH);
@@ -190,6 +192,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         log.info("-- Starting {} test --", methodName);
 
         // setup broker cert which has CN = "localhost"
+        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

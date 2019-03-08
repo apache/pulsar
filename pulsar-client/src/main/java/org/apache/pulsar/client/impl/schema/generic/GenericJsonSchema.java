@@ -26,12 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic json schema.
  */
-class GenericJsonSchema extends GenericSchema {
+class GenericJsonSchema extends GenericSchemaImpl {
 
     private final ObjectMapper objectMapper;
 
@@ -52,12 +53,17 @@ class GenericJsonSchema extends GenericSchema {
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         try {
             JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(fields, jn);
+            return new GenericJsonRecord(schemaVersion, fields, jn);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }
+    }
+
+    @Override
+    public GenericRecordBuilder newRecordBuilder() {
+        throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
 }

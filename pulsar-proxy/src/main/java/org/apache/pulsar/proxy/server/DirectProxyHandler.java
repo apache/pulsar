@@ -21,17 +21,14 @@ package org.apache.pulsar.proxy.server;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLSession;
 
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.util.SecurityUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,15 +60,17 @@ public class DirectProxyHandler {
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
+    private final SslContext sslCtx;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
-            int protocolVersion) {
+            int protocolVersion, SslContext sslCtx) {
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.protocolVersion = protocolVersion;
+        this.sslCtx = sslCtx;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -84,18 +83,7 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                if (config.isTlsEnabledWithBroker()) {
-                    SslContext sslCtx;
-                    // Set client certificate if available
-                    AuthenticationDataProvider authData = authentication.getAuthData();
-                    if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getBrokerClientTrustCertsFilePath(),
-                                (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
-                    } else {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getBrokerClientTrustCertsFilePath());
-                    }
+                if (sslCtx != null) {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder",
