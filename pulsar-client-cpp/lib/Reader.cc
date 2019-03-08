@@ -77,13 +77,9 @@ void Reader::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
 }
 
 Result Reader::hasMessageAvailable(bool& hasMessageAvailable) {
-    if (!impl_) {
-        return ResultConsumerNotInitialized;
-    }
-
     Promise<Result, bool> promise;
 
-    impl_->hasMessageAvailableAsync(WaitForCallbackValue<bool>(promise));
+    hasMessageAvailableAsync(WaitForCallbackValue<bool>(promise));
     return promise.getFuture().get(hasMessageAvailable);
 }
 

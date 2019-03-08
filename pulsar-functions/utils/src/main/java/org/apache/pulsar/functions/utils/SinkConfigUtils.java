@@ -416,9 +416,10 @@ public class SinkConfigUtils {
                 if (!existingConfig.getInputSpecs().containsKey(topicName)) {
                     throw new IllegalArgumentException("Input Topics cannot be altered");
                 }
-                if (!consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
-                    throw new IllegalArgumentException("Input Specs mismatch");
+                if (consumerConfig.isRegexPattern() != existingConfig.getInputSpecs().get(topicName).isRegexPattern()) {
+                    throw new IllegalArgumentException("isRegexPattern for input topic " + topicName + " cannot be altered");
                 }
+                mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
