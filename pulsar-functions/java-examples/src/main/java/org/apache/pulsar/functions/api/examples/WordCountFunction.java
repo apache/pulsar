@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-   import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 import java.util.Arrays;
