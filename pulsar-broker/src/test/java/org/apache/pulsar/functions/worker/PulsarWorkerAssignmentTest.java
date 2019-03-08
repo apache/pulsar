@@ -126,7 +126,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod(timeOut = 60000)
+    @AfterMethod
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
@@ -166,7 +166,7 @@ public class PulsarWorkerAssignmentTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 60000, enabled = false)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -216,7 +216,7 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 60000, enabled = false)
     public void testFunctionAssignmentsWithRestart() throws Exception {
 
         final String namespacePortion = "assignment-test";
