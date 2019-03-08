@@ -72,16 +72,15 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        boolean fg = false;
-        for( String st : args )
-        {
+        boolean fg = true;
+        for( String st : args ) {
             if ( st.equals("--zookeeper-port") ) {
-                fg = true;
+                fg = false;
                 config.setZookeeperServers(zkServers + ":" + this.getZkPort());
                 break;
             }
         }
-        if ( fg == false ) {
+        if ( fg ) {
             if (config.getZookeeperServers() != null) {
                 this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
             }
