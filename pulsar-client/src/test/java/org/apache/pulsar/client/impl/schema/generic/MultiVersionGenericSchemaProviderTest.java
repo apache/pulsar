@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -54,7 +55,7 @@ public class MultiVersionGenericSchemaProviderTest {
     @Test
     public void testGetSchema() {
         CompletableFuture<Optional<SchemaInfo>> completableFuture = new CompletableFuture<>();
-        SchemaInfo schemaInfo = AvroSchema.of(SchemaTestUtils.Foo.class).getSchemaInfo();
+        SchemaInfo schemaInfo = AvroSchema.of(new SchemaDefinition<>(SchemaTestUtils.Foo.class)).getSchemaInfo();
         completableFuture.complete(Optional.of(schemaInfo));
         when(schemaProvider.getPulsarClient().getLookup()
                 .getSchema(
