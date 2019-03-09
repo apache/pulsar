@@ -213,10 +213,16 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
+    public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
+        return catchExceptions(
+                () -> (Schema<KeyValue<byte[], byte[]>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "kvBytes").invoke(null));
+    }
+
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
         return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getConstructor("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        Schema.class, Schema.class).newInstance(keySchema, valueSchema));
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "of", Schema.class, Schema.class).invoke(null, keySchema, valueSchema));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {

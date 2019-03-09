@@ -48,7 +48,7 @@ public class TopicSchema {
     }
 
     /**
-     * If there is no other information available, use JSON as default schema type
+     * If there is no other information available, use JSON as default schema type.
      */
     private static final SchemaType DEFAULT_SCHEMA_TYPE = SchemaType.JSON;
 
@@ -131,7 +131,7 @@ public class TopicSchema {
             return JSONSchema.of(new SchemaDefinition<>(clazz));
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES;
+            return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());

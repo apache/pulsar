@@ -54,6 +54,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -87,6 +88,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
@@ -405,6 +407,10 @@ public class NamespaceService {
             checkNotNull(candidateBroker);
 
             if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
+                // invalidate namespace policies and try to load latest policies to avoid data-discrepancy if broker
+                // doesn't receive watch on policies changes
+                final String policyPath = AdminResource.path(POLICIES, bundle.getNamespaceObject().toString());
+                pulsar.getConfigurationCache().policiesCache().invalidate(policyPath);
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
@@ -519,11 +525,27 @@ public class NamespaceService {
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {
+        // unload namespace bundle
         unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) throws Exception {
         checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar, timeout, timeoutUnit);
+    }
+
+    public CompletableFuture<Boolean> isNamespaceBundleOwned(NamespaceBundle bundle) {
+        String bundlePath = ServiceUnitZkUtils.path(bundle);
+        CompletableFuture<Boolean> isExistFuture = new CompletableFuture<Boolean>();
+        pulsar.getLocalZkCache().getZooKeeper().exists(bundlePath, false, (rc, path, ctx, stat) -> {
+            if (rc == Code.OK.intValue()) {
+                isExistFuture.complete(true);
+            } else if (rc == Code.NONODE.intValue()) {
+                isExistFuture.complete(false);
+            } else {
+                isExistFuture.completeExceptionally(KeeperException.create(rc));
+            }
+        }, null);
+        return isExistFuture;
     }
 
     public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
