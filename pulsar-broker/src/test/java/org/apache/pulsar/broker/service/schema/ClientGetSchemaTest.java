@@ -67,8 +67,8 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         producers.add(pulsarClient.newProducer(Schema.JSON(MyClass.class)).topic(topicJson).create());
         producers.add(pulsarClient.newProducer(Schema.AVRO(new SchemaDefinition<>(MyClass.class))).topic(topicAvro).create());
         producers.add(pulsarClient.newProducer(Schema.JSON(new SchemaDefinition<>(MyClass.class))).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(new SchemaDefinition<>(MyClass.class).alwaysAllNull(false))).topic(topicAvroNotNull).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(new SchemaDefinition<>(MyClass.class).alwaysAllNull(false))).topic(topicJsonNotNull).create());
+        producers.add(pulsarClient.newProducer(Schema.AVRO(new SchemaDefinition<>(MyClass.class).alwaysAllowNull(false))).topic(topicAvroNotNull).create());
+        producers.add(pulsarClient.newProducer(Schema.JSON(new SchemaDefinition<>(MyClass.class).alwaysAllowNull(false))).topic(topicJsonNotNull).create());
 
     }
 

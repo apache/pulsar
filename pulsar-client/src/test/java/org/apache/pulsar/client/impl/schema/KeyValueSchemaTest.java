@@ -61,12 +61,12 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullAvroSchemaCreate() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
-        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
+        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
+        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
         Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(AvroSchema.of(new SchemaDefinition<>
-                (Foo.class).alwaysAllNull(false)),AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
+                (Foo.class).alwaysAllowNull(false)),AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -120,15 +120,15 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullJsonSchemaCreate() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
-        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
+        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
+        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false)),
-                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false)),
+                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
 
-        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false)),
-                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false)),
+                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -182,7 +182,7 @@ public class KeyValueSchemaTest {
     @Test
     public void testNotAllowNullSchemaEncodeAndDecode() {
         Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class)
-                .alwaysAllNull(false)),JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false)));
+                .alwaysAllowNull(false)),JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -236,8 +236,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullBytesSchemaEncodeAndDecode() {
-        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllNull(false));
-        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllNull(false));
+        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
+        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
 
         Bar bar = new Bar();
         bar.setField1(true);

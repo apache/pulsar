@@ -59,9 +59,9 @@ public class JSONSchema<T> implements Schema<T> {
     private JSONSchema(SchemaDefinition<T> schemaDefinition) {
         this.pojo = schemaDefinition.getClazz();
         this.properties = schemaDefinition.getProperties();
-        boolean alwaysNull = schemaDefinition.getAlwaysAllNull();
+        boolean alwaysAllowNull = schemaDefinition.getAlwaysAllowNull();
 
-        this.schema = alwaysNull ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
+        this.schema = alwaysAllowNull ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
         this.schemaInfo.setProperties(properties);
