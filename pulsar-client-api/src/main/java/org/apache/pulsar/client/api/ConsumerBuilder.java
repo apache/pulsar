@@ -188,6 +188,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
+     * Set the delay to wait before re-delivering messages that have failed to be process.
+     * <p>
+     * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
+     * will be redelivered after a fixed timeout. The default is 1 min.
+     *
+     * @param redeliveryDelay
+     *            redelivery delay for failed messages
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     * @return the consumer builder instance
+     * @see Consumer#negativeAcknowledge(Message)
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
+
+    /**
      * Select the subscription type to be used when subscribing to the topic.
      * <p>
      * Options are:
@@ -348,6 +363,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
     /**
+     * <b>Shared subscription</b>
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
      * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) </br>
      * In Shared subscription mode, broker will first dispatch messages to max priority-level consumers if they have
@@ -363,6 +379,25 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * C4       1             2
      * C5       1             1
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
+     * </pre>
+     * 
+     * <b>Failover subscription</b>
+     * Broker selects active consumer for a failover-subscription based on consumer's priority-level and lexicographical sorting of a consumer name.
+     * eg:
+     * <pre>
+     * 1. Active consumer = C1 : Same priority-level and lexicographical sorting
+     * Consumer PriorityLevel Name
+     * C1       0             aaa
+     * C2       0             bbb
+     * 
+     * 2. Active consumer = C2 : Consumer with highest priority
+     * Consumer PriorityLevel Name
+     * C1       1             aaa
+     * C2       0             bbb
+     * 
+     * Partitioned-topics:
+     * Broker evenly assigns partitioned topics to highest priority consumers.
+     * 
      * </pre>
      *
      * @param priorityLevel the priority of this consumer

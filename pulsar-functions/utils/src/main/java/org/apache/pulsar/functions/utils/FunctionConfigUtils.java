@@ -257,6 +257,7 @@ public class FunctionConfigUtils {
             functionConfig.setRetainOrdering(false);
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
+        functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
@@ -637,9 +638,10 @@ public class FunctionConfigUtils {
                 if (!existingConfig.getInputSpecs().containsKey(topicName)) {
                     throw new IllegalArgumentException("Input Topics cannot be altered");
                 }
-                if (!consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
-                    throw new IllegalArgumentException("Input Specs mismatch");
+                if (consumerConfig.isRegexPattern() != existingConfig.getInputSpecs().get(topicName).isRegexPattern()) {
+                    throw new IllegalArgumentException("isRegexPattern for input topic " + topicName + " cannot be altered");
                 }
+                mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
         if (!StringUtils.isEmpty(newConfig.getOutput()) && !newConfig.getOutput().equals(existingConfig.getOutput())) {
@@ -692,6 +694,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getTimeoutMs() != null) {
             mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
+        }
+        if (newConfig.getCleanupSubscription() != null) {
+            mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
         return mergedConfig;
     }

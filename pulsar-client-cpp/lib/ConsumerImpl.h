@@ -177,12 +177,12 @@ class ConsumerImpl : public ConsumerImplBase,
     void brokerGetLastMessageIdListener(Result res, MessageId messageId,
                                         BrokerGetLastMessageIdCallback callback);
 
-    MessageId lastMessageIdDequed() {
-        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId();
+    const MessageId& lastMessageIdDequed() {
+        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId::earliest();
     }
 
-    MessageId lastMessageIdInBroker() {
-        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId();
+    const MessageId& lastMessageIdInBroker() {
+        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
     }
 
     friend class PulsarFriend;

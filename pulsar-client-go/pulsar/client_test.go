@@ -58,7 +58,7 @@ func TestGetTopicPartitions(t *testing.T) {
 	assert.Equal(t, partitions[0], topic)
 }
 
-const TestTokenFilePath = "/tmp/pulsar-test-data/certs/token.txt"
+const TestTokenFilePath = "/tmp/pulsar-test-data/tokens/token.txt"
 
 func readToken(t *testing.T) string {
 	data, err := ioutil.ReadFile(TestTokenFilePath)
