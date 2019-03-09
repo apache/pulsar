@@ -33,14 +33,14 @@ public interface Event<T> {
     Record<?> getRecord();
 
     /**
-     * The event timestamp in millis
+     * The event timestamp in millis.
      *
      * @return the event timestamp in milliseconds.
      */
     long getTimestamp();
 
     /**
-     * Returns the wrapped object
+     * Returns the wrapped object.
      *
      * @return the wrapped object.
      */

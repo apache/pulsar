@@ -27,7 +27,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * passed to run functions.
  */
 @Data
 @Getter

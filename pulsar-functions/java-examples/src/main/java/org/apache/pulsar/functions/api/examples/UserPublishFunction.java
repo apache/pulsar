@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * An example demonstrate publishing messages through Context
+ * An example demonstrate publishing messages through Context.
  */
 public class UserPublishFunction implements Function<String, Void> {
 
