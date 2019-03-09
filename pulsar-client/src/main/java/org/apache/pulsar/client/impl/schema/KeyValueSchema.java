@@ -62,15 +62,15 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
-                .setName("KeyValue")
-                .setType(SchemaType.KEY_VALUE);
+            .setName("KeyValue")
+            .setType(SchemaType.KEY_VALUE);
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keySchemaInfo.length + 4 + valueSchemaInfo.length);
         byteBuffer.putInt(keySchemaInfo.length).put(keySchemaInfo)
-                .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
+            .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
         this.schemaInfo.setSchema(byteBuffer.array());
     }
 
