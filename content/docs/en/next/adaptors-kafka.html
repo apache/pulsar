@@ -181,7 +181,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>buffer.memory</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>client.id</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>compression.type</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Allows <code>gzip</code> and <code>lz4</code>. No <code>snappy</code>.</td></tr>
-<tr><td style="text-align:left"><code>connections.max.idle.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>connections.max.idle.ms</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Only support up to 2,147,483,647,000(Integer.MAX_VALUE * 1000) ms of idle time</td></tr>
 <tr><td style="text-align:left"><code>interceptor.classes</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>key.serializer</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>linger.ms</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Controls the group commit time when batching messages</td></tr>
