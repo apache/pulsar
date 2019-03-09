@@ -115,14 +115,13 @@ public class ProxyStats {
         List<Metrics> tempRef = metricsCollection;
         metricsCollection = tempMetricsCollection;
         tempMetricsCollection = tempRef;
-        tempMetricsCollection.clear();
 
         if (log.isDebugEnabled()) {
             log.debug("Complete generating proxy metrics");
         }
     }
 
-    public synchronized List<Metrics> getMetrics() {
+    public List<Metrics> getMetrics() {
         return metricsCollection;
     }
 
