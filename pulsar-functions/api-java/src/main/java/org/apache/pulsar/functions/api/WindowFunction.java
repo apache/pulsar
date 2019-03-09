@@ -28,6 +28,7 @@ import java.util.Collection;
 public interface WindowFunction<I, O> {
     /**
      * Process the input.
+     *
      * @return the output
      */
     O process(Collection<Record<I>> input, WindowContext context) throws Exception;

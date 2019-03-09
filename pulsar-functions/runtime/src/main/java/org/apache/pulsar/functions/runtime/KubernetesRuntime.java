@@ -217,7 +217,7 @@ public class KubernetesRuntime implements Runtime {
     }
 
     /**
-     * The core logic that creates a service first followed by statefulset
+     * The core logic that creates a service first followed by statefulset.
      */
     @Override
     public void start() throws Exception {
@@ -304,14 +304,14 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support getAndReset metrics via rest"));
+        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support getAndReset metrics via rest"));
         return retval;
     }
 
     @Override
     public CompletableFuture<Void> resetMetrics() {
         CompletableFuture<Void> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support resetting metrics via rest"));
+        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support resetting metrics via rest"));
         return retval;
     }
 

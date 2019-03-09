@@ -47,7 +47,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
- * Util class for common runtime functionality
+ * Util class for common runtime functionality.
  */
 @Slf4j
 public class RuntimeUtils {
@@ -257,5 +257,5 @@ public class RuntimeUtils {
         rd.close();
         return result.toString();
     }
-
+  
 }
