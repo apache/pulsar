@@ -121,8 +121,8 @@ one of the following ways:
   ```
 
 Once the nar file is downloaded, in the pulsar directory, copy the file to directory `connectors`
-in the pulsar directory, for example, if the connector pulsar-io-aerospike-{{pulsar:version}}.nar 
-is downloaded in pulsar directory:
+in the pulsar directory, for example, if the connector file `pulsar-io-aerospike-{{pulsar:version}}.nar` 
+is downloaded:
 
 ```bash
 $ mkdir connectors
