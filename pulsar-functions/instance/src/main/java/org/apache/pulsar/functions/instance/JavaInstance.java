@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.Map;
 

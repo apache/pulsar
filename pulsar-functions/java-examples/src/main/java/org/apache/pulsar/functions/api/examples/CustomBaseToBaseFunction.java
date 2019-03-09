@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * Function example of processing on a custom object type
+ * Function example of processing on a custom object type.
  */
 public class CustomBaseToBaseFunction implements Function<CustomBaseObject, CustomBaseObject> {
 

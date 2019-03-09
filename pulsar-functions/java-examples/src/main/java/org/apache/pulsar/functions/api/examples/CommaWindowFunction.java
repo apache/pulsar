@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.api.examples;
 import java.util.Collection;
 
 /**
- * Comma based aggregation window function example
+ * Comma based aggregation window function example.
  */
 public class CommaWindowFunction implements java.util.function.Function<Collection<String>, String> {
     @Override

@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.api.Function;
 import java.util.Optional;
 
 /**
- * Function that appends something to incoming input based on config supplied
+ * Function that appends something to incoming input based on config supplied.
  */
 public class ConfigBasedAppendFunction implements Function<String, String> {
     @Override

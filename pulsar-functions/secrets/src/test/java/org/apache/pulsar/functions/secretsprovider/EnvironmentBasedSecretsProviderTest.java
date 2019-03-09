@@ -19,16 +19,11 @@
 
 package org.apache.pulsar.functions.secretsprovider;
 
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.util.Map;
-
-import static org.mockito.Matchers.anyString;
 
 /**
  * Unit test of {@link Exceptions}.

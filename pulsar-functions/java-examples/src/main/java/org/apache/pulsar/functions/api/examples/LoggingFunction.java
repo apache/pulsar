@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.Function;
  * A function that demonstrates how to redirect logging to a topic.
  * In this particular example, for every input string, the function
  * does some logging. If --logTopic topic is specified, these log statements
- * end up in that specified pulsar topic
+ * end up in that specified pulsar topic.
  */
 public class LoggingFunction implements Function<String, String> {
 

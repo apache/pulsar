@@ -154,7 +154,7 @@ public class ReflectionsTest {
     }
 
     @Test
-    public void testclassInJarImplementsIface() {
+    public void testClassInJarImplementsIface() {
         assertTrue(Reflections.classImplementsIface(aImplementation.class.getName(), aInterface.class));
         assertTrue(!Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
     }
