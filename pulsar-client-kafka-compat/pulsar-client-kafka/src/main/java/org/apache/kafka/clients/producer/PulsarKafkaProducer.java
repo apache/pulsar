@@ -119,7 +119,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
         try {
             // Support Kafka's ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG in ms.
-            // If passed in value is greater than Integer.MAX_VALUE in second will throw ArithmeticException.
+            // If passed in value is greater than Integer.MAX_VALUE in second will throw IllegalArgumentException.
             int keepAliveInterval = Math.toIntExact(keepAliveIntervalMs / 1000);
             client = PulsarClientKafkaConfig.getClientBuilder(properties).serviceUrl(serviceUrl).keepAliveInterval(keepAliveInterval, TimeUnit.SECONDS).build();
         } catch (ArithmeticException e) {
@@ -146,7 +146,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         pulsarProducerBuilder.messageRouter(new KafkaMessageRouter(lingerMs));
 
-        int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.MAX_BLOCK_MS_CONFIG, "60000"));
+        int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "30000"));
         pulsarProducerBuilder.sendTimeout(sendTimeoutMillis, TimeUnit.MILLISECONDS);
 
         boolean blockOnBufferFull = Boolean
