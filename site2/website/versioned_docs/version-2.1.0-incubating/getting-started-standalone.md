@@ -157,7 +157,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 

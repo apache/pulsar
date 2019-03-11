@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.Function;
 
 /**
  * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
+ * to publish to a desired topic based on config.
  */
 public class PublishFunction implements Function<String, Void> {
     @Override

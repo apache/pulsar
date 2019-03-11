@@ -65,10 +65,7 @@ public class FunctionsImpl extends ComponentImpl {
 
             List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 userExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
@@ -78,24 +75,15 @@ public class FunctionsImpl extends ComponentImpl {
                     + status.getNumSourceExceptions() + status.getNumSinkExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
@@ -197,6 +185,14 @@ public class FunctionsImpl extends ComponentImpl {
 
             return functionStatus;
         }
+    }
+
+    private ExceptionInformation getExceptionInformation(InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry) {
+        ExceptionInformation exceptionInformation
+                = new ExceptionInformation();
+        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+        return exceptionInformation;
     }
 
     public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {

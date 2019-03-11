@@ -2831,5 +2831,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
     }
 
+    @Test
+    void testAlwaysInactive() throws Exception {
+        ManagedLedger ml = factory.open("testAlwaysInactive");
+        ManagedCursor cursor = ml.openCursor("c1");
+
+        assertTrue(cursor.isActive());
+
+        cursor.setAlwaysInactive();
+
+        assertFalse(cursor.isActive());
+
+        cursor.setActive();
+        assertFalse(cursor.isActive());
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
