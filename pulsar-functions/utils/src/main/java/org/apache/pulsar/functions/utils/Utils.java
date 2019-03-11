@@ -32,7 +32,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
@@ -237,7 +236,8 @@ public class Utils {
     }
 
     /**
-     * Load a jar
+     * Load a jar.
+     *
      * @param jar file of jar
      * @return classloader
      * @throws MalformedURLException

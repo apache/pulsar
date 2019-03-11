@@ -429,6 +429,14 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void negativeAcknowledge(Message<?> message) {
+        }
+
+        @Override
+        public void negativeAcknowledge(MessageId messageId) {
+        }
+
+        @Override
         public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
 
         }
@@ -490,7 +498,17 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void seek(long timestamp) throws PulsarClientException {
+
+        }
+
+        @Override
         public CompletableFuture<Void> seekAsync(MessageId messageId) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> seekAsync(long timestamp) {
             return null;
         }
 

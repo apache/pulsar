@@ -228,7 +228,8 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private byte[] getSchemaVersion() {
+    @Override
+    public byte[] getSchemaVersion() {
         if (msgMetadataBuilder.hasSchemaVersion()) {
             return msgMetadataBuilder.getSchemaVersion().toByteArray();
         } else {

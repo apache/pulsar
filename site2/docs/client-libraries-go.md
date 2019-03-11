@@ -262,7 +262,9 @@ Method | Description | Return type
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
 `Ack(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) | `error`
 `AckID(MessageID)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID | `error`
-`AckCumulative(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](concepts-messaging.md#shared) subscription type.
+`AckCumulative(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](concepts-messaging.md#shared) subscription type. | `error`
+`Nack(Message)` | Acknowledge the failure to process a single message. | `error`
+`NackID(MessageID)` | Acknowledge the failure to process a single message. | `error`
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
 `RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](concepts-messaging.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](concepts-messaging.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
 
@@ -305,8 +307,15 @@ func main() {
         if err != nil { log.Fatal(err) }
 
         // Do something with the message
+        err = processMessage(msg)
 
-        consumer.Ack(msg)
+        if err == nil {
+            // Message processed successfully
+            consumer.Ack(msg)
+        } else {
+            // Failed to process messages
+            consumer.Nack(msg)
+        }
     }
 }
 ```
@@ -319,6 +328,7 @@ Parameter | Description | Default
 `SubscriptionName` | The subscription name for this consumer |
 `Name` | The name of the consumer |
 `AckTimeout` | | 0
+`NackRedeliveryDelay` | The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See `Consumer.Nack()`) | 1 minute
 `SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000

@@ -112,6 +112,9 @@ public class KafkaAbstractSinkTest {
             public Logger getLogger() {
                 return null;
             }
+
+            @Override
+            public String getSecret(String key) { return null; }
         };
         ThrowingRunnable openAndClose = ()->{
             try {

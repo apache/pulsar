@@ -382,5 +382,5 @@ public class GrowablePriorityLongPairQueueTest {
         assertFalse(queue.exists(7, 1));
 
     }
-    
+
 }

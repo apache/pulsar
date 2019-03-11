@@ -52,6 +52,7 @@
     <module>netty</module>
     <module>hbase</module>
     <module>mongo</module>
+    <module>flume</module>
   </modules>
 
 </project>

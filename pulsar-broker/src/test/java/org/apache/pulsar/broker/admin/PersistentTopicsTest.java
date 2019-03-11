@@ -117,7 +117,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetSubscriptionsWithAutoTopicCreationDisabled() {
+    public void testNonPartitionedTopics() {
     	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
     	final String nonPartitionTopic = "non-partitioned-topic";
     	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
@@ -126,5 +126,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     	} catch (RestException exc) {
     		Assert.assertTrue(exc.getMessage().contains("zero partitions"));
     	}
+    	final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
+    	persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true);
+    	Assert.assertEquals(persistentTopics.getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true).partitions, 0);
     }
 }

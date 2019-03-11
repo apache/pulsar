@@ -406,6 +406,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void negativeAcknowledge(MessageId messageId) {
+        checkArgument(messageId instanceof TopicMessageIdImpl);
+        TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+
+        ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
+        consumer.negativeAcknowledge(topicMessageId.getInnerMessageId());
+    }
+
+    @Override
     public CompletableFuture<Void> unsubscribeAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -526,6 +535,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
         checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
@@ -555,7 +568,23 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void seek(long timestamp) throws PulsarClientException {
+        try {
+            seekAsync(timestamp).get();
+        } catch (ExecutionException e) {
+            throw new PulsarClientException(e.getCause());
+        } catch (InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
+        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(long timestamp) {
         return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
     }
 
