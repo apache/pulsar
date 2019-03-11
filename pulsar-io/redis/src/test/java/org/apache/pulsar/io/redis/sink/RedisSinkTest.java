@@ -46,7 +46,7 @@ import java.util.Map;
 @Slf4j
 public class RedisSinkTest {
 
-    private final EmbeddedRedisUtils embeddedRedisUtils = new EmbeddedRedisUtils(getClass().getSimpleName());
+    private EmbeddedRedisUtils embeddedRedisUtils;
 
     /**
      * A Simple class to test redis class
@@ -61,6 +61,7 @@ public class RedisSinkTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
+        embeddedRedisUtils = new EmbeddedRedisUtils(getClass().getSimpleName());
         embeddedRedisUtils.setUp();
     }
 

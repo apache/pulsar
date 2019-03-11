@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.io.redis;
 
+import com.google.common.io.Resources;
 import lombok.extern.slf4j.Slf4j;
 import redis.embedded.RedisExecProvider;
 import redis.embedded.RedisServer;
+import redis.embedded.util.Architecture;
 import redis.embedded.util.OS;
 
 import java.io.IOException;
@@ -38,7 +40,7 @@ public final class EmbeddedRedisUtils {
         dbPath = Paths.get(testId + "/redis");
         RedisExecProvider customProvider = RedisExecProvider
             .defaultProvider()
-            .override(OS.UNIX, "dbPath");
+            .override(OS.UNIX, Architecture.x86_64, Resources.getResource("redis-server-2.8.19").getFile());
         redisServer = RedisServer.builder()
             .redisExecProvider(customProvider)
             .port(6379)
