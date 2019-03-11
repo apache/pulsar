@@ -152,7 +152,7 @@ Properties:
 | `request.timeout.ms`                    | Ignored   |                                                                               |
 | `retries`                               | Ignored   | Pulsar client retries with exponential backoff until the send timeout expires |
 | `send.buffer.bytes`                     | Ignored   |                                                                               |
-| `timeout.ms`                            | Ignored   |                                                                               |
+| `timeout.ms`                            | Yes       |                                                                               |
 | `value.serializer`                      | Yes       |                                                                               |
 
 
