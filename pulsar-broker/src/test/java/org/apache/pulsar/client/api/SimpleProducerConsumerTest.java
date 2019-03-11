@@ -1111,8 +1111,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     /**
      * Verify: Consumer stops receiving msg when reach unack-msg limit and starts receiving once acks messages 1.
      * Produce X (600) messages 2. Consumer has receive size (10) and receive message without acknowledging 3. Consumer
-     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remanining
-     * messages This testcase enables checksum sending while producing message and broker verifies the checksum for the
+     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remaining
+     * messages This test case enables checksum sending while producing message and broker verifies the checksum for the
      * message.
      *
      * @throws Exception
