@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.redis;
 
-import com.google.common.io.Resources;
 import lombok.extern.slf4j.Slf4j;
 import redis.embedded.RedisExecProvider;
 import redis.embedded.RedisServer;
@@ -26,6 +25,7 @@ import redis.embedded.util.Architecture;
 import redis.embedded.util.OS;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,9 +38,12 @@ public final class EmbeddedRedisUtils {
 
     public EmbeddedRedisUtils(String testId) {
         dbPath = Paths.get(testId + "/redis");
+        String execFile = "redis-server-2.8.19";
+        // JarLoader
+        String executable = getRuntimePath() + "!/" + execFile;
         RedisExecProvider customProvider = RedisExecProvider
             .defaultProvider()
-            .override(OS.UNIX, Architecture.x86_64, Resources.getResource("redis-server-2.8.19").getFile());
+            .override(OS.UNIX, Architecture.x86_64, executable);
         redisServer = RedisServer.builder()
             .redisExecProvider(customProvider)
             .port(6379)
@@ -59,6 +62,22 @@ public final class EmbeddedRedisUtils {
     public void tearDown() throws IOException {
         redisServer.stop();
         Files.deleteIfExists(dbPath);
+    }
+
+    private static String getRuntimePath() {
+        String classPath = EmbeddedRedisUtils.class.getName().replaceAll("\\.", "/") + ".class";
+        URL resource = EmbeddedRedisUtils.class.getClassLoader().getResource(classPath);
+        if (resource == null) {
+            return null;
+        }
+        String urlString = resource.toString();
+        int insidePathIndex = urlString.indexOf('!');
+        boolean isInJar = insidePathIndex > -1;
+        if (isInJar) {
+            urlString = urlString.substring(urlString.indexOf("file:"), insidePathIndex);
+            return urlString;
+        }
+        return urlString.substring(urlString.indexOf("file:"), urlString.length() - classPath.length());
     }
 
 }
