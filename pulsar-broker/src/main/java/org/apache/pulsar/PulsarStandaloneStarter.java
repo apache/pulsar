@@ -73,7 +73,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if ( argsContains(args,"--zookeeper-port") ) {
+        if (argsContains(args,"--zookeeper-port")) {
             config.setZookeeperServers(zkServers + ":" + this.getZkPort());
         } else {
             if (config.getZookeeperServers() != null) {
@@ -82,7 +82,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             config.setZookeeperServers(zkServers + ":" + this.getZkPort());
         }
 
-        if ( config.getConfigurationStoreServers() == null ) {
+        if (config.getConfigurationStoreServers() == null) {
             config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         }
 
