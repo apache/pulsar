@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
 
 /**
- * Router for routing function results
+ * Router for routing function results.
  */
 public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
 
