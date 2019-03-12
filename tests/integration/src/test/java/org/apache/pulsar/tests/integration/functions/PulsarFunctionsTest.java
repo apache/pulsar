@@ -97,7 +97,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(enabled = false)
     public void testHdfsSink() throws Exception {
-        testSink(new HdfsSinkTester(), false);
+        testSink(new HdfsSinkTester(), true);
     }
 
     @Test
@@ -107,7 +107,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testHbaseSink() throws Exception {
-        testSink(new HbaseSinkTester(), true);
+        HbaseSinkTester sinkTester = new HbaseSinkTester();
+        testSink(sinkTester, true);
+        pulsarCluster.stopService("mysql", sinkTester.getServiceContainer());
     }
 
     @Test(enabled = false)

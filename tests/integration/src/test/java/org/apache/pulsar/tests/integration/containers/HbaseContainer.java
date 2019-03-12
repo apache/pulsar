@@ -21,7 +21,10 @@ package org.apache.pulsar.tests.integration.containers;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class HbaseContainer extends ChaosContainer<HbaseContainer> {
+
    public static final String NAME = "Hbase";
+   static final Integer[] PORTS = { 2181, 8080, 8085, 9090, 9095, 16010, 16301 };
+
    private static final String IMAGE_NAME = "harisekhon/hbase:1.4";
 
    public HbaseContainer(String clusterName) {
@@ -32,7 +35,7 @@ public class HbaseContainer extends ChaosContainer<HbaseContainer> {
    protected void configure() {
       super.configure();
       this.withNetworkAliases(NAME)
-            .withExposedPorts(2181, 8080, 8085, 9090, 9095, 16010, 16301)
+            .withExposedPorts(PORTS)
             .withEnv("discovery.type", "single-node")
             .withCreateContainerCmdModifier(createContainerCmd -> {
                createContainerCmd.withHostName(NAME);
