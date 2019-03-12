@@ -32,7 +32,7 @@ public class HbaseContainer extends ChaosContainer<HbaseContainer> {
    protected void configure() {
       super.configure();
       this.withNetworkAliases(NAME)
-            .withExposedPorts(2181, 8080, 8085, 9090, 9095, 16000, 16010, 16201, 16301)
+            .withExposedPorts(2181, 8080, 8085, 9090, 9095, 16010, 16301)
             .withEnv("discovery.type", "single-node")
             .withCreateContainerCmdModifier(createContainerCmd -> {
                createContainerCmd.withHostName(NAME);
