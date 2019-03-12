@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.authentication;
 
-import java.io.IOException;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -40,7 +39,7 @@ public interface AuthenticationState {
     /**
      * Challenge passed in auth data and get response data.
      */
-    AuthData authenticate(AuthData authData) throws IOException, AuthenticationException;
+    AuthData authenticate(AuthData authData) throws AuthenticationException;
 
     /**
      * Return AuthenticationDataSource.

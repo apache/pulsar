@@ -200,7 +200,7 @@ public class ClientCnx extends PulsarHandler {
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.of("init".getBytes("UTF-8")));
+        AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
             getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
     }

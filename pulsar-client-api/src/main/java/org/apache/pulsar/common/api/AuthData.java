@@ -20,8 +20,12 @@ package org.apache.pulsar.common.api;
 
 import lombok.Data;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Data(staticConstructor="of")
 public final class AuthData {
+    public static byte[] INIT_AUTH_DATA = "init".getBytes(UTF_8);
+
     private final byte[] bytes;
 
     public boolean isComplete() {

@@ -27,6 +27,8 @@ import java.util.Set;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * Interface for accessing data which are used in variety of authentication schemes on client side
  */
@@ -118,7 +120,7 @@ public interface AuthenticationDataProvider extends Serializable {
      * Mainly used for mutual authentication like sasl.
      */
     default AuthData authenticate(AuthData data) throws IOException, AuthenticationException {
-        byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes("UTF-8");
+        byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);
         return AuthData.of(bytes);
     }
 }

@@ -22,14 +22,13 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -41,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Test Mutual Authentication.
@@ -59,12 +58,9 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
     private static String[] serverAuthStrings = {
         "ResponseMutualClientAuthInit", // step 0
-        "ResponseMutualClientStep1"     // step 1
     };
 
     public static class MutualAuthenticationDataProvider implements AuthenticationDataProvider {
-        private int authStep = 0;
-
         @Override
         public boolean hasDataFromCommand() {
             return true;
@@ -72,15 +68,20 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
         @Override
         public AuthData authenticate(AuthData data) throws AuthenticationException {
-            String dataString = new String(data.getBytes(), Charset.forName("UTF-8"));
-            if (!dataString.equalsIgnoreCase("init")) {
-                if (!dataString.equals(serverAuthStrings[authStep - 1])) {
-                    throw new AuthenticationException();
-                }
+            String dataString = new String(data.getBytes(), UTF_8);
+            AuthData toSend;
+
+            if (Arrays.equals(dataString.getBytes(), AuthData.INIT_AUTH_DATA)) {
+                toSend = AuthData.of(clientAuthStrings[0].getBytes(UTF_8));
+            } else if (Arrays.equals(dataString.getBytes(), serverAuthStrings[0].getBytes(UTF_8))) {
+                toSend = AuthData.of(clientAuthStrings[1].getBytes(UTF_8));
+            } else {
+                throw new AuthenticationException();
             }
-            log.debug("authenticate in client. passed in :{}, send: clientAuthStrings[{}]: {}",
-                dataString, authStep, clientAuthStrings[authStep]);
-            return AuthData.of(clientAuthStrings[authStep ++].getBytes());
+
+            log.debug("authenticate in client. passed in :{}, send: {}",
+                dataString, new String(toSend.getBytes(), UTF_8));
+            return toSend;
         }
     }
 
@@ -117,7 +118,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
 
     public static class MutualAuthenticationState implements AuthenticationState {
-        private int authStep = 0;
+        private boolean isComplete = false;
 
         @Override
         public String getAuthRole() throws AuthenticationException {
@@ -126,14 +127,21 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            String clientData = new String(authData.getBytes(), Charset.forName("UTF-8"));
-            if (!clientData.equals(clientAuthStrings[authStep])) {
+            String dataString = new String(authData.getBytes(), UTF_8);
+            AuthData toSend;
+
+            if (Arrays.equals(dataString.getBytes(), clientAuthStrings[0].getBytes(UTF_8))) {
+                toSend = AuthData.of(serverAuthStrings[0].getBytes(UTF_8));
+            } else if (Arrays.equals(dataString.getBytes(), clientAuthStrings[1].getBytes(UTF_8))) {
+                isComplete = true;
+                toSend = AuthData.of(null);
+            } else {
                 throw new AuthenticationException();
             }
-            log.debug("authenticate in server. passed in :{}, send: serverAuthStrings[{}]: {}",
-                clientData, authStep, serverAuthStrings[authStep]);
-            AuthData serverData =  AuthData.of(serverAuthStrings[authStep ++].getBytes());
-            return serverData;
+
+            log.debug("authenticate in server. passed in :{}, send: {}",
+                dataString, toSend.getBytes() == null ? "null" : new String(toSend.getBytes(), UTF_8));
+            return toSend;
         }
 
         @Override
@@ -143,7 +151,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
         @Override
         public boolean isComplete() {
-            return authStep > 1;
+            return isComplete;
         }
     }
 
