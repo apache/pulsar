@@ -54,7 +54,7 @@ import static org.testng.Assert.fail;
 public class HbaseSinkTester extends SinkTester<HbaseContainer> {
 
    /**
-    * A Simple class to test hbase class
+    * A Simple class to test hbase class.
     */
    @Data
    @ToString
@@ -84,7 +84,6 @@ public class HbaseSinkTester extends SinkTester<HbaseContainer> {
 
       sinkConfig.put("zookeeperQuorum", HbaseContainer.NAME);
       sinkConfig.put("zookeeperClientPort", "2181");
-      sinkConfig.put("zookeeperZnodeParent", "/hbase");
       sinkConfig.put("tableName", "default:pulsar_hbase");
       sinkConfig.put("rowKeyName", rowKeyName);
       sinkConfig.put("familyName", familyName);
