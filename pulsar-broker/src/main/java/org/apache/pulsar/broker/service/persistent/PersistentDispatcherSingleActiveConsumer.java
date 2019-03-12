@@ -59,7 +59,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     private volatile boolean havePendingRead = false;
 
-    private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private final ServiceConfiguration serviceConfig;
@@ -74,8 +73,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
         this.cursor = cursor;
-        this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
@@ -182,8 +181,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
         havePendingRead = false;
 
-        if (readBatchSize < MaxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
+        if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
+            int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Increasing read batch size from {} to {}", name, readConsumer, readBatchSize,
                         newReadBatchSize);
@@ -451,7 +450,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         checkNotNull(c);
 
         // Reduce read batch size to avoid flooding bookies with retries
-        readBatchSize = 1;
+        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
         topic.getBrokerService().executor().schedule(() -> {
 
