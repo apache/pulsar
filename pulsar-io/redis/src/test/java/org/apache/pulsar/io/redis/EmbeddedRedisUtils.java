@@ -25,7 +25,6 @@ import redis.embedded.util.Architecture;
 import redis.embedded.util.OS;
 
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,18 +38,15 @@ public final class EmbeddedRedisUtils {
     public EmbeddedRedisUtils(String testId) {
         dbPath = Paths.get(testId + "/redis");
         String execFile = "redis-server-2.8.19";
-        // JarLoader
-        String executable = getRuntimePath() + "!/" + execFile;
         RedisExecProvider customProvider = RedisExecProvider
             .defaultProvider()
-            .override(OS.UNIX, Architecture.x86_64, executable);
+            .override(OS.UNIX, Architecture.x86_64, execFile);
         redisServer = RedisServer.builder()
             .redisExecProvider(customProvider)
             .port(6379)
             .slaveOf("localhost", 6378)
             .setting("daemonize no")
             .setting("appendonly no")
-            .setting("maxheap 128M")
             .build();
     }
 
@@ -62,22 +58,6 @@ public final class EmbeddedRedisUtils {
     public void tearDown() throws IOException {
         redisServer.stop();
         Files.deleteIfExists(dbPath);
-    }
-
-    private static String getRuntimePath() {
-        String classPath = EmbeddedRedisUtils.class.getName().replaceAll("\\.", "/") + ".class";
-        URL resource = EmbeddedRedisUtils.class.getClassLoader().getResource(classPath);
-        if (resource == null) {
-            return null;
-        }
-        String urlString = resource.toString();
-        int insidePathIndex = urlString.indexOf('!');
-        boolean isInJar = insidePathIndex > -1;
-        if (isInJar) {
-            urlString = urlString.substring(urlString.indexOf("file:"), insidePathIndex);
-            return urlString;
-        }
-        return urlString.substring(urlString.indexOf("file:"), urlString.length() - classPath.length());
     }
 
 }
