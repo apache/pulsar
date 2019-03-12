@@ -53,6 +53,7 @@ public class WaterMarkEventGenerator<T> implements Runnable {
 
     /**
      * Creates a new WatermarkEventGenerator.
+     *
      * @param windowManager The window manager this generator will submit watermark events to
      * @param intervalMs The generator will check if it should generate a watermark event with this intervalMs
      * @param eventTsLagMs The max allowed lag behind the last watermark event before an event is considered late
@@ -107,7 +108,7 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     }
 
     /**
-     * Computes the min ts across all intput topics.
+     * Computes the min ts across all input topics.
      */
     private long computeWaterMarkTs() {
         long ts = 0;

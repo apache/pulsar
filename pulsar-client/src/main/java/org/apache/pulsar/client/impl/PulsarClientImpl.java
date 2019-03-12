@@ -59,7 +59,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
@@ -296,7 +296,7 @@ public class PulsarClientImpl implements PulsarClient {
             return lookup.getSchema(TopicName.get(conf.getSingleTopic()))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
-                            GenericSchema genericSchema = GenericSchema.of(schemaInfoOptional.get());
+                            GenericSchemaImpl genericSchema = GenericSchemaImpl.of(schemaInfoOptional.get());
                             log.info("Auto detected schema for topic {} : {}",
                                 conf.getSingleTopic(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
                             autoConsumeSchema.setSchema(genericSchema);
@@ -350,11 +350,6 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> multiTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        Optional<ConsumerBase<T>> subscriber = subscriptionExist(conf);
-        if (subscriber.isPresent()) {
-            return CompletableFuture.completedFuture(subscriber.get());
-        }
-
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
@@ -377,10 +372,6 @@ public class PulsarClientImpl implements PulsarClient {
         Mode subscriptionMode = convertRegexSubscriptionMode(conf.getRegexSubscriptionMode());
         TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
-        Optional<ConsumerBase<T>> subscriber = subscriptionExist(conf);
-        if (subscriber.isPresent()) {
-            return CompletableFuture.completedFuture(subscriber.get());
-        }
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode)
@@ -436,7 +427,7 @@ public class PulsarClientImpl implements PulsarClient {
             return lookup.getSchema(TopicName.get(conf.getTopicName()))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
-                            GenericSchema genericSchema = GenericSchema.of(schemaInfoOptional.get());
+                            GenericSchemaImpl genericSchema = GenericSchemaImpl.of(schemaInfoOptional.get());
                             log.info("Auto detected schema for topic {} : {}",
                                 conf.getTopicName(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
                             autoConsumeSchema.setSchema(genericSchema);
@@ -688,8 +679,10 @@ public class PulsarClientImpl implements PulsarClient {
     private <T> Optional<ConsumerBase<T>> subscriptionExist(ConsumerConfigurationData<?> conf) {
         synchronized (consumers) {
             Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
-                    .filter(consumerBase -> consumerBase.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
+                    .filter(c -> c.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
+                    .filter(c -> conf.getTopicNames().contains(c.getTopic()))
                     .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
+                    .filter(Consumer::isConnected)
                     .findFirst();
             return subscriber.map(ConsumerBase.class::cast);
         }

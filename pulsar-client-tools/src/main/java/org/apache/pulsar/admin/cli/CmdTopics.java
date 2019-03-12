@@ -82,6 +82,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
 
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
+        jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
 
@@ -213,6 +214,19 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Create a non-partitioned topic.")
+    private class CreateNonPartitionedCmd extends CliCommand {
+    	
+    	@Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+    	private java.util.List<String> params;
+    	
+    	@Override
+    	void run() throws Exception {
+    		String topic = validateTopicName(params);
+    		topics.createNonPartitionedTopic(topic);
+    	}
+    }
+    
     @Parameters(commandDescription = "Update existing non-global partitioned topic. \n"
             + "\t\tNew updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {

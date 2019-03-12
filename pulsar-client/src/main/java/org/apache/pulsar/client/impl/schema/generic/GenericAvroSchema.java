@@ -30,12 +30,13 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic avro schema.
  */
-class GenericAvroSchema extends GenericSchema {
+class GenericAvroSchema extends GenericSchemaImpl {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> datumWriter;
     private BinaryEncoder encoder;
@@ -78,4 +79,8 @@ class GenericAvroSchema extends GenericSchema {
         }
     }
 
+    @Override
+    public GenericRecordBuilder newRecordBuilder() {
+        return new AvroRecordBuilderImpl(this);
+    }
 }

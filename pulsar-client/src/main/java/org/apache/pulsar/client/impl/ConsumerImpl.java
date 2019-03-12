@@ -111,6 +111,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
+    private final NegativeAcksTracker negativeAcksTracker;
 
     protected final ConsumerStatsRecorder stats;
     private final int priorityLevel;
@@ -174,6 +175,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
+        this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -183,7 +185,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {
-                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis(), conf.getTickDurationMillis());
+                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis(),
+                        Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis()));
             } else {
                 this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
             }
@@ -454,6 +457,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void negativeAcknowledge(MessageId messageId) {
+        negativeAcksTracker.add(messageId);
+
+        // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
+        unAckedMessageTracker.remove(messageId);
+    }
+
+    @Override
     public void connectionOpened(final ClientCnx cnx) {
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
@@ -712,18 +723,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageId.getEntryId());
         }
 
-        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
-        if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
-                        topic, subscription, msgId);
-            }
-            if (conf.getReceiverQueueSize() == 0) {
-                increaseAvailablePermits(cnx);
-            }
-            return;
-        }
-
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
 
@@ -737,6 +736,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             msgMetadata = Commands.parseMessageMetadata(payload);
         } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            return;
+        }
+
+        final int numMessages = msgMetadata.getNumMessagesInBatch();
+
+        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
+        if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
+                        topic, subscription, msgId);
+            }
+
+            increaseAvailablePermits(cnx, numMessages);
             return;
         }
 
@@ -757,8 +769,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // Message was discarded on decompression error
             return;
         }
-
-        final int numMessages = msgMetadata.getNumMessagesInBatch();
 
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
@@ -1213,6 +1223,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
         checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
@@ -1304,6 +1318,45 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } catch (ExecutionException | InterruptedException e) {
             throw new PulsarClientException(e);
         }
+    }
+
+    @Override
+    public void seek(long timestamp) throws PulsarClientException {
+        try {
+            seekAsync(timestamp).get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(long timestamp) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return FutureUtil
+                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+        }
+
+        if (!isConnected()) {
+            return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+        }
+
+        final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
+
+        long requestId = client.newRequestId();
+        ByteBuf seek = Commands.newSeek(consumerId, requestId, timestamp);
+        ClientCnx cnx = cnx();
+
+        log.info("[{}][{}] Seek subscription to publish time {}", topic, subscription, timestamp);
+
+        cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
+            log.info("[{}][{}] Successfully reset subscription to publish time {}", topic, subscription, timestamp);
+            seekFuture.complete(null);
+        }).exceptionally(e -> {
+            log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
+            seekFuture.completeExceptionally(e.getCause());
+            return null;
+        });
+        return seekFuture;
     }
 
     @Override

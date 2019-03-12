@@ -50,7 +50,7 @@ Directory | Contains
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `examples` | A Java JAR file containing example [Pulsar Functions](functions-overview.md)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar
-`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](developing-codebase.md)
+`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar)
 
 These directories will be created once you begin running Pulsar:
 
@@ -206,6 +206,21 @@ If the message has been successfully published to the topic, you should see a co
 > #### No need to explicitly create new topics
 > You may have noticed that we did not explicitly create the `my-topic` topic to which we sent the `hello-pulsar` message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.
 
+## Using CLI pulsar clients 
+
+Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client) that enables you to do things like receive messages from a Pulsar topic in a running cluster. This command will receive a simple message saying `hello-pulsar` to the `my-topic` topic:
+
+```bash
+$ bin/pulsar-client consume my-topic -t Shared -s demo-sub -n 0
+```
+
+If the message has been successfully published to the topic as above, you should see a confirmation like this in the `pulsar-client` logs:
+
+```
+----- got message -----
+hello-pulsar
+```
+
 ## Using Pulsar clients locally
 
 Pulsar currently offers client libraries for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
@@ -218,7 +233,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 

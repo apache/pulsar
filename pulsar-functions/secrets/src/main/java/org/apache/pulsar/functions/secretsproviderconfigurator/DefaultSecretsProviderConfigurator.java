@@ -41,7 +41,7 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
             case PYTHON:
                 return "secretsprovider.ClearTextSecretsProvider";
             default:
-                throw new RuntimeException("Unknwon runtime " + functionDetails.getRuntime());
+                throw new RuntimeException("Unknown runtime " + functionDetails.getRuntime());
         }
     }
 

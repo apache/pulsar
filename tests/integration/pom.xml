@@ -127,10 +127,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.client</groupId>
-      <artifactId>elasticsearch-rest-high-level-client</artifactId>
-      <version>6.3.2</version>
-    </dependency>
+       <groupId>org.elasticsearch.client</groupId>
+  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+  	</dependency>
 
     <dependency>
       <groupId>org.apache.hbase</groupId>
@@ -159,7 +158,7 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-
+  	
   </dependencies>
 
   <build>

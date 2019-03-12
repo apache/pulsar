@@ -53,6 +53,8 @@ import org.apache.pulsar.client.kafka.compat.KafkaMessageRouter;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
@@ -103,7 +105,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         if (valueSerializer == null) {
             this.valueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                     Serializer.class);
-            this.valueSerializer.configure(producerConfig.originals(), true);
+            this.valueSerializer.configure(producerConfig.originals(), false);
         } else {
             this.valueSerializer = valueSerializer;
             producerConfig.ignore(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
@@ -112,9 +114,18 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
         partitioner.configure(producerConfig.originals());
 
+        long keepAliveIntervalMs = Long.parseLong(properties.getProperty(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, "30000"));
+
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
         try {
-            client = PulsarClientKafkaConfig.getClientBuilder(properties).serviceUrl(serviceUrl).build();
+            // Support Kafka's ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG in ms.
+            // If passed in value is greater than Integer.MAX_VALUE in second will throw ArithmeticException.
+            int keepAliveInterval = Math.toIntExact(keepAliveIntervalMs / 1000);
+            client = PulsarClientKafkaConfig.getClientBuilder(properties).serviceUrl(serviceUrl).keepAliveInterval(keepAliveInterval, TimeUnit.SECONDS).build();
+        } catch (ArithmeticException e) {
+            String errorMessage = String.format("Invalid value %d for 'connections.max.idle.ms'. Please use a value smaller than %d000 milliseconds.", keepAliveIntervalMs, Integer.MAX_VALUE);
+            logger.error(errorMessage);
+            throw new IllegalArgumentException(errorMessage);
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
@@ -169,7 +180,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
 
         TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage();
-        int messageSize = buildMessage(messageBuilder, record);;
+        int messageSize = buildMessage(messageBuilder, record);
 
         CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
         messageBuilder.sendAsync().thenAccept((messageId) -> {
@@ -263,7 +274,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         builder.value(value);
 
         if (record.partition() != null) {
-            // Partition was explicitely set on the record
+            // Partition was explicitly set on the record
             builder.property(KafkaMessageRouter.PARTITION_ID, record.partition().toString());
         } else {
             // Get the partition id from the partitioner
@@ -296,4 +307,6 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         TypedMessageBuilderImpl<byte[]> mb = (TypedMessageBuilderImpl<byte[]>) msgBuilder;
         return new RecordMetadata(tp, offset, 0, mb.getPublishTime(), 0, mb.hasKey() ? mb.getKey().length() : 0, size);
     }
+
+    private static final Logger logger = LoggerFactory.getLogger(PulsarKafkaProducer.class);
 }
