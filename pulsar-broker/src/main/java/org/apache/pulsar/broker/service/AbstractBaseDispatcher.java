@@ -27,6 +27,7 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
@@ -72,8 +73,8 @@ public abstract class AbstractBaseDispatcher {
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
             try {
-                if (msgMetadata == null) {
-                    // Message metadata was corrupted
+                if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+                    // Message metadata was corrupted or the messages was a server-only marker
                     entries.set(i, null);
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
