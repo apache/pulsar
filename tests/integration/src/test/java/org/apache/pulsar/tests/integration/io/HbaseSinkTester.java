@@ -111,7 +111,6 @@ public class HbaseSinkTester extends SinkTester<HbaseContainer> {
       Configuration configuration = HBaseConfiguration.create();
       configuration.set("hbase.zookeeper.quorum", sinkConfig.get("zookeeperQuorum").toString());
       configuration.set("hbase.zookeeper.property.clientPort", sinkConfig.get("zookeeperClientPort").toString());
-      configuration.set("zookeeper.znode.parent", sinkConfig.get("zookeeperZnodeParent").toString());
       Connection connection = ConnectionFactory.createConnection(configuration);
       log.info("connection: {}", connection);
       admin = connection.getAdmin();
