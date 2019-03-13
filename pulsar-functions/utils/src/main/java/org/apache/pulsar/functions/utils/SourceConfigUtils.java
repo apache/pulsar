@@ -270,7 +270,7 @@ public class SourceConfigUtils {
             mergedConfig.setSecrets(newConfig.getSecrets());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
         }
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());

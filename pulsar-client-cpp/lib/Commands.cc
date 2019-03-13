@@ -521,6 +521,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::GET_SCHEMA_RESPONSE:
             return "GET_SCHEMA_RESPONSE";
             break;
+        case BaseCommand::AUTH_CHALLENGE:
+            return "AUTH_CHALLENGE";
+            break;
+        case BaseCommand::AUTH_RESPONSE:
+            return "AUTH_RESPONSE";
+            break;
     };
 }
 

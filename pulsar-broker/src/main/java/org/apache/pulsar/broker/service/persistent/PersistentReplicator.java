@@ -59,8 +59,6 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
 
-
-    private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
 
     private final int producerQueueThreshold;
@@ -98,7 +96,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
-        readBatchSize = Math.min(producerQueueSize, MaxReadBatchSize);
+        readBatchSize = Math.min(
+            producerQueueSize,
+            topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         startProducer();
@@ -189,8 +189,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entries.size());
         }
 
-        if (readBatchSize < MaxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
+        int maxReadBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize();
+        if (readBatchSize < maxReadBatchSize) {
+            int newReadBatchSize = Math.min(readBatchSize * 2, maxReadBatchSize);
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{} -> {}] Increasing read batch size from {} to {}", topicName, localCluster,
                         remoteCluster, readBatchSize, newReadBatchSize);
@@ -410,7 +411,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         }
 
         // Reduce read batch size to avoid flooding bookies with retries
-        readBatchSize = 1;
+        readBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMinReadBatchSize();
 
         long waitTimeMillis = readFailureBackoff.next();
 

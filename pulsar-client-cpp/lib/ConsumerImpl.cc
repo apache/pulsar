@@ -504,6 +504,7 @@ void ConsumerImpl::internalListener() {
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
+        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -1047,8 +1048,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
-                                                                            MessageId messageId) {
+    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1058,9 +1058,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         } else {
             callback(result, false);
         }
-    };
-
-    getLastMessageIdAsync(callback1);
+    });
 }
 
 void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,

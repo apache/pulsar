@@ -62,10 +62,10 @@ public class RoundRobinScheduler implements IScheduler {
         int least = Integer.MAX_VALUE;
         for (Map.Entry<String, List<Assignment>> entry : workerIdToAssignment.entrySet()) {
             String workerId = entry.getKey();
-            List<Assignment> workerAssigments = entry.getValue();
-            if (workerAssigments.size() < least) {
+            List<Assignment> workerAssignments = entry.getValue();
+            if (workerAssignments.size() < least) {
                 targetWorkerId = workerId;
-                least = workerAssigments.size();
+                least = workerAssignments.size();
             }
         }
         return targetWorkerId;
