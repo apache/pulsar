@@ -162,6 +162,12 @@ class ConsumerConfiguration {
      * @return the consumer builder instance
      */
     void setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis);
+
+    /**
+     * Get the configured delay to wait before re-delivering messages that have failed to be process.
+     *
+     * @return redelivery delay for failed messages
+     */
     long getNegativeAckRedeliveryDelayMs() const;
 
     /**

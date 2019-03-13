@@ -172,6 +172,13 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(pulsar_consumer_configurati
  */
 void pulsar_configure_set_negative_ack_redelivery_delay_ms(
     pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis);
+
+/**
+ * Get the configured delay to wait before re-delivering messages that have failed to be process.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @return redelivery delay for failed messages
+ */
 long pulsar_configure_get_negative_ack_redelivery_delay_ms(
     pulsar_consumer_configuration_t *consumer_configuration);
 
