@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.common.util.collections;
 
 import java.util.Collection;
@@ -9,63 +27,78 @@ import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
 
 /**
- * A set comprising zero or more ranges type of {@link LongPair}
+ * A set comprising zero or more ranges type of key-value pair.
  */
-public interface LongPairRangeSet {
+public interface LongPairRangeSet<T extends Comparable<T>> {
 
     /**
-     * Default RangeSet implementation based on {@link TreeRangeSet}
+     * Adds the specified range (range that contains all values strictly greater than {@code
+    * lower} and less than or equal to {@code upper}.) to this {@code RangeSet} (optional operation). That is, for equal
+     * range sets a and b, the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which
+     * both {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
      * 
-     * @return
+     * <pre>
+     *  
+     * &#64;param lowerKey :  value for key of lowerEndpoint of Range
+     * &#64;param lowerValue: value for value of lowerEndpoint of Range
+     * &#64;param upperKey  : value for key of upperEndpoint of Range
+     * &#64;param upperValue: value for value of upperEndpoint of Range
+     * </pre>
      */
-    static LongPairRangeSet create() {
-        return new DefaultRangeSet();
-    }
-
-    void clear();
-
-    /**
-     * Adds the specified range to this {@code RangeSet} (optional operation). That is, for equal range sets a and b,
-     * the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which both
-     * {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
-     *
-     * <p>
-     * Note that {@code range} will merge given {@code range} with any ranges in the range set that are
-     * {@linkplain Range#isConnected(Range) connected} with it. Moreover, if {@code range} is empty, this is a no-op.
-     */
-    void add(Range<LongPair> range);
+    void addOpenClosed(long lowerKey, long lowerValue, long upperKey, long upperValue);
 
     /** Determines whether any of this range set's member ranges contains {@code value}. */
-    boolean contains(LongPair position);
+    boolean contains(long key, long value);
 
     /**
      * Returns the unique range from this range set that {@linkplain Range#contains contains} {@code value}, or
      * {@code null} if this range set does not contain {@code value}.
      */
-    Range<LongPair> rangeContaining(LongPair position);
+    Range<T> rangeContaining(long key, long value);
 
     /**
-     * Removes the specified range from this {@code RangeSet}
+     * Remove range that contains all values less than or equal to given key-value.
      * 
-     * @param range
+     * @param key
+     * @param value
      */
-    void remove(Range<LongPair> range);
+    void removeAtMost(long key, long value);
 
     boolean isEmpty();
+
+    void clear();
 
     /**
      * Returns the minimal range which {@linkplain Range#encloses(Range) encloses} all ranges in this range set.
      * 
      * @return
      */
-    Range<LongPair> span();
+    Range<T> span();
 
     /**
      * Returns a view of the {@linkplain Range#isConnected disconnected} ranges that make up this range set.
      * 
      * @return
      */
-    Collection<Range<LongPair>> asRanges();
+    Collection<Range<T>> asRanges();
+
+    /**
+     * Returns total number of ranges into the set.
+     * 
+     * @return
+     */
+    int size();
+
+    /**
+     * It returns very first smallest range in the rangeSet.
+     * 
+     * @return Range<T> first smallest range into the set
+     */
+    Range<T> firstRange();
+
+    public static interface LongPairConsumer<T> {
+        T apply(long key, long value);
+    }
 
     public static class LongPair implements Comparable<LongPair> {
 
@@ -73,9 +106,9 @@ public interface LongPairRangeSet {
         public static final LongPair latest = new LongPair(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
         private long key;
-        private int value;
+        private long value;
 
-        public LongPair(long key, int value) {
+        public LongPair(long key, long value) {
             this.key = key;
             this.value = value;
         }
@@ -84,7 +117,7 @@ public interface LongPairRangeSet {
             return this.key;
         }
 
-        public int getValue() {
+        public long getValue() {
             return this.value;
         }
 
@@ -99,9 +132,15 @@ public interface LongPairRangeSet {
         }
     }
 
-    public static class DefaultRangeSet implements LongPairRangeSet {
+    public static class DefaultRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
-        RangeSet<LongPair> set = TreeRangeSet.create();
+        RangeSet<T> set = TreeRangeSet.create();
+
+        private final LongPairConsumer<T> consumer;
+
+        public DefaultRangeSet(LongPairConsumer<T> consumer) {
+            this.consumer = consumer;
+        }
 
         @Override
         public void clear() {
@@ -109,23 +148,30 @@ public interface LongPairRangeSet {
         }
 
         @Override
-        public void add(Range<LongPair> range) {
-            set.add(range);
+        public void addOpenClosed(long key1, long value1, long key2, long value2) {
+            set.add(Range.openClosed(consumer.apply(key1, value1), consumer.apply(key2, value2)));
         }
 
-        @Override
-        public boolean contains(LongPair position) {
+        public boolean contains(T position) {
             return set.contains(position);
         }
 
-        @Override
-        public Range<LongPair> rangeContaining(LongPair position) {
+        public Range<T> rangeContaining(T position) {
             return set.rangeContaining(position);
         }
 
         @Override
-        public void remove(Range<LongPair> range) {
+        public Range<T> rangeContaining(long key, long value) {
+            return this.rangeContaining(consumer.apply(key, value));
+        }
+
+        public void remove(Range<T> range) {
             set.remove(range);
+        }
+
+        @Override
+        public void removeAtMost(long key, long value) {
+            set.remove(Range.atMost(consumer.apply(key, value)));
         }
 
         @Override
@@ -134,13 +180,33 @@ public interface LongPairRangeSet {
         }
 
         @Override
-        public Range<LongPair> span() {
+        public Range<T> span() {
             return set.span();
         }
 
         @Override
-        public Set<Range<LongPair>> asRanges() {
+        public Set<Range<T>> asRanges() {
             return set.asRanges();
+        }
+
+        @Override
+        public boolean contains(long key, long value) {
+            return this.contains(consumer.apply(key, value));
+        }
+
+        @Override
+        public Range<T> firstRange() {
+            return set.asRanges().iterator().next();
+        }
+
+        @Override
+        public int size() {
+            return set.asRanges().size();
+        }
+
+        @Override
+        public String toString() {
+            return set.toString();
         }
     }
 }
