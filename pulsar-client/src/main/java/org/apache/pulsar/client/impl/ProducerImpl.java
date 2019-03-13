@@ -451,7 +451,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Closing out batch to accomodate large message with size {}", topic, producerName,
+            log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
         }
         batchMessageAndSend();
@@ -670,7 +670,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (sequenceId > expectedSequenceId) {
                 log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
                         expectedSequenceId, sequenceId, pendingMessages.size());
-                // Force connection closing so that messages can be retransmitted in a new connection
+                // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
             } else if (sequenceId < expectedSequenceId) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
