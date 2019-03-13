@@ -33,14 +33,17 @@ public interface EvictionPolicy<T, S> {
         /**
          * expire the event and remove it from the queue.
          */
-        EXPIRE, /**
+        EXPIRE,
+        /**
          * process the event in the current window of events.
          */
-        PROCESS, /**
+        PROCESS,
+        /**
          * don't include in the current window but keep the event
          * in the queue for evaluating as a part of future windows.
          */
-        KEEP, /**
+        KEEP,
+        /**
          * stop processing the queue, there cannot be anymore events
          * satisfying the eviction policy.
          */

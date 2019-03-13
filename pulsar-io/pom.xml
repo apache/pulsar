@@ -53,6 +53,7 @@
     <module>hbase</module>
     <module>mongo</module>
     <module>flume</module>
+    <module>redis</module>
   </modules>
 
 </project>

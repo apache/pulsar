@@ -223,6 +223,10 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void setAlwaysInactive() {
+        }
+
+        @Override
         public List<Entry> replayEntries(Set<? extends Position> positions)
                 throws InterruptedException, ManagedLedgerException {
             return null;

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -65,7 +64,6 @@ import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -3086,5 +3084,30 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertNotEquals(consumer, consumerC);
         Assert.assertTrue(consumerC.isConnected());
         consumerC.close();
+    }
+
+    @Test
+    public void testRefCount_OnCloseConsumer() throws Exception {
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String subName = "my-subscription";
+
+        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Assert.assertEquals(consumerA, consumerB);
+
+        consumerA.close();
+        Assert.assertTrue(consumerA.isConnected());
+        Assert.assertTrue(consumerB.isConnected());
+
+        consumerB.close();
+        Assert.assertFalse(consumerA.isConnected());
+        Assert.assertFalse(consumerB.isConnected());
     }
 }
