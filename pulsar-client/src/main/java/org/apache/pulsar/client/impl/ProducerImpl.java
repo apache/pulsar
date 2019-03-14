@@ -302,22 +302,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!isBatchMessagingEnabled()) {
             compressedPayload = compressor.encode(payload);
             payload.release();
-        }
-        int compressedSize = compressedPayload.readableBytes();
 
-        // validate msg-size (validate uncompressed-payload size for batch as we can't discard later on while building a
-        // batch)
-        if (compressedSize > PulsarDecoder.MaxMessageSize) {
-            compressedPayload.release();
-            String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                    ? "Compressed"
-                    : "";
-            PulsarClientException.InvalidMessageException invalidMessageException =
-                    new PulsarClientException.InvalidMessageException(
-                            format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                                    PulsarDecoder.MaxMessageSize));
-            callback.sendComplete(invalidMessageException);
-            return;
+            // validate msg-size (For batching this will be check at the batch completion size)
+            int compressedSize = compressedPayload.readableBytes();
+
+            if (compressedSize > PulsarDecoder.MaxMessageSize) {
+                compressedPayload.release();
+                String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
+                        ? "Compressed"
+                        : "";
+                PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
+                        format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                                PulsarDecoder.MaxMessageSize));
+                callback.sendComplete(invalidMessageException);
+                return;
+            }
         }
 
         if (!msg.isReplicated() && msgMetadataBuilder.hasProducerName()) {
@@ -1286,11 +1285,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 ByteBuf compressedPayload = batchMessageContainer.getCompressedBatchMetadataAndPayload();
                 long sequenceId = batchMessageContainer.sequenceId;
                 ByteBuf encryptedPayload = encryptMessage(batchMessageContainer.messageMetadata, compressedPayload);
+
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
                         batchMessageContainer.setBatchAndBuild(), encryptedPayload);
 
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);
+
+                if (encryptedPayload.readableBytes() > PulsarDecoder.MaxMessageSize) {
+                    cmd.release();
+                    semaphore.release(numMessagesInBatch);
+                    if (op != null) {
+                        op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
+                                "Message size is bigger than " + PulsarDecoder.MaxMessageSize + " bytes"));
+                    }
+                    return;
+                }
 
                 op.setNumMessagesInBatch(batchMessageContainer.numMessagesInBatch);
                 op.setBatchSizeByte(batchMessageContainer.currentBatchSizeBytes);
