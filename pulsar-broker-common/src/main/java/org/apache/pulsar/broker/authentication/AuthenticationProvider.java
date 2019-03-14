@@ -72,4 +72,5 @@ public interface AuthenticationProvider extends Closeable {
         throws AuthenticationException{
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
     }
+
 }

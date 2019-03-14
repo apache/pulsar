@@ -36,7 +36,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
     final static String HTTP_HEADER_NAME = "Authorization";
-    public final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
+    final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
     final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
