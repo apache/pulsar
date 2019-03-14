@@ -30,6 +30,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeProcessor;
+
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 
@@ -284,8 +287,42 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public List<Range<T>> asRanges() {
         List<Range<T>> ranges = new ArrayList<>();
-        createRanges(ranges, null);
+        forEach((range) -> {
+            ranges.add(range);
+            return true;
+        });
         return ranges;
+    }
+
+    @Override
+    public void forEach(RangeProcessor<T> action) {
+        forEach(action, consumer);
+    }
+
+    @Override
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer) {
+        AtomicBoolean completed = new AtomicBoolean(false);
+        rangeBitSetMap.forEach((key, set) -> {
+            if (completed.get()) {
+                return;
+            }
+            if (set.isEmpty()) {
+                return;
+            }
+            int first = set.nextSetBit(0);
+            int last = set.previousSetBit(set.size());
+            int currentClosedMark = first;
+            while (currentClosedMark != -1 && currentClosedMark <= last) {
+                int nextOpenMark = set.nextClearBit(currentClosedMark);
+                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
+                        consumer.apply(key, nextOpenMark - 1));
+                if (!action.process(range)) {
+                    completed.set(true);
+                    break;
+                }
+                currentClosedMark = set.nextSetBit(nextOpenMark);
+            }
+        });
     }
 
     @Override
@@ -299,7 +336,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public int size() {
         if (updatedAfterCached) {
-            cachedSize = createRanges(null, null);
+            AtomicInteger size = new AtomicInteger(0);
+            forEach((range) -> {
+                size.getAndIncrement();
+                return true;
+            });
+            cachedSize = size.get();
             updatedAfterCached = false;
         }
         return cachedSize;
@@ -309,55 +351,23 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public String toString() {
         if (updatedAfterCached) {
             StringBuilder toString = new StringBuilder();
-            createRanges(null, toString);
+            AtomicBoolean first = new AtomicBoolean(true);
+            if (toString != null) {
+                toString.append("[");
+            }
+            forEach((range) -> {
+                if (!first.get()) {
+                    toString.append(",");
+                }
+                toString.append(range);
+                first.set(false);
+                return true;
+            });
+            toString.append("]");
             cachedToString = toString.toString();
             updatedAfterCached = false;
         }
         return cachedToString;
-    }
-
-    /**
-     * It creates ranges and add into given list {@code ranges} and also returns total number of ranges into the set. If
-     * given List {@code ranges} is null then it just returns number of ranges.
-     * 
-     * @param ranges
-     * @return
-     */
-    private int createRanges(List<Range<T>> ranges, StringBuilder toString) {
-        AtomicInteger size = new AtomicInteger(0);
-        if (toString != null) {
-            toString.append("[");
-        }
-        rangeBitSetMap.forEach((key, set) -> {
-            if (set.isEmpty()) {
-                return;
-            }
-            int first = set.nextSetBit(0);
-            int last = set.previousSetBit(set.size());
-            int currentClosedMark = first;
-            // TODO: remove: sometime previous-keyset (previous ledger) is connected to the current one, in that case
-            // merge the range
-            while (currentClosedMark != -1 && currentClosedMark <= last) {
-                int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1));
-                if (ranges != null) {
-                    ranges.add(range);
-                }
-                if (toString != null) {
-                    if (size.get() != 0) {
-                        toString.append(",");
-                    }
-                    toString.append(range);
-                }
-                size.getAndIncrement();
-                currentClosedMark = set.nextSetBit(nextOpenMark);
-            }
-        });
-        if (toString != null) {
-            toString.append("]");
-        }
-        return size.get();
     }
 
     /**
