@@ -47,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -80,6 +81,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -127,6 +129,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     // Stat of the cursor z-node
     private volatile Stat cursorLedgerStat;
 
+    private static final LongPairConsumer<PositionImpl> positionRangeConverter = (key, value) -> new PositionImpl(key,
+            value);
     private final LongPairRangeSet<PositionImpl> individualDeletedMessages;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -190,7 +194,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
-        LongPairConsumer<PositionImpl> positionRangeConverter = (key, value) -> new PositionImpl(key, value);
         this.individualDeletedMessages = config.isUnackedRangesOpenCacheSetEnabled()
                 ? new ConcurrentOpenLongPairRangeSet<PositionImpl>(4096, positionRangeConverter)
                 : new LongPairRangeSet.DefaultRangeSet<>(positionRangeConverter);
@@ -1077,11 +1080,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] getNumberOfEntries. {} allEntries: {}", ledger.getName(), range, allEntries);
         }
 
-        long deletedEntries = 0;
+        AtomicLong deletedEntries = new AtomicLong(0);
 
         lock.readLock().lock();
         try {
-            for (Range<PositionImpl> r : individualDeletedMessages.asRanges()) {
+            individualDeletedMessages.forEach((r) -> {
                 if (r.isConnected(range)) {
                     Range<PositionImpl> commonEntries = r.intersection(range);
                     long commonCount = ledger.getNumberOfEntries(commonEntries);
@@ -1089,18 +1092,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.debug("[{}] [{}] Discounting {} entries for already deleted range {}", ledger.getName(),
                                 name, commonCount, commonEntries);
                     }
-                    deletedEntries += commonCount;
+                    deletedEntries.addAndGet(commonCount);
                 }
-            }
+                return true;
+            });
         } finally {
             lock.readLock().unlock();
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Found {} entries - deleted: {}",
-                ledger.getName(), allEntries - deletedEntries, deletedEntries);
+            log.debug("[{}] Found {} entries - deleted: {}", ledger.getName(), allEntries - deletedEntries.get(),
+                    deletedEntries);
         }
-        return allEntries - deletedEntries;
+        return allEntries - deletedEntries.get();
+
     }
 
     @Override
@@ -1260,34 +1265,36 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     long getNumIndividualDeletedEntriesToSkip(long numEntries) {
-        long totalEntriesToSkip = 0;
-        long deletedMessages = 0;
+        AtomicLong totalEntriesToSkip = new AtomicLong(0);
+        AtomicLong deletedMessages = new AtomicLong(0);
         lock.readLock().lock();
         try {
-            PositionImpl startPosition = markDeletePosition;
-            PositionImpl endPosition = null;
-            for (Range<PositionImpl> r : individualDeletedMessages.asRanges()) {
-                endPosition = r.lowerEndpoint();
-                if (startPosition.compareTo(endPosition) <= 0) {
-                    Range<PositionImpl> range = Range.openClosed(startPosition, endPosition);
+            AtomicReference<PositionImpl> startPosition = new AtomicReference<>(markDeletePosition);
+            AtomicReference<PositionImpl> endPosition = new AtomicReference<>(null);
+            individualDeletedMessages.forEach((r) -> {
+                endPosition.set(r.lowerEndpoint());
+                if (startPosition.get().compareTo(endPosition.get()) <= 0) {
+                    Range<PositionImpl> range = Range.openClosed(startPosition.get(), endPosition.get());
                     long entries = ledger.getNumberOfEntries(range);
-                    if (totalEntriesToSkip + entries >= numEntries) {
-                        break;
+                    if (totalEntriesToSkip.get() + entries >= numEntries) {
+                        // do not process further
+                        return false;
                     }
-                    totalEntriesToSkip += entries;
-                    deletedMessages += ledger.getNumberOfEntries(r);
-                    startPosition = r.upperEndpoint();
+                    totalEntriesToSkip.addAndGet(entries);
+                    deletedMessages.addAndGet(ledger.getNumberOfEntries(r));
+                    startPosition.set(r.upperEndpoint());
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
                                 ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
                     }
                 }
-            }
+                return true;
+            });
         } finally {
             lock.readLock().unlock();
         }
-        return deletedMessages;
+        return deletedMessages.get();
     }
 
     boolean hasMoreEntries(PositionImpl position) {
@@ -2143,18 +2150,20 @@ public class ManagedCursorImpl implements ManagedCursor {
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                     .newBuilder();
             MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
-            return individualDeletedMessages.asRanges().stream().limit(config.getMaxUnackedRangesToPersist())
-                    .map(positionRange -> {
-                        PositionImpl p = positionRange.lowerEndpoint();
-                        nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                        nestedPositionBuilder.setEntryId(p.getEntryId());
-                        messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
-                        p = positionRange.upperEndpoint();
-                        nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                        nestedPositionBuilder.setEntryId(p.getEntryId());
-                        messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-                        return messageRangeBuilder.build();
-                    }).collect(Collectors.toList());
+            List<MessageRange> rangeList = Lists.newArrayList();
+            individualDeletedMessages.forEach((positionRange) -> {
+                PositionImpl p = positionRange.lowerEndpoint();
+                nestedPositionBuilder.setLedgerId(p.getLedgerId());
+                nestedPositionBuilder.setEntryId(p.getEntryId());
+                messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
+                p = positionRange.upperEndpoint();
+                nestedPositionBuilder.setLedgerId(p.getLedgerId());
+                nestedPositionBuilder.setEntryId(p.getEntryId());
+                messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
+                rangeList.add(messageRangeBuilder.build());
+                return rangeList.size() <= config.getMaxUnackedRangesToPersist();
+            });
+            return rangeList;
         } finally {
             lock.readLock().unlock();
         }
