@@ -30,7 +30,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -416,13 +415,14 @@ public class SinkConfigUtils {
                 if (!existingConfig.getInputSpecs().containsKey(topicName)) {
                     throw new IllegalArgumentException("Input Topics cannot be altered");
                 }
-                if (!consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
-                    throw new IllegalArgumentException("Input Specs mismatch");
+                if (consumerConfig.isRegexPattern() != existingConfig.getInputSpecs().get(topicName).isRegexPattern()) {
+                    throw new IllegalArgumentException("isRegexPattern for input topic " + topicName + " cannot be altered");
                 }
+                mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
         }
         if (newConfig.getConfigs() != null) {
             mergedConfig.setConfigs(newConfig.getConfigs());

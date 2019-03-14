@@ -56,7 +56,6 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -219,7 +218,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     /**
-     * The core logic that initialize the instance thread and executes the function
+     * The core logic that initialize the instance thread and executes the function.
      */
     @Override
     public void run() {

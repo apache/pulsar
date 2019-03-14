@@ -169,7 +169,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final Map<String, CompletableFuture<ManagedCursor>> uninitializedCursors;
 
     final EntryCache entryCache;
-    
+
     private ScheduledFuture<?> timeoutTask;
 
     /**
@@ -334,7 +334,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         });
-        
+
         scheduleTimeoutTask();
     }
 
@@ -1174,7 +1174,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             closeAllCursors(callback, ctx);
         }, null);
-        
+
         if (this.timeoutTask != null) {
             this.timeoutTask.cancel(false);
         }
@@ -1698,7 +1698,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // if the ctx-readOpCount is different than object's readOpCount means Object is already recycled and
             // assigned to different request
             boolean isRecycled = (ctx != null && ctx instanceof Integer) && (Integer) ctx != readOpCount;
-            // consider callback is completed if: Callback is already recycled or read-complete flag is true  
+            // consider callback is completed if: Callback is already recycled or read-complete flag is true
             return isRecycled || !READ_COMPLETED_UPDATER.compareAndSet(ReadEntryCallbackWrapper.this, FALSE, TRUE);
         }
 
@@ -3010,7 +3010,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     /**
      * Create ledger async and schedule a timeout task to check ledger-creation is complete else it fails the callback
      * with TimeoutException.
-     * 
+     *
      * @param bookKeeper
      * @param config
      * @param digestType
@@ -3038,7 +3038,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * check if ledger-op task is already completed by timeout-task. If completed then delete the created ledger
-     * 
+     *
      * @param rc
      * @param lh
      * @param ctx

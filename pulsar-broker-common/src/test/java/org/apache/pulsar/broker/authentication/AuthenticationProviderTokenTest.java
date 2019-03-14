@@ -36,6 +36,7 @@ import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.sql.Date;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -289,6 +290,56 @@ public class AuthenticationProviderTokenTest {
             }
         });
         assertEquals(subject, SUBJECT);
+
+        provider.close();
+    }
+
+    @Test
+    public void testAuthSecretKeyPairWithCustomClaim() throws Exception {
+        String authRoleClaim = "customClaim";
+        String authRole = "my-test-role";
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        // Set custom claim field
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM, authRoleClaim);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+
+        // Use private key to generate token
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr));
+        String token = Jwts.builder()
+                .setClaims(new HashMap<String, Object>() {{
+                    put(authRoleClaim, authRole);
+                }})
+                .signWith(privateKey)
+                .compact();
+
+
+        // Pulsar protocol auth
+        String role = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(role, authRole);
 
         provider.close();
     }

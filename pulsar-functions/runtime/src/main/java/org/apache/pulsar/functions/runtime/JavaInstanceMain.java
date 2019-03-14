@@ -192,7 +192,7 @@ public class JavaInstanceMain implements AutoCloseable {
                 .addService(new InstanceControlImpl(runtimeSpawner))
                 .build()
                 .start();
-        log.info("JaveInstance Server started, listening on " + port);
+        log.info("JavaInstance Server started, listening on " + port);
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -341,7 +341,7 @@ public class JavaInstanceMain implements AutoCloseable {
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
                                 io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {
-            log.debug("Recieved health check request...");
+            log.debug("Received health check request...");
             InstanceCommunication.HealthCheckResult healthCheckResult
                     = InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
             responseObserver.onNext(healthCheckResult);
