@@ -165,7 +165,7 @@ public class PulsarWorkerAssignmentTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 60000, enabled = false)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";

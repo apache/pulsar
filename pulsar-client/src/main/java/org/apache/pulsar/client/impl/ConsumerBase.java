@@ -59,8 +59,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     final BlockingQueue<Message<T>> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected int maxReceiverQueueSize;
-    protected Schema<T> schema;
+    protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
+    private int refCount = 0;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -73,11 +74,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
         this.consumerEventListener = conf.getConsumerEventListener();
-        if (receiverQueueSize <= 1) {
-            this.incomingMessages = Queues.newArrayBlockingQueue(1);
-        } else {
-            this.incomingMessages = new GrowableArrayBlockingQueue<>();
-        }
+        // Always use growable queue since items can exceed the advertised size
+        this.incomingMessages = new GrowableArrayBlockingQueue<>();
 
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
@@ -255,6 +253,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
     }
 
+    @Override
+    public void negativeAcknowledge(Message<?> message) {
+        negativeAcknowledge(message.getMessageId());
+    }
+
     abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String,Long> properties);
 
@@ -383,4 +386,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected synchronized void incrRefCount() {
+        ++refCount;
+    }
+
+    protected synchronized boolean shouldTearDown() {
+        return refCount > 0 ? refCount-- == 0 : refCount == 0;
+    }
 }

@@ -48,6 +48,7 @@ void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len) {
     messageId->messageId.serialize(str);
     void *p = malloc(str.length());
     memcpy(p, str.c_str(), str.length());
+    *len = str.length();
     return p;
 }
 
