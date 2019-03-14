@@ -18,14 +18,9 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
+
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
