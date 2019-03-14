@@ -1674,7 +1674,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         try {
-            internalAsyncMarkDelete(newMarkDeletePosition, lastMarkDeleteEntry.properties, new MarkDeleteCallback() {
+            Map<String, Long> properties = lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties
+                    : Collections.emptyMap();
+
+            internalAsyncMarkDelete(newMarkDeletePosition, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
                     callback.deleteComplete(ctx);
