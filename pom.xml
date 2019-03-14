@@ -1133,7 +1133,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0.rc1</version>
+        <version>3.0</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1436,7 +1436,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.7.7.201606060606</version>
+            <version>0.8.3</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>

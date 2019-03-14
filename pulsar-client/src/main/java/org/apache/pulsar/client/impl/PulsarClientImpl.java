@@ -684,6 +684,7 @@ public class PulsarClientImpl implements PulsarClient {
                     .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
                     .filter(Consumer::isConnected)
                     .findFirst();
+            subscriber.ifPresent(ConsumerBase::incrRefCount);
             return subscriber.map(ConsumerBase.class::cast);
         }
     }
