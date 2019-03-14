@@ -651,9 +651,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)
      * a. non-batch with compression: pass
-     * b. batch-msg with compression: fail
+     * b. batch-msg with compression: pass
      * c. non-batch w/o  compression: fail
      * d. non-batch with compression, consumer consume: pass
+     * e. batch-msg w/o compression: fail
      * </pre>
      *
      * @throws Exception
@@ -673,18 +674,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
-        // (b) batch-msg
+        // (b) batch-msg with compression
         producer = pulsarClient.newProducer().topic(topic)
             .enableBatching(true)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-            fail("Should have thrown exception");
-        } catch (PulsarClientException.InvalidMessageException e) {
-            // OK
-        }
+        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
         // (c) non-batch msg without compression
@@ -712,6 +708,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(content);
         assertEquals(consumer.receive().getData(), content);
         producer.close();
+
+        // (e) batch-msg w/o compression
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.NONE)
+            .create();
+        try {
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.InvalidMessageException e) {
+            // OK
+        }
+        producer.close();
+
         consumer.close();
 
     }
