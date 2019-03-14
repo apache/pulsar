@@ -25,7 +25,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.testMySelf.ConsumerSchema;
 
 public class SampleConsumerWithSchema {
     public static void main(String[] args) throws PulsarClientException, JsonProcessingException {
