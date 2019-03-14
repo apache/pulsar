@@ -22,9 +22,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
 
 import javax.naming.AuthenticationException;
+
+import java.util.Optional;
 
 import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
 import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
@@ -37,7 +38,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
+    public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
         String token = null;
         try {
             token = getToken(authenticationDataSource);
@@ -46,7 +47,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
         }
 
         if (token != null) {
-            return FunctionAuthData.builder().data(token.getBytes()).build();
+            return Optional.of(FunctionAuthData.builder().data(token.getBytes()).build());
         }
         return null;
     }

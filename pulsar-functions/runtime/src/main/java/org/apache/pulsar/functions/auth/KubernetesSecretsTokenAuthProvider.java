@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 import javax.naming.AuthenticationException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
@@ -100,8 +101,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name,
-                                          AuthenticationDataSource authenticationDataSource) {
+    public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name,
+                                                    AuthenticationDataSource authenticationDataSource) {
         String id = null;
         try {
             String token = getToken(authenticationDataSource);
@@ -113,9 +114,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (id != null) {
-            return FunctionAuthData.builder().data(id.getBytes()).build();
+            return Optional.of(FunctionAuthData.builder().data(id.getBytes()).build());
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override

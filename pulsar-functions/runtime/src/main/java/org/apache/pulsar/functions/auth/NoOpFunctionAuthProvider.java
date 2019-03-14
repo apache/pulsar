@@ -20,7 +20,8 @@ package org.apache.pulsar.functions.auth;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+
+import java.util.Optional;
 
 public class NoOpFunctionAuthProvider implements FunctionAuthProvider{
     @Override
@@ -29,10 +30,10 @@ public class NoOpFunctionAuthProvider implements FunctionAuthProvider{
     }
 
     @Override
-    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name,
-                                          AuthenticationDataSource authenticationDataSource)
+    public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name,
+                                                    AuthenticationDataSource authenticationDataSource)
             throws Exception {
-        return null;
+        return Optional.empty();
     }
 
     @Override
