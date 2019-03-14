@@ -2846,5 +2846,44 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertFalse(cursor.isActive());
     }
 
+    @Test
+    public void deleteMessagesCheckhMarkDelete() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        final int totalEntries = 1000;
+        final Position[] positions = new Position[totalEntries];
+        for (int i = 0; i < totalEntries; i++) {
+            // add entry
+            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+        assertEquals(c1.getNumberOfEntries(), totalEntries);
+        int totalDeletedMessages = 0;
+        for (int i = 0; i < totalEntries; i++) {
+            // delete entry
+            if ((i % 3) == 0) {
+                c1.delete(positions[i]);
+                totalDeletedMessages += 1;
+            }
+        }
+        assertEquals(c1.getNumberOfEntriesInBacklog(), totalEntries - totalDeletedMessages);
+        assertEquals(c1.getNumberOfEntries(), totalEntries - totalDeletedMessages);
+        assertEquals(c1.getMarkDeletedPosition(), positions[0]);
+        assertEquals(c1.getReadPosition(), positions[1]);
+
+        // delete 1/2 of the messags
+        for (int i = 0; i < totalEntries / 2; i++) {
+            // delete entry
+            if ((i % 3) != 0) {
+                c1.delete(positions[i]);
+                totalDeletedMessages += 1;
+            }
+        }
+        int markDelete = totalEntries / 2 - 1;
+        assertEquals(c1.getNumberOfEntriesInBacklog(), totalEntries - totalDeletedMessages);
+        assertEquals(c1.getNumberOfEntries(), totalEntries - totalDeletedMessages);
+        assertEquals(c1.getMarkDeletedPosition(), positions[markDelete]);
+        assertEquals(c1.getReadPosition(), positions[markDelete + 1]);
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

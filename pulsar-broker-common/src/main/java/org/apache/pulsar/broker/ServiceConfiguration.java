@@ -37,6 +37,7 @@ import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
  * Pulsar service configuration object.
@@ -773,6 +774,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)" 
+        )
+    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,

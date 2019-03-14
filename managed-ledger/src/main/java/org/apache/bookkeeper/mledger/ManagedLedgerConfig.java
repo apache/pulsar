@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -61,6 +62,7 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
+    private boolean unackedRangesOpenCacheSetEnabled = true;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private Clock clock = Clock.systemUTC();
 
@@ -233,6 +235,18 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(Charsets.UTF_8);
         return this;
+    }
+
+    /**
+     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * @return
+     */
+    public boolean isUnackedRangesOpenCacheSetEnabled() {
+        return unackedRangesOpenCacheSetEnabled;
+    }
+
+    public void setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
+        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
     }
 
     /**
