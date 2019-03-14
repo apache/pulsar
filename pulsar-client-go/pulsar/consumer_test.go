@@ -514,3 +514,70 @@ func TestConsumer_SubscriptionInitPos(t *testing.T) {
 
 	assert.Equal(t, "msg-1-content-1", string(msg.Payload()))
 }
+
+func TestConsumerNegativeAcks(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topic := "TestConsumerNegativeAcks"
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topic,
+	})
+
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	nackDelay := 100 * time.Millisecond
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:               topic,
+		SubscriptionName:    "my-sub",
+		NackRedeliveryDelay: &nackDelay,
+	})
+
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		producer.SendAsync(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}, func(producerMessage ProducerMessage, e error) {
+			fmt.Print("send complete. err=", e)
+		})
+	}
+
+	producer.Flush()
+
+	for i := 0; i < 10; i++ {
+		msg, err := consumer.Receive(ctx)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
+
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+
+		// Ack with error
+		consumer.Nack(msg)
+	}
+
+	// Messages will be redelivered
+	for i := 0; i < 10; i++ {
+		msg, err := consumer.Receive(ctx)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
+
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+
+		// This time acks successfully
+		consumer.Ack(msg)
+	}
+
+
+	consumer.Unsubscribe()
+}
