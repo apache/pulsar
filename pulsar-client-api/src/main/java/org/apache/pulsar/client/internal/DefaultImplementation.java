@@ -188,6 +188,12 @@ public class DefaultImplementation {
                         .invoke(null, clazz));
     }
 
+    public static <T> Schema<T> newAvroSchema(String schemaDefinition, Map<String, String> properties) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", String.class, Map.class)
+                        .invoke(null, schemaDefinition, properties));
+    }
+
     public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", Class.class)
@@ -198,6 +204,14 @@ public class DefaultImplementation {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class)
                         .invoke(null, clazz));
+    }
+
+    public static <T> Schema<T> newJSONSchema(Class<T> clazz,
+                                              String schemaDefinition,
+                                              Map<String, String> properties) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class, String.class, Map.class)
+                        .invoke(null, clazz, schemaDefinition, properties));
     }
 
     public static Schema<GenericRecord> newAutoConsumeSchema() {
