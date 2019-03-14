@@ -283,7 +283,7 @@ public class KubernetesRuntime implements Runtime {
 
         log.info("Creating service account with the following spec to k8 {} for function {}", appsClient.getApiClient().getJSON().serialize(serviceAccount), fqfn);
 
-        RuntimeUtils.Actions.Action createServiceAccount = RuntimeUtils.Actions.Action.builder()
+        Actions.Action createServiceAccount = Actions.Action.builder()
                 .actionName(String.format("Creating service account %s for function %s", serviceAccountName, fqfn))
                 .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
@@ -294,24 +294,24 @@ public class KubernetesRuntime implements Runtime {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
                             log.warn("Service account {} already present for function {}", serviceAccountName, fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(createServiceAccount.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 
@@ -812,7 +812,7 @@ public class KubernetesRuntime implements Runtime {
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
         String serviceAccountName = generateServiceAccount(instanceConfig);
-        RuntimeUtils.Actions.Action deleteServiceAccount = RuntimeUtils.Actions.Action.builder()
+        Actions.Action deleteServiceAccount = Actions.Action.builder()
                 .actionName(String.format("Deleting service account %s for function %s", serviceAccountName, fqfn))
                 .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
@@ -827,20 +827,20 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
-        RuntimeUtils.Actions.Action waitForServiceAccountDeletion = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForServiceAccountDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for service account %s for function %s to complete deletion", serviceAccountName, fqfn))
                 .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
@@ -851,34 +851,34 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder()
+                    return Actions.ActionResult.builder()
                             .success(false)
                             .build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(deleteServiceAccount.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForServiceAccountDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .addAction(deleteServiceAccount.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForServiceAccountDeletion.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 

@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 import javax.naming.AuthenticationException;
@@ -124,7 +125,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
 
         String secretName = new String(functionAuthData.getData());
-        RuntimeUtils.Actions.Action deleteSecrets = RuntimeUtils.Actions.Action.builder()
+        Actions.Action deleteSecrets = Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -141,20 +142,20 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             log.warn("Secrets for function {} does not exist", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
-        RuntimeUtils.Actions.Action waitForSecretsDeletion = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForSecretsDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for secrets for function %s to complete deletion", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -166,34 +167,34 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder()
+                    return Actions.ActionResult.builder()
                             .success(false)
                             .build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(deleteSecrets.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForSecretsDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .addAction(deleteSecrets.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForSecretsDeletion.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 
@@ -205,7 +206,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private String createSecret(String token, String tenant, String namespace, String name) throws ApiException, InterruptedException {
 
         StringBuilder sb = new StringBuilder();
-        RuntimeUtils.Actions.Action createAuthSecret = RuntimeUtils.Actions.Action.builder()
+        Actions.Action createAuthSecret = Actions.Action.builder()
                 .actionName(String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -219,28 +220,28 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
-                            return RuntimeUtils.Actions.ActionResult.builder()
+                            return Actions.ActionResult.builder()
                                     .errorMsg(String.format("Secret %s already present", id))
                                     .success(false)
                                     .build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
                     sb.append(id.toCharArray());
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(createAuthSecret.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 
