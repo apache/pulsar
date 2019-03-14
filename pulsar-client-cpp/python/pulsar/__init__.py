@@ -68,8 +68,11 @@ To install the Python bindings:
 
     while True:
         msg = consumer.receive()
-        print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
-        consumer.acknowledge(msg)
+        try:
+            print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
+            consumer.acknowledge(msg)
+        except:
+            consumer.negative_acknowledge(msg)
 
     client.close()
 
@@ -470,6 +473,7 @@ class Client:
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
+                  negative_ack_redelivery_delay_ms=60000,
                   is_read_compacted=False,
                   properties=None,
                   pattern_auto_discovery_period=60
@@ -528,6 +532,9 @@ class Client:
           the given value is less than 10 seconds. If a successful
           acknowledgement is not sent within the timeout, all the unacknowledged
           messages are redelivered.
+        * `negative_ack_redelivery_delay_ms`:
+           The delay after which to redeliver the messages that failed to be
+           processed (with the `consumer.negative_acknowledge()`)
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
@@ -546,6 +553,8 @@ class Client:
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(int, negative_ack_redelivery_delay_ms, 'negative_ack_redelivery_delay_ms')
+        _check_type(int, pattern_auto_discovery_period, 'pattern_auto_discovery_period')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
         _check_type_or_none(dict, properties, 'properties')
 
@@ -560,6 +569,8 @@ class Client:
             conf.consumer_name(consumer_name)
         if unacked_messages_timeout_ms:
             conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
+
+        conf.negative_ack_redelivery_delay_ms(negative_ack_redelivery_delay_ms)
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
         if properties:
             for k, v in properties.items():
@@ -815,7 +826,7 @@ class Producer:
         successfully persisted
         """
         self._producer.flush()
-        
+
 
     def close(self):
         """
@@ -940,6 +951,26 @@ class Consumer:
             self._consumer.acknowledge_cumulative(message._message)
         else:
             self._consumer.acknowledge_cumulative(message)
+
+    def negative_acknowledge(self, message):
+        """
+        Acknowledge the failure to process a single message.
+
+        When a message is "negatively acked" it will be marked for redelivery after
+        some fixed delay. The delay is configurable when constructing the consumer
+        with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+
+        This call is not blocking.
+
+        **Args**
+
+        * `message`:
+          The received message or message id.
+        """
+        if isinstance(message, Message):
+            self._consumer.negative_acknowledge(message._message)
+        else:
+            self._consumer.negative_acknowledge(message)
 
     def pause_message_listener(self):
         """
