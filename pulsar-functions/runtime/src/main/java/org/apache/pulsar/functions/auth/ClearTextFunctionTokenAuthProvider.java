@@ -28,6 +28,7 @@ import javax.naming.AuthenticationException;
 import java.util.Optional;
 
 import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
+import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
 import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
@@ -55,33 +56,5 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     @Override
     public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
         //no-op
-    }
-
-    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
-        if (authData.hasDataFromCommand()) {
-            // Authenticate Pulsar binary connection
-            return authData.getCommandData();
-        } else if (authData.hasDataFromHttp()) {
-            // Authentication HTTP request. The format here should be compliant to RFC-6750
-            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
-            String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
-
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            return validateToken(token);
-        } else {
-            return null;
-        }
-    }
-
-    private String validateToken(final String token) throws AuthenticationException {
-        if (StringUtils.isNotBlank(token)) {
-            return token;
-        } else {
-            throw new AuthenticationException("Blank token found");
-        }
     }
 }
