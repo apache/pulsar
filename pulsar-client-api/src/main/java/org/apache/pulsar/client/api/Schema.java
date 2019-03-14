@@ -174,7 +174,7 @@ public interface Schema<T> {
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(new SchemaDefinition<>(clazz));
+        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder(clazz).build());
     }
 
     /**
@@ -195,7 +195,7 @@ public interface Schema<T> {
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(new SchemaDefinition<>(clazz));
+        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder(clazz).build());
     }
 
     /**
@@ -245,9 +245,9 @@ public interface Schema<T> {
     /**
      * Create a schema instance that automatically deserialize messages
      * based on the current topic schema.
-     *
+     * <p>
      * The messages values are deserialized into a {@link GenericRecord} object.
-     *
+     * <p>
      * Currently this is only supported with Avro and JSON schema types.
      *
      * @return the auto schema instance

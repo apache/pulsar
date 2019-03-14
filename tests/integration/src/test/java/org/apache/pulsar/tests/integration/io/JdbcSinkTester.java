@@ -61,7 +61,7 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
     private static final String NAME = "jdbc";
     private static final String MYSQL = "mysql";
 
-    private AvroSchema<Foo> schema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(true));
+    private AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
     private String tableName = "test";
     private Connection connection;
 

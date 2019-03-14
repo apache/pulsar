@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.client.impl.schema;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,38 +31,48 @@ import java.util.Map;
  * A schema definition
  * {@link org.apache.pulsar.client.api.Schema} for the schema definition value.
  */
+public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
 
-public interface SchemaDefinition<T> {
+    private  final Class<T> clazz;
 
-    /**
-     * Get a new builder instance that can used to configure and build a {@link SchemaDefinition} instance.
-     *
-     * @param clazz the class of the pojo
-     * @return the {@link SchemaDefinition}
-     */
-    static <T> SchemaDefinitionBuilder<T> builder(Class<T> clazz) {
-        return DefaultImplementation.newSchemaDefinitionBuilder(clazz);
+    private boolean alwaysAllowNull;
+
+    private Map<String, String> properties;
+
+    public SchemaDefinitionImpl(Class<T> clazz, boolean alwaysAllowNull, Map<String,String> properties) {
+        this.alwaysAllowNull = alwaysAllowNull;
+        this.properties = properties;
+        this.clazz = clazz;
     }
-
     /**
      * get schema whether always allow null or not
      *
      * @return schema always null or not
      */
-    boolean getAlwaysAllowNull();
+    public boolean getAlwaysAllowNull() {
+
+        return alwaysAllowNull;
+    }
 
     /**
      * Get schema class
      *
      * @return schema class
      */
-    Class<T> getClazz();
+    public Class<T> getClazz() {
+
+        return clazz;
+    }
     /**
      * Get schema class
      *
      * @return schema class
      */
-    Map<String, String> getProperties();
+    public Map<String, String> getProperties() {
+
+        return properties;
+    }
+
 
 
 }

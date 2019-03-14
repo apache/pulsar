@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -39,7 +40,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -61,7 +62,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(true));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -83,7 +84,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -112,7 +113,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class));
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");

@@ -122,10 +122,10 @@ public class JSONSchema<T> implements Schema<T> {
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {
-        return new JSONSchema<>(new SchemaDefinition<>(pojo));
+        return new JSONSchema<>(SchemaDefinition.builder(pojo).build());
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new JSONSchema<>(new SchemaDefinition<>(pojo).properties(properties));
+        return new JSONSchema<>(SchemaDefinition.builder(pojo).withProperties(properties).build());
     }
 }

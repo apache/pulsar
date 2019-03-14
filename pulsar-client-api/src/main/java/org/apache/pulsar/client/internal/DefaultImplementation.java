@@ -37,10 +37,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -71,6 +68,13 @@ public class DefaultImplementation {
 
     private static final Constructor<Authentication> AUTHENTICATION_TLS_String_String = getConstructor(
             "org.apache.pulsar.client.impl.auth.AuthenticationTls", String.class, String.class);
+
+    private static final Constructor<SchemaDefinitionBuilder> SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR = getConstructor(
+            "org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl", Class.class);
+
+    public static <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder(Class<T> clazz) {
+        return catchExceptions(() -> (SchemaDefinitionBuilder<T>) SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR.newInstance(clazz));
+    }
 
     public static ClientBuilder newClientBuilder() {
         return catchExceptions(() -> CLIENT_BUILDER_IMPL.newInstance());
@@ -183,7 +187,7 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
+    public static <T> Schema<T> newAvroSchema(SchemaDefinition<T> schemaDefinition) {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", SchemaDefinition.class)
                         .invoke(null,schemaDefinition));

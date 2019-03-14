@@ -36,8 +36,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testAllowNullAvroSchemaCreate() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class));
-        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class));
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.builder(Bar.class).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
         Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(Foo.class, Bar.class, SchemaType.AVRO);
@@ -61,12 +61,12 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullAvroSchemaCreate() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
-        AvroSchema<Bar> barSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(AvroSchema.of(new SchemaDefinition<>
-                (Foo.class).alwaysAllowNull(false)),AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build()),
+                AvroSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build()));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -87,8 +87,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testAllowNullJsonSchemaCreate() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class));
-        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class));
+        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.builder(Bar.class).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
         Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(Foo.class, Bar.class, SchemaType.JSON);
@@ -120,15 +120,15 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullJsonSchemaCreate() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
-        JSONSchema<Bar> barSchema = JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
+        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false)),
-                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build()),
+                JSONSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build()));
 
-        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false)),
-                JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
+        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build()),
+                JSONSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build()));
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
@@ -181,8 +181,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullSchemaEncodeAndDecode() {
-        Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(new SchemaDefinition<>(Foo.class)
-                .alwaysAllowNull(false)),JSONSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false)));
+        Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build()),
+                JSONSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build()));
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -207,8 +207,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testAllowNullBytesSchemaEncodeAndDecode() {
-        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class));
-        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class));
+        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
+        AvroSchema<Bar> barAvroSchema = AvroSchema.of(SchemaDefinition.builder(Bar.class).build());
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -236,8 +236,8 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullBytesSchemaEncodeAndDecode() {
-        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(new SchemaDefinition<>(Foo.class).alwaysAllowNull(false));
-        AvroSchema<Bar> barAvroSchema = AvroSchema.of(new SchemaDefinition<>(Bar.class).alwaysAllowNull(false));
+        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Bar> barAvroSchema = AvroSchema.of(SchemaDefinition.builder(Bar.class).withAlwaysAllowNull(false).build());
 
         Bar bar = new Bar();
         bar.setField1(true);

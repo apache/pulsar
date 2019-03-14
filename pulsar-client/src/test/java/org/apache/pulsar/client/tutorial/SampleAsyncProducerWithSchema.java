@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 
 @Slf4j
 public class SampleAsyncProducerWithSchema {
@@ -36,7 +37,7 @@ public class SampleAsyncProducerWithSchema {
     public static void main(String[] args) throws IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        Producer<JsonPojo> producer = pulsarClient.newProducer(JSONSchema.of(new SchemaDefinition<>(JsonPojo.class))).topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<JsonPojo> producer = pulsarClient.newProducer(JSONSchema.of(SchemaDefinition.builder(JsonPojo.class).build())).topic("persistent://my-property/use/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
