@@ -81,7 +81,26 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * @return
      */
     Collection<Range<T>> asRanges();
-
+    
+    /**
+     * Performs the given action for each entry in this map until all entries have been processed or action returns "false".
+     * Unless otherwise specified by the implementing class, actions are performed in the order of entry
+     * set iteration (if an iteration order is specified.)
+     * 
+     * @param action
+     */
+    void forEach(RangeProcessor<T> action);
+    
+    /**
+     * Performs the given action for each entry in this map until all entries have been processed or action returns "false".
+     * Unless otherwise specified by the implementing class, actions are performed in the order of entry
+     * set iteration (if an iteration order is specified.)
+     * 
+     * @param action
+     * @param consumer
+     */
+    void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer);
+    
     /**
      * Returns total number of ranges into the set.
      * 
@@ -100,6 +119,15 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         T apply(long key, long value);
     }
 
+    public static interface RangeProcessor<T extends Comparable<T>> {
+        /**
+         * 
+         * @param range
+         * @return false if there is no further processing required
+         */
+        boolean process(Range<T> range);
+    }
+    
     public static class LongPair implements Comparable<LongPair> {
 
         public static final LongPair earliest = new LongPair(-1, -1);
@@ -189,6 +217,20 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             return set.asRanges();
         }
 
+        @Override
+        public void forEach(RangeProcessor<T> action) {
+            forEach(action, consumer);
+        }
+
+        @Override
+        public void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer) {
+            for (Range<T> range : asRanges()) {
+                if (!action.process(range)) {
+                    break;
+                }
+            }
+        }
+        
         @Override
         public boolean contains(long key, long value) {
             return this.contains(consumer.apply(key, value));
