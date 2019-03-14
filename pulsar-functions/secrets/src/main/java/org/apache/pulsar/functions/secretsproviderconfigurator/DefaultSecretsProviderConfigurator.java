@@ -39,7 +39,9 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
             case JAVA:
                 return ClearTextSecretsProvider.class.getName();
             case PYTHON:
-                return "secretsprovider.ClearTextSecretsProvider";
+                return "secretsprovider.ClearTextSecretsProvider python";
+            case GO:
+                return "secretsprovider.ClearTextSecretsProvider go";
             default:
                 throw new RuntimeException("Unknwon runtime " + functionDetails.getRuntime());
         }
