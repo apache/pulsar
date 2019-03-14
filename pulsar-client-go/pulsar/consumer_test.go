@@ -20,14 +20,16 @@
 package pulsar
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConsumerConnectError(t *testing.T) {
@@ -48,7 +50,7 @@ func TestConsumerConnectError(t *testing.T) {
 	assert.Nil(t, consumer)
 	assert.NotNil(t, err)
 
-	assert.Equal(t, err.(*Error).Result(), ConnectError);
+	assert.Equal(t, err.(*Error).Result(), ConnectError)
 }
 
 func TestConsumer(t *testing.T) {
@@ -101,6 +103,11 @@ func TestConsumer(t *testing.T) {
 		assert.Equal(t, string(msg.Topic()), "persistent://public/default/my-topic")
 		assert.True(t, sendTime.Unix() <= msg.PublishTime().Unix())
 		assert.True(t, recvTime.Unix() >= msg.PublishTime().Unix())
+
+		serializedId := msg.ID().Serialize()
+		deserializedId := DeserializeMessageID(serializedId)
+		assert.True(t, len(serializedId) > 0)
+		assert.True(t, bytes.Equal(deserializedId.Serialize(), serializedId))
 
 		consumer.Ack(msg)
 	}
