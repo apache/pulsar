@@ -24,9 +24,7 @@ import java.util.Map;
  * Builder to build schema definition {@link SchemaDefinition}.
  */
 public interface SchemaDefinitionBuilder<T> {
-
-    static final String ALWAYS_ALLOW_NULL = "__alwaysAllowNull";
-
+    
     /**
      * Set schema whether always allow null or not
      *

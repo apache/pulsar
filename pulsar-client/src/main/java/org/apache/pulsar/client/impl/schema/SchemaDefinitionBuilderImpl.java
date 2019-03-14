@@ -29,6 +29,8 @@ import java.util.Map;
  */
 public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T> {
 
+    public static final String ALWAYS_ALLOW_NULL = "__alwaysAllowNull";
+
     /**
      * the schema definition class
      */
