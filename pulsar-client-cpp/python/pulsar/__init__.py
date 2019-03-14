@@ -826,7 +826,7 @@ class Producer:
         successfully persisted
         """
         self._producer.flush()
-        
+
 
     def close(self):
         """
@@ -959,9 +959,8 @@ class Consumer:
         When a message is "negatively acked" it will be marked for redelivery after
         some fixed delay. The delay is configurable when constructing the consumer
         with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
-     * <p>
-     * This call is not blocking.
-     *
+
+        This call is not blocking.
 
         **Args**
 
