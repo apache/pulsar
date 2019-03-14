@@ -41,7 +41,7 @@ import org.testng.Assert;
 @Slf4j
 public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> {
 
-    private static final String NAME = "kafka-connect-adaptor";
+    private static final String NAME = "debezium-mysql";
 
     private final String pulsarServiceUrl;
 
@@ -55,7 +55,6 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("task.class", "io.debezium.connector.mysql.MySqlConnectorTask");
         sourceConfig.put("database.hostname", "mysql");
         sourceConfig.put("database.port", "3306");
         sourceConfig.put("database.user", "debezium");
@@ -63,13 +62,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("database.server.id", "184054");
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.whitelist", "inventory");
-        sourceConfig.put("database.history", "org.apache.pulsar.io.debezium.PulsarDatabaseHistory");
-        sourceConfig.put("database.history.pulsar.topic", "history-topic");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
-        sourceConfig.put("key.converter", "org.apache.kafka.connect.json.JsonConverter");
-        sourceConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
-        sourceConfig.put("offset.storage.topic", "offset-topic");
     }
 
     @Override
