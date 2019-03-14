@@ -38,7 +38,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      *
      * If it's true, will make all of the pojo field generate schema
      * define default can be null,false default can't be null, but it's
-     * false youcan define the field by yourself by the annotation@Nullable
+     * false you can define the field by yourself by the annotation@Nullable
      *
      */
     private boolean alwaysAllowNull = true;
