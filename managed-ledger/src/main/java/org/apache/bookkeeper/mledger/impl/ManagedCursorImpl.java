@@ -131,6 +131,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = (key, value) -> new PositionImpl(key,
             value);
+    private static final LongPairConsumer<PositionImplRecyclable> recyclePositionRangeConverter = (key, value) -> {
+        PositionImplRecyclable position = PositionImplRecyclable.create();
+        position.ledgerId = key;
+        position.entryId = value;
+        return position;
+    };
     private final LongPairRangeSet<PositionImpl> individualDeletedMessages;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -1085,17 +1091,22 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.readLock().lock();
         try {
             individualDeletedMessages.forEach((r) -> {
-                if (r.isConnected(range)) {
-                    Range<PositionImpl> commonEntries = r.intersection(range);
-                    long commonCount = ledger.getNumberOfEntries(commonEntries);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Discounting {} entries for already deleted range {}", ledger.getName(),
-                                name, commonCount, commonEntries);
+                try {
+                    if (r.isConnected(range)) {
+                        Range<PositionImpl> commonEntries = r.intersection(range);
+                        long commonCount = ledger.getNumberOfEntries(commonEntries);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Discounting {} entries for already deleted range {}", ledger.getName(),
+                                    name, commonCount, commonEntries);
+                        }
+                        deletedEntries.addAndGet(commonCount);
                     }
-                    deletedEntries.addAndGet(commonCount);
+                    return true;
+                } finally {
+                    ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
+                    ((PositionImplRecyclable) r.upperEndpoint()).recycle();
                 }
-                return true;
-            });
+            }, recyclePositionRangeConverter);
         } finally {
             lock.readLock().unlock();
         }
@@ -1272,25 +1283,30 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicReference<PositionImpl> startPosition = new AtomicReference<>(markDeletePosition);
             AtomicReference<PositionImpl> endPosition = new AtomicReference<>(null);
             individualDeletedMessages.forEach((r) -> {
-                endPosition.set(r.lowerEndpoint());
-                if (startPosition.get().compareTo(endPosition.get()) <= 0) {
-                    Range<PositionImpl> range = Range.openClosed(startPosition.get(), endPosition.get());
-                    long entries = ledger.getNumberOfEntries(range);
-                    if (totalEntriesToSkip.get() + entries >= numEntries) {
-                        // do not process further
-                        return false;
+                try {
+                    endPosition.set(r.lowerEndpoint());
+                    if (startPosition.get().compareTo(endPosition.get()) <= 0) {
+                        Range<PositionImpl> range = Range.openClosed(startPosition.get(), endPosition.get());
+                        long entries = ledger.getNumberOfEntries(range);
+                        if (totalEntriesToSkip.get() + entries >= numEntries) {
+                            // do not process further
+                            return false;
+                        }
+                        totalEntriesToSkip.addAndGet(entries);
+                        deletedMessages.addAndGet(ledger.getNumberOfEntries(r));
+                        startPosition.set(r.upperEndpoint());
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
+                                    ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
+                        }
                     }
-                    totalEntriesToSkip.addAndGet(entries);
-                    deletedMessages.addAndGet(ledger.getNumberOfEntries(r));
-                    startPosition.set(r.upperEndpoint());
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
-                                ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
-                    }
+                    return true;
+                } finally {
+                    ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
+                    ((PositionImplRecyclable) r.upperEndpoint()).recycle();
                 }
-                return true;
-            });
+            }, recyclePositionRangeConverter);
         } finally {
             lock.readLock().unlock();
         }
