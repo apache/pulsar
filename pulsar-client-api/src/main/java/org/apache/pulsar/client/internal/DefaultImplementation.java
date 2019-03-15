@@ -70,10 +70,10 @@ public class DefaultImplementation {
             "org.apache.pulsar.client.impl.auth.AuthenticationTls", String.class, String.class);
 
     private static final Constructor<SchemaDefinitionBuilder> SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR = getConstructor(
-            "org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl", Class.class);
+            "org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl");
 
-    public static <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder(Class<T> clazz) {
-        return catchExceptions(() -> (SchemaDefinitionBuilder<T>) SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR.newInstance(clazz));
+    public static <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
+        return catchExceptions(() -> (SchemaDefinitionBuilder<T>)SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR.newInstance());
     }
 
     public static ClientBuilder newClientBuilder() {
@@ -187,7 +187,7 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <T> Schema<T> newAvroSchema(SchemaDefinition<T> schemaDefinition) {
+    public static <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", SchemaDefinition.class)
                         .invoke(null,schemaDefinition));

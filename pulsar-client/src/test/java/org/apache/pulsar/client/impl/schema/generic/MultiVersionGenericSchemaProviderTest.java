@@ -56,7 +56,7 @@ public class MultiVersionGenericSchemaProviderTest {
     @Test
     public void testGetSchema() {
         CompletableFuture<Optional<SchemaInfo>> completableFuture = new CompletableFuture<>();
-        SchemaInfo schemaInfo = AvroSchema.of(SchemaDefinition.builder(SchemaTestUtils.Foo.class).build()).getSchemaInfo();
+        SchemaInfo schemaInfo = AvroSchema.of(SchemaDefinition.<SchemaTestUtils>builder().withPojo(SchemaTestUtils.class).build()).getSchemaInfo();
         completableFuture.complete(Optional.of(schemaInfo));
         when(schemaProvider.getPulsarClient().getLookup()
                 .getSchema(

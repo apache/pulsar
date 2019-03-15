@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -170,11 +171,11 @@ public interface Schema<T> {
     /**
      * Create a  Avro schema type by default configuration of the class
      *
-     * @param clazz the POJO class to be used to extract the Avro schema
+     * @param pojo the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
-    static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder(clazz).build());
+    static <T> Schema<T> AVRO(Class<T> pojo) {
+        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -187,15 +188,14 @@ public interface Schema<T> {
         return DefaultImplementation.newAvroSchema(schemaDefinition);
     }
 
-
     /**
-     * Create a JSON schema type by default configuration of the class
+     * Create a JSON schema type by extracting the fields of the specified class.
      *
-     * @param clazz the POJO class to be used to extract the JSON schema
+     * @param pojo the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
-    static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder(clazz).build());
+    static <T> Schema<T> JSON(Class<T> pojo) {
+        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -207,7 +207,6 @@ public interface Schema<T> {
     static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
         return DefaultImplementation.newJSONSchema(schemaDefinition);
     }
-
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.

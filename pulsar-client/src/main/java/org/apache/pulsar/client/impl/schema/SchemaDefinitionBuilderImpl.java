@@ -50,9 +50,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      */
     private Map<String, String> properties = new HashMap<>();
 
-    public SchemaDefinitionBuilderImpl(Class<T> clazz){
-        this.clazz = clazz;
-    }
+    /**
+     * The json schema definition
+     */
+    private String jsonDef;
 
     @Override
     public SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull) {
@@ -66,6 +67,18 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         return this;
     }
 
+    @Override
+    public SchemaDefinitionBuilder<T> withPojo(Class clazz) {
+        this.clazz = clazz;
+        return this;
+    }
+
+    @Override
+    public SchemaDefinitionBuilder<T> withJsonDef(String jsonDef) {
+        this.jsonDef = jsonDef;
+        return this;
+    }
+
 
     @Override
     public SchemaDefinitionBuilder<T> withProperties(Map<String,String> properties) {
@@ -76,6 +89,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public  SchemaDefinition<T> build() {
         properties.put(ALWAYS_ALLOW_NULL, this.alwaysAllowNull ? "true" : "false");
-        return new SchemaDefinitionImpl<>(clazz, alwaysAllowNull, properties);
+        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties);
+
     }
 }

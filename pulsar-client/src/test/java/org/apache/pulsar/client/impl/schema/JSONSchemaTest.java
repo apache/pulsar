@@ -44,7 +44,7 @@ public class JSONSchemaTest {
 
     @Test
     public void testNotAllowNullSchema() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
@@ -66,7 +66,7 @@ public class JSONSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
@@ -88,7 +88,7 @@ public class JSONSchemaTest {
 
     @Test
     public void testAllowNullEncodeAndDecode() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -118,7 +118,7 @@ public class JSONSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -147,8 +147,8 @@ public class JSONSchemaTest {
 
     @Test
     public void testAllowNullNestedClasses() {
-        JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.builder(NestedBar.class).build());
-        JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.builder(NestedBarList.class).build());
+        JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.<NestedBar>builder().withPojo(NestedBar.class).build());
+        JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.<NestedBarList>builder().withPojo(NestedBarList.class).build());
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -174,8 +174,8 @@ public class JSONSchemaTest {
 
     @Test
     public void testNotAllowNullNestedClasses() {
-        JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.builder(NestedBar.class).withAlwaysAllowNull(false).build());
-        JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.builder(NestedBarList.class).withAlwaysAllowNull(false).build());
+        JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.<NestedBar>builder().withPojo(NestedBar.class).withAlwaysAllowNull(false).build());
+        JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.<NestedBarList>builder().withPojo(NestedBarList.class).withAlwaysAllowNull(false).build());
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -229,25 +229,25 @@ public class JSONSchemaTest {
         derivedDerivedFoo.setDerivedFoo(derivedFoo);
 
         // schema for base class
-        JSONSchema<Foo> baseJsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+        JSONSchema<Foo> baseJsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(foo)), foo);
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedFoo)), foo);
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedDerivedFoo)), foo);
 
         // schema for derived class
-        JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(SchemaDefinition.builder(DerivedFoo.class).build());
+        JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(SchemaDefinition.<DerivedFoo>builder().withPojo(DerivedFoo.class).build());
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedFoo)), derivedFoo);
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)), derivedFoo);
 
         //schema for derived derived class
         JSONSchema<SchemaTestUtils.DerivedDerivedFoo> derivedDerivedJsonSchema
-                = JSONSchema.of(SchemaDefinition.builder(SchemaTestUtils.DerivedDerivedFoo.class).build());
+                = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.DerivedDerivedFoo>builder().withPojo(SchemaTestUtils.DerivedDerivedFoo.class).build());
         Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
     }
 
     @Test(expectedExceptions = SchemaSerializationException.class)
     public void testAllowNullDecodeWithInvalidContent() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         jsonSchema.decode(new byte[0]);
     }
 
@@ -281,25 +281,25 @@ public class JSONSchemaTest {
         derivedDerivedFoo.setDerivedFoo(derivedFoo);
 
         // schema for base class
-        JSONSchema<Foo> baseJsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Foo> baseJsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(foo)), foo);
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedFoo)), foo);
         Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedDerivedFoo)), foo);
 
         // schema for derived class
-        JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(SchemaDefinition.builder(DerivedFoo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(SchemaDefinition.<DerivedFoo>builder().withPojo(DerivedFoo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedFoo)), derivedFoo);
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)), derivedFoo);
 
         //schema for derived derived class
         JSONSchema<SchemaTestUtils.DerivedDerivedFoo> derivedDerivedJsonSchema
-                = JSONSchema.of(SchemaDefinition.builder(SchemaTestUtils.DerivedDerivedFoo.class).withAlwaysAllowNull(false).build());
+                = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.DerivedDerivedFoo>builder().withPojo(SchemaTestUtils.DerivedDerivedFoo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
     }
 
     @Test(expectedExceptions = SchemaSerializationException.class)
     public void testNotAllowNullDecodeWithInvalidContent() {
-        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         jsonSchema.decode(new byte[0]);
     }
 }

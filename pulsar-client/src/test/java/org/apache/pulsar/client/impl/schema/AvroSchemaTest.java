@@ -18,16 +18,29 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
 
+import java.util.Arrays;
+
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.avro.SchemaValidationException;
+import org.apache.avro.SchemaValidator;
+import org.apache.avro.SchemaValidatorBuilder;
+import org.apache.avro.reflect.AvroDefault;
+import org.apache.avro.reflect.Nullable;
+import org.apache.avro.reflect.ReflectData;
+
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -38,9 +51,70 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AvroSchemaTest {
 
+    @Data
+    private static class DefaultStruct {
+        int field1;
+        String field2;
+        Long field3;
+    }
+
+    @Data
+    private static class StructWithAnnotations {
+        int field1;
+        @Nullable
+        String field2;
+        @AvroDefault("\"1000\"")
+        Long field3;
+    }
+
+    @Test
+    public void testSchemaDefinition() throws SchemaValidationException {
+        org.apache.avro.Schema schema1 = ReflectData.get().getSchema(DefaultStruct.class);
+        AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
+
+        String schemaDef1 = schema1.toString();
+        String schemaDef2 = new String(schema2.getSchemaInfo().getSchema(), UTF_8);
+        assertNotEquals(
+            schemaDef1, schemaDef2,
+            "schema1 = " + schemaDef1 + ", schema2 = " + schemaDef2);
+
+        SchemaValidator validator = new SchemaValidatorBuilder()
+            .mutualReadStrategy()
+            .validateLatest();
+        try {
+            validator.validate(
+                schema1,
+                Arrays.asList(
+                    new Schema.Parser().parse(schemaDef2)
+                )
+            );
+            fail("Should fail on validating incompatible schemas");
+        } catch (SchemaValidationException sve) {
+            // expected
+        }
+
+        AvroSchema<StructWithAnnotations> schema3 = AvroSchema.of(SchemaDefinition.<StructWithAnnotations>builder().withJsonDef(schemaDef1).build());
+        String schemaDef3 = new String(schema3.getSchemaInfo().getSchema(), UTF_8);
+        assertEquals(schemaDef1, schemaDef3);
+        assertNotEquals(schemaDef2, schemaDef3);
+
+        StructWithAnnotations struct = new StructWithAnnotations();
+        struct.setField1(5678);
+        // schema2 is using the schema generated from POJO,
+        // it allows field2 to be nullable, and field3 has default value.
+        schema2.encode(struct);
+        try {
+            // schema3 is using the schema passed in, which doesn't allow nullable
+            schema3.encode(struct);
+            fail("Should fail to write the record since the provided schema is incompatible");
+        } catch (SchemaSerializationException sse) {
+            // expected
+        }
+    }
+
     @Test
     public void testNotAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -62,7 +136,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
@@ -84,7 +158,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testNotAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).withAlwaysAllowNull(false).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
@@ -113,7 +187,7 @@ public class AvroSchemaTest {
 
     @Test
     public void testAllowNullEncodeAndDecode() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.builder(Foo.class).build());
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
         Foo foo1 = new Foo();
         foo1.setField1("foo1");

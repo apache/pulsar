@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+
+
 import java.util.Map;
 
 /**
  * Builder to build schema definition {@link SchemaDefinition}.
  */
 public interface SchemaDefinitionBuilder<T> {
-    
+
     /**
      * Set schema whether always allow null or not
      *
      * @param alwaysAllowNull definition null or not
-     * @return record schema definition builder
+     * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull);
 
@@ -37,7 +39,7 @@ public interface SchemaDefinitionBuilder<T> {
      * Set schema info properties
      *
      * @param properties schema info properties
-     * @return record schema definition
+     * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withProperties(Map<String, String> properties);
 
@@ -50,6 +52,24 @@ public interface SchemaDefinitionBuilder<T> {
      * @return record schema definition
      */
     SchemaDefinitionBuilder<T> addProperty(String key, String value);
+
+    /**
+     * Set schema of pojo definition
+     *
+     * @param pojo pojo schema definition
+     *
+     * @return record schema definition
+     */
+    SchemaDefinitionBuilder<T> withPojo(Class pojo);
+
+    /**
+     * Set schema of json definition
+     *
+     * @param jsonDefinition json schema definition
+     *
+     * @return record schema definition
+     */
+    SchemaDefinitionBuilder<T> withJsonDef(String jsonDefinition);
 
     /**
      * Build the schema definition.

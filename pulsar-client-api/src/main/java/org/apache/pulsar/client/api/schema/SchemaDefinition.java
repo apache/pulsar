@@ -18,26 +18,20 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 import java.util.Map;
 
-/**
- * A schema definition
- * {@link org.apache.pulsar.client.api.Schema} for the schema definition value.
- */
 
 public interface SchemaDefinition<T> {
 
     /**
      * Get a new builder instance that can used to configure and build a {@link SchemaDefinition} instance.
      *
-     * @param clazz the class of the pojo
      * @return the {@link SchemaDefinition}
      */
-    static <T> SchemaDefinitionBuilder<T> builder(Class<T> clazz) {
-        return DefaultImplementation.newSchemaDefinitionBuilder(clazz);
+    static  <T> SchemaDefinitionBuilder<T> builder() {
+        return DefaultImplementation.newSchemaDefinitionBuilder();
     }
 
     /**
@@ -45,20 +39,26 @@ public interface SchemaDefinition<T> {
      *
      * @return schema always null or not
      */
-    boolean getAlwaysAllowNull();
+    public boolean getAlwaysAllowNull();
 
     /**
      * Get schema class
      *
      * @return schema class
      */
-    Class<T> getClazz();
+    public Map<String, String> getProperties();
+
     /**
-     * Get schema class
+     * Get json schema definition
      *
      * @return schema class
      */
-    Map<String, String> getProperties();
+    public String getJsonDef();
 
-
+    /**
+     * Get pojo schema definition
+     *
+     * @return pojo schema
+     */
+    public Class<T> getPojo();
 }

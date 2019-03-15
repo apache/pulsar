@@ -65,10 +65,10 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         producers.add(pulsarClient.newProducer(Schema.STRING).topic(topicString).create());
         producers.add(pulsarClient.newProducer(Schema.AVRO(MyClass.class)).topic(topicAvro).create());
         producers.add(pulsarClient.newProducer(Schema.JSON(MyClass.class)).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.builder(MyClass.class).build())).topic(topicAvro).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.builder(MyClass.class).build())).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.builder(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicAvroNotNull).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.builder(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicJsonNotNull).create());
+        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).build())).topic(topicAvro).create());
+        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).build())).topic(topicJson).create());
+        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicAvroNotNull).create());
+        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicJsonNotNull).create());
 
     }
 

@@ -21,24 +21,38 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A schema definition
- * {@link org.apache.pulsar.client.api.Schema} for the schema definition value.
+ * A json schema definition
+ * {@link org.apache.pulsar.client.api.schema.SchemaDefinition} for the json schema definition.
  */
 public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
 
-    private  final Class<T> clazz;
-
+    /**
+     * the schema definition class
+     */
+    private  Class<T> pojo;
+    /**
+     * The flag of schema type always allow null
+     *
+     * If it's true, will make all of the pojo field generate schema
+     * define default can be null,false default can't be null, but it's
+     * false you can define the field by yourself by the annotation@Nullable
+     *
+     */
     private boolean alwaysAllowNull;
 
     private Map<String, String> properties;
 
-    public SchemaDefinitionImpl(Class<T> clazz, boolean alwaysAllowNull, Map<String,String> properties) {
+    private String jsonDef;
+
+    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String,String> properties) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
-        this.clazz = clazz;
+        this.jsonDef = jsonDef;
+        this.pojo = pojo;
     }
     /**
      * get schema whether always allow null or not
@@ -51,14 +65,24 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
     }
 
     /**
-     * Get schema class
+     * Get json schema definition
      *
      * @return schema class
      */
-    public Class<T> getClazz() {
+    public String getJsonDef() {
 
-        return clazz;
+        return jsonDef;
     }
+    /**
+     * Get pojo schema definition
+     *
+     * @return pojo class
+     */
+    @Override
+    public Class<T> getPojo() {
+        return pojo;
+    }
+
     /**
      * Get schema class
      *
