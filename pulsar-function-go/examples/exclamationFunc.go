@@ -28,9 +28,8 @@ import (
 
 func hello(ctx context.Context) {
 	if fc, ok := pf.FromContext(ctx); ok {
-		fmt.Printf("function ID is:%s=====", fc.GetFuncID())
+		fmt.Printf("function ID is:%s, ", fc.GetFuncID())
 		fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
-		fmt.Println()
 	}
 }
 

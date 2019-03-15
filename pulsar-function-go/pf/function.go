@@ -16,6 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+ //
+ // This file borrows some of the implementations from {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
+ //  - errorHandler
+ //  - validateArguments
+ //  - validateReturns
+ //  - NewFunction
+ //  - Process
+ //
+
 package pf
 
 import (
