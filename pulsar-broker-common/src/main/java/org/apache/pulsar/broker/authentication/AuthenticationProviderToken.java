@@ -25,7 +25,6 @@ import io.jsonwebtoken.Jwts;
 
 import java.io.IOException;
 import java.security.Key;
-import java.util.Optional;
 
 import javax.naming.AuthenticationException;
 

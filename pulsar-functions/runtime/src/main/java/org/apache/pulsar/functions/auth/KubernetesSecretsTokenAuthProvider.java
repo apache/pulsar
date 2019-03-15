@@ -32,24 +32,19 @@ import io.kubernetes.client.models.V1Volume;
 import io.kubernetes.client.models.V1VolumeMount;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
-import javax.naming.AuthenticationException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
 import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
-import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
 
 @Slf4j
 public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAuthProvider {
@@ -99,7 +94,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void configureAuthDataKubernetesServiceAccount(V1ServiceAccount serviceAccount, FunctionAuthData functionAuthData) {
-       serviceAccount.addSecretsItem(new V1ObjectReference().name("pf-secret-" + functionAuthData.getData()).namespace(kubeNamespace));
+       serviceAccount.addSecretsItem(new V1ObjectReference().name("pf-secret-" + new String(functionAuthData.getData())).namespace(kubeNamespace));
     }
 
     @Override

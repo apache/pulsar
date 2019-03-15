@@ -18,24 +18,19 @@
  */
 package org.apache.pulsar.functions.auth;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 
-import javax.naming.AuthenticationException;
-
 import java.util.Optional;
 
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
 import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
-import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
     public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
         authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters("token://" + functionAuthData.getData());
+        authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.getData()));
     }
 
     @Override
