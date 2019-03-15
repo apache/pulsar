@@ -2842,3 +2842,33 @@ TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
     // If dup consumers are allowed BrokerMetadataError will be the result of close()
     ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
 }
+
+TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName =
+        "persistent://public/default/testPreventDupConsumersAllowSameSubForDifferentTopics";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    Consumer consumerC;
+    Result resultC = client.subscribe(topicName + "-different-topic", subsName, consumerConf, consumerC);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+    ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
+
+    // consumer C should be a different instance from A and B and should be with open state.
+    ASSERT_EQ(ResultOk, consumerC.close());
+}
