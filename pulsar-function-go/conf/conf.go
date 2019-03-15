@@ -42,7 +42,7 @@ type Conf struct {
 	IsRegexPattern   bool     `yaml:"isRegexPattern"`
 	ReceiverQueueVal int32    `yaml:"receiverQueueVal"`
 	InputSpecsTopic  string   `yaml:"inputSpecs"`
-	AutoACK          bool `yaml:"autoAck"`
+	AutoACK          bool     `yaml:"autoAck"`
 }
 
 func (c *Conf) GetConf() *Conf {

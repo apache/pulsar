@@ -34,7 +34,6 @@ func SetProducer() {
 	defer client.Close()
 
 	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		//ensure topic name equal inputSpecs of conf.yaml
 		Topic: "topic-3",
 	})
 	defer producer.Close()

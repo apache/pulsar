@@ -26,7 +26,7 @@ import (
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
-func hello(ctx context.Context) {
+func contextFunc(ctx context.Context) {
 	if fc, ok := pf.FromContext(ctx); ok {
 		fmt.Printf("function ID is:%s, ", fc.GetFuncID())
 		fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
@@ -35,5 +35,5 @@ func hello(ctx context.Context) {
 
 func main() {
 	util.SetProducer()
-	pf.Start(hello)
+	pf.Start(contextFunc)
 }

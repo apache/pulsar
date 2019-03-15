@@ -210,7 +210,6 @@ func (gi *GoInstance) processResult(output []byte) error {
 				log.Fatal(e)
 			}
 		})
-		fmt.Printf("Message [%s] successfully published\n", string(asyncMsg.Payload))
 
 		for _, consumer := range gi.consumers {
 			for _, msg := range gi.msg {
