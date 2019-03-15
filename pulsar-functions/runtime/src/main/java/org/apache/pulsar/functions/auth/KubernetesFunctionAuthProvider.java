@@ -27,13 +27,6 @@ import io.kubernetes.client.models.V1StatefulSet;
 public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
 
     /**
-     * Configure service account spec generated for function based on function auth data
-     * @param serviceAccount service account spec for the function
-     * @param functionAuthData function auth data
-     */
-    void configureAuthDataKubernetesServiceAccount(V1ServiceAccount serviceAccount, FunctionAuthData functionAuthData);
-
-    /**
      * Configure function statefulset spec based on function auth data
      * @param statefulSet statefulset spec for function
      * @param functionAuthData function auth data

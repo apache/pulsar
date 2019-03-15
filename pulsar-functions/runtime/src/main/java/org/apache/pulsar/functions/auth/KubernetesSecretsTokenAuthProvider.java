@@ -92,10 +92,6 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
     }
 
-    @Override
-    public void configureAuthDataKubernetesServiceAccount(V1ServiceAccount serviceAccount, FunctionAuthData functionAuthData) {
-       serviceAccount.addSecretsItem(new V1ObjectReference().name("pf-secret-" + new String(functionAuthData.getData())).namespace(kubeNamespace));
-    }
 
     @Override
     public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name,

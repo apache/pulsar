@@ -72,22 +72,6 @@ public class KubernetesSecretsTokenAuthProviderTest {
     }
 
     @Test
-    public void testConfigureAuthDataServiceAccount() {
-
-        CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
-
-        FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
-        V1ServiceAccount serviceAccount = new V1ServiceAccount();
-
-        kubernetesSecretsTokenAuthProvider.configureAuthDataKubernetesServiceAccount(serviceAccount, functionAuthData);
-
-        Assert.assertEquals(serviceAccount.getSecrets().size(), 1);
-        Assert.assertEquals(serviceAccount.getSecrets().get(0).getName(), "pf-secret-foo");
-        Assert.assertEquals(serviceAccount.getSecrets().get(0).getNamespace(), "default");
-    }
-
-    @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString());
