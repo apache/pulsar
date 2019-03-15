@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -63,7 +65,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         final long consumerOpTimeoutMs = ((org.apache.pulsar.client.impl.PulsarClientImpl) this.pulsarClient)
                 .getConfiguration().getOperationTimeoutMs();
 
-        inputConsumers = configs.entrySet().stream().map(e -> {
+        List<CompletableFuture<Consumer<T>>> consumerFutures = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
             log.info("Creating consumers for topic : {}, schema : {}",  topic, conf.getSchema());
@@ -98,15 +100,11 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
 
             return cb.subscribeAsync();
-        }).collect(Collectors.toList()).stream().map(consumerFuture -> {
-            try {
-                return consumerFuture.get(consumerOpTimeoutMs, TimeUnit.MILLISECONDS);
-            } catch (Exception e) {
-                log.warn("Failed to create consumer for pulsar-source {}, {}", pulsarSourceConfig.getSubscriptionName(),
-                        e.getMessage());
-                throw new IllegalStateException(e);
-            }
         }).collect(Collectors.toList());
+
+        FutureUtil.waitForAll(consumerFutures).get(consumerOpTimeoutMs, TimeUnit.MILLISECONDS);
+
+        inputConsumers = consumerFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
             return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
