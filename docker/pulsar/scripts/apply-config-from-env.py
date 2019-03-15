@@ -34,7 +34,7 @@ if len(sys.argv) < 2:
 # Always apply env config to env scripts as well
 conf_files = ['conf/pulsar_env.sh', 'conf/bkenv.sh'] + sys.argv[1:]
 
-PF_ENV_PREFIX = 'INS_'
+PF_ENV_PREFIX = 'PULSAR_'
 
 
 for conf_filename in conf_files:
