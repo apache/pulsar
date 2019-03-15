@@ -45,15 +45,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.debezium</groupId>
-      <artifactId>debezium-connector-mysql</artifactId>
-      <version>${debezium.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.debezium</groupId>
-      <artifactId>debezium-connector-postgres</artifactId>
-      <version>${debezium.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
