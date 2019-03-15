@@ -60,7 +60,7 @@ func NewInstanceConf() *InstanceConf {
 				},
 			},
 			Sink: &pb.SinkSpec{
-				Topic: "topic2",
+				Topic: cfg.InputSpecsTopic,
 			},
 			Resources:    &pb.Resources{},
 			RetryDetails: &pb.RetryDetails{},

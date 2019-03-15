@@ -27,3 +27,4 @@ isRegexPattern: false
 receiverQueueVal: 10
 inputSpecs: topic-3
 autoAck: true
+sinkSpec: topic2

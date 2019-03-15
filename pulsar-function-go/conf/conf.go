@@ -43,6 +43,7 @@ type Conf struct {
 	ReceiverQueueVal int32    `yaml:"receiverQueueVal"`
 	InputSpecsTopic  string   `yaml:"inputSpecs"`
 	AutoACK          bool     `yaml:"autoAck"`
+	SinkSpec         string   `yaml:"sinkSpec"`
 }
 
 func (c *Conf) GetConf() *Conf {
