@@ -125,10 +125,10 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(SchemaDefinition.builder().withPojo(clazz).build());
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case JSON:
-            return JSONSchema.of(SchemaDefinition.builder().withPojo(clazz).build());
+            return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
             return (Schema<T>)Schema.KV_BYTES();
