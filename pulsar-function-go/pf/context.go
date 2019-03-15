@@ -16,29 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package pf
 
 import (
 	"context"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar/pulsar-function-go/conf"
 )
 
 type FunctionContext struct {
 	InstanceConf *InstanceConf
 	UserConfigs  map[string]interface{}
 	InputTopics  []string
-	Producer     pulsar.Producer
 }
 
 func NewFuncContext() *FunctionContext {
+	conf := &conf.Conf{}
+	cfg := conf.GetConf()
 	fctx := &FunctionContext{
 		InstanceConf: NewInstanceConf(),
 		UserConfigs:  make(map[string]interface{}),
-		InputTopics: []string{
-			"pulsar1",
-			"pulsar2",
-		},
+		InputTopics:  cfg.InputTopics,
 	}
 	return fctx
 }

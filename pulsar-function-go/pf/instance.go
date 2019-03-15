@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package pf
 
 import (
 	"context"
@@ -36,7 +36,7 @@ type GoInstance struct {
 	producer  pulsar.Producer
 	consumers []pulsar.Consumer
 	client    pulsar.Client
-	msg       pulsar.Message
+	msg       []pulsar.Message
 }
 
 func NewGoInstance() *GoInstance {
@@ -50,20 +50,22 @@ type Handler struct {
 	handler Function
 }
 
-func (hd *Handler) handlerMsg() ([]byte, error) {
+func (gi *GoInstance) handlerMsg() (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gi := NewGoInstance()
 	fc := NewFuncContext()
 	ctx = NewContext(ctx, fc)
-	ctx = context.WithValue(ctx, "current-msg", gi.msg)
-	fmt.Println(gi.msg)
-	ctx = context.WithValue(ctx, "current-topic", gi.msg.Topic())
-	msgInput := gi.msg.Payload()
-	output, err := gi.function.Process(ctx, msgInput)
-	if err != nil {
-		log.Errorf("process function err:%v", err)
-		return nil, err
+
+	for _, msg := range gi.msg {
+		ctx = context.WithValue(ctx, "current-msg", gi.msg)
+		ctx = context.WithValue(ctx, "current-topic", msg.Topic())
+
+		msgInput := msg.Payload()
+		output, err = gi.function.Process(ctx, msgInput)
+		if err != nil {
+			log.Errorf("process function err:%v", err)
+			return nil, err
+		}
 	}
 	return output, nil
 }
@@ -91,26 +93,10 @@ func (gi *GoInstance) StartFunction(function Function) {
 	funcDetails := gi.context.InstanceConf.FuncDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
 
-	properties := GetProperties(GetDefaultSubscriptionName(
+	properties := getProperties(getDefaultSubscriptionName(
 		funcDetails.Tenant,
 		funcDetails.Namespace,
 		funcDetails.Name), gi.context.InstanceConf.InstanceID)
-
-	//for topic := range funcDetails.Source.TopicsToSerDeClassName {
-	//
-	//	log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topic, subscriptionName)
-	//	consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
-	//		Topic:            topic,
-	//		SubscriptionName: subscriptionName,
-	//		Type:             consumerType,
-	//		Properties:       properties,
-	//	})
-	//	if err != nil {
-	//		log.Errorf("create consumer error:%s", err.Error())
-	//	}
-	//	gi.consumers = append(gi.consumers, consumer)
-	//	gi.context.InputTopics = append(gi.context.InputTopics, topic)
-	//}
 
 	channel := make(chan pulsar.ConsumerMessage)
 	for topic, consumerConf := range funcDetails.Source.InputSpecs {
@@ -128,13 +114,9 @@ func (gi *GoInstance) StartFunction(function Function) {
 				if err != nil {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
-				for cm := range channel {
-					gi.msg = cm.Message
-				}
 				gi.consumers = append(gi.consumers, consumer)
 				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			} else {
-				fmt.Println(topic)
 				consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
 					Topic:             topic,
 					SubscriptionName:  subscriptionName,
@@ -147,18 +129,11 @@ func (gi *GoInstance) StartFunction(function Function) {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
 
-				for cm := range channel {
-					gi.msg = cm.Message
-					fmt.Println(gi.msg.Topic())
-					fmt.Println(gi.msg.Payload())
-					goto CLOSE
-				}
 				gi.consumers = append(gi.consumers, consumer)
 				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
-				fmt.Println(topic)
 				consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
 					TopicsPattern:    topic,
 					SubscriptionName: subscriptionName,
@@ -168,9 +143,6 @@ func (gi *GoInstance) StartFunction(function Function) {
 				})
 				if err != nil {
 					log.Errorf("create consumer error:%s", err.Error())
-				}
-				for cm := range channel {
-					gi.msg = cm.Message
 				}
 				gi.consumers = append(gi.consumers, consumer)
 				gi.context.InputTopics = append(gi.context.InputTopics, topic)
@@ -185,38 +157,39 @@ func (gi *GoInstance) StartFunction(function Function) {
 				if err != nil {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
-				for cm := range channel {
-					gi.msg = cm.Message
-				}
 				gi.consumers = append(gi.consumers, consumer)
 				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			}
 		}
-	}
-CLOSE:
-	close(channel)
+	CLOSE:
+		for {
+			select {
+			case cm := <-channel:
+				gi.msg = append(gi.msg, cm.Message)
+			case <-time.After(time.Millisecond * 500):
+				close(channel)
+				break CLOSE
+			}
+		}
+		fmt.Println("channel msg number is:", len(gi.msg))
 
-	// Now launch a gorutine that does execution
-	go func() {
-		gi.actualExecution(function)
-	}()
+		//for cm := range channel {
+		//	gi.msg = append(gi.msg, cm.Message)
+		//	close(channel)
+		//}
+	}
+	gi.actualExecution(function)
+	gi.close()
 }
 
 func (gi *GoInstance) actualExecution(function Function) {
 	log.Debug("Started gorutine for executing the function")
-	for {
-		log.Debugf("Got a message from topic %s", gi.msg.Topic())
-		fmt.Printf("Got a message from topic %s\n", gi.msg.Topic())
-		fmt.Println("hello function")
-		hd := new(Handler)
-		hd.handler = function
-		fmt.Println(hd.handler)
-		output, err := hd.handlerMsg()
-		err = gi.processResult(output)
-		if err != nil {
-			log.Errorf("process output result err:%v", err)
-			return
-		}
+	gi.function = function
+	output, err := gi.handlerMsg()
+	err = gi.processResult(output)
+	if err != nil {
+		log.Errorf("process output result err:%v", err)
+		return
 	}
 }
 
@@ -224,39 +197,42 @@ func (gi *GoInstance) processResult(output []byte) error {
 	gi.context = NewFuncContext()
 	atLeastOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
 
-	for _, consumer := range gi.consumers {
-		if output != nil && gi.context.InstanceConf.FuncDetails.Sink.Topic != "" &&
-			len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
-			if output != nil {
-				output = gi.msg.Payload()
+	if output != nil && gi.context.InstanceConf.FuncDetails.Sink.Topic != "" &&
+		len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
+		//if output == nil {
+		//	output = msg.Payload()
+		//}
+
+		if gi.producer == nil {
+			err := gi.setUpProducer()
+			if err != nil {
+				log.Errorf("set up producer error:%s", err.Error())
+				return err
 			}
-			if gi.producer == nil {
-				err := gi.setUpProducer()
-				if err != nil {
-					log.Errorf("set up producer error:%s", err.Error())
+		}
+
+		asyncMsg := pulsar.ProducerMessage{
+			Payload: output,
+		}
+		// Attempt to send the message asynchronously and handle the response
+		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
+			if e != nil {
+				log.Fatal(e)
+			}
+			fmt.Printf("Message [%s] successfully published\n", asyncMsg.Payload)
+		})
+
+		fmt.Println("========================")
+		for _, consumer := range gi.consumers {
+			for _, msg := range gi.msg {
+				gi.doneProduce(consumer, msg, gi.producer.Topic(), 0)
+
+				if atLeastOnce && gi.context.InstanceConf.FuncDetails.AutoAck {
+					err := consumer.Ack(msg)
+					log.Errorf("ack msg error:%s", err.Error())
 					return err
 				}
 			}
-			//serialize function output
-			if output != nil {
-				asyncMsg := pulsar.ProducerMessage{
-					Payload: output,
-				}
-				// Attempt to send the message asynchronously and handle the response
-				gi.producer.SendAsync(context.Background(), asyncMsg, func(msg pulsar.ProducerMessage, err error) {
-					if err != nil {
-						log.Fatal(err)
-					}
-					fmt.Printf("Message %s successfully published", msg.Payload)
-				})
-
-				gi.doneProduce(consumer, gi.msg, gi.producer.Topic(), 1)
-			}
-
-		} else if atLeastOnce && gi.context.InstanceConf.FuncDetails.AutoAck {
-			err := consumer.Ack(gi.msg)
-			log.Errorf("ack msg error:%s", err.Error())
-			return err
 		}
 	}
 	return nil
@@ -283,7 +259,7 @@ func (gi *GoInstance) setUpProducer() (err error) {
 	gi.setupClient()
 	if gi.context.InstanceConf.FuncDetails.Sink.Topic != "" && len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
 		log.Debugf("Setting up producer for topic %s", gi.context.InstanceConf.FuncDetails.Sink.Topic)
-		properties := GetProperties(GetDefaultSubscriptionName(
+		properties := getProperties(getDefaultSubscriptionName(
 			gi.context.InstanceConf.FuncDetails.Tenant,
 			gi.context.InstanceConf.FuncDetails.Namespace,
 			gi.context.InstanceConf.FuncDetails.Name), gi.context.InstanceConf.InstanceID)
@@ -306,7 +282,7 @@ func (gi *GoInstance) setUpProducer() (err error) {
 	return nil
 }
 
-func (gi *GoInstance) Close() {
+func (gi *GoInstance) close() {
 	log.Info("closing go instance...")
 	if gi.producer != nil {
 		gi.producer.Close()
@@ -320,41 +296,3 @@ func (gi *GoInstance) Close() {
 		gi.client.Close()
 	}
 }
-
-//
-//func (gi *GoInstance) setupLogHandler() {
-//	if gi.conf.FuncDetails.GetLogTopic() != "" {
-//		gi.logAppender = NewLogAppender(
-//			gi.client,                         //pulsar client
-//			gi.conf.FuncDetails.GetLogTopic(), //log topic
-//			GetDefaultSubscriptionName(gi.conf.FuncDetails.Tenant, //fqn
-//				gi.conf.FuncDetails.Namespace,
-//				gi.conf.FuncDetails.Name),
-//		)
-//		gi.logAppender.Start()
-//	}
-//}
-//
-//func (gi *GoInstance) addLogTopicHandler() {
-//	if gi.logAppender == nil {
-//		return
-//	}
-//
-//	log.SetOutputByName(gi.logAppender.GetName())
-//
-//	//param: add logbyte []byte
-//	formatter := &log.TextFormatter{}
-//	logbyte, err := formatter.Format(&logrus.Entry{})
-//	if err != nil {
-//		log.Errorf("formatter error:%s", err.Error())
-//	}
-//	gi.logAppender.Append(logbyte)
-//}
-//
-//func (gi *GoInstance) removeLogTopicHandler() {
-//	if gi.logAppender == nil {
-//		return
-//	}
-//
-//	log.Close()
-//}

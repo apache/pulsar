@@ -1,4 +1,4 @@
-package instance
+package pf
 
 import (
 	"context"
@@ -18,7 +18,7 @@ type pulsarFunction func(ctx context.Context, input []byte) (interface{}, error)
 func (function pulsarFunction) Process(ctx context.Context, input []byte) ([]byte, error) {
 	output, err := function(ctx, input)
 	if err != nil {
-		log.Errorf("process function error:%s", err.Error())
+		log.Errorf("process function error:[%s]\n", err.Error())
 		return nil, err
 	}
 
@@ -98,6 +98,7 @@ func NewFunction(inputFunc interface{}) Function {
 		if (handlerType.NumIn() == 1 && !takesContext) || handlerType.NumIn() == 2 {
 			eventType := handlerType.In(handlerType.NumIn() - 1)
 			event := reflect.New(eventType)
+			fmt.Printf("after reflect, event is:%v", event)
 
 			if err := json.Unmarshal(input, event.Interface()); err != nil {
 				return nil, err

@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package pf
 
 import (
 	"fmt"
 
+	"github.com/apache/pulsar/pulsar-function-go/conf"
 	"github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
@@ -37,26 +38,29 @@ type InstanceConf struct {
 }
 
 func NewInstanceConf() *InstanceConf {
+	conf := &conf.Conf{}
+	cfg := conf.GetConf()
 	instanceConf := &InstanceConf{
-		InstanceID:   111,
-		FuncID:       "wolf",
-		FuncVersion:  "1.0",
-		MaxBufTuples: 10,
-		Port:         8090,
-		ClusterName:  "hahahahhaha",
+		InstanceID:   cfg.InstanceID,
+		FuncID:       cfg.FuncID,
+		FuncVersion:  cfg.FuncVersion,
+		MaxBufTuples: cfg.MaxBufTuples,
+		Port:         cfg.Port,
+		ClusterName:  cfg.ClusterName,
 		FuncDetails: pb.FunctionDetails{
 			Source: &pb.SourceSpec{
-				TopicsToSerDeClassName: make(map[string]string),
 				InputSpecs: map[string]*pb.ConsumerSpec{
-					"topic1": &pb.ConsumerSpec{
-						IsRegexPattern: false,
+					cfg.InputSpecsTopic: {
+						IsRegexPattern: cfg.IsRegexPattern,
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-							Value: 100,
+							Value: cfg.ReceiverQueueVal,
 						},
 					},
 				},
 			},
-			Sink:         &pb.SinkSpec{},
+			Sink: &pb.SinkSpec{
+				Topic: "topic2",
+			},
 			Resources:    &pb.Resources{},
 			RetryDetails: &pb.RetryDetails{},
 		},
