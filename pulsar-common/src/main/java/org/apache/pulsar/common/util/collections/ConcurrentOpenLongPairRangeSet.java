@@ -300,7 +300,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer) {
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
         AtomicBoolean completed = new AtomicBoolean(false);
         rangeBitSetMap.forEach((key, set) -> {
             if (completed.get()) {

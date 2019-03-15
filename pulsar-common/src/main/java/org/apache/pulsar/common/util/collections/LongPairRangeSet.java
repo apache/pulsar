@@ -99,7 +99,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * @param action
      * @param consumer
      */
-    void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer);
+    void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer);
     
     /**
      * Returns total number of ranges into the set.
@@ -223,7 +223,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public void forEach(RangeProcessor<T> action, LongPairConsumer<T> consumer) {
+        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
             for (Range<T> range : asRanges()) {
                 if (!action.process(range)) {
                     break;
