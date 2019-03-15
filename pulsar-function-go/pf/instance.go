@@ -56,16 +56,16 @@ func (gi *GoInstance) handlerMsg() (output []byte, err error) {
 	fc := NewFuncContext()
 	ctx = NewContext(ctx, fc)
 
+	var msgInput []byte
 	for _, msg := range gi.msg {
-		ctx = context.WithValue(ctx, "current-msg", gi.msg)
+		ctx = context.WithValue(ctx, "current-msg", msg)
 		ctx = context.WithValue(ctx, "current-topic", msg.Topic())
-
-		msgInput := msg.Payload()
-		output, err = gi.function.Process(ctx, msgInput)
-		if err != nil {
-			log.Errorf("process function err:%v", err)
-			return nil, err
-		}
+		msgInput = msg.Payload()
+	}
+	output, err = gi.function.Process(ctx, msgInput)
+	if err != nil {
+		log.Errorf("process function err:%v", err)
+		return nil, err
 	}
 	return output, nil
 }
@@ -99,23 +99,23 @@ func (gi *GoInstance) StartFunction(function Function) {
 		funcDetails.Name), gi.context.InstanceConf.InstanceID)
 
 	channel := make(chan pulsar.ConsumerMessage)
+
 	for topic, consumerConf := range funcDetails.Source.InputSpecs {
 		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topic, subscriptionName)
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
 					TopicsPattern:     topic,
+					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
 					Type:              consumerType,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
 					MessageChannel:    channel,
 				})
 				if err != nil {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
 				gi.consumers = append(gi.consumers, consumer)
-				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			} else {
 				consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
 					Topic:             topic,
@@ -130,7 +130,6 @@ func (gi *GoInstance) StartFunction(function Function) {
 				}
 
 				gi.consumers = append(gi.consumers, consumer)
-				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
@@ -145,7 +144,6 @@ func (gi *GoInstance) StartFunction(function Function) {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
 				gi.consumers = append(gi.consumers, consumer)
-				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			} else {
 				consumer, err := gi.client.Subscribe(pulsar.ConsumerOptions{
 					Topic:            topic,
@@ -158,9 +156,10 @@ func (gi *GoInstance) StartFunction(function Function) {
 					log.Errorf("create consumer error:%s", err.Error())
 				}
 				gi.consumers = append(gi.consumers, consumer)
-				gi.context.InputTopics = append(gi.context.InputTopics, topic)
 			}
 		}
+		gi.context.InputTopics = append(gi.context.InputTopics, topic)
+
 	CLOSE:
 		for {
 			select {
@@ -172,18 +171,13 @@ func (gi *GoInstance) StartFunction(function Function) {
 			}
 		}
 		fmt.Println("channel msg number is:", len(gi.msg))
-
-		//for cm := range channel {
-		//	gi.msg = append(gi.msg, cm.Message)
-		//	close(channel)
-		//}
 	}
+
 	gi.actualExecution(function)
 	gi.close()
 }
 
 func (gi *GoInstance) actualExecution(function Function) {
-	log.Debug("Started gorutine for executing the function")
 	gi.function = function
 	output, err := gi.handlerMsg()
 	err = gi.processResult(output)
@@ -199,10 +193,6 @@ func (gi *GoInstance) processResult(output []byte) error {
 
 	if output != nil && gi.context.InstanceConf.FuncDetails.Sink.Topic != "" &&
 		len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
-		//if output == nil {
-		//	output = msg.Payload()
-		//}
-
 		if gi.producer == nil {
 			err := gi.setUpProducer()
 			if err != nil {
@@ -219,18 +209,19 @@ func (gi *GoInstance) processResult(output []byte) error {
 			if e != nil {
 				log.Fatal(e)
 			}
-			fmt.Printf("Message [%s] successfully published\n", asyncMsg.Payload)
 		})
+		fmt.Printf("Message [%s] successfully published\n", string(asyncMsg.Payload))
 
-		fmt.Println("========================")
 		for _, consumer := range gi.consumers {
 			for _, msg := range gi.msg {
 				gi.doneProduce(consumer, msg, gi.producer.Topic(), 0)
 
 				if atLeastOnce && gi.context.InstanceConf.FuncDetails.AutoAck {
 					err := consumer.Ack(msg)
-					log.Errorf("ack msg error:%s", err.Error())
-					return err
+					if err != nil {
+						log.Errorf("ack msg error:%s", err.Error())
+						return err
+					}
 				}
 			}
 		}

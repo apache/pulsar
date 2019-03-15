@@ -26,3 +26,4 @@ clusterName: "pulsar-function-go"
 isRegexPattern: false
 receiverQueueVal: 10
 inputSpecs: topic-3
+autoAck: true
