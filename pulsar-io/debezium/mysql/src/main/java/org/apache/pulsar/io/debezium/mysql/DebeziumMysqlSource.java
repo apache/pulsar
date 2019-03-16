@@ -45,16 +45,16 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
 
     private static void throwExceptionIfConfigNotMatch(Map<String, Object> config,
                                                        String key,
-                                                       String expect) throws IllegalArgumentException {
+                                                       String value) throws IllegalArgumentException {
         Object orig = config.get(key);
         if (orig == null) {
-            config.put(key, expect);
+            config.put(key, value);
             return;
         }
 
         // throw exception if value not match
-        if (!orig.equals(expect)) {
-            throw new IllegalArgumentException("Expected " + expect + " but has " + orig);
+        if (!orig.equals(value)) {
+            throw new IllegalArgumentException("Expected " + value + " but has " + orig);
         }
     }
 
