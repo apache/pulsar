@@ -158,9 +158,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return getSchema(schemaId)
             .thenApply(
                 (existingSchema) ->
-                    existingSchema == null
-                        || existingSchema.schema.isDeleted()
-                        || isCompatible(existingSchema, schema, strategy));
+                    !(existingSchema == null || existingSchema.schema.isDeleted())
+                        && isCompatible(existingSchema, schema, strategy));
     }
 
     interface Functions {
