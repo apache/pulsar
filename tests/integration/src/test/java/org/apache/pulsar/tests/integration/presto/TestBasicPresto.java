@@ -87,7 +87,7 @@ public class TestBasicPresto extends PulsarTestSuite {
         final String stocksTopic = "stocks";
 
         @Cleanup
-        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(new SchemaDefinition<>(Stock.class)))
+        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
                 .topic(stocksTopic)
                 .enableBatching(isBatched)
                 .create();
