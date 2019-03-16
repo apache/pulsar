@@ -34,6 +34,9 @@ if len(sys.argv) < 2:
 # Always apply env config to env scripts as well
 conf_files = ['conf/pulsar_env.sh', 'conf/bkenv.sh'] + sys.argv[1:]
 
+PF_ENV_PREFIX = 'PULSAR_'
+
+
 for conf_filename in conf_files:
     lines = []  # List of config file lines
     keys = {} # Map a key to its line number in the file
@@ -55,6 +58,17 @@ for conf_filename in conf_files:
             print('[%s] Applying config %s = %s' % (conf_filename, k, v))
             idx = keys[k]
             lines[idx] = '%s=%s\n' % (k, v)
+
+
+    # Add new keys from Env
+    for k in sorted(os.environ.keys()):
+        v = os.environ[k]
+        if not k.startswith(PF_ENV_PREFIX):
+            continue
+        k = k[len(PF_ENV_PREFIX):]
+        if k not in keys:
+            print('[%s] Adding config %s = %s' % (conf_filename, k, v))
+            lines.append('%s=%s\n' % (k, v))
 
     # Store back the updated config in the same file
     f = open(conf_filename, 'w')
