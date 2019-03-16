@@ -102,4 +102,38 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         factory2.shutdown();
     }
 
+    @Test(timeOut = 20000)
+    void testPropertiesOnDelete() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getProperties(), Collections.emptyMap());
+
+        ledger.addEntry("entry-1".getBytes());
+        Position p2 = ledger.addEntry("entry-2".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
+
+        Map<String, Long> properties = new TreeMap<>();
+        properties.put("a", 1L);
+        properties.put("b", 2L);
+        properties.put("c", 3L);
+        c1.markDelete(p2, properties);
+
+        assertEquals(c1.getProperties(), properties);
+
+        // Delete p3 and ensure the properties are carried over
+        c1.markDelete(p3, properties);
+
+        assertEquals(c1.getProperties(), properties);
+
+        ledger.close();
+
+        // Reopen the managed ledger
+        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getMarkDeletedPosition(), p3);
+        assertEquals(c1.getProperties(), properties);
+    }
+
 }
