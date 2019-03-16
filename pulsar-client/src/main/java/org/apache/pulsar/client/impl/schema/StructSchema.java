@@ -64,8 +64,8 @@ abstract class StructSchema<T> implements Schema<T> {
     }
 
     protected static org.apache.avro.Schema createAvroSchema(SchemaDefinition schemaDefinition) {
-        Class clazz = schemaDefinition.getPojo();
-        return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(clazz) : ReflectData.get().getSchema(clazz);
+        Class pojo = schemaDefinition.getPojo();
+        return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
     }
 
     protected static org.apache.avro.Schema parseAvroSchema(String jsonDef) {

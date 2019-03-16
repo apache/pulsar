@@ -623,7 +623,7 @@ public abstract class TestPulsarConnector {
                     .setProducerName("test-producer").setSequenceId(i)
                     .setPublishTime(currentTimeMs + i).build();
 
-            Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.builder(Foo.class).build()) : JSONSchema.of(SchemaDefinition.builder(Foo.class).build());
+            Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
             org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
                     .copiedBuffer(schema.encode(foo));
@@ -873,7 +873,7 @@ public abstract class TestPulsarConnector {
                                             .setProducerName("test-producer").setSequenceId(positions.get(topic))
                                             .setPublishTime(System.currentTimeMillis()).build();
 
-                                    Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(new SchemaDefinition<>(Foo.class)) : JSONSchema.of(new SchemaDefinition<>(Foo.class));
+                                    Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
                                     org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
                                             .copiedBuffer(schema.encode(foo));
