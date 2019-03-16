@@ -1429,12 +1429,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId lastDequeuedMessage) {
-        return (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0 ||
-                // Make sure batch message can be read completely.
-                lastDequeuedMessage instanceof BatchMessageIdImpl
-                        && lastMessageIdInBroker.compareTo(lastDequeuedMessage) >= 0
-                        && incomingMessages.size() > 0)
-                && ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1;
+        if (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0 &&
+                ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+            return true;
+        } else {
+            // Make sure batching message can be read completely.
+            return lastMessageIdInBroker.compareTo(lastDequeuedMessage) == 0
+                && incomingMessages.size() > 0;
+        }
     }
 
     CompletableFuture<MessageId> getLastMessageIdAsync() {
