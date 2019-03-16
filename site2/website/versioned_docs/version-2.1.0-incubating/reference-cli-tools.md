@@ -289,7 +289,7 @@ Commands
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, for example key1:val1,key2:val2||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}" ||
 |`--auth-plugin`|Authentication plugin class name||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/|
 

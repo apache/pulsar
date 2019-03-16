@@ -145,6 +145,8 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+tlsCertRefreshCheckDurationSec: 300
 
 ########################
 # State Management

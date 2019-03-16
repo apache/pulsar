@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance;
 import org.apache.logging.log4j.core.*;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 
 import java.io.Serializable;

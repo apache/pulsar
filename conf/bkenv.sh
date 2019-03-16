@@ -24,7 +24,7 @@
 # default settings for starting bookkeeper
 
 # Configuration file of settings used in bookie server
-BOOKIE_CONF=$BK_HOME/conf/bookkeeper.conf
+BOOKIE_CONF=${BOOKIE_CONF:-"$BK_HOME/conf/bookkeeper.conf"}
 
 # Log4j configuration file
 # BOOKIE_LOG_CONF=

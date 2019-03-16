@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance.stats;
 import com.google.common.collect.EvictingQueue;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.Utils;
@@ -99,11 +98,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract void incrSysExceptions(Throwable sysException);
 
-    public abstract void incrUserExceptions(Exception userException);
+    public abstract void incrUserExceptions(Throwable userException);
 
-    public abstract void incrSourceExceptions(Exception userException);
+    public abstract void incrSourceExceptions(Throwable userException);
 
-    public abstract void incrSinkExceptions(Exception userException);
+    public abstract void incrSinkExceptions(Throwable userException);
 
     public abstract void setLastInvocation(long ts);
 

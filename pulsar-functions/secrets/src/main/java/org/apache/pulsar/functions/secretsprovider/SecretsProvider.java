@@ -23,17 +23,19 @@ import java.util.Map;
 /**
  * This file defines the SecretsProvider interface. This interface is used by the function
  * instances/containers to actually fetch the secrets. What SecretsProvider to use is
- * decided by the SecretsProviderConfigurator
+ * decided by the SecretsProviderConfigurator.
  */
 public interface SecretsProvider {
     /**
-     * Initialize the SecretsProvider
+     * Initialize the SecretsProvider.
+     *
      * @return
      */
     default void init(Map<String, String> config) {}
 
     /**
-     * Fetches a secret
+     * Fetches a secret.
+     *
      * @return The actual secret
      */
     String provideSecret(String secretName, Object pathToSecret);

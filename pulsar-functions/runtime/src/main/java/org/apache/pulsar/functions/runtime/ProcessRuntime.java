@@ -39,16 +39,12 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Utils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -108,7 +104,7 @@ class ProcessRuntime implements Runtime {
                 break;
         }
         this.extraDependenciesDir = extraDependenciesDir;
-        this.processArgs = RuntimeUtils.composeArgs(
+        this.processArgs = RuntimeUtils.composeCmd(
             instanceConfig,
             instanceFile,
             // DONT SET extra dependencies here (for python runtime),
@@ -133,7 +129,7 @@ class ProcessRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function
+     * The core logic that initialize the thread container and executes the function.
      */
     @Override
     public void start() {

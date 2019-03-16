@@ -220,10 +220,10 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 
 #### pulsar-admin
 
-[`remove-backlog-quotas`](../../reference/CliTools#pulsar-admin-namespaces-remove-backlog-quotas)サブコマンドを使用してネームスペースを指定してください。以下は例となります:
+[`remove-backlog-quota`](../../reference/CliTools#pulsar-admin-namespaces-remove-backlog-quotas)サブコマンドを使用してネームスペースを指定してください。以下は例となります:
 
 ```shell
-$ pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
+$ pulsar-admin namespaces remove-backlog-quota my-prop/my-cluster/my-ns
 ```
 
 #### REST API

@@ -55,8 +55,20 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         }
     }
 
-    public KeyValueSchema(Schema<K> keySchema,
-                          Schema<V> valueSchema) {
+    public static <K, V> Schema<KeyValue<K, V>> of(Schema<K> keySchema, Schema<V> valueSchema) {
+        return new KeyValueSchema<>(keySchema, valueSchema);
+    }
+
+    private static final Schema<KeyValue<byte[], byte[]>> KV_BYTES = new KeyValueSchema<>(
+        BytesSchema.of(),
+        BytesSchema.of());
+
+    public static Schema<KeyValue<byte[], byte[]>> kvBytes() {
+        return KV_BYTES;
+    }
+
+    private KeyValueSchema(Schema<K> keySchema,
+                           Schema<V> valueSchema) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
 

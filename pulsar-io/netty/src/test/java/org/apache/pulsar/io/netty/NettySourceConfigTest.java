@@ -19,15 +19,15 @@
 package org.apache.pulsar.io.netty;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Netty Tcp or Udp Source Config
@@ -53,7 +53,7 @@ public class NettySourceConfigTest {
         assertEquals(1, nettySourceConfig.getNumberOfThreads());
     }
 
-    @Test(expected = UnrecognizedPropertyException.class)
+    @Test(expectedExceptions = UnrecognizedPropertyException.class)
     public void testNettyTcpConfigLoadWithMapWhenInvalidPropertyIsSet() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("invalidProperty", 1);
@@ -72,7 +72,7 @@ public class NettySourceConfigTest {
         assertEquals(5, nettySourceConfig.getNumberOfThreads());
     }
 
-    @Test(expected = UnrecognizedPropertyException.class)
+    @Test(expectedExceptions = UnrecognizedPropertyException.class)
     public void testNettyTcpConfigLoadWithYamlFileWhenInvalidPropertyIsSet() throws IOException {
         File yamlFile = getFile("nettySourceConfigWithInvalidProperty.yaml");
         NettySourceConfig.load(yamlFile.getAbsolutePath());

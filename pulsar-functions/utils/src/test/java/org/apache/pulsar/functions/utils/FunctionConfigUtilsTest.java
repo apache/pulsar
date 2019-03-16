@@ -35,6 +35,8 @@ import java.util.Map;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link Reflections}.
@@ -62,6 +64,11 @@ public class FunctionConfigUtilsTest {
         functionConfig.setTimeoutMs(2000l);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        functionConfig.setResources(Resources.getDefaultResources());
+        // set default cleanupSubscription config
+        functionConfig.setCleanupSubscription(true);
         assertEquals(
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
@@ -90,6 +97,11 @@ public class FunctionConfigUtilsTest {
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        functionConfig.setResources(Resources.getDefaultResources());
+        // set default cleanupSubscription config
+        functionConfig.setCleanupSubscription(true);
         assertEquals(
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
@@ -151,6 +163,25 @@ public class FunctionConfigUtilsTest {
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "isRegexPattern for input topic test-input cannot be altered")
+    public void testMergeDifferentInputSpecWithRegexChange() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(false).serdeClassName("my-serde").build());
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("inputSpecs", inputSpecs);
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentInputSpec() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").receiverQueueSize(58).build());
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("inputSpecs", inputSpecs);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getInputSpecs().get("test-input"), newFunctionConfig.getInputSpecs().get("test-input"));
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output topics differ")
     public void testMergeDifferentOutput() {
         FunctionConfig functionConfig = createFunctionConfig();
@@ -174,7 +205,23 @@ public class FunctionConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be alterted")
+    @Test
+    public void testMergeCleanupSubscription() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("cleanupSubscription", true);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertTrue(mergedConfig.getCleanupSubscription());
+
+        newFunctionConfig = createUpdatedFunctionConfig("cleanupSubscription", false);
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertFalse(mergedConfig.getCleanupSubscription());
+
+        newFunctionConfig = createUpdatedFunctionConfig("cleanupSubscription", true);
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertTrue(mergedConfig.getCleanupSubscription());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("processingGuarantees", EFFECTIVELY_ONCE);
@@ -367,6 +414,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
+        functionConfig.setCleanupSubscription(true);
         return functionConfig;
     }
 
@@ -400,7 +448,9 @@ public class FunctionConfigUtilsTest {
                 .setSchemaType(JSONSchema.class.getName()).build());
         Function.SourceSpec sourceSpec = Function.SourceSpec.newBuilder()
                 .putAllInputSpecs(consumerSpecMap)
-                .setSubscriptionType(Function.SubscriptionType.FAILOVER).build();
+                .setSubscriptionType(Function.SubscriptionType.FAILOVER)
+                .setCleanupSubscription(true)
+                .build();
         boolean autoAck = true;
         String logTopic = "log-topic1";
         Function.Resources resources = Function.Resources.newBuilder().setCpu(1.5).setDisk(1024 * 20).setRam(1024 * 10).build();
@@ -441,5 +491,6 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getResources().getRam().longValue(), resources.getRam());
         assertEquals(functionConfig.getOutput(), sinkSpec.getTopic());
         assertEquals(functionConfig.getInputSpecs().keySet(), sourceSpec.getInputSpecsMap().keySet());
+        assertEquals(functionConfig.getCleanupSubscription().booleanValue(), sourceSpec.getCleanupSubscription());
     }
 }

@@ -168,6 +168,7 @@ enum ProtocolVersion {
 			 // Added CommandActiveConsumerChange
 			 // Added CommandGetTopicsOfNamespace
 	v13 = 13; // Schema-registry : added avro schema format for json
+	v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
 }
 
 message CommandConnect {
@@ -197,6 +198,24 @@ message CommandConnect {
 message CommandConnected {
 	required string server_version = 1;
 	optional int32 protocol_version = 2 [default = 0];
+}
+
+message CommandAuthResponse {
+	optional string client_version = 1;
+	optional AuthData response = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+message CommandAuthChallenge {
+	optional string server_version = 1;
+	optional AuthData challenge = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+// To support mutual authentication type, such as Sasl, reuse this command to mutual auth.
+message AuthData {
+	optional string auth_method_name = 1;
+	optional bytes auth_data = 2;
 }
 
 message CommandSubscribe {
@@ -397,6 +416,7 @@ message CommandSeek {
 	required uint64 request_id  = 2;
 
 	optional MessageIdData message_id = 3;
+	optional uint64 message_publish_time = 4;
 }
 
 // Message sent by broker to client when a topic
@@ -597,6 +617,9 @@ message BaseCommand {
 
 		GET_SCHEMA = 34;
 		GET_SCHEMA_RESPONSE = 35;
+
+		AUTH_CHALLENGE = 36;
+		AUTH_RESPONSE = 37;
 	}
 
 
@@ -649,4 +672,8 @@ message BaseCommand {
 
 	optional CommandGetSchema getSchema = 34;
 	optional CommandGetSchemaResponse getSchemaResponse = 35;
+
+	optional CommandAuthChallenge authChallenge = 36;
+	optional CommandAuthResponse authResponse = 37;
+
 }

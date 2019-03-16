@@ -21,9 +21,9 @@ package org.apache.flink.streaming.connectors.pulsar;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -36,7 +36,7 @@ public class PulsarSourceBuilderTest {
 
     private PulsarSourceBuilder pulsarSourceBuilder;
 
-    @Before
+    @BeforeMethod
     public void before() {
         pulsarSourceBuilder = PulsarSourceBuilder.builder(new TestDeserializationSchema());
     }
@@ -51,63 +51,63 @@ public class PulsarSourceBuilderTest {
         Assert.assertNotNull(sourceFunction);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testBuildWithoutSettingRequiredProperties() {
         pulsarSourceBuilder.build();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testServiceUrlWithNull() {
         pulsarSourceBuilder.serviceUrl(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testServiceUrlWithBlank() {
         pulsarSourceBuilder.serviceUrl(" ");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicWithNull() {
         pulsarSourceBuilder.topic(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicWithBlank() {
         pulsarSourceBuilder.topic(" ");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicsWithNull() {
         pulsarSourceBuilder.topics(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicsWithBlank() {
         pulsarSourceBuilder.topics(Arrays.asList(" ", " "));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicPatternWithNull() {
         pulsarSourceBuilder.topicsPattern(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicPatternAlreadySet() {
         pulsarSourceBuilder.topicsPattern(Pattern.compile("persistent://tenants/ns/topic-*"));
         pulsarSourceBuilder.topicsPattern(Pattern.compile("persistent://tenants/ns/topic-my-*"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTopicPattenStringWithNull() {
         pulsarSourceBuilder.topicsPatternString(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSubscriptionNameWithNull() {
         pulsarSourceBuilder.subscriptionName(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSubscriptionNameWithBlank() {
         pulsarSourceBuilder.subscriptionName(" ");
     }

@@ -306,6 +306,11 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         otherSpout.close();
 
         topicStats = admin.topics().getStats(topic);
+        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+
+        otherSpout.close();
+
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 0);
     }
 
@@ -317,7 +322,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testFailedConsumer() throws Exception {
+    public void testFailedConsumer() {
         PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();
         pulsarSpoutConf.setServiceUrl(serviceUrl);
         pulsarSpoutConf.setTopic("persistent://invalidTopic");

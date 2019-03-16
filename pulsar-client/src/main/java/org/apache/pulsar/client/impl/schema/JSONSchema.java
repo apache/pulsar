@@ -25,8 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -35,13 +33,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * A schema implementation to deal with json data.
+ */
 @Slf4j
-public class JSONSchema<T> implements Schema<T>{
-
-    private final org.apache.avro.Schema schema;
-    private final SchemaInfo schemaInfo;
-    private final Class<T> pojo;
-    private Map<String, String> properties;
+public class JSONSchema<T> extends StructSchema<T> {
 
     // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
     // return shaded version of object mapper
@@ -52,18 +48,17 @@ public class JSONSchema<T> implements Schema<T>{
         return mapper;
     });
 
+    private final Class<T> pojo;
     private final ObjectMapper objectMapper;
 
-    private JSONSchema(Class<T> pojo, Map<String, String> properties) {
+    private JSONSchema(Class<T> pojo,
+                       org.apache.avro.Schema schema,
+                       Map<String, String> properties) {
+        super(
+            SchemaType.JSON,
+            schema,
+            properties);
         this.pojo = pojo;
-        this.properties = properties;
-
-        this.schema = ReflectData.AllowNull.get().getSchema(pojo);
-        this.schemaInfo = new SchemaInfo();
-        this.schemaInfo.setName("");
-        this.schemaInfo.setProperties(properties);
-        this.schemaInfo.setType(SchemaType.JSON);
-        this.schemaInfo.setSchema(this.schema.toString().getBytes());
         this.objectMapper = JSON_MAPPER.get();
     }
 
@@ -104,7 +99,7 @@ public class JSONSchema<T> implements Schema<T>{
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = new SchemaInfo();
             backwardsCompatibleSchemaInfo.setName("");
-            backwardsCompatibleSchemaInfo.setProperties(properties);
+            backwardsCompatibleSchemaInfo.setProperties(schemaInfo.getProperties());
             backwardsCompatibleSchemaInfo.setType(SchemaType.JSON);
             backwardsCompatibleSchemaInfo.setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema));
         } catch (JsonProcessingException ex) {
@@ -114,10 +109,24 @@ public class JSONSchema<T> implements Schema<T>{
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {
-        return new JSONSchema<>(pojo, Collections.emptyMap());
+        return new JSONSchema<>(pojo, createAvroSchema(pojo), Collections.emptyMap());
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new JSONSchema<>(pojo, properties);
+        return new JSONSchema<>(pojo, createAvroSchema(pojo), properties);
+    }
+
+    /**
+     * Create an json schema based on provided schema definition.
+     *
+     * @param pojo pojo class
+     * @param schemaDefinition avro schema definition
+     * @param properties schema properties
+     * @return avro schema instance
+     */
+    public static <T> JSONSchema<T> of(Class<T> pojo,
+                                       String schemaDefinition,
+                                       Map<String, String> properties) {
+        return new JSONSchema<>(pojo, parseAvroSchema(schemaDefinition), properties);
     }
 }

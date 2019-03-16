@@ -19,9 +19,9 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.AssertJUnit.fail;
+import static org.testng.Assert.fail;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;

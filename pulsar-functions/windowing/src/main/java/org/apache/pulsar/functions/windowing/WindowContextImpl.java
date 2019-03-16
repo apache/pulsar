@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class WindowContextImpl implements WindowContext {
@@ -67,7 +68,7 @@ public class WindowContextImpl implements WindowContext {
 
     @Override
     public String getFunctionVersion() {
-        return this.getFunctionVersion();
+        return this.context.getFunctionVersion();
     }
 
     @Override
@@ -87,7 +88,7 @@ public class WindowContextImpl implements WindowContext {
 
     @Override
     public Logger getLogger() {
-        return this.getLogger();
+        return this.context.getLogger();
     }
 
     @Override
@@ -116,8 +117,8 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public String getUserConfigValue(String key) {
-        return this.getUserConfigValue(key);
+    public Optional<Object> getUserConfigValue(String key) {
+        return this.context.getUserConfigValue(key);
     }
 
     @Override

@@ -19,7 +19,8 @@
 package org.apache.pulsar.discovery.service;
 
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.ServerSslContextRefresher;
+import org.apache.pulsar.common.util.NettySslContextBuilder;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
@@ -36,7 +37,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     public static final String TLS_HANDLER = "tls";
     private final DiscoveryService discoveryService;
     private final boolean enableTls;
-    private final ServerSslContextRefresher sslCtxRefresher;
+    private final NettySslContextBuilder sslCtxRefresher;
 
     public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean e)
             throws Exception {
@@ -44,11 +45,11 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.discoveryService = discoveryService;
         this.enableTls = e;
         if (this.enableTls) {
-            sslCtxRefresher = new ServerSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
+            sslCtxRefresher = new NettySslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
                     serviceConfig.getTlsRequireTrustedClientCertOnConnect(),
-                    serviceConfig.getCertRefreshCheckDurationInMins());
+                    serviceConfig.getTlsCertRefreshCheckDurationSec());
         } else {
             this.sslCtxRefresher = null;
         }

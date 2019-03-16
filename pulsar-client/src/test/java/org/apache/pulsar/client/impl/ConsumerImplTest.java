@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.Assert;
@@ -56,8 +57,8 @@ public class ConsumerImplTest {
         when(client.getConfiguration()).thenReturn(clientConf);
 
         consumerConf.setSubscriptionName("test-sub");
-        consumer = new ConsumerImpl<ConsumerImpl>(client, topic, consumerConf,
-                executorService, -1, subscribeFuture, null, null);
+        consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
+                executorService, -1, subscribeFuture, SubscriptionMode.Durable, null, null, null);
     }
 
     @Test(invocationTimeOut = 1000)

@@ -21,10 +21,14 @@
 
 #include <pulsar/ConsumerConfiguration.h>
 
+#include <chrono>
+
 namespace pulsar {
 struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
+
+    std::chrono::milliseconds negativeAckRedeliveryDelay;
     ConsumerType consumerType;
     MessageListener messageListener;
     bool hasMessageListener;

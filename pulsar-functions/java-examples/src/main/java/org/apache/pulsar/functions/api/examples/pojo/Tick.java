@@ -23,7 +23,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 /**
- * Pojo to represent a stock tick
+ * Pojo to represent a stock tick.
  */
 @Data
 @ToString

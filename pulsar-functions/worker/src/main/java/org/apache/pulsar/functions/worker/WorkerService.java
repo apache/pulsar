@@ -27,7 +27,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.URI;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -194,7 +193,7 @@ public class WorkerService {
             // Start function runtime manager
             this.functionRuntimeManager.start();
 
-            // indicate function worker service is done intializing
+            // indicate function worker service is done initializing
             this.isInitialized = true;
 
             this.connectorsManager = new ConnectorsManager(workerConfig);

@@ -112,7 +112,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
-                                          String originalcodeFileName,
+                                          String originalCodeFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {

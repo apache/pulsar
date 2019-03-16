@@ -25,6 +25,9 @@ import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -63,7 +66,6 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
-
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -86,6 +88,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
+    private ComponentStatsManager statsManager;
+
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
@@ -100,12 +104,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType) {
+                       Utils.ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
         this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
+        this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
@@ -209,7 +214,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId().toString();
+        return config.getFunctionId();
     }
 
     @Override
@@ -321,6 +326,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             try {
                 Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
                         .schema(schema)
+                        .blockIfQueueFull(true)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                        .compressionType(CompressionType.LZ4)
+                        .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                        .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                        .messageRouter(FunctionResultRouter.of())
+                        // set send timeout to be infinity to prevent potential deadlock with consumer
+                        // that might happen when consumer is blocked due to unacked messages
+                        .sendTimeout(0, TimeUnit.SECONDS)
                         .topic(topicName)
                         .properties(InstanceUtils.getProperties(componentType,
                                 FunctionDetailsUtils.getFullyQualifiedName(
@@ -346,7 +361,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        return producer.sendAsync(object).thenApply(msgId -> null);
+        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        future.exceptionally(e -> {
+            this.statsManager.incrSysExceptions(e);
+            logger.error("Failed to publish to topic {} with error {}", topicName, e);
+            return null;
+        });
+        return future;
     }
 
     @Override

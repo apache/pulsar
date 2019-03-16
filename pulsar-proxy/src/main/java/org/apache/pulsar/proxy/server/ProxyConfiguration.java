@@ -226,9 +226,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledInProxy = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Time Interval in Mins between checks for Cert Refresh."
+        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
     )
-    private long certRefreshCheckDurationInMins = 0;
+    private long tlsCertRefreshCheckDurationSec = 300; // 5 mins
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the TLS certificate file"
@@ -305,7 +305,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
     )
-    private int httpNumThreads = 2 * Runtime.getRuntime().availableProcessors();
+    private int httpNumThreads = Math.max(4, 2 * Runtime.getRuntime().availableProcessors());
 
     @PropertiesContext(
         properties = {

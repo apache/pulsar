@@ -60,6 +60,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Utils;
 
@@ -185,30 +186,38 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            logDirectory,
-            this.originalCodeFileName,
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            "$" + ENV_SHARD_ID,
-            GRPC_PORT,
-            -1l,
-            logConfigFile,
-            secretsProviderClassName,
-            secretsProviderConfig,
-            installUserCodeDependencies,
-            pythonDependencyRepository,
-            pythonExtraDependencyRepository,
-                METRICS_PORT);
+
+        this.processArgs = new LinkedList<>();
+        this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
+        // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
+        // so that when we kill the pod, the signal will get propagated to the function code
+        this.processArgs.add("exec");
+        this.processArgs.addAll(
+                RuntimeUtils.getCmd(
+                        instanceConfig,
+                        instanceFile,
+                        extraDependenciesDir,
+                        logDirectory,
+                        this.originalCodeFileName,
+                        pulsarServiceUrl,
+                        stateStorageServiceUrl,
+                        authConfig,
+                        "$" + ENV_SHARD_ID,
+                        GRPC_PORT,
+                        -1l,
+                        logConfigFile,
+                        secretsProviderClassName,
+                        secretsProviderConfig,
+                        installUserCodeDependencies,
+                        pythonDependencyRepository,
+                        pythonExtraDependencyRepository,
+                        METRICS_PORT));
+
         doChecks(instanceConfig.getFunctionDetails());
     }
 
     /**
-     * The core logic that creates a service first followed by statefulset
+     * The core logic that creates a service first followed by statefulset.
      */
     @Override
     public void start() throws Exception {
@@ -295,14 +304,14 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support getAndReset metrics via rest"));
+        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support getAndReset metrics via rest"));
         return retval;
     }
 
     @Override
     public CompletableFuture<Void> resetMetrics() {
         CompletableFuture<Void> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support resetting metrics via rest"));
+        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support resetting metrics via rest"));
         return retval;
     }
 
@@ -352,7 +361,7 @@ public class KubernetesRuntime implements Runtime {
 
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
-        RuntimeUtils.Actions.Action createService = RuntimeUtils.Actions.Action.builder()
+        Actions.Action createService = Actions.Action.builder()
                 .actionName(String.format("Submitting service for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -364,25 +373,25 @@ public class KubernetesRuntime implements Runtime {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
                             log.warn("Service already present for function {}", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(createService.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -424,7 +433,7 @@ public class KubernetesRuntime implements Runtime {
 
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
-        RuntimeUtils.Actions.Action createStatefulSet = RuntimeUtils.Actions.Action.builder()
+        Actions.Action createStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Submitting statefulset for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -436,25 +445,25 @@ public class KubernetesRuntime implements Runtime {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
                             log.warn("Statefulset already present for function {}", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(createStatefulSet.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -467,11 +476,11 @@ public class KubernetesRuntime implements Runtime {
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails());
         final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds(0L);
+        options.setGracePeriodSeconds(5L);
         options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
-        RuntimeUtils.Actions.Action deleteStatefulSet = RuntimeUtils.Actions.Action.builder()
+        Actions.Action deleteStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Deleting statefulset for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -490,16 +499,16 @@ public class KubernetesRuntime implements Runtime {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             log.warn("Statefulset for function {} does not exist", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     } catch (IOException e) {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(e.getMessage())
                                 .build();
@@ -508,9 +517,9 @@ public class KubernetesRuntime implements Runtime {
                     // if already deleted
                     if (response.code() == HTTP_NOT_FOUND) {
                         log.warn("Statefulset for function {} does not exist", fqfn);
-                        return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                        return Actions.ActionResult.builder().success(true).build();
                     } else {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(response.isSuccessful())
                                 .errorMsg(response.message())
                                 .build();
@@ -519,10 +528,11 @@ public class KubernetesRuntime implements Runtime {
                 .build();
 
 
-        RuntimeUtils.Actions.Action waitForStatefulSetDeletion = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForStatefulSetDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
-                .numRetries(NUM_RETRIES)
-                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
+                // set retry period to be about 2x the graceshutdown time
+                .numRetries(NUM_RETRIES * 2)
+                .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS* 2)
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
@@ -531,16 +541,16 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder()
+                    return Actions.ActionResult.builder()
                             .success(false)
                             .errorMsg(response.getStatus().toString())
                             .build();
@@ -548,7 +558,7 @@ public class KubernetesRuntime implements Runtime {
                 .build();
 
         // Need to wait for all pods to die so we can cleanup subscriptions.
-        RuntimeUtils.Actions.Action waitForStatefulPodsToTerminate = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForStatefulPodsToTerminate = Actions.Action.builder()
                 .actionName(String.format("Waiting for pods for function %s to terminate", fqfn))
                 .numRetries(NUM_RETRIES * 2)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS * 2)
@@ -566,19 +576,19 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
                     if (response.getItems().size() > 0) {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(response.getItems().size() + " pods still alive.")
                                 .build();
                     } else {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(true)
                                 .build();
                     }
@@ -587,19 +597,19 @@ public class KubernetesRuntime implements Runtime {
 
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(deleteStatefulSet.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForStatefulSetDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .addAction(deleteStatefulSet.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForStatefulSetDeletion.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 
@@ -607,7 +617,7 @@ public class KubernetesRuntime implements Runtime {
             throw new RuntimeException(String.format("Failed to delete statefulset for function %s", fqfn));
         } else {
             // wait for pods to terminate
-            RuntimeUtils.Actions.newBuilder()
+            Actions.newBuilder()
                     .addAction(waitForStatefulPodsToTerminate)
                     .run();
         }
@@ -621,7 +631,7 @@ public class KubernetesRuntime implements Runtime {
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         String serviceName = createJobName(instanceConfig.getFunctionDetails());
 
-        RuntimeUtils.Actions.Action deleteService = RuntimeUtils.Actions.Action.builder()
+        Actions.Action deleteService = Actions.Action.builder()
                 .actionName(String.format("Deleting service for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -639,16 +649,16 @@ public class KubernetesRuntime implements Runtime {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             log.warn("Service for function {} does not exist", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     } catch (IOException e) {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(e.getMessage())
                                 .build();
@@ -657,9 +667,9 @@ public class KubernetesRuntime implements Runtime {
                     // if already deleted
                     if (response.code() == HTTP_NOT_FOUND) {
                         log.warn("Service for function {} does not exist", fqfn);
-                        return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                        return Actions.ActionResult.builder().success(true).build();
                     } else {
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(response.isSuccessful())
                                 .errorMsg(response.message())
                                 .build();
@@ -667,7 +677,7 @@ public class KubernetesRuntime implements Runtime {
                 })
                 .build();
 
-        RuntimeUtils.Actions.Action waitForServiceDeletion = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForServiceDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -680,15 +690,15 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder()
+                    return Actions.ActionResult.builder()
                             .success(false)
                             .errorMsg(response.getStatus().toString())
                             .build();
@@ -696,19 +706,19 @@ public class KubernetesRuntime implements Runtime {
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(deleteService.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForServiceDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .addAction(deleteService.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForServiceDeletion.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess((ignored) -> success.set(true))
                         .build())
                 .run();
 

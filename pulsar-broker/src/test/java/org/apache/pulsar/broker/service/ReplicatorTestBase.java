@@ -80,7 +80,7 @@ public class ReplicatorTestBase {
 
     ZookeeperServerTest globalZkS;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
@@ -355,7 +355,7 @@ public class ReplicatorTestBase {
 
         void receive(int messages) throws Exception {
             log.info("Start receiving messages");
-            Message<byte[]> msg = null;
+            Message<byte[]> msg;
 
             for (int i = 0; i < messages; i++) {
                 msg = consumer.receive();

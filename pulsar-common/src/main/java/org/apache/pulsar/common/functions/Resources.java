@@ -29,10 +29,30 @@ import lombok.*;
 @NoArgsConstructor
 @Builder(toBuilder=true)
 public class Resources {
+
+    private static final Resources DEFAULT = new Resources();
+
     // Default cpu is 1 core
     private Double cpu = 1d;
     // Default memory is 1GB
     private Long ram = 1073741824l;
     // Default disk is 10GB
     private Long disk = 10737418240l;
+
+    public static Resources getDefaultResources() {
+        return DEFAULT;
+    }
+
+    public static Resources mergeWithDefault(Resources resources) {
+
+        if (resources == null) {
+            return DEFAULT;
+        }
+
+        double cpu = resources.getCpu() == null ? Resources.getDefaultResources().getCpu() : resources.getCpu();
+        long ram = resources.getRam() == null ? Resources.getDefaultResources().getRam() : resources.getRam();
+        long disk = resources.getDisk() == null ? Resources.getDefaultResources().getDisk() : resources.getDisk();
+
+        return new Resources(cpu, ram, disk);
+    }
 }

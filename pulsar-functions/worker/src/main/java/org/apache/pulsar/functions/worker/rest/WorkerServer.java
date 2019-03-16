@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.net.BindException;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -122,11 +121,13 @@ public class WorkerServer {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
                         this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
-                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect());
+                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                        true,
+                        this.workerConfig.getTlsCertRefreshCheckDurationSec());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
                 connectors.add(tlsConnector);
-            } catch (GeneralSecurityException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }

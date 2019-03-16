@@ -42,31 +42,20 @@ $ cd apache-pulsar-{{pulsar:version}}
 
 ## Installing Builtin Connectors
 
-Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
-If you would like to enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
+Since release `2.3.0`, Pulsar releases all the `builtin` connectors as individual archives.
+If you would like to enable those `builtin` connectors, you can download the connectors "NAR"
+archives and from the Pulsar [downloads page](pulsar:download_page_url).
 
-* by clicking the link below and downloading the release from an Apache mirror:
+After downloading the desired builtin connectors, these archives should be places under
+the `connectors` directory where you have unpacked the Pulsar distribution.
 
-  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
-
-* from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
-* using [wget](https://www.gnu.org/software/wget):
-
-  ```shell
-  $ wget pulsar:connector_release_url
-  ```
-
-Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
-in the pulsar directory:
 
 ```bash
-$ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
-
-// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
-// then copy the connectors
-
-$ cp -r apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+# Unpack regular Pulsar tarball and copy connectors NAR archives
+$ tar xvfz /path/to/apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
+$ mkdir connectors
+$ cp -r /path/to/downloaded/connectors/*.nar ./connectors
 
 $ ls connectors
 pulsar-io-aerospike-{{pulsar:version}}.nar
@@ -78,6 +67,10 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 
+> #### Tip
+>
+> You can also use the Docker image `apachepulsar/pulsar-all:{{pulsar:version}}` which already
+> comes with all the available builtin connectors.
 
 ## Start Pulsar Service
 

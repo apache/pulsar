@@ -1,6 +1,130 @@
 
 ## Apache
 
+### 2.3.0 &mdash; 2019-02-20 <a id="2.3.0"></a>
+
+#### General
+
+ * Support for schema definitions in the Pulsar [Python client library](https://pulsar.apache.org/docs/client-libraries-python/#schema)
+ * PIP-25: [Token based authentication](https://pulsar.apache.org/docs/security-token-client/) [#2888](https://github.com/apache/pulsar/pull/2888),
+   [#3067](https://github.com/apache/pulsar/pull/3067) and [#3089](https://github.com/apache/pulsar/pull/3089)
+ * Updated to [Apache BookKeeper 4.9.0](https://bookkeeper.apache.org/docs/4.9.0/overview/releaseNotes/)
+ * ZStandard compression codec [#3159](https://github.com/apache/pulsar/pull/3159). Note that
+   when a producer choose Zstd compression, a consumer will need to be at least at version 2.3.0
+   to be able to correctly receive the messages.
+ * Support for Java 11 [#3006](https://github.com/apache/pulsar/pull/3006)
+ * Added `Schema.AUTO_PRODUCE` type to allow to publish serialized data and validate it against the
+   topic schema [#2685](https://github.com/apache/pulsar/pull/2685)
+ * Added `Schema.KeyValue` to allow for schema to be validated on message keys as well as payloads. [#2885](https://github.com/apache/pulsar/pull/2885)
+ * Support TLS authentication and authorization in standalone mode [#3360](https://github.com/apache/pulsar/pull/3360)
+ * When creating namespace, use local cluster by default [#3571](https://github.com/apache/pulsar/pull/3571)
+ * Tag BookKeeper ledgers created by Pulsar with topic/subscription names for info/debug purposes
+   [#3525](https://github.com/apache/pulsar/pull/3525)
+ * Enabled sticky reads in BooKeeper reads to increase IO efficiency with read-ahead [#3569](https://github.com/apache/pulsar/pull/3569)
+ * Several optimization in Pulsar SQL Presto connector ([#3128](https://github.com/apache/pulsar/pull/3128),
+    [#3135](https://github.com/apache/pulsar/pull/3135), [#3139](https://github.com/apache/pulsar/pull/3139),
+    [#3144](https://github.com/apache/pulsar/pull/3144), [#3143](https://github.com/apache/pulsar/pull/3143))
+ * Configure Pulsar broker data cache automatically from JVM settings [#3573](https://github.com/apache/pulsar/pull/3573)
+ * Reuse the SSL context objects [#3550](https://github.com/apache/pulsar/pull/3550)
+ * Automatic schema update can be disabled through admin interface [#2691](https://github.com/apache/pulsar/pull/2691)
+ * Support Dead-Letter-Queue from WebSocket proxy [#2968](https://github.com/apache/pulsar/pull/2968)
+ * Pull-mode for WebSocket proxy [#3058](https://github.com/apache/pulsar/pull/3058)
+ * Export Jetty stats to Prometheus [#2804](https://github.com/apache/pulsar/pull/2804)
+ * Added stats for Pulsar proxy [#2740](https://github.com/apache/pulsar/pull/2740)
+ * Allow subscribers to access subscription admin-api [#2981](https://github.com/apache/pulsar/pull/2981)
+ * Make brokers read on closest Bookie in a multi-region deployment [#3171](https://github.com/apache/pulsar/pull/3171)
+
+#### Fixes
+ * Fixed deadlock in reusing ZookKeeper event thread [#3591](https://github.com/apache/pulsar/pull/3591)
+ * In functions log topic appender, don't set producer name [#3544](https://github.com/apache/pulsar/pull/3544)
+ * When cursor recovery encounters empty cursor ledger, fallback to latest snapshot [#3487](https://github.com/apache/pulsar/pull/3487)
+ * Fixed C++ regex-consumer when using HTTP service URL [#3407](https://github.com/apache/pulsar/pull/3407)
+ * Fix race condition: broker not scheduling read for active consumer [#3411](https://github.com/apache/pulsar/pull/3411)
+
+#### Pulsar IO
+ * Added Debezium connector for Change-Data-Capture into Pulsar [#2791](https://github.com/apache/pulsar/pull/2791)
+ * Added MongoDB connector [#3561](https://github.com/apache/pulsar/pull/3561)
+ * Added Elastic Search connector [#2546](https://github.com/apache/pulsar/pull/2546)
+ * Added HBase sink [#3368](https://github.com/apache/pulsar/pull/3368)
+ * Added Local files connector [#2869](https://github.com/apache/pulsar/pull/2869)
+ * Report source/sink stats in Prometheus [#3261](https://github.com/apache/pulsar/pull/3261)
+ * Allow filtering in Twitter Firehose connector [#3298](https://github.com/apache/pulsar/pull/3298)
+ * Sources/Sinks can be launched using fat jars as well [#3166](https://github.com/apache/pulsar/pull/3166)
+
+#### Pulsar Functions
+ * Added Kubernetes runtime [#1950](https://github.com/apache/pulsar/pull/1950)
+ * Secrets interface [#2826](https://github.com/apache/pulsar/pull/2826)
+ * Cleanup subscriptions when deleting functions [#3299](https://github.com/apache/pulsar/pull/3299)
+ * Add Windowfunction interface to functions api [#3324](https://github.com/apache/pulsar/pull/3324)
+ * Support for accessing state in Python [#2714](https://github.com/apache/pulsar/pull/2714)
+ * Support submitting Python functions as wheel file
+ * Support submitting Python functions as Zip file with dependencies included [#3321](https://github.com/apache/pulsar/pull/3321)
+ * Add minimum amount of resources to run setting for functions [#3536](https://github.com/apache/pulsar/pull/3536)
+ * Fixed the behavior of Function start/stop [#3477](https://github.com/apache/pulsar/pull/3477)
+
+#### Java client
+ * Moved Pulsar v1 client API into separate artifact [#3228](https://github.com/apache/pulsar/pull/3228).<br />
+   Applications that are using the Pulsar v1 API, deprecated since 2.0 release, need to update the
+   Maven dependency to use the `pulsar-client-1x` artifact instead of `pulsar-client`. Eg.
+   ```xml
+   <dependency>
+       <groupId>org.apache.pulsar</groupId>
+       <artifactId>pulsar-client-1x</artifactId>
+       <version>2.3.0</version>
+   </dependency>
+   ```
+ * Fixed shading issues with Javadoc bundled in client jars by separating the API in a different
+   Maven module [#3309](https://github.com/apache/pulsar/pull/3309)
+ * Improve Javadocs [#3592](https://github.com/apache/pulsar/pull/3592)
+ * Support specifying multiple hosts in pulsar service url and web url [#3249](https://github.com/apache/pulsar/pull/3249)  
+ * Automatically discover when partitions on a topic are increased [#3513](https://github.com/apache/pulsar/pull/3513)
+ * Added `Client.getPartitionsForTopic()` [#2972](https://github.com/apache/pulsar/pull/2972)
+   ([Javadoc](https://pulsar.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient.html#getPartitionsForTopic-java.lang.String-))
+ * Added `Consumer.pauseMessageListener()` and `Consumer.resumeMessageListener()` [#2961](https://github.com/apache/pulsar/pull/2961)
+ * Removed shading relocations for Circe-checksum and lz4 libraries, to ensure native libraries
+   are correctly loaded when using shaded client lib. [#2191](https://github.com/apache/pulsar/pull/2191)
+
+#### Python client
+ * Fixed `Message.properties()` [#3595](https://github.com/apache/pulsar/pull/3595)
+
+#### Go client
+ * Added `Producer.flush()` to flush all outstanding messages [#3469](https://github.com/apache/pulsar/pull/3469)
+ * Support `Consumer.Seek()` [#3478](https://github.com/apache/pulsar/pull/3478)
+ * Added `Message.Topic()` [#3346](https://github.com/apache/pulsar/pull/3346)
+ * Allow to specify `SubscriptionInitPos` option in `ConsumerOptions` [#3588](https://github.com/apache/pulsar/pull/3588)
+ * Added TLS hostname verification [#3580](https://github.com/apache/pulsar/pull/3580)
+ * Allow to link statically against `libpulsar.a`[#3488](https://github.com/apache/pulsar/pull/3488)
+ * Expose `Producer.LastSequenceID()` and `Message.SequenceID()` [#3416](https://github.com/apache/pulsar/pull/3416)
+
+#### C++ client
+ * Enable batching by default when using `sendAsync()` [#2949](https://github.com/apache/pulsar/pull/2949)
+ * Allow to specify schema info in Avro format [#3354](https://github.com/apache/pulsar/pull/3354)
+ * Added `Producer.flush()` to flush all outstanding messages [#3020](https://github.com/apache/pulsar/pull/3020)
+ * Added TLS hostname verification [#2475](https://github.com/apache/pulsar/pull/2475)
+ * Allow to specify `SubscriptionInitialPosition` [#3567](https://github.com/apache/pulsar/pull/3567)
+ * Added `Message.getTopicName()` [#3326](https://github.com/apache/pulsar/pull/3326)
+ * Added `Cosnsumer.receiveAsync()` [#3389](https://github.com/apache/pulsar/pull/3389)
+ * Build `libpulsar.a` with all required dependencies [#3488](https://github.com/apache/pulsar/pull/3488)
+ * Removed Boost from Pulsar API headers [#3374](https://github.com/apache/pulsar/pull/3374)
+
+#### Adaptors
+
+ * Kafka client wrapper, added support for explicit partitioning and custom partitioner [#3462](https://github.com/apache/pulsar/pull/3462)
+ * Support config `auto.offset.reset` to Pulsar KafkaConsumer [#3273](https://github.com/apache/pulsar/pull/3273)
+ * In Apache Flink connector, added support for Batch Sink API ([2979#](https://github.com/apache/pulsar/pull/2979),
+   [#3039](https://github.com/apache/pulsar/pull/3039) and [#3046](https://github.com/apache/pulsar/pull/3046))
+ * Added [Java batch examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/batch/connectors/pulsar/example) for Flink adaptor
+ * Added [Java streaming examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/java/org/apache/flink/streaming/connectors/pulsar/example) for Flink adaptor
+ * Added [Scala examples](https://github.com/apache/pulsar/tree/master/examples/flink/src/main/scala/org/apache/flink/batch/connectors/pulsar/example) for Flink adaptor
+
+For a complete list of issues fixed, see
+
+https://github.com/apache/pulsar/milestone/18?closed=1
+
+https://github.com/apache/pulsar/releases/tag/v2.3.0
+
+
+
 ### 2.2.1 &mdash; 2018-12-31 <a id="2.2.1"></a>
 
 This release includes fixes for 2.2.0 release. In particular:

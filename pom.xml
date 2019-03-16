@@ -89,6 +89,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client-tools-test</module>
+    <module>pulsar-client-all</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
@@ -179,6 +180,7 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -977,6 +979,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1126,7 +1133,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0.rc1</version>
+        <version>3.0</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1138,6 +1145,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/*.patch</exclude>
+            <exclude>**/*.avsc</exclude>
+            <exclude>**/*.versionsBackup</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/*.graffle</exclude>
+            <exclude>**/*.hgrm</exclude>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
@@ -1150,11 +1164,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/ByteBufCodedInputStream.java</exclude>
             <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
-            <exclude>**/*.patch</exclude>
             <exclude>conf/schema_example.conf</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
-            <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
@@ -1163,14 +1175,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
             <exclude>pulsar-client-cpp/**/Makefile</exclude>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/django/stats/migrations/*.py</exclude>
             <exclude>site/vendor/**</exclude>
@@ -1189,7 +1197,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/*</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/generated/**</exclude>
             <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
@@ -1427,7 +1436,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.7.7.201606060606</version>
+            <version>0.8.3</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>

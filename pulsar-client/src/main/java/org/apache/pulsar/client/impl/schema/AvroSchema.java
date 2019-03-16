@@ -23,12 +23,9 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.ByteArrayOutputStream;
@@ -36,11 +33,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * An AVRO schema implementation.
+ */
 @Slf4j
-public class AvroSchema<T> implements Schema<T> {
+public class AvroSchema<T> extends StructSchema<T> {
 
-    private SchemaInfo schemaInfo;
-    private org.apache.avro.Schema schema;
     private ReflectDatumWriter<T> datumWriter;
     private ReflectDatumReader<T> reader;
     private BinaryEncoder encoder;
@@ -51,13 +49,10 @@ public class AvroSchema<T> implements Schema<T> {
 
     private AvroSchema(org.apache.avro.Schema schema,
                        Map<String, String> properties) {
-        this.schema = schema;
-
-        this.schemaInfo = new SchemaInfo();
-        this.schemaInfo.setName("");
-        this.schemaInfo.setProperties(properties);
-        this.schemaInfo.setType(SchemaType.AVRO);
-        this.schemaInfo.setSchema(this.schema.toString().getBytes());
+        super(
+            SchemaType.AVRO,
+            schema,
+            properties);
 
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
@@ -92,21 +87,23 @@ public class AvroSchema<T> implements Schema<T> {
         }
     }
 
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return this.schemaInfo;
-    }
-
-    private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo) {
-        return ReflectData.AllowNull.get().getSchema(pojo);
-    }
-
     public static <T> AvroSchema<T> of(Class<T> pojo) {
         return new AvroSchema<>(createAvroSchema(pojo), Collections.emptyMap());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return new AvroSchema<>(createAvroSchema(pojo), properties);
+    }
+
+    /**
+     * Create an Avro schema based on provided schema definition.
+     *
+     * @param schemaDefinition avro schema definition
+     * @param properties schema properties
+     * @return avro schema instance
+     */
+    public static <T> AvroSchema<T> of(String schemaDefinition, Map<String, String> properties) {
+        return new AvroSchema<>(parseAvroSchema(schemaDefinition), properties);
     }
 
 }

@@ -133,7 +133,7 @@ public class Reflections {
                                         ClassLoader classLoader, Object[] params, Class[] paramTypes) {
         if (params.length != paramTypes.length) {
             throw new RuntimeException(
-                    "Unequal number of params and paramTypes. Each param must have a correspoinding param type");
+                    "Unequal number of params and paramTypes. Each param must have a corresponding param type");
         }
         Class<?> theCls;
         try {
@@ -172,7 +172,8 @@ public class Reflections {
     }
 
     /**
-     * Check if a class is in a jar
+     * Check if a class is in a jar.
+     *
      * @param jar location of the jar
      * @param fqcn fully qualified class name to search for in jar
      * @return true if class can be loaded from jar and false if otherwise
@@ -189,7 +190,8 @@ public class Reflections {
     }
 
     /**
-     * Check if class exists
+     * Check if class exists.
+     *
      * @param fqcn fully qualified class name to search for
      * @return true if class can be loaded from jar and false if otherwise
      */
@@ -203,7 +205,8 @@ public class Reflections {
     }
 
     /**
-     * check if a class implements an interface
+     * check if a class implements an interface.
+     *
      * @param fqcn fully qualified class name to search for in jar
      * @param xface interface to check if implement
      * @return true if class from jar implements interface xface and false if otherwise
@@ -223,7 +226,8 @@ public class Reflections {
     }
 
     /**
-     * check if class implements interface
+     * check if class implements interface.
+     *
      * @param fqcn fully qualified class name
      * @param xface the interface the fqcn should implement
      * @return true if class implements interface xface and false if otherwise

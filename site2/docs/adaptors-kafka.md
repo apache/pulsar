@@ -136,7 +136,7 @@ Properties:
 | `buffer.memory`                         | Ignored   |                                                                               |
 | `client.id`                             | Ignored   |                                                                               |
 | `compression.type`                      | Yes       | Allows `gzip` and `lz4`. No `snappy`.                                         |
-| `connections.max.idle.ms`               | Ignored   |                                                                               |
+| `connections.max.idle.ms`               | Yes       | Only support up to 2,147,483,647,000(Integer.MAX_VALUE * 1000) ms of idle time|
 | `interceptor.classes`                   | Ignored   |                                                                               |
 | `key.serializer`                        | Yes       |                                                                               |
 | `linger.ms`                             | Yes       | Controls the group commit time when batching messages                         |
@@ -152,7 +152,7 @@ Properties:
 | `request.timeout.ms`                    | Ignored   |                                                                               |
 | `retries`                               | Ignored   | Pulsar client retries with exponential backoff until the send timeout expires |
 | `send.buffer.bytes`                     | Ignored   |                                                                               |
-| `timeout.ms`                            | Ignored   |                                                                               |
+| `timeout.ms`                            | Yes       |                                                                               |
 | `value.serializer`                      | Yes       |                                                                               |
 
 

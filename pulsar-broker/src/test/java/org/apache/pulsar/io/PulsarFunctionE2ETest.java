@@ -20,13 +20,11 @@ package org.apache.pulsar.io;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -44,7 +42,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -68,7 +65,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -154,6 +150,7 @@ public class PulsarFunctionE2ETest {
         config.setBrokerServicePortTls(brokerServiceTlsPort);
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
+        config.setAdvertisedAddress("localhost");
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -189,7 +186,7 @@ public class PulsarFunctionE2ETest {
                         .allowTlsInsecureConnection(true).authentication(authTls).build());
 
         brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(), brokerWebServicePort);
+        primaryHost = String.format("http://%s:%d", "localhost", brokerWebServicePort);
 
         // update cluster metadata
         ClusterData clusterData = new ClusterData(urlTls.toString());
@@ -1210,10 +1207,18 @@ public class PulsarFunctionE2ETest {
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
         functionConfig.setOutput(sinkTopic);
-        functionConfig.setCleanupSubscription(true);
+        functionConfig.setCleanupSubscription(false);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        retryStrategically((test) -> {
+            try {
+                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         retryStrategically((test) -> {
             try {
@@ -1224,6 +1229,19 @@ public class PulsarFunctionE2ETest {
         }, 5, 150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        // test update cleanup subscription
+        functionConfig.setCleanupSubscription(true);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertTrue(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
@@ -1269,12 +1287,65 @@ public class PulsarFunctionE2ETest {
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+
+
+        /** test do not cleanup subscription **/
+        functionConfig.setCleanupSubscription(false);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        // validate pulsar source consumer has started on the topic
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // test update another config and making sure that subscription cleanup remains unchanged
+        functionConfig.setParallelism(2);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
     }
 
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(String.format("http://%s:%s/metrics", InetAddress.getLocalHost().getHostAddress(), metricsPort));
+        URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -1290,7 +1361,7 @@ public class PulsarFunctionE2ETest {
      * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
      */
     private static Map<String, Metric> parseMetrics(String metrics) {
-        Map<String, Metric> parsed = new HashMap<>();
+        final Map<String, Metric> parsed = new HashMap<>();
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
@@ -1321,7 +1392,7 @@ public class PulsarFunctionE2ETest {
 
     @ToString
     static class Metric {
-        Map<String, String> tags = new TreeMap<>();
+        final Map<String, String> tags = new TreeMap<>();
         double value;
     }
 

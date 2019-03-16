@@ -166,6 +166,12 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
+        public CompletableFuture<Void> seekAsync(long timestamp) {
+            reset();
+            return super.seekAsync(timestamp);
+        }
+
+        @Override
         public CompletableFuture<Void> seekAsync(MessageId messageId) {
             reset();
             return super.seekAsync(messageId);
