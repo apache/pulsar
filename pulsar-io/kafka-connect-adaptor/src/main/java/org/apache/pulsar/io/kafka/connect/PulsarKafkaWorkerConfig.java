@@ -62,7 +62,7 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
                 PULSAR_SERVICE_URL_CONFIG_DOC)
             .define(TOPIC_NAMESPACE_CONFIG,
                 Type.STRING,
-                "public/default/",
+                "public/default",
                 Importance.HIGH,
                 TOPIC_NAMESPACE_CONFIG_DOC);
     }

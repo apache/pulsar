@@ -68,7 +68,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private CompletableFuture<Void> flushFuture;
     private OffsetBackingStore offsetStore;
     private OffsetStorageReader offsetReader;
-    private String topicnamePrefix;
+    private String topicNamespace;
     @Getter
     private OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
@@ -89,7 +89,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             .getDeclaredConstructor()
             .newInstance();
 
-        topicnamePrefix = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
+        topicNamespace = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
 
         // initialize the key and value converter
         keyConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
@@ -198,7 +198,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 .stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
-            this.destinationTopic = Optional.of(topicnamePrefix + srcRecord.topic());
+            this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
         }
 
         @Override

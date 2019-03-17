@@ -22,7 +22,9 @@ import java.util.Map;
 
 import io.debezium.connector.mysql.MySqlConnectorConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.debezium.PulsarDatabaseHistory;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
@@ -36,8 +38,6 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
     static private final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
     static private final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
     static private final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
-    static private final String DEFAULT_TENANT = "public";
-    static private final String DEFAULT_NAMESPACE = "default";
     static private final String DEFAULT_OFFSET_TOPIC = "debezium-mysql-offset-topic";
     static private final String DEFAULT_HISTORY_TOPIC = "debezium-mysql-history-topic";
 
@@ -68,8 +68,8 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
         String tenant = sourceContext.getTenant();
         String namespace = sourceContext.getNamespace();
 
-        return ((tenant == null || tenant.isEmpty()) ? DEFAULT_TENANT : tenant) + "/" +
-            ((namespace == null || namespace.isEmpty()) ? DEFAULT_NAMESPACE : namespace) + "/";
+        return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/" +
+            (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace) + "/";
     }
 
     @Override
@@ -96,12 +96,13 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
         // topic.namespace
         setConfigIfNull(config, PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, topicNamePrefix);
 
+        String sourceName = sourceContext.getSourceName();
         // database.history.pulsar.topic: history topic name
         setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(),
-            topicNamePrefix + DEFAULT_HISTORY_TOPIC);
+            topicNamePrefix + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
-            topicNamePrefix + DEFAULT_OFFSET_TOPIC);
+            topicNamePrefix + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
 
         super.open(config, sourceContext);
     }
