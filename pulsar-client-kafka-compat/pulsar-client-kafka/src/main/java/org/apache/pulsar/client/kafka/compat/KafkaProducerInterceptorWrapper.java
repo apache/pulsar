@@ -53,7 +53,7 @@ import java.util.Base64;
 /**
  * A wrapper for Kafka's {@link org.apache.kafka.clients.producer.ProducerInterceptor} to make pulsar support
  * Kafka ProducerInterceptor. It holds an instance of {@link org.apache.kafka.clients.producer.ProducerInterceptor}
- * ans it'll delegate all invocation to that instance.
+ * and it'll delegate all invocation to that instance.
  * <p>
  * Extend {@link ProducerInterceptor<byte[]>} as all Pulsar {@link Message} created by
  * {@link org.apache.kafka.clients.producer.PulsarKafkaProducer} is of type byte[].

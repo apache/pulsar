@@ -70,7 +70,6 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     private final Partitioner partitioner;
     private volatile Cluster cluster = Cluster.empty();
 
-    private List<String> interceptorsClasses;
     private List<ProducerInterceptor<K, V>> interceptors;
 
     public PulsarKafkaProducer(Map<String, Object> configs) {
@@ -164,7 +163,6 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         interceptors = (List) producerConfig.getConfiguredInstances(
                 ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptor.class);
-        //interceptorsClasses.forEach(interceptorClazz -> interceptors.add(createKafkaProducerInterceptor(interceptorClazz)));
     }
 
     @Override
