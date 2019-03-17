@@ -209,7 +209,8 @@ public class BinaryProtoLookupService implements LookupService {
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
             opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
-            0 , TimeUnit.MILLISECONDS);
+            0 , TimeUnit.MILLISECONDS, client.getConfiguration().getDefaultBackoffIntervalNanos(),
+            client.getConfiguration().getMaxBackoffIntervalNanos());
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
     }

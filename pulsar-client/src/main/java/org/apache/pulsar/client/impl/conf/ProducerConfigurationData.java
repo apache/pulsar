@@ -47,6 +47,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private String producerName = null;
     private long sendTimeoutMs = 30000;
+    private long backoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
+    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private int maxPendingMessagesAcrossPartitions = 50000;
