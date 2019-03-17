@@ -20,7 +20,8 @@ package org.apache.pulsar.functions.auth;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+
+import java.util.Optional;
 
 /**
  * This is a generic interface that functions can use to cache and distribute appropriate authentication
@@ -44,7 +45,7 @@ public interface FunctionAuthProvider {
      * @return
      * @throws Exception
      */
-    FunctionAuthData cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception;
+    Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception;
 
     /**
      * Clean up operation for auth when function is terminated

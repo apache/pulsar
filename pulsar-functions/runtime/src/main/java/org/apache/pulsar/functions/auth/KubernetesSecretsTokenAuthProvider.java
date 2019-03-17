@@ -22,31 +22,27 @@ import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1DeleteOptions;
 import io.kubernetes.client.models.V1ObjectMeta;
-import io.kubernetes.client.models.V1ObjectReference;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1Secret;
 import io.kubernetes.client.models.V1SecretVolumeSource;
-import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1Volume;
 import io.kubernetes.client.models.V1VolumeMount;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
-import javax.naming.AuthenticationException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.HTTP_HEADER_VALUE_PREFIX;
-import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
+import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
 
 @Slf4j
 public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAuthProvider {
@@ -94,14 +90,10 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
     }
 
-    @Override
-    public void configureAuthDataKubernetesServiceAccount(V1ServiceAccount serviceAccount, FunctionAuthData functionAuthData) {
-       serviceAccount.addSecretsItem(new V1ObjectReference().name("pf-secret-" + functionAuthData.getData()).namespace(kubeNamespace));
-    }
 
     @Override
-    public FunctionAuthData cacheAuthData(String tenant, String namespace, String name,
-                                          AuthenticationDataSource authenticationDataSource) {
+    public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name,
+                                                    AuthenticationDataSource authenticationDataSource) {
         String id = null;
         try {
             String token = getToken(authenticationDataSource);
@@ -113,9 +105,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (id != null) {
-            return FunctionAuthData.builder().data(id.getBytes()).build();
+            return Optional.of(FunctionAuthData.builder().data(id.getBytes()).build());
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override
@@ -123,7 +115,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
 
         String secretName = new String(functionAuthData.getData());
-        RuntimeUtils.Actions.Action deleteSecrets = RuntimeUtils.Actions.Action.builder()
+        Actions.Action deleteSecrets = Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -140,20 +132,20 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             log.warn("Secrets for function {} does not exist", fqfn);
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
-        RuntimeUtils.Actions.Action waitForSecretsDeletion = RuntimeUtils.Actions.Action.builder()
+        Actions.Action waitForSecretsDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for secrets for function %s to complete deletion", fqfn))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -165,34 +157,34 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                            return Actions.ActionResult.builder().success(true).build();
                         }
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
-                    return RuntimeUtils.Actions.ActionResult.builder()
+                    return Actions.ActionResult.builder()
                             .success(false)
                             .build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(deleteSecrets.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForSecretsDeletion.toBuilder()
                         .continueOn(false)
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .addAction(deleteSecrets.toBuilder()
                         .continueOn(true)
                         .build())
                 .addAction(waitForSecretsDeletion.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 
@@ -204,7 +196,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private String createSecret(String token, String tenant, String namespace, String name) throws ApiException, InterruptedException {
 
         StringBuilder sb = new StringBuilder();
-        RuntimeUtils.Actions.Action createAuthSecret = RuntimeUtils.Actions.Action.builder()
+        Actions.Action createAuthSecret = Actions.Action.builder()
                 .actionName(String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
@@ -218,28 +210,28 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
-                            return RuntimeUtils.Actions.ActionResult.builder()
+                            return Actions.ActionResult.builder()
                                     .errorMsg(String.format("Secret %s already present", id))
                                     .success(false)
                                     .build();
                         }
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                        return RuntimeUtils.Actions.ActionResult.builder()
+                        return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
                     }
 
                     sb.append(id.toCharArray());
-                    return RuntimeUtils.Actions.ActionResult.builder().success(true).build();
+                    return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
 
         AtomicBoolean success = new AtomicBoolean(false);
-        RuntimeUtils.Actions.newBuilder()
+        Actions.newBuilder()
                 .addAction(createAuthSecret.toBuilder()
-                        .onSuccess(() -> success.set(true))
+                        .onSuccess(ignore -> success.set(true))
                         .build())
                 .run();
 
@@ -252,33 +244,5 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     private String getSecretName(String id) {
         return "pf-secret-" + id;
-    }
-
-    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
-        if (authData.hasDataFromCommand()) {
-            // Authenticate Pulsar binary connection
-            return authData.getCommandData();
-        } else if (authData.hasDataFromHttp()) {
-            // Authentication HTTP request. The format here should be compliant to RFC-6750
-            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
-            String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
-
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            return validateToken(token);
-        } else {
-            return null;
-        }
-    }
-
-    private String validateToken(final String token) throws AuthenticationException {
-        if (StringUtils.isNotBlank(token)) {
-            return token;
-        } else {
-            throw new AuthenticationException("Blank token found");
-        }
     }
 }

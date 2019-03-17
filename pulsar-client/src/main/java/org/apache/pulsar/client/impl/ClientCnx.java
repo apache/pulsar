@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -39,13 +41,16 @@ import javax.net.ssl.SSLSession;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -125,8 +130,11 @@ public class ClientCnx extends PulsarHandler {
 
     private final ScheduledFuture<?> timeoutTask;
 
+    // Added for mutual authentication.
+    private AuthenticationDataProvider authenticationDataProvider;
+
     enum State {
-        None, SentConnectFrame, Ready, Failed
+        None, SentConnectFrame, Ready, Failed, Connecting
     }
 
     static class RequestTime {
@@ -187,13 +195,14 @@ public class ClientCnx extends PulsarHandler {
                 });
     }
 
-    protected ByteBuf newConnectCommand() throws PulsarClientException {
-        String authData = "";
-        if (authentication.getAuthData().hasDataFromCommand()) {
-            authData = authentication.getAuthData().getCommandData();
-        }
+    protected ByteBuf newConnectCommand() throws Exception {
+        // mutual authentication is to auth between `remoteHostName` and this client for this channel.
+        // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
+        // and return authData to server.
+        authenticationDataProvider = authentication.getAuthData(remoteHostName);
+        AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
+            getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override
@@ -265,7 +274,7 @@ public class ClientCnx extends PulsarHandler {
             return;
         }
 
-        checkArgument(state == State.SentConnectFrame);
+        checkArgument(state == State.SentConnectFrame || state == State.Connecting);
 
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
@@ -274,6 +283,42 @@ public class ClientCnx extends PulsarHandler {
         remoteEndpointProtocolVersion = connected.getProtocolVersion();
         connectionFuture.complete(null);
         state = State.Ready;
+    }
+
+    @Override
+    protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
+        checkArgument(authChallenge.hasChallenge());
+        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
+
+        // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
+        try {
+            AuthData authData = authenticationDataProvider
+                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray()));
+
+            checkState(!authData.isComplete());
+
+            ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
+                authData,
+                this.protocolVersion,
+                getPulsarClientVersion());
+
+            if (log.isDebugEnabled()) {
+                log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
+            }
+
+            ctx.writeAndFlush(request).addListener(writeFuture -> {
+                if (!writeFuture.isSuccess()) {
+                    log.warn("{} Failed to send request for mutual auth to broker: {}", ctx.channel(),
+                        writeFuture.cause().getMessage());
+                    connectionFuture.completeExceptionally(writeFuture.cause());
+                }
+            });
+            state = State.Connecting;
+        } catch (Exception e) {
+            log.error("{} Error mutual verify: {}", ctx.channel(), e);
+            connectionFuture.completeExceptionally(e);
+            return;
+        }
     }
 
     @Override

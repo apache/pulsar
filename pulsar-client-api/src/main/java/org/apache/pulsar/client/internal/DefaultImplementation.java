@@ -188,6 +188,12 @@ public class DefaultImplementation {
                         .invoke(null, clazz));
     }
 
+    public static <T> Schema<T> newAvroSchema(String schemaDefinition, Map<String, String> properties) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", String.class, Map.class)
+                        .invoke(null, schemaDefinition, properties));
+    }
+
     public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", Class.class)
@@ -198,6 +204,14 @@ public class DefaultImplementation {
         return catchExceptions(
                 () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class)
                         .invoke(null, clazz));
+    }
+
+    public static <T> Schema<T> newJSONSchema(Class<T> clazz,
+                                              String schemaDefinition,
+                                              Map<String, String> properties) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class, String.class, Map.class)
+                        .invoke(null, clazz, schemaDefinition, properties));
     }
 
     public static Schema<GenericRecord> newAutoConsumeSchema() {
@@ -212,10 +226,16 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
+    public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
+        return catchExceptions(
+                () -> (Schema<KeyValue<byte[], byte[]>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "kvBytes").invoke(null));
+    }
+
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
         return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getConstructor("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        Schema.class, Schema.class).newInstance(keySchema, valueSchema));
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "of", Schema.class, Schema.class).invoke(null, keySchema, valueSchema));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {

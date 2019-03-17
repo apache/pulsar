@@ -101,6 +101,15 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(
     return consumer_configuration->consumerConfiguration.getUnAckedMessagesTimeoutMs();
 }
 
+void pulsar_configure_set_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis) {
+    consumer_configuration->consumerConfiguration.setNegativeAckRedeliveryDelayMs(redeliveryDelayMillis);
+}
+long pulsar_configure_get_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getNegativeAckRedeliveryDelayMs();
+}
+
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isEncryptionEnabled();
 }

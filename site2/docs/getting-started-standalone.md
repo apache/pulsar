@@ -49,7 +49,7 @@ Directory | Contains
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `examples` | A Java JAR file containing example [Pulsar Functions](functions-overview.md)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar
-`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](developing-codebase.md)
+`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar)
 
 These directories will be created once you begin running Pulsar:
 
@@ -217,7 +217,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 

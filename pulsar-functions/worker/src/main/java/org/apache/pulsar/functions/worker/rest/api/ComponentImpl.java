@@ -44,6 +44,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -387,15 +388,15 @@ public abstract class ComponentImpl {
         // cache auth if need
         if (clientAuthenticationDataHttps != null) {
             try {
-                FunctionAuthData functionAuthData = worker().getFunctionRuntimeManager()
+                Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider()
                         .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
 
-                if (functionAuthData != null) {
+                if (functionAuthData.isPresent()) {
                     functionMetaDataBuilder.setFunctionAuthSpec(
                             Function.FunctionAuthenticationSpec.newBuilder()
-                                    .setData(ByteString.copyFrom(functionAuthData.getData())).build());
+                                    .setData(ByteString.copyFrom(functionAuthData.get().getData())).build());
                 }
             } catch (Exception e) {
                 log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
@@ -590,9 +591,6 @@ public abstract class ComponentImpl {
             log.error("Invalid update {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
-
-        //merge new functiondetails with existing function details
-        functionDetails = existingComponent.getFunctionDetails().toBuilder().mergeFrom(functionDetails).build();
 
         try {
             worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);

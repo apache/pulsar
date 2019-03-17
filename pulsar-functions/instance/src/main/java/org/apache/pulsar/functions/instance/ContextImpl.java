@@ -66,7 +66,6 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
-
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -215,7 +214,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId().toString();
+        return config.getFunctionId();
     }
 
     @Override

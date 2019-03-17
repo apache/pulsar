@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * Examplf of fucntion doing a type object conversion between input ann output type
+ * Example of function doing a type object conversion between input ann output type.
  */
 public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, CustomDerivedObject> {
 

@@ -180,6 +180,7 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -978,6 +979,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1127,7 +1133,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0.rc1</version>
+        <version>3.0</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1430,7 +1436,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.7.7.201606060606</version>
+            <version>0.8.3</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>

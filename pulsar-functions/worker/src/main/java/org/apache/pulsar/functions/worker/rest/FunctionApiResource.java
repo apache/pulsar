@@ -27,7 +27,6 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 
 public class FunctionApiResource implements Supplier<WorkerService> {
 
