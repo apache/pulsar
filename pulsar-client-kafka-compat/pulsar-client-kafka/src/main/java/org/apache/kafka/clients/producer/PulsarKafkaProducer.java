@@ -19,6 +19,7 @@
 package org.apache.kafka.clients.producer;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +51,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.kafka.compat.KafkaMessageRouter;
+import org.apache.pulsar.client.kafka.compat.KafkaProducerInterceptorWrapper;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
@@ -68,6 +70,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private final Partitioner partitioner;
     private volatile Cluster cluster = Cluster.empty();
+
+    private List<String> interceptorsClasses;
+    private List<ProducerInterceptor<K, V>> interceptors;
 
     public PulsarKafkaProducer(Map<String, Object> configs) {
         this(configs, null, null);
@@ -157,6 +162,10 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         // Kafka, on the other hand, still blocks for "max.block.ms" time and then gives error.
         boolean shouldBlockPulsarProducer = sendTimeoutMillis > 0 || blockOnBufferFull;
         pulsarProducerBuilder.blockIfQueueFull(shouldBlockPulsarProducer);
+
+        interceptors = (List) producerConfig.getConfiguredInstances(
+                ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptor.class);
+        //interceptorsClasses.forEach(interceptorClazz -> interceptors.add(createKafkaProducerInterceptor(interceptorClazz)));
     }
 
     @Override
@@ -238,7 +247,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         try {
             // Add the partitions info for the new topic
             cluster = cluster.withPartitions(readPartitionsInfo(topic));
-            return pulsarProducerBuilder.clone().topic(topic).create();
+            List<org.apache.pulsar.client.api.ProducerInterceptor> wrappedInterceptors = interceptors.stream()
+                    .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySerializer, valueSerializer, topic))
+                    .collect(Collectors.toList());
+            return pulsarProducerBuilder.clone()
+                    .topic(topic)
+                    .intercept(wrappedInterceptors.toArray(new org.apache.pulsar.client.api.ProducerInterceptor[wrappedInterceptors.size()]))
+                    .create();
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
@@ -306,6 +321,24 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         TopicPartition tp = new TopicPartition(topic, partition);
         TypedMessageBuilderImpl<byte[]> mb = (TypedMessageBuilderImpl<byte[]>) msgBuilder;
         return new RecordMetadata(tp, offset, 0, mb.getPublishTime(), 0, mb.hasKey() ? mb.getKey().length() : 0, size);
+    }
+
+    private ProducerInterceptor createKafkaProducerInterceptor(String clazz) {
+        try {
+            return (ProducerInterceptor) Class.forName(clazz).newInstance();
+        } catch (ClassNotFoundException e) {
+            String errorMessage = "Can't find Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        } catch (InstantiationException e) {
+            String errorMessage = "Can't initiate provided Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        } catch (IllegalAccessException e) {
+            String errorMessage = "Can't access provided Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        }
     }
 
     private static final Logger logger = LoggerFactory.getLogger(PulsarKafkaProducer.class);
