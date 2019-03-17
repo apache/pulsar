@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.debezium.mysql;
 
 import java.util.Map;
-import java.util.UUID;
 
 import io.debezium.connector.mysql.MySqlConnectorConfig;
 import lombok.extern.slf4j.Slf4j;
@@ -34,14 +33,13 @@ import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
  */
 @Slf4j
 public class DebeziumMysqlSource extends KafkaConnectSource {
-    static private final String OFFSET_TOPIC_PREFIX = "mysql-offset-topic-";
-    static private final String HISTORY_TOPIC_PREFIX = "mysql-history-topic-";
-
     static private final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
     static private final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
     static private final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
-
-    private final String uuid = UUID.randomUUID().toString();
+    static private final String DEFAULT_TENANT = "public";
+    static private final String DEFAULT_NAMESPACE = "default";
+    static private final String DEFAULT_OFFSET_TOPIC = "debezium-mysql-offset-topic";
+    static private final String DEFAULT_HISTORY_TOPIC = "debezium-mysql-history-topic";
 
     private static void throwExceptionIfConfigNotMatch(Map<String, Object> config,
                                                        String key,
@@ -65,6 +63,15 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
         }
     }
 
+    // namespace: tenant/namespace/
+    private static String topicNamePrefix(SourceContext sourceContext) {
+        String tenant = sourceContext.getTenant();
+        String namespace = sourceContext.getNamespace();
+
+        return ((tenant == null || tenant.isEmpty()) ? DEFAULT_TENANT : tenant) + "/" +
+            ((namespace == null || namespace.isEmpty()) ? DEFAULT_NAMESPACE : namespace) + "/";
+    }
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // connector task
@@ -77,17 +84,24 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
 
         // database.history implementation class
         setConfigIfNull(config, MySqlConnectorConfig.DATABASE_HISTORY.name(), DEFAULT_HISTORY);
-        // database.history.pulsar.topic: history topic name
-        setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(), HISTORY_TOPIC_PREFIX + uuid);
-        // offset.storage.topic: offset topic name
-        setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, OFFSET_TOPIC_PREFIX + uuid);
 
+        // database.history.pulsar.service.url, this is set as the value of pulsar.service.url if null.
         String serviceUrl = (String) config.get(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
         if (serviceUrl == null) {
             throw new IllegalArgumentException("Pulsar service URL not provided.");
         }
-        // database.history.pulsar.service.url, this is set as the value of pulsar.service.url if null.
         setConfigIfNull(config, PulsarDatabaseHistory.SERVICE_URL.name(), serviceUrl);
+
+        String topicNamePrefix = topicNamePrefix(sourceContext);
+        // topic.namespace
+        setConfigIfNull(config, PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, topicNamePrefix);
+
+        // database.history.pulsar.topic: history topic name
+        setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(),
+            topicNamePrefix + DEFAULT_HISTORY_TOPIC);
+        // offset.storage.topic: offset topic name
+        setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
+            topicNamePrefix + DEFAULT_OFFSET_TOPIC);
 
         super.open(config, sourceContext);
     }

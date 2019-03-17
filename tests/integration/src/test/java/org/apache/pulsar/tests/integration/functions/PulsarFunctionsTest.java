@@ -1163,7 +1163,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "dbserver1.inventory.products";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
             + functionRuntimeType + "-name-" + randomName(8);
 
@@ -1204,7 +1204,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, null);
+        sourceTester.validateSourceResult(consumer, 9);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);

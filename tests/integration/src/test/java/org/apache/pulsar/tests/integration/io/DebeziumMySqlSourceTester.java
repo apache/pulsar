@@ -55,7 +55,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("database.hostname", "mysql");
+        sourceConfig.put("database.hostname", DebeziumMySQLContainer.NAME);
         sourceConfig.put("database.port", "3306");
         sourceConfig.put("database.user", "debezium");
         sourceConfig.put("database.password", "dbz");
@@ -69,7 +69,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
     public void setServiceContainer(DebeziumMySQLContainer container) {
         log.info("start debezium mysql server container.");
         debeziumMySqlContainer = container;
-        pulsarCluster.startService("mysql", debeziumMySqlContainer);
+        pulsarCluster.startService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
     }
 
     @Override
@@ -83,7 +83,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         return null;
     }
 
-    public void validateSourceResult(Consumer<String> consumer, Map<String, String> kvs) throws Exception {
+    public void validateSourceResult(Consumer<String> consumer, int number) throws Exception {
         int recordsNumber = 0;
         Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
@@ -94,7 +94,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
             msg = consumer.receive(1, TimeUnit.SECONDS);
         }
 
-        Assert.assertEquals(recordsNumber, 9);
+        Assert.assertEquals(recordsNumber, number);
         log.info("Stop debezium mysql server container. topic: {} has {} records.", consumer.getTopic(), recordsNumber);
     }
 }
