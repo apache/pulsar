@@ -147,7 +147,9 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
                                                                 message.getKeyBytes().length,
                                                                 message.getValue().length), new Exception(exception));
         } catch (NumberFormatException e) {
-
+            String errorMessage = "Unable to convert partitionID to integer: " + e.getMessage();
+            log.error(errorMessage);
+            throw new RuntimeException(errorMessage);
         }
     }
 
