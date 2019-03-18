@@ -24,9 +24,6 @@ import static org.testng.Assert.assertNull;
 
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +31,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -56,9 +56,9 @@ public class PrimitiveSchemaTest {
             put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
             put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
             put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
-            put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
-            put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
-            put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()), new Timestamp(new java.util.Date().getTime())));
+            put(DateSchema.of(), Arrays.asList(new LocalDate(new java.util.Date().getTime() - 10000), new LocalDate(new java.util.Date().getTime())));
+            put(TimeSchema.of(), Arrays.asList(new LocalTime(new java.util.Date().getTime() - 10000), new LocalTime(new java.util.Date().getTime())));
+            put(TimestampSchema.of(), Arrays.asList(new DateTime(new java.util.Date().getTime()), new DateTime(new java.util.Date().getTime())));
         }
     };
 
@@ -74,9 +74,9 @@ public class PrimitiveSchemaTest {
             put(Schema.DOUBLE, Arrays.asList(5678567.12312d, -5678567.12341d));
             put(Schema.BYTES, Arrays.asList("my string".getBytes(UTF_8)));
             put(Schema.BYTEBUFFER, Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
-            put(Schema.DATE, Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
-            put(Schema.TIME, Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
-            put(Schema.TIMESTAMP, Arrays.asList(new Timestamp(new java.util.Date().getTime() - 10000), new Timestamp(new java.util.Date().getTime())));
+            put(Schema.DATE, Arrays.asList(new LocalDate(new java.util.Date().getTime() - 10000), new LocalDate(new java.util.Date().getTime())));
+            put(Schema.TIME, Arrays.asList(new LocalTime(new java.util.Date().getTime() - 10000), new LocalTime(new java.util.Date().getTime())));
+            put(Schema.TIMESTAMP, Arrays.asList(new DateTime(new java.util.Date().getTime() - 10000), new DateTime(new java.util.Date().getTime())));
         }
     };
 

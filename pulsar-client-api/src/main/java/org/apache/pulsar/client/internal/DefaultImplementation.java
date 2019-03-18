@@ -27,9 +27,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -46,6 +43,9 @@ import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 
 @SuppressWarnings("unchecked")
 @UtilityClass
@@ -185,21 +185,21 @@ public class DefaultImplementation {
                     .newInstance());
     }
 
-    public static Schema<Date> newDateSchema() {
+    public static Schema<LocalDate> newDateSchema() {
         return catchExceptions(
-                () -> (Schema<Date>) newClassInstance("org.apache.pulsar.client.impl.schema.DateSchema")
+                () -> (Schema<LocalDate>) newClassInstance("org.apache.pulsar.client.impl.schema.DateSchema")
                         .newInstance());
     }
 
-    public static Schema<Time> newTimeSchema() {
+    public static Schema<LocalTime> newTimeSchema() {
         return catchExceptions(
-              () -> (Schema<Time>) newClassInstance("org.apache.pulsar.client.impl.schema.TimeSchema")
+              () -> (Schema<LocalTime>) newClassInstance("org.apache.pulsar.client.impl.schema.TimeSchema")
                     .newInstance());
     }
 
-    public static Schema<Timestamp> newTimestampSchema() {
+    public static Schema<DateTime> newTimestampSchema() {
         return catchExceptions(
-              () -> (Schema<Timestamp>) newClassInstance("org.apache.pulsar.client.impl.schema.TimestampSchema")
+              () -> (Schema<DateTime>) newClassInstance("org.apache.pulsar.client.impl.schema.TimestampSchema")
                     .newInstance());
     }
 
