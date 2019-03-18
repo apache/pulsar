@@ -9,27 +9,27 @@
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
+ * Unless required by applicable law or agreed to in wriinputg,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
- //
- // This file borrows some of the implementations from {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
- //  - errorHandler
- //  - validateArguments
- //  - validateReturns
- //  - NewFunction
- //  - Process
- //
+
+//
+// This file borrows some of the implementations from {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
+//  - errorHandler
+//  - validateArguments
+//  - validateReturns
+//  - NewFunction
+//  - Process
+//
 
 package pf
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -40,7 +40,7 @@ type Function interface {
 	Process(ctx context.Context, input []byte) ([]byte, error)
 }
 
-type pulsarFunction func(ctx context.Context, input []byte) (interface{}, error)
+type pulsarFunction func(ctx context.Context, input []byte) ([]byte, error)
 
 func (function pulsarFunction) Process(ctx context.Context, input []byte) ([]byte, error) {
 	output, err := function(ctx, input)
@@ -49,17 +49,18 @@ func (function pulsarFunction) Process(ctx context.Context, input []byte) ([]byt
 		return nil, err
 	}
 
-	outputBytes, err := json.Marshal(output)
-	if err != nil {
-		log.Errorf("json marshal failed:%s", err.Error())
-		return nil, err
-	}
+	//todo: add go schema
+	//outputBytes, err := json.Marshal(output)
+	//if err != nil {
+	//	log.Errorf("json marshal failed:%s", err.Error())
+	//	return nil, err
+	//}
 
-	return outputBytes, nil
+	return output, nil
 }
 
 func errorHandler(e error) pulsarFunction {
-	return func(ctx context.Context, input []byte) (interface{}, error) {
+	return func(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, e
 	}
 }
@@ -115,8 +116,7 @@ func NewFunction(inputFunc interface{}) Function {
 		return errorHandler(err)
 	}
 
-	return pulsarFunction(func(ctx context.Context, input []byte) (interface{}, error) {
-
+	return pulsarFunction(func(ctx context.Context, input []byte) ([]byte, error) {
 		// construct arguments
 		var args []reflect.Value
 		if takesContext {
@@ -125,18 +125,18 @@ func NewFunction(inputFunc interface{}) Function {
 		if (handlerType.NumIn() == 1 && !takesContext) || handlerType.NumIn() == 2 {
 			eventType := handlerType.In(handlerType.NumIn() - 1)
 			event := reflect.New(eventType)
-			fmt.Printf("after reflect, event is:%v", event)
 
-			if err := json.Unmarshal(input, event.Interface()); err != nil {
-				return nil, err
-			}
+			//todo: add go schema
+			//if err := json.Unmarshal(input, event.Interface()); err != nil {
+			//	return nil, err
+			//}
 
 			args = append(args, event.Elem())
 		}
 
 		response := handler.Call(args)
 
-		// convert return values into (interface{}, error)
+		// convert return values into ([]byte, error)
 		var err error
 		if len(response) > 0 {
 			if errVal, ok := response[len(response)-1].Interface().(error); ok {
@@ -144,9 +144,9 @@ func NewFunction(inputFunc interface{}) Function {
 			}
 		}
 
-		var val interface{}
+		var val []byte
 		if len(response) > 1 {
-			val = response[0].Interface()
+			val = response[0].Bytes()
 		}
 
 		return val, err
@@ -166,15 +166,15 @@ func NewFunction(inputFunc interface{}) Function {
 //
 // 	func ()
 // 	func () error
-// 	func (TIn) error
-// 	func () (TOut, error)
-// 	func (TIn) (TOut, error)
+// 	func (input) error
+// 	func () (output, error)
+// 	func (input) (output, error)
 // 	func (context.Context) error
-// 	func (context.Context, TIn) error
-// 	func (context.Context) (TOut, error)
-// 	func (context.Context, TIn) (TOut, error)
+// 	func (context.Context, input) error
+// 	func (context.Context) (output, error)
+// 	func (context.Context, input) (output, error)
 //
-// Where "TIn" and "TOut" are types compatible with the "encoding/json" standard library.
+// Where "input" and "output" are types compatible with the "encoding/json" standard library.
 // See https://golang.org/pkg/encoding/json/#Unmarshal for how deserialization behaves
 func Start(funcName interface{}) {
 	function := NewFunction(funcName)

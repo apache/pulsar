@@ -36,6 +36,7 @@ type Conf struct {
 	InstanceID       int      `yaml:"instanceID"`
 	FuncID           string   `yaml:"funcID"`
 	FuncVersion      string   `yaml:"funcVersion"`
+	Name             string   `yaml:"name"`
 	MaxBufTuples     int      `yaml:"maxBufTuples"`
 	Port             int      `yaml:"port"`
 	ClusterName      string   `yaml:"clusterName"`

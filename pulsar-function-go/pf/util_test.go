@@ -16,43 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package util
+package pf
 
 import (
-	"context"
 	"fmt"
-	"log"
+	"testing"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/stretchr/testify/assert"
 )
 
-func SetProducer() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL: "pulsar://localhost:6650",
-	})
-	if err != nil {
-		fmt.Printf("error:%v\n", err)
-	}
-	defer client.Close()
+var (
+	tenant     = "pulsar"
+	namespace  = "function"
+	name       = "go"
+	instanceID = 100
+)
 
-	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic: "topic-3",
-	})
-	defer producer.Close()
+func TestUtils(t *testing.T) {
+	fqfn := tenant + "/" + namespace + "/" + name
 
-	ctx := context.Background()
-	for i := 0; i < 2; i++ {
-		// Create a different message to send asynchronously
-		asyncMsg := pulsar.ProducerMessage{
-			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
-		}
-		// Attempt to send the message asynchronously and handle the response
-		producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
-			if err != nil {
-				log.Fatal(err)
-			}
-		})
-		producer.Flush()
-	}
+	propertiesMap := make(map[string]string)
+	propertiesMap["application"] = "pulsar-function"
+	propertiesMap["id"] = "pulsar/function/go"
+	propertiesMap["instance_id"] = fmt.Sprintf("%d", instanceID)
+
+	expectedFQFN := getDefaultSubscriptionName(tenant, namespace, name)
+	assert.Equal(t, expectedFQFN, fqfn)
+
+	actualtMap := getProperties(fqfn, 100)
+	assert.Equal(t, propertiesMap, actualtMap)
+
+	expectedRes := getFullyQualifiedInstanceId(tenant, namespace, name, instanceID)
+	assert.Equal(t, expectedRes, "pulsar/function/go:100")
 }
-

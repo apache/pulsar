@@ -20,7 +20,7 @@ package pf
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/apache/pulsar/pulsar-client-go/pulsar"
@@ -56,16 +56,18 @@ func (gi *GoInstance) handlerMsg() (output []byte, err error) {
 	fc := NewFuncContext()
 	ctx = NewContext(ctx, fc)
 
-	var msgInput []byte
+	if gi.msg == nil {
+		return nil, errors.New("no messages to be processed")
+	}
 	for _, msg := range gi.msg {
 		ctx = context.WithValue(ctx, "current-msg", msg)
 		ctx = context.WithValue(ctx, "current-topic", msg.Topic())
-		msgInput = msg.Payload()
-	}
-	output, err = gi.function.Process(ctx, msgInput)
-	if err != nil {
-		log.Errorf("process function err:%v", err)
-		return nil, err
+		msgInput := msg.Payload()
+		output, err = gi.function.Process(ctx, msgInput)
+		if err != nil {
+			log.Errorf("process function err:%v", err)
+			return nil, err
+		}
 	}
 	return output, nil
 }
@@ -170,7 +172,6 @@ func (gi *GoInstance) StartFunction(function Function) {
 				break CLOSE
 			}
 		}
-		fmt.Println("channel msg number is:", len(gi.msg))
 	}
 
 	gi.actualExecution(function)

@@ -16,43 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package util
+package pf
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"testing"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/stretchr/testify/assert"
 )
 
-func SetProducer() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL: "pulsar://localhost:6650",
-	})
-	if err != nil {
-		fmt.Printf("error:%v\n", err)
-	}
-	defer client.Close()
+func TestContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fc := NewFuncContext()
+	ctx = NewContext(ctx, fc)
 
-	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic: "topic-3",
-	})
-	defer producer.Close()
+	ctx = context.WithValue(ctx, "pulsar", "function")
 
-	ctx := context.Background()
-	for i := 0; i < 2; i++ {
-		// Create a different message to send asynchronously
-		asyncMsg := pulsar.ProducerMessage{
-			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
-		}
-		// Attempt to send the message asynchronously and handle the response
-		producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
-			if err != nil {
-				log.Fatal(err)
-			}
-		})
-		producer.Flush()
+	if resfc, ok := FromContext(ctx); ok {
+		assert.Equal(t, []string{"topic-1", "topic-2"}, resfc.GetInputTopics())
+		assert.Equal(t, "1.0.0", resfc.GetFuncVersion())
+		assert.Equal(t, "pulsar-function", resfc.GetFuncID())
+		assert.Equal(t, "go-function", resfc.GetFuncName())
+		assert.Equal(t, "topic-3", resfc.GetOutputTopic())
 	}
+	assert.Equal(t, "function", ctx.Value("pulsar"))
 }
-

@@ -48,6 +48,7 @@ func NewInstanceConf() *InstanceConf {
 		Port:         cfg.Port,
 		ClusterName:  cfg.ClusterName,
 		FuncDetails: pb.FunctionDetails{
+			Name:    cfg.Name,
 			AutoAck: cfg.AutoACK,
 			Source: &pb.SourceSpec{
 				InputSpecs: map[string]*pb.ConsumerSpec{
@@ -60,7 +61,7 @@ func NewInstanceConf() *InstanceConf {
 				},
 			},
 			Sink: &pb.SinkSpec{
-				Topic: cfg.InputSpecsTopic,
+				Topic: cfg.SinkSpec,
 			},
 			Resources:    &pb.Resources{},
 			RetryDetails: &pb.RetryDetails{},

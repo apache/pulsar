@@ -18,8 +18,9 @@
 #
 intopics: [topic-1, topic-2]
 instanceID: 101
-funcID: "wolf"
-funcVersion: "1.0"
+funcID: "pulsar-function"
+funcVersion: "1.0.0"
+name: "go-function"
 maxBufTuples: 10
 port: 8091
 clusterName: "pulsar-function-go"
@@ -27,4 +28,4 @@ isRegexPattern: false
 receiverQueueVal: 10
 inputSpecs: topic-3
 autoAck: true
-sinkSpec: topic2
+sinkSpec: topic-12
