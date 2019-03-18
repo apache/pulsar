@@ -204,9 +204,6 @@ public class CmdConsume {
                 topicName.getDomain(), topicName.getTenant(), topicName.getNamespacePortion(), topicName.getLocalName(),
                 subscriptionName, subscriptionType.toString());
         
-        /*String wsTopic = topicName.getDomain() + "/" +  topicName.getTenant()
-                + (!StringUtils.isEmpty(topicName.getCluster()) ? "/" + topicName.getCluster() : "") + "/"
-                + topicName.getNamespacePortion() + "/" + topicName.getLocalName() + "/" + "sub?subscriptionType=Shared" ; //TODO: change sub name*/
         String consumerBaseUri = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/consumer/" + wsTopic;
         URI consumerUri = URI.create(consumerBaseUri);
 
