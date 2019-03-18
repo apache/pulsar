@@ -27,6 +27,9 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 
 /**
  * Message schema definition
@@ -157,6 +160,21 @@ public interface Schema<T> {
      * Double Schema
      */
     Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
+
+    /**
+     * Date Schema
+     */
+    Schema<LocalDate> DATE = DefaultImplementation.newDateSchema();
+
+    /**
+     * Time Schema
+     */
+    Schema<LocalTime> TIME = DefaultImplementation.newTimeSchema();
+
+    /**
+     * Timestamp Schema
+     */
+    Schema<DateTime> TIMESTAMP = DefaultImplementation.newTimestampSchema();
 
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
