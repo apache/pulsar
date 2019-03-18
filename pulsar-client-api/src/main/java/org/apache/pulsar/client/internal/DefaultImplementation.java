@@ -27,6 +27,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -178,8 +181,26 @@ public class DefaultImplementation {
 
     public static Schema<Double> newDoubleSchema() {
         return catchExceptions(
-                () -> (Schema<Double>) newClassInstance("org.apache.pulsar.client.impl.schema.DoubleSchema")
+              () -> (Schema<Double>) newClassInstance("org.apache.pulsar.client.impl.schema.DoubleSchema")
+                    .newInstance());
+    }
+
+    public static Schema<Date> newDateSchema() {
+        return catchExceptions(
+                () -> (Schema<Date>) newClassInstance("org.apache.pulsar.client.impl.schema.DateSchema")
                         .newInstance());
+    }
+
+    public static Schema<Time> newTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<Time>) newClassInstance("org.apache.pulsar.client.impl.schema.TimeSchema")
+                    .newInstance());
+    }
+
+    public static Schema<Timestamp> newTimestampSchema() {
+        return catchExceptions(
+              () -> (Schema<Timestamp>) newClassInstance("org.apache.pulsar.client.impl.schema.TimestampSchema")
+                    .newInstance());
     }
 
     public static <T> Schema<T> newAvroSchema(Class<T> clazz) {
