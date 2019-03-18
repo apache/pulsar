@@ -1182,6 +1182,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .subscriptionType(SubscriptionType.Exclusive)
             .subscribe();
 
+        @Cleanup
         DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
 
         // setup debezium mysql server
@@ -1211,8 +1212,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
-
-        pulsarCluster.stopService("mysql", sourceTester.getDebeziumMySqlContainer());
     }
 
 }

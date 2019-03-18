@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
@@ -39,7 +40,7 @@ import org.testng.Assert;
  * which is a MySQL database server preconfigured with an inventory database.
  */
 @Slf4j
-public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> {
+public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> implements Closeable {
 
     private static final String NAME = "debezium-mysql";
 
@@ -97,4 +98,12 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         Assert.assertEquals(recordsNumber, number);
         log.info("Stop debezium mysql server container. topic: {} has {} records.", consumer.getTopic(), recordsNumber);
     }
+
+    @Override
+    public void close() {
+        if (pulsarCluster != null) {
+            pulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+        }
+    }
+
 }

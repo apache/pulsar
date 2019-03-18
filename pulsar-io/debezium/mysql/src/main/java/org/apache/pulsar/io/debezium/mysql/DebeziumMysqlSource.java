@@ -63,13 +63,13 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
         }
     }
 
-    // namespace: tenant/namespace/
-    private static String topicNamePrefix(SourceContext sourceContext) {
+    // namespace: tenant/namespace
+    private static String topicNamespace(SourceContext sourceContext) {
         String tenant = sourceContext.getTenant();
         String namespace = sourceContext.getNamespace();
 
         return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/" +
-            (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace) + "/";
+            (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
     }
 
     @Override
@@ -92,17 +92,17 @@ public class DebeziumMysqlSource extends KafkaConnectSource {
         }
         setConfigIfNull(config, PulsarDatabaseHistory.SERVICE_URL.name(), serviceUrl);
 
-        String topicNamePrefix = topicNamePrefix(sourceContext);
+        String topicNamespace = topicNamespace(sourceContext);
         // topic.namespace
-        setConfigIfNull(config, PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, topicNamePrefix);
+        setConfigIfNull(config, PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, topicNamespace);
 
         String sourceName = sourceContext.getSourceName();
         // database.history.pulsar.topic: history topic name
         setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(),
-            topicNamePrefix + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
+            topicNamespace + "/" + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
-            topicNamePrefix + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
+            topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
 
         super.open(config, sourceContext);
     }
