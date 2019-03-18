@@ -510,6 +510,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+        doc = "Enable tracking of replicated subscriptions state across clusters.")
+    private boolean enableReplicatedSubscriptions = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Frequency of snapshots for replicated subscriptions tracking.")
+    private int replicatedSubscriptionsSnapshotFrequencyMillis = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for building a consistent snapshot for tracking replicated subscriptions state. ")
+    private int replicatedSubscriptionsSnapshotTimeoutSeconds = 30;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

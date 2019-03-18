@@ -191,6 +191,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private volatile boolean schemaValidationEnforced = false;
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
+
+    private volatile Optional<ReplicatedSubscriptionsController> replicatedSubscriptionsController = Optional.empty();
+
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
         protected TopicStatsHelper initialValue() {
@@ -275,6 +278,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
         }
+
+        checkReplicatedSubscriptionControllerState();
     }
 
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
@@ -596,6 +601,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     future.completeExceptionally(
                             new BrokerServiceException("Connection was closed while the opening the cursor "));
                 } else {
+                    checkReplicatedSubscriptionControllerState();
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
@@ -906,6 +912,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
                     brokerService.removeTopicFromCache(topic);
+
+                    ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.get();
+                    if (ctrl != null) {
+                        ctrl.close();
+                    }
 
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
@@ -1411,7 +1422,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
-        
+
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
@@ -1426,7 +1437,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // Close topic object
         topicStatsStream.endObject();
-        
+
         // add publish-latency metrics
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
@@ -1481,7 +1492,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         stats.storageSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
-        
+
         return stats;
     }
 
@@ -1970,8 +1981,49 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 });
     }
 
+
     @Override
     public void recordAddLatency(long latencyUSec) {
         addEntryLatencyStatsUsec.addValue(latencyUSec);
     }
+
+    private synchronized void checkReplicatedSubscriptionControllerState() {
+        AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
+        subscriptions.forEach((name, subscription) -> {
+            if (subscription.isReplicated()) {
+                shouldBeEnabled.set(true);
+            }
+        });
+
+        if (shouldBeEnabled.get() == false) {
+            log.info("[{}] There are no replicated subscriptions on the topic", topic);
+        }
+
+        checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
+    }
+
+    private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
+        boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
+
+        if (shouldBeEnabled && !isCurrentlyEnabled) {
+            log.info("[{}] Enabling replicated subscriptions controller", topic);
+            replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
+                    brokerService.pulsar().getConfiguration().getClusterName()));
+        } else if (isCurrentlyEnabled && !shouldBeEnabled) {
+            log.info("[{}] Disabled replicated subscriptions controller", topic);
+            replicatedSubscriptionsController.get().close();
+            replicatedSubscriptionsController = Optional.empty();
+        }
+    }
+
+    void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
+        ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.orElse(null);
+        if (ctrl == null) {
+            // Force to start the replication controller
+            checkReplicatedSubscriptionControllerState(true /* shouldBeEnabled */);
+            ctrl = replicatedSubscriptionsController.get();
+        }
+
+        ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
+     }
 }

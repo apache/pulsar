@@ -46,4 +46,6 @@ public interface Replicator {
     default Optional<DispatchRateLimiter> getRateLimiter() {
         return Optional.empty();
     }
+
+    boolean isConnected();
 }
