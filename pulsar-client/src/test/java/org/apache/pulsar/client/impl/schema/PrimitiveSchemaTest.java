@@ -87,7 +87,6 @@ public class PrimitiveSchemaTest {
 
     @Test(dataProvider = "schemas")
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
-        System.out.println(new java.util.Date().getTime());
         for (Schema<?> schema : testData.keySet()) {
             assertNull(schema.encode(null),
                 "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
