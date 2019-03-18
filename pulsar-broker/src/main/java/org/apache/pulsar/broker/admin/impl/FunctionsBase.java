@@ -103,7 +103,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, functionConfigJson, clientAppId());
+                functionPkgUrl, null, functionConfigJson, clientAppId(), clientAuthData());
     }
 
 
@@ -120,7 +120,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public void deregisterFunction(final @PathParam("tenant") String tenant,
                                    final @PathParam("namespace") String namespace,
                                    final @PathParam("functionName") String functionName) {
-        functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
+        functions.deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET

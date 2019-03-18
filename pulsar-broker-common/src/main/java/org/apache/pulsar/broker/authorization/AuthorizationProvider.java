@@ -102,9 +102,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authenticationData authentication data related to the role
      * @return a boolean to determine whether authorized or not
      */
-    CompletableFuture<Boolean> allowFunctionOps(NamespaceName namespaceName, String role,
-                                                AuthenticationDataSource authenticationData);
-
+    CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                     AuthenticationDataSource authenticationData);
 
     /**
      *

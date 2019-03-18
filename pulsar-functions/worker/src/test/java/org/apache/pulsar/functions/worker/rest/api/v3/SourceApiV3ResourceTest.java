@@ -825,7 +825,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -862,7 +862,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
@@ -960,7 +960,7 @@ public class SourceApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -1067,7 +1067,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
 
     }
 
@@ -1076,7 +1076,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
                 source,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp= "Source test-source doesn't exist")

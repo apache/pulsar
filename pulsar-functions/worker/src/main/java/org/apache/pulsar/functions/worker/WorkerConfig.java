@@ -105,6 +105,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int numHttpServerThreads = 8;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            required = false,
+            doc = "Configuration store connection string (as a comma-separated list)"
+    )
+    private String configurationStoreServers;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper session timeout in milliseconds"
+    )
+    private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )

@@ -98,12 +98,12 @@ public class FunctionsImplV2 {
                                    FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                            functionDetailsJson, String functionConfigJson, String clientAppId) {
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId);
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId, null);
         return Response.ok().build();
     }
 
     public Response deregisterFunction(String tenant, String namespace, String functionName, String clientAppId) {
-        delegate.deregisterFunction(tenant, namespace, functionName, clientAppId);
+        delegate.deregisterFunction(tenant, namespace, functionName, clientAppId, null);
         return Response.ok().build();
     }
 

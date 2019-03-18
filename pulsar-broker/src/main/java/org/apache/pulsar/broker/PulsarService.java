@@ -57,6 +57,8 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
@@ -438,7 +440,7 @@ public class PulsarService implements AutoCloseable {
             acquireSLANamespace();
 
             // start function worker service if necessary
-            this.startWorkerService();
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort().get(), brokerServiceUrl, config.getClusterName(),
@@ -943,7 +945,9 @@ public class PulsarService implements AutoCloseable {
         return schemaRegistryService;
     }
 
-    private void startWorkerService() throws InterruptedException, IOException, KeeperException {
+    private void startWorkerService(AuthenticationService authenticationService,
+                                    AuthorizationService authorizationService)
+            throws InterruptedException, IOException, KeeperException {
         if (functionWorkerService.isPresent()) {
             LOG.info("Starting function worker service");
             String namespace = functionWorkerService.get()
@@ -1039,7 +1043,7 @@ public class PulsarService implements AutoCloseable {
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");
-            functionWorkerService.get().start(dlogURI);
+            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService);
             LOG.info("Function worker service started");
         }
     }

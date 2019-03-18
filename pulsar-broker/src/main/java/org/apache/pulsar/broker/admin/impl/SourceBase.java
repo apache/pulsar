@@ -100,7 +100,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                              final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, sourceConfigJson, clientAppId());
+            functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
 
@@ -117,7 +117,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public void deregisterSource(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("sourceName") String sourceName) {
-        source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+        source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET

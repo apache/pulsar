@@ -100,7 +100,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                            final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
          sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, clientAppId(), clientAuthData());
 
     }
 
@@ -118,7 +118,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public void deregisterSink(final @PathParam("tenant") String tenant,
                                final @PathParam("namespace") String namespace,
                                final @PathParam("sinkName") String sinkName) {
-        sink.deregisterFunction(tenant, namespace, sinkName, clientAppId());
+        sink.deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @GET

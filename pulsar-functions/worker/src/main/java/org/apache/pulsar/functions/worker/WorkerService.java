@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,16 +37,24 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
+import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
+import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
+import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -69,6 +78,7 @@ public class WorkerService {
     private boolean isInitialized = false;
     private final ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
+    private AuthorizationService authorizationService;
     private ConnectorsManager connectorsManager;
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
@@ -85,7 +95,10 @@ public class WorkerService {
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
     }
 
-    public void start(URI dlogUri) throws InterruptedException {
+
+    public void start(URI dlogUri,
+                      AuthenticationService authenticationService,
+                      AuthorizationService authorizationService) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
 
         this.brokerAdmin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
@@ -175,7 +188,14 @@ public class WorkerService {
             // initialize function runtime manager
             this.functionRuntimeManager.initialize();
 
-            authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+            this.authenticationService = authenticationService;
+
+            this.authorizationService = authorizationService;
+
+//            this.authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+//
+//            this.authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig),
+//                        this.configurationCacheService);
 
             // Starting cluster services
             log.info("Start cluster services...");

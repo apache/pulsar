@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
@@ -304,4 +302,8 @@ public class AuthorizationService {
         return finalResult;
     }
 
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                       AuthenticationDataSource authenticationData) {
+        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+    }
 }

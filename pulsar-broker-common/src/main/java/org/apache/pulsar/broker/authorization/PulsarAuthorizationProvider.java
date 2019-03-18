@@ -210,7 +210,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> allowFunctionOps(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return null;
     }
 

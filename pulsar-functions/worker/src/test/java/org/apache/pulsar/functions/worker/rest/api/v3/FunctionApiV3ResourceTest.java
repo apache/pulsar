@@ -903,7 +903,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -928,7 +928,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1015,7 +1015,7 @@ public class FunctionApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -1123,7 +1123,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
     }
 
     private void deregisterDefaultFunction() {
@@ -1131,7 +1131,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")

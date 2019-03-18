@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ import javax.servlet.DispatcherType;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -38,6 +41,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
+import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -174,5 +179,4 @@ public class WorkerServer {
             }
         }
     }
-
 }
