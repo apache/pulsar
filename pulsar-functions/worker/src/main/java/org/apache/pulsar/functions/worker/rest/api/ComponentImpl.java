@@ -396,7 +396,8 @@ public abstract class ComponentImpl {
                 if (functionAuthData.isPresent()) {
                     functionMetaDataBuilder.setFunctionAuthSpec(
                             Function.FunctionAuthenticationSpec.newBuilder()
-                                    .setData(ByteString.copyFrom(functionAuthData.get().getData())).build());
+                                    .setData(ByteString.copyFrom(functionAuthData.get().getData()))
+                                    .build());
                 }
             } catch (Exception e) {
                 log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
