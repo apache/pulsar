@@ -85,8 +85,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return getSchema(schemaId).thenApply(
-                (existingSchema) -> existingSchema == null || isCompatible(existingSchema, schema, strategy))
+        return getSchema(schemaId)
+            .thenApply(
+                (existingSchema) ->
+                    existingSchema == null
+                        || existingSchema.schema.isDeleted()
+                        || isCompatible(existingSchema, schema, strategy))
             .thenCompose(isCompatible -> {
                     if (isCompatible) {
                         byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
@@ -151,8 +155,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
-        return getSchema(schemaId).thenApply(
-                (existingSchema) -> existingSchema != null && isCompatible(existingSchema, schema, strategy));
+        return getSchema(schemaId)
+            .thenApply(
+                (existingSchema) ->
+                    !(existingSchema == null || existingSchema.schema.isDeleted())
+                        && isCompatible(existingSchema, schema, strategy));
     }
 
     interface Functions {
