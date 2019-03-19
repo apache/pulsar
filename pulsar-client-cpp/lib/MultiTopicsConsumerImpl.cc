@@ -563,6 +563,15 @@ void MultiTopicsConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId,
     callback(ResultOperationNotSupported);
 }
 
+void MultiTopicsConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
+    auto iterator = consumers_.find(msgId.getTopicName());
+
+    if (consumers_.end() != iterator) {
+        unAckedMessageTrackerPtr_->remove(msgId);
+        iterator->second->negativeAcknowledge(msgId);
+    }
+}
+
 MultiTopicsConsumerImpl::~MultiTopicsConsumerImpl() {}
 
 Future<Result, ConsumerImplBaseWeakPtr> MultiTopicsConsumerImpl::getConsumerCreatedFuture() {

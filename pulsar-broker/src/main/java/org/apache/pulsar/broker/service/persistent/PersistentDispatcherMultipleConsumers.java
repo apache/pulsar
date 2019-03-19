@@ -65,9 +65,6 @@ import com.google.common.collect.Lists;
  */
 public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
 
-    private static final int MaxReadBatchSize = 100;
-    private static final int MaxRoundRobinBatchSize = 20;
-
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
 
@@ -105,7 +102,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
-        this.readBatchSize = MaxReadBatchSize;
+        this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -386,8 +383,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             havePendingReplayRead = false;
         }
 
-        if (readBatchSize < MaxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
+        if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
+            int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Increasing read batch size from {} to {}", name, readBatchSize, newReadBatchSize);
             }
@@ -423,7 +420,9 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
 
             // round-robin dispatch batch size for this consumer
-            int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
+            int messagesForC = Math.min(
+                Math.min(entriesToDispatch, c.getAvailablePermits()),
+                serviceConfig.getDispatcherMaxRoundRobinBatchSize());
 
             if (messagesForC > 0) {
 
@@ -511,7 +510,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
         }
 
-        readBatchSize = 1;
+        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {

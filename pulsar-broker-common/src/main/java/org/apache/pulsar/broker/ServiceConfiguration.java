@@ -377,6 +377,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+    )
+    private int dispatcherMaxReadBatchSize = 100;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Min number of entries to read from bookkeeper. By default it is 1 entries."
+            + "When there is an error occurred on reading entries from bookkeeper, the broker"
+            + " will backoff the batch size to this minimum number."
+    )
+    private int dispatcherMinReadBatchSize = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
+    )
+    private int dispatcherMaxRoundRobinBatchSize = 20;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
