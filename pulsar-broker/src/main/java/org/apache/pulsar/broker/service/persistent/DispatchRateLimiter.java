@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -189,7 +188,7 @@ public class DispatchRateLimiter {
         Optional<Policies> policies = Optional.empty();
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
-                    .get(cacheTimeOutInSec, SECONDS);
+                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
         }
