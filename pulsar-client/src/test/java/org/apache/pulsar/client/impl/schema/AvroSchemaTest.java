@@ -25,6 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import lombok.Data;
@@ -60,6 +61,17 @@ public class AvroSchemaTest {
         String field2;
         @AvroDefault("\"1000\"")
         Long field3;
+    }
+
+    @Data
+    private static class SchemaLogicalType{
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
+        BigDecimal decimal;
     }
 
     @Test
