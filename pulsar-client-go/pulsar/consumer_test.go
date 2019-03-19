@@ -20,14 +20,16 @@
 package pulsar
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConsumerConnectError(t *testing.T) {
@@ -48,7 +50,7 @@ func TestConsumerConnectError(t *testing.T) {
 	assert.Nil(t, consumer)
 	assert.NotNil(t, err)
 
-	assert.Equal(t, err.(*Error).Result(), ConnectError);
+	assert.Equal(t, err.(*Error).Result(), ConnectError)
 }
 
 func TestConsumer(t *testing.T) {
@@ -106,6 +108,11 @@ func TestConsumer(t *testing.T) {
 		fmt.Println("Receive time: ", recvTime)
 		assert.True(t, sendTime.Unix() <= msg.PublishTime().Unix())
 		assert.True(t, recvTime.Unix() >= msg.PublishTime().Unix())
+
+		serializedId := msg.ID().Serialize()
+		deserializedId := DeserializeMessageID(serializedId)
+		assert.True(t, len(serializedId) > 0)
+		assert.True(t, bytes.Equal(deserializedId.Serialize(), serializedId))
 
 		consumer.Ack(msg)
 	}
@@ -513,4 +520,71 @@ func TestConsumer_SubscriptionInitPos(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "msg-1-content-1", string(msg.Payload()))
+}
+
+func TestConsumerNegativeAcks(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topic := "TestConsumerNegativeAcks"
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topic,
+	})
+
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	nackDelay := 100 * time.Millisecond
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:               topic,
+		SubscriptionName:    "my-sub",
+		NackRedeliveryDelay: &nackDelay,
+	})
+
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		producer.SendAsync(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}, func(producerMessage ProducerMessage, e error) {
+			fmt.Print("send complete. err=", e)
+		})
+	}
+
+	producer.Flush()
+
+	for i := 0; i < 10; i++ {
+		msg, err := consumer.Receive(ctx)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
+
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+
+		// Ack with error
+		consumer.Nack(msg)
+	}
+
+	// Messages will be redelivered
+	for i := 0; i < 10; i++ {
+		msg, err := consumer.Receive(ctx)
+		assert.Nil(t, err)
+		assert.NotNil(t, msg)
+
+		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
+
+		// This time acks successfully
+		consumer.Ack(msg)
+	}
+
+
+	consumer.Unsubscribe()
 }

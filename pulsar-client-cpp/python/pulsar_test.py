@@ -916,6 +916,36 @@ class PulsarTest(TestCase):
         self.assertTrue(msg.topic_name() in partitions)
         client.close()
 
+    def test_negative_acks(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('test_negative_acks',
+                                    'test',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer('test_negative_acks',
+                                          schema=pulsar.schema.StringSchema())
+        for i in range(10):
+            producer.send_async('hello-%d' % i, callback=None)
+
+        producer.flush()
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.negative_acknowledge(msg)
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.acknowledge(msg)
+
+        try:
+            # No more messages expected
+            msg = consumer.receive(100)
+            self.assertTrue(False)
+        except:
+            pass  # Exception is expected
+        client.close()
+
     def _check_value_error(self, fun):
         try:
             fun()
