@@ -1003,6 +1003,8 @@ public class CmdNamespaces extends CmdBase {
                 strategy = SchemaAutoUpdateCompatibilityStrategy.Backward;
             } else if (strategyStr.equals("FORWARD")) {
                 strategy = SchemaAutoUpdateCompatibilityStrategy.Forward;
+            } else if (strategyStr.equals("NONE")) {
+                strategy = SchemaAutoUpdateCompatibilityStrategy.AlwaysCompatible;
             } else {
                 throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
             }
