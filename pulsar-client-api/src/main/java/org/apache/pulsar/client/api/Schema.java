@@ -19,10 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Map;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -30,6 +27,9 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 
 /**
  * Message schema definition
@@ -164,17 +164,17 @@ public interface Schema<T> {
     /**
      * Date Schema
      */
-    Schema<Date> DATE = DefaultImplementation.newDateSchema();
+    Schema<LocalDate> DATE = DefaultImplementation.newDateSchema();
 
     /**
      * Time Schema
      */
-    Schema<Time> TIME = DefaultImplementation.newTimeSchema();
+    Schema<LocalTime> TIME = DefaultImplementation.newTimeSchema();
 
     /**
      * Timestamp Schema
      */
-    Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
+    Schema<DateTime> TIMESTAMP = DefaultImplementation.newTimestampSchema();
 
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
