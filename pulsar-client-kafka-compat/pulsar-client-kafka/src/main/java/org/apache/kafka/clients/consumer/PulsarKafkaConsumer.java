@@ -354,7 +354,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 lastReceivedOffset.put(tp, offset);
                 unpolledPartitions.remove(tp);
 
-                if (++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
+                if (++numberOfRecords >= MAX_RECORDS_IN_SINGLE_POLL) {
                     break;
                 }
 
