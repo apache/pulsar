@@ -657,7 +657,7 @@ public class FunctionConfigUtils {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Orderning cannot be altered");

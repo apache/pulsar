@@ -21,6 +21,8 @@
 #include <pulsar/Message.h>
 #include <pulsar/Consumer.h>
 
+#include <set>
+
 namespace pulsar {
 class ConsumerImplBase;
 
@@ -50,6 +52,7 @@ class ConsumerImplBase {
     virtual int getNumOfPrefetchedMessages() const = 0;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
+    virtual void negativeAcknowledge(const MessageId& msgId) = 0;
 };
 }  // namespace pulsar
 #endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER

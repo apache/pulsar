@@ -28,21 +28,21 @@ import java.util.Optional;
 public interface Record<T> {
 
     /**
-     * If the record originated from a topic, report the topic name
+     * If the record originated from a topic, report the topic name.
      */
     default Optional<String> getTopicName() {
         return Optional.empty();
     }
 
     /**
-     * Return a key if the key has one associated
+     * Return a key if the key has one associated.
      */
     default Optional<String> getKey() {
         return Optional.empty();
     }
 
     /**
-     * Retrieves the actual data of the record
+     * Retrieves the actual data of the record.
      *
      * @return The record data
      */
@@ -85,19 +85,19 @@ public interface Record<T> {
     }
 
     /**
-     * Acknowledge that this record is fully processed
+     * Acknowledge that this record is fully processed.
      */
     default void ack() {
     }
 
     /**
-     * To indicate that this record has failed to be processed
+     * To indicate that this record has failed to be processed.
      */
     default void fail() {
     }
 
     /**
-     * To support message routing on a per message basis
+     * To support message routing on a per message basis.
      *
      * @return The topic this message should be written to
      */

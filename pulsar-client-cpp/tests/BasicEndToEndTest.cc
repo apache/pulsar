@@ -48,19 +48,20 @@ static int globalCount = 0;
 static long globalResendMessageCount = 0;
 static std::string lookupUrl = "pulsar://localhost:6650";
 static std::string adminUrl = "http://localhost:8080/";
-static void messageListenerFunction(Consumer consumer, const Message& msg) {
+
+static void messageListenerFunction(Consumer consumer, const Message &msg) {
     globalCount++;
     consumer.acknowledge(msg);
 }
 
-static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& msg, Latch& latch,
-                                              const std::string& content) {
+static void messageListenerFunctionWithoutAck(Consumer consumer, const Message &msg, Latch &latch,
+                                              const std::string &content) {
     globalCount++;
     ASSERT_EQ(content, msg.getDataAsString());
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message& msg, std::string prefix, int* count) {
+static void sendCallBack(Result r, const Message &msg, std::string prefix, int *count) {
     static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
@@ -71,8 +72,8 @@ static void sendCallBack(Result r, const Message& msg, std::string prefix, int* 
     sendMutex_.unlock();
 }
 
-static void receiveCallBack(Result r, const Message& msg, std::string& messageContent, bool checkContent,
-                            bool* isFailed, int* count) {
+static void receiveCallBack(Result r, const Message &msg, std::string &messageContent, bool checkContent,
+                            bool *isFailed, int *count) {
     static std::mutex receiveMutex_;
     receiveMutex_.lock();
 
@@ -89,8 +90,8 @@ static void receiveCallBack(Result r, const Message& msg, std::string& messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBackWithDelay(Result r, const Message& msg, std::string prefix, double percentage,
-                                  uint64_t delayInMicros, int* count) {
+static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
+                                  uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
         usleep(delayInMicros);
     }
@@ -99,7 +100,7 @@ static void sendCallBackWithDelay(Result r, const Message& msg, std::string pref
 
 class EncKeyReader : public CryptoKeyReader {
    private:
-    void readFile(std::string fileName, std::string& fileContents) const {
+    void readFile(std::string fileName, std::string &fileContents) const {
         std::ifstream ifs(fileName);
         std::stringstream fileStream;
         fileStream << ifs.rdbuf();
@@ -110,8 +111,8 @@ class EncKeyReader : public CryptoKeyReader {
    public:
     EncKeyReader() {}
 
-    Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                        EncryptionKeyInfo& encKeyInfo) const {
+    Result getPublicKey(const std::string &keyName, std::map<std::string, std::string> &metadata,
+                        EncryptionKeyInfo &encKeyInfo) const {
         std::string CERT_FILE_PATH =
             "../../pulsar-broker/src/test/resources/certificate/public-key." + keyName;
         std::string keyContents;
@@ -121,8 +122,8 @@ class EncKeyReader : public CryptoKeyReader {
         return ResultOk;
     }
 
-    Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                         EncryptionKeyInfo& encKeyInfo) const {
+    Result getPrivateKey(const std::string &keyName, std::map<std::string, std::string> &metadata,
+                         EncryptionKeyInfo &encKeyInfo) const {
         std::string CERT_FILE_PATH =
             "../../pulsar-broker/src/test/resources/certificate/private-key." + keyName;
         std::string keyContents;
@@ -561,7 +562,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
-    char* content = new char[size];
+    char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1114,7 +1115,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
-    char* content = new char[size];
+    char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1165,7 +1166,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
-    char* content = new char[size];
+    char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1200,7 +1201,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty(propertyName, std::to_string(i)).build();
         if (i % 3 == 1) {
-            ProducerImpl& pImpl = PulsarFriend::getProducerImpl(producer);
+            ProducerImpl &pImpl = PulsarFriend::getProducerImpl(producer);
             ClientConnectionPtr clientConnectionPtr;
             do {
                 ClientConnectionWeakPtr clientConnectionWeakPtr = PulsarFriend::getClientConnection(pImpl);
@@ -1222,7 +1223,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
         receivedMsgIndex.insert(msg.getProperty(propertyName));
     }
 
-    ConsumerImpl& cImpl = PulsarFriend::getConsumerImpl(consumer);
+    ConsumerImpl &cImpl = PulsarFriend::getConsumerImpl(consumer);
     ClientConnectionWeakPtr clientConnectionWeakPtr = PulsarFriend::getClientConnection(cImpl);
     ClientConnectionPtr clientConnectionPtr = clientConnectionWeakPtr.lock();
     oldConnections.push_back(clientConnectionPtr);
@@ -2220,7 +2221,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 }
 
 // for partitioned reason, it may hard to verify message id.
-static void simpleCallback(Result code, const Message& msg) {
+static void simpleCallback(Result code, const Message &msg) {
     LOG_INFO("Received code: " << code << " -- Msg: " << msg);
 }
 
@@ -2841,4 +2842,101 @@ TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
     ASSERT_EQ(ResultOk, consumerA.unsubscribe());
     // If dup consumers are allowed BrokerMetadataError will be the result of close()
     ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
+}
+
+void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
+    Client client(lookupUrl);
+    Consumer consumer;
+    ConsumerConfiguration conf;
+    conf.setNegativeAckRedeliveryDelayMs(100);
+    Result result = client.subscribe(topic, "test", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(batchingEnabled);
+    result = client.createProducer(topic, producerConf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
+
+    producer.flush();
+
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        consumer.receive(msg);
+
+        ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
+        consumer.negativeAcknowledge(msg);
+    }
+
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        consumer.receive(msg);
+
+        ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
+
+        consumer.acknowledge(msg);
+    }
+
+    // No more messages expected
+    Message msg;
+    Result res = consumer.receive(msg, 100);
+    ASSERT_EQ(ResultTimeout, res);
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testNegativeAcks) {
+    testNegativeAcks("testNegativeAcks-" + std::to_string(time(nullptr)), false);
+}
+
+TEST(BasicEndToEndTest, testNegativeAcksWithBatching) {
+    testNegativeAcks("testNegativeAcksWithBatching-" + std::to_string(time(nullptr)), true);
+}
+
+TEST(BasicEndToEndTest, testNegativeAcksWithPartitions) {
+    std::string topicName = "testNegativeAcksWithPartitions-" + std::to_string(time(nullptr));
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    testNegativeAcks(topicName, true);
+}
+
+TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName =
+        "persistent://public/default/testPreventDupConsumersAllowSameSubForDifferentTopics";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    Consumer consumerC;
+    Result resultC = client.subscribe(topicName + "-different-topic", subsName, consumerConf, consumerC);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+    ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
+
+    // consumer C should be a different instance from A and B and should be with open state.
+    ASSERT_EQ(ResultOk, consumerC.close());
 }
