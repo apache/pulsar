@@ -19,3 +19,7 @@ Pulsar Functions cluster.
 - [CDC Source Connector based on Debezium](io-cdc.md)
 - [Netty Source Connector](io-netty.md#source)
 - [Hbase Sink Connector](io-hbase.md#sink)
+- [ElasticSearch Sink Connector](io-elasticsearch.md#sink)
+- [File Source Connector](io-file.md#source)
+- [Hdfs Sink Connector](io-hdfs.md#sink)
+- [MongoDB Sink Connector](io-mongo.md#sink)

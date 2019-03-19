@@ -96,6 +96,11 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.uint64_t(timeoutMillis))
 	}
 
+	if options.NackRedeliveryDelay != nil {
+		delayMillis := options.NackRedeliveryDelay.Nanoseconds() / int64(time.Millisecond)
+		C.pulsar_configure_set_negative_ack_redelivery_delay_ms(conf, C.long(delayMillis))
+	}
+
 	if options.Type != Exclusive {
 		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.Type))
 	}
@@ -251,6 +256,16 @@ func (c *consumer) AckCumulative(msg Message) error {
 
 func (c *consumer) AckCumulativeID(msgId MessageID) error {
 	C.pulsar_consumer_acknowledge_cumulative_async_id(c.ptr, msgId.(*messageID).ptr, nil, nil)
+	return nil
+}
+
+func (c *consumer) Nack(msg Message) error {
+	C.pulsar_consumer_negative_acknowledge(c.ptr, msg.(*message).ptr)
+	return nil
+}
+
+func (c *consumer) NackID(msgId MessageID) error {
+	C.pulsar_consumer_negative_acknowledge_id(c.ptr, msgId.(*messageID).ptr)
 	return nil
 }
 

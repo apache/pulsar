@@ -302,22 +302,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!isBatchMessagingEnabled()) {
             compressedPayload = compressor.encode(payload);
             payload.release();
-        }
-        int compressedSize = compressedPayload.readableBytes();
 
-        // validate msg-size (validate uncompressed-payload size for batch as we can't discard later on while building a
-        // batch)
-        if (compressedSize > PulsarDecoder.MaxMessageSize) {
-            compressedPayload.release();
-            String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                    ? "Compressed"
-                    : "";
-            PulsarClientException.InvalidMessageException invalidMessageException =
-                    new PulsarClientException.InvalidMessageException(
-                            format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                                    PulsarDecoder.MaxMessageSize));
-            callback.sendComplete(invalidMessageException);
-            return;
+            // validate msg-size (For batching this will be check at the batch completion size)
+            int compressedSize = compressedPayload.readableBytes();
+
+            if (compressedSize > PulsarDecoder.MaxMessageSize) {
+                compressedPayload.release();
+                String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
+                        ? "Compressed"
+                        : "";
+                PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
+                        format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                                PulsarDecoder.MaxMessageSize));
+                callback.sendComplete(invalidMessageException);
+                return;
+            }
         }
 
         if (!msg.isReplicated() && msgMetadataBuilder.hasProducerName()) {
@@ -373,12 +372,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     ByteBuf encryptedPayload = encryptMessage(msgMetadataBuilder, compressedPayload);
 
                     MessageMetadata msgMetadata = msgMetadataBuilder.build();
-                    ByteBufPair cmd = sendMessage(producerId, sequenceId, 1, msgMetadata, encryptedPayload);
+
+                    // When publishing during replication, we need to set the correct number of message in batch
+                    // This is only used in tracking the publish rate stats
+                    int numMessages = msg.getMessageBuilder().hasNumMessagesInBatch()
+                            ? msg.getMessageBuilder().getNumMessagesInBatch()
+                            : 1;
+                    ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
                     msgMetadataBuilder.recycle();
                     msgMetadata.recycle();
 
                     final OpSendMsg op = OpSendMsg.create(msg, cmd, sequenceId, callback);
-                    op.setNumMessagesInBatch(1);
+                    op.setNumMessagesInBatch(numMessages);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
                     lastSendFuture = callback.getFuture();
@@ -451,7 +456,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Closing out batch to accomodate large message with size {}", topic, producerName,
+            log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
         }
         batchMessageAndSend();
@@ -670,7 +675,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (sequenceId > expectedSequenceId) {
                 log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
                         expectedSequenceId, sequenceId, pendingMessages.size());
-                // Force connection closing so that messages can be retransmitted in a new connection
+                // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
             } else if (sequenceId < expectedSequenceId) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
@@ -1286,11 +1291,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 ByteBuf compressedPayload = batchMessageContainer.getCompressedBatchMetadataAndPayload();
                 long sequenceId = batchMessageContainer.sequenceId;
                 ByteBuf encryptedPayload = encryptMessage(batchMessageContainer.messageMetadata, compressedPayload);
+
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
                         batchMessageContainer.setBatchAndBuild(), encryptedPayload);
 
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);
+
+                if (encryptedPayload.readableBytes() > PulsarDecoder.MaxMessageSize) {
+                    cmd.release();
+                    semaphore.release(numMessagesInBatch);
+                    if (op != null) {
+                        op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
+                                "Message size is bigger than " + PulsarDecoder.MaxMessageSize + " bytes"));
+                    }
+                    return;
+                }
 
                 op.setNumMessagesInBatch(batchMessageContainer.numMessagesInBatch);
                 op.setBatchSizeByte(batchMessageContainer.currentBatchSizeBytes);
