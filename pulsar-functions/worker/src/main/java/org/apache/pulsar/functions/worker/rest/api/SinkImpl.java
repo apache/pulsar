@@ -69,26 +69,17 @@ public class SinkImpl extends ComponentImpl {
                     + status.getNumUserExceptions() + status.getNumSourceExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
@@ -96,10 +87,7 @@ public class SinkImpl extends ComponentImpl {
             sinkInstanceStatusData.setNumSinkExceptions(status.getNumSinkExceptions());
             List<ExceptionInformation> sinkExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 sinkExceptionInformationList.add(exceptionInformation);
             }
             sinkInstanceStatusData.setLatestSinkExceptions(sinkExceptionInformationList);
@@ -204,6 +192,14 @@ public class SinkImpl extends ComponentImpl {
 
             return sinkStatus;
         }
+    }
+
+    private ExceptionInformation getExceptionInformation(InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry) {
+        ExceptionInformation exceptionInformation
+                = new ExceptionInformation();
+        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+        return exceptionInformation;
     }
 
     public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {

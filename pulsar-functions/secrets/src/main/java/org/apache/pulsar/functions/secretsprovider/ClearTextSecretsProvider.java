@@ -23,8 +23,9 @@ package org.apache.pulsar.functions.secretsprovider;
  * the secrets as being passed in cleartext.
  */
 public class ClearTextSecretsProvider implements SecretsProvider {
-        /**
-     * Fetches a secret
+    /**
+     * Fetches a secret.
+     *
      * @return The actual secret
      */
     @Override

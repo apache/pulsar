@@ -143,6 +143,11 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg.getRedeliveryCount();
     }
 
+    @Override
+    public byte[] getSchemaVersion() {
+        return msg.getSchemaVersion();
+    }
+
     public Message<T> getMessage() {
         return msg;
     }

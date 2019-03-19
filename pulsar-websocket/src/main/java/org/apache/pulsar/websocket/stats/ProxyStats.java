@@ -45,6 +45,7 @@ public class ProxyStats {
     private final JvmMetrics jvmMetrics;
     private ConcurrentOpenHashMap<String, ProxyNamespaceStats> topicStats;
     private List<Metrics> metricsCollection;
+    private List<Metrics> tempMetricsCollection;
 
     public ProxyStats(WebSocketService service) {
         super();
@@ -52,6 +53,7 @@ public class ProxyStats {
         this.jvmMetrics = new JvmMetrics(service);
         this.topicStats = new ConcurrentOpenHashMap<>();
         this.metricsCollection = Lists.newArrayList();
+        this.tempMetricsCollection = Lists.newArrayList();
         // schedule stat generation task every 1 minute
         service.getExecutor().scheduleAtFixedRate(() -> generate(), 120, 60, TimeUnit.SECONDS);
     }
@@ -95,7 +97,7 @@ public class ProxyStats {
             });
         });
 
-        List<Metrics> tempMetricsCollection = Lists.newArrayList();
+        tempMetricsCollection.clear();
         topicStats.forEach((namespace, stats) -> {
             if (log.isDebugEnabled()) {
                 log.debug("Add ns-stats of namespace {} to metrics", namespace);
@@ -112,14 +114,14 @@ public class ProxyStats {
         // swap tempmetrics to stat-metrics
         List<Metrics> tempRef = metricsCollection;
         metricsCollection = tempMetricsCollection;
-        tempRef.clear();
+        tempMetricsCollection = tempRef;
 
         if (log.isDebugEnabled()) {
             log.debug("Complete generating proxy metrics");
         }
     }
 
-    public synchronized List<Metrics> getMetrics() {
+    public List<Metrics> getMetrics() {
         return metricsCollection;
     }
 

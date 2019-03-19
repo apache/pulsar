@@ -89,7 +89,8 @@ public class WindowManager<T> implements TriggerHandler {
 
     /**
      * Add an event into the window, with the given ts as the tracking ts.
-     *  @param event the event to track
+     *
+     * @param event the event to track
      * @param ts the timestamp
      */
     public void add(T event, long ts, Record<?> record) {
@@ -225,7 +226,7 @@ public class WindowManager<T> implements TriggerHandler {
 
     /**
      * Scans the event queue and returns the next earliest event ts
-     * between the startTs and endTs
+     * between the startTs and endTs.
      *
      * @param startTs the start ts (exclusive)
      * @param endTs the end ts (inclusive)

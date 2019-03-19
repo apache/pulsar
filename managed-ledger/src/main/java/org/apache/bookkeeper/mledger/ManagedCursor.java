@@ -519,6 +519,12 @@ public interface ManagedCursor {
     void setInactive();
 
     /**
+     * A cursor that is set as always-inactive  will never trigger the caching of
+     * entries.
+     */
+    void setAlwaysInactive();
+
+    /**
      * Checks if cursor is active or not.
      *
      * @return

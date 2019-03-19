@@ -44,6 +44,8 @@ class ThreadRuntime implements Runtime {
     // The thread that invokes the function
     private Thread fnThread;
 
+    private static final int THREAD_SHUTDOWN_TIMEOUT_MILLIS = 10_000;
+
     @Getter
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
@@ -85,7 +87,7 @@ class ThreadRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function
+     * The core logic that initialize the thread container and executes the function.
      */
     @Override
     public void start() {
@@ -114,13 +116,19 @@ class ThreadRuntime implements Runtime {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void stop() {
         if (fnThread != null) {
             // interrupt the instance thread
             fnThread.interrupt();
             try {
-                fnThread.join();
+                // If the instance thread doesn't respond within some time, attempt to
+                // kill the thread
+                fnThread.join(THREAD_SHUTDOWN_TIMEOUT_MILLIS, 0);
+                if (fnThread.isAlive()) {
+                    fnThread.stop();
+                }
             } catch (InterruptedException e) {
                 // ignore this
             }
@@ -152,8 +160,8 @@ class ThreadRuntime implements Runtime {
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
     }
-    
-    
+
+
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());

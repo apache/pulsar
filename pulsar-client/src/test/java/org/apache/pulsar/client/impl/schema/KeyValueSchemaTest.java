@@ -137,8 +137,8 @@ public class KeyValueSchemaTest {
         byte[] fooBytes = fooAvroSchema.encode(foo);
         byte[] barBytes = barAvroSchema.encode(bar);
 
-        byte[] encodeBytes = Schema.KV_BYTES.encode(new KeyValue<>(fooBytes, barBytes));
-        KeyValue<byte[], byte[]> decodeKV = Schema.KV_BYTES.decode(encodeBytes);
+        byte[] encodeBytes = Schema.KV_BYTES().encode(new KeyValue<>(fooBytes, barBytes));
+        KeyValue<byte[], byte[]> decodeKV = Schema.KV_BYTES().decode(encodeBytes);
 
         Foo fooBack = fooAvroSchema.decode(decodeKV.getKey());
         Bar barBack = barAvroSchema.decode(decodeKV.getValue());
