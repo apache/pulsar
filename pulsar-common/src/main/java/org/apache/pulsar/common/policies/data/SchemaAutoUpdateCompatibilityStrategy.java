@@ -45,5 +45,11 @@ public enum SchemaAutoUpdateCompatibilityStrategy {
     /**
      * Backward and Forward.
      */
-    Full
+    Full,
+
+    /**
+     * Always Compatible - The new schema will not be checked for compatibility against
+     * old schemas. In other words, new schemas will always be marked assumed compatible.
+     */
+    AlwaysCompatible
 }
