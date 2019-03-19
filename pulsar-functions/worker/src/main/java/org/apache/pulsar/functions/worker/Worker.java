@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.util.concurrent.AbstractService;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;

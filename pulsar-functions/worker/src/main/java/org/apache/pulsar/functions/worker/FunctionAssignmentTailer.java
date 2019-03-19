@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.function.Function;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
