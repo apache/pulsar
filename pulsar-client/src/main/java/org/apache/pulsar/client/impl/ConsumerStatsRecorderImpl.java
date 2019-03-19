@@ -63,16 +63,16 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
     public ConsumerStatsRecorderImpl() {
-        numMsgsReceived = null;
-        numBytesReceived = null;
-        numReceiveFailed = null;
-        numAcksSent = null;
-        numAcksFailed = null;
-        totalMsgsReceived = null;
-        totalBytesReceived = null;
-        totalReceiveFailed = null;
-        totalAcksSent = null;
-        totalAcksFailed = null;
+        numMsgsReceived = new LongAdder();
+        numBytesReceived = new LongAdder();
+        numReceiveFailed = new LongAdder();
+        numAcksSent = new LongAdder();
+        numAcksFailed = new LongAdder();
+        totalMsgsReceived = new LongAdder();
+        totalBytesReceived = new LongAdder();
+        totalReceiveFailed = new LongAdder();
+        totalAcksSent = new LongAdder();
+        totalAcksFailed = new LongAdder();
     }
 
     public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
