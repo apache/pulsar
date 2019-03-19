@@ -366,11 +366,17 @@ SharedBuffer Commands::newPong() {
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId) {
+SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId,
+                                                          const std::set<MessageId>& messageIds) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES);
     CommandRedeliverUnacknowledgedMessages* command = cmd.mutable_redeliverunacknowledgedmessages();
     command->set_consumer_id(consumerId);
+    for (const auto& msgId : messageIds) {
+        MessageIdData* msgIdData = command->add_message_ids();
+        msgIdData->set_ledgerid(msgId.ledgerId());
+        msgIdData->set_entryid(msgId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 
