@@ -27,6 +27,11 @@ public enum SchemaCompatibilityStrategy {
     ALWAYS_INCOMPATIBLE,
 
     /**
+     * Always compatible
+     */
+    ALWAYS_COMPATIBLE,
+
+    /**
      * Messages written by a new schema can be read by an old schema
      */
     BACKWARD,
@@ -52,6 +57,8 @@ public enum SchemaCompatibilityStrategy {
             return FORWARD;
         case Full:
             return FULL;
+        case AlwaysCompatible:
+            return ALWAYS_COMPATIBLE;
         case AutoUpdateDisabled:
         default:
             return ALWAYS_INCOMPATIBLE;
