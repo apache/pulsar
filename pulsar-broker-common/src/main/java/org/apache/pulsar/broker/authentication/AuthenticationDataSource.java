@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -103,8 +103,8 @@ public interface AuthenticationDataSource {
      * Evaluate and challenge the data that passed in, and return processed data back.
      * It is used for mutual authentication like SASL.
      */
-    default AuthData authenticate(AuthData data) throws IOException {
-        throw new UnsupportedOperationException();
+    default AuthData authenticate(AuthData data) throws AuthenticationException {
+        throw new AuthenticationException("Not supported");
     }
 
     /*
