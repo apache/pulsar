@@ -389,7 +389,7 @@ public class SourceApiV3ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -404,7 +404,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already exists")
@@ -498,7 +498,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")

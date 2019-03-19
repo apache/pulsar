@@ -76,7 +76,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         return parseToken(token);
     }
 
-    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
+    public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
             return authData.getCommandData();
@@ -96,7 +96,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String validateToken(final String token) throws AuthenticationException {
+    private static String validateToken(final String token) throws AuthenticationException {
         if (StringUtils.isNotBlank(token)) {
             return token;
         } else {
