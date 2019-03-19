@@ -64,7 +64,7 @@ class my_build_ext(build_ext.build_ext):
 dependencies = [
     'fastavro',
     'grpcio',
-    'protobuf',
+    'protobuf>=3.6.1',
     'six',
 
     # functions dependencies
