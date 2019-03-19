@@ -19,22 +19,34 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar-io</artifactId>
+    <artifactId>pulsar-io-debezium</artifactId>
     <version>2.4.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
-  <name>Pulsar IO :: Kafka Connect Adaptor</name>
+  <artifactId>pulsar-io-debezium-core</artifactId>
+  <name>Pulsar IO :: Debezium :: Core</name>
 
   <dependencies>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.debezium</groupId>
+      <artifactId>debezium-core</artifactId>
+      <version>${debezium.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -51,18 +63,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>connect-json</artifactId>
-      <version>${kafka-client.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>connect-api</artifactId>
-      <version>${kafka-client.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
@@ -72,13 +72,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>connect-file</artifactId>
-      <version>${kafka-client.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -107,15 +100,5 @@
     </dependency>
 
   </dependencies>
-
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-maven-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 
 </project>
