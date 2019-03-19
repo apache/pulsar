@@ -22,6 +22,7 @@
 # Make sure dependencies are installed
 pip install mock --user
 pip install protobuf --user
+pip install fastavro --user
 
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 PULSAR_HOME=$CUR_DIR/../../../../
