@@ -21,6 +21,7 @@ package conf
 
 import (
 	"errors"
+	"flag"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -50,21 +51,12 @@ type Conf struct {
 	KillAfterIdleMs  time.Duration `yaml:"killAfterIdleMs"`
 }
 
+var opts string
+
 func (c *Conf) GetConf() *Conf {
-	var homeDir string
-	usr, err := user.Current()
-	if err == nil {
-		homeDir = usr.HomeDir
-	}
+	flag.Parse()
 
-	// Fall back to standard HOME environment variable that works
-	// for most POSIX OSes if the directory from the Go standard
-	// lib failed.
-	if err != nil || homeDir == "" {
-		homeDir = os.Getenv("HOME")
-	}
-
-	yamlFile, err := ioutil.ReadFile(homeDir + "/" + ConfigPath)
+	yamlFile, err := ioutil.ReadFile(opts)
 	if err != nil {
 		log.Errorf("not found conf file, err:%s", err.Error())
 	}
@@ -80,4 +72,21 @@ func (c *Conf) Verify() error {
 		return errors.New("config file is nil")
 	}
 	return nil
+}
+
+func init() {
+	var homeDir string
+	usr, err := user.Current()
+	if err == nil {
+		homeDir = usr.HomeDir
+	}
+
+	// Fall back to standard HOME environment variable that works
+	// for most POSIX OSes if the directory from the Go standard
+	// lib failed.
+	if err != nil || homeDir == "" {
+		homeDir = os.Getenv("HOME")
+	}
+	defaultPath := homeDir + "/" + ConfigPath
+	flag.StringVar(&opts, "path", defaultPath, "config conf.yml filepath")
 }

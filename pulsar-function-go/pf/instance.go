@@ -44,10 +44,6 @@ func NewGoInstance() *GoInstance {
 	return goInstance
 }
 
-type Handler struct {
-	handler Function
-}
-
 func (gi *GoInstance) StartFunction(function Function) {
 	gi.function = function
 	gi.setupClient()
