@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/examples/util"
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
@@ -34,6 +33,5 @@ func contextFunc(ctx context.Context) {
 }
 
 func main() {
-	util.SetProducer()
 	pf.Start(contextFunc)
 }

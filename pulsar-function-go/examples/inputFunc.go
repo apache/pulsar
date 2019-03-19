@@ -22,16 +22,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/examples/util"
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
-func HandleRequest(ctx context.Context, in []byte) {
-	in = []byte{12, 31, 34, 21}
-	fmt.Println(in)
+func HandleRequest(ctx context.Context, in []byte) error{
+	fmt.Println(string(in) + "!")
+	return nil
 }
 
 func main() {
-	util.SetProducer()
 	pf.Start(HandleRequest)
 }

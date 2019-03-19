@@ -20,6 +20,7 @@ package pf
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/apache/pulsar/pulsar-function-go/conf"
 	"github.com/apache/pulsar/pulsar-function-go/pb"
@@ -28,25 +29,29 @@ import (
 // This is the config passed to the Golang Instance. Contains all the information
 // passed to run functions
 type InstanceConf struct {
-	InstanceID   int
-	FuncID       string
-	FuncVersion  string
-	FuncDetails  pb.FunctionDetails
-	MaxBufTuples int
-	Port         int
-	ClusterName  string
+	InstanceID       int
+	FuncID           string
+	FuncVersion      string
+	FuncDetails      pb.FunctionDetails
+	MaxBufTuples     int
+	Port             int
+	ClusterName      string
+	PulsarServiceURL string
+	KillAfterIdleMs  time.Duration
 }
 
 func NewInstanceConf() *InstanceConf {
-	conf := &conf.Conf{}
-	cfg := conf.GetConf()
+	config := &conf.Conf{}
+	cfg := config.GetConf()
 	instanceConf := &InstanceConf{
-		InstanceID:   cfg.InstanceID,
-		FuncID:       cfg.FuncID,
-		FuncVersion:  cfg.FuncVersion,
-		MaxBufTuples: cfg.MaxBufTuples,
-		Port:         cfg.Port,
-		ClusterName:  cfg.ClusterName,
+		InstanceID:       cfg.InstanceID,
+		FuncID:           cfg.FuncID,
+		FuncVersion:      cfg.FuncVersion,
+		MaxBufTuples:     cfg.MaxBufTuples,
+		Port:             cfg.Port,
+		ClusterName:      cfg.ClusterName,
+		PulsarServiceURL: cfg.PulsarServiceURL,
+		KillAfterIdleMs:  cfg.KillAfterIdleMs,
 		FuncDetails: pb.FunctionDetails{
 			Name:    cfg.Name,
 			AutoAck: cfg.AutoACK,

@@ -108,18 +108,9 @@ type expected struct {
 
 var (
 	input       = []byte{102, 117, 110, 99, 116, 105, 111, 110}
-	actualInput = []byte{102, 117, 110, 99, 116, 105, 111, 110, 110}
 )
 
 func TestInvokes(t *testing.T) {
-	hello := func(s []byte) []byte {
-		for _, in := range input {
-			s = append(s, in)
-		}
-
-		s = append(s, 110)
-		return s
-	}
 	testCases := []struct {
 		name     string
 		input    []byte
@@ -128,23 +119,23 @@ func TestInvokes(t *testing.T) {
 	}{
 		{
 			input:    input,
-			expected: expected{actualInput, nil},
+			expected: expected{input, nil},
 			function: func(in []byte) ([]byte, error) {
-				return hello(in), nil
+				return input, nil
 			},
 		},
 		{
 			input:    input,
-			expected: expected{actualInput, nil},
+			expected: expected{input, nil},
 			function: func(in []byte) ([]byte, error) {
-				return hello(in), nil
+				return input, nil
 			},
 		},
 		{
 			input:    input,
-			expected: expected{actualInput, nil},
+			expected: expected{input, nil},
 			function: func(ctx context.Context, in []byte) ([]byte, error) {
-				return hello(in), nil
+				return input, nil
 			},
 		},
 		{

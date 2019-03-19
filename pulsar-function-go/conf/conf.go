@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"time"
 
 	"github.com/apache/pulsar/pulsar-function-go/log"
 	"gopkg.in/yaml.v2"
@@ -32,19 +33,21 @@ import (
 const ConfigPath = "github.com/apache/pulsar/pulsar-function-go/conf/conf.yaml"
 
 type Conf struct {
-	InputTopics      []string `yaml:"intopics"`
-	InstanceID       int      `yaml:"instanceID"`
-	FuncID           string   `yaml:"funcID"`
-	FuncVersion      string   `yaml:"funcVersion"`
-	Name             string   `yaml:"name"`
-	MaxBufTuples     int      `yaml:"maxBufTuples"`
-	Port             int      `yaml:"port"`
-	ClusterName      string   `yaml:"clusterName"`
-	IsRegexPattern   bool     `yaml:"isRegexPattern"`
-	ReceiverQueueVal int32    `yaml:"receiverQueueVal"`
-	InputSpecsTopic  string   `yaml:"inputSpecs"`
-	AutoACK          bool     `yaml:"autoAck"`
-	SinkSpec         string   `yaml:"sinkSpec"`
+	PulsarServiceURL string        `yaml:"pulsarServiceURL"`
+	InputTopics      []string      `yaml:"intopics"`
+	InstanceID       int           `yaml:"instanceID"`
+	FuncID           string        `yaml:"funcID"`
+	FuncVersion      string        `yaml:"funcVersion"`
+	Name             string        `yaml:"name"`
+	MaxBufTuples     int           `yaml:"maxBufTuples"`
+	Port             int           `yaml:"port"`
+	ClusterName      string        `yaml:"clusterName"`
+	IsRegexPattern   bool          `yaml:"isRegexPattern"`
+	ReceiverQueueVal int32         `yaml:"receiverQueueVal"`
+	InputSpecsTopic  string        `yaml:"inputSpecs"`
+	AutoACK          bool          `yaml:"autoAck"`
+	SinkSpec         string        `yaml:"sinkSpec"`
+	KillAfterIdleMs  time.Duration `yaml:"killAfterIdleMs"`
 }
 
 func (c *Conf) GetConf() *Conf {

@@ -31,14 +31,14 @@ type FunctionContext struct {
 }
 
 func NewFuncContext() *FunctionContext {
-	conf := &conf.Conf{}
-	cfg := conf.GetConf()
-	fctx := &FunctionContext{
+	config := &conf.Conf{}
+	cfg := config.GetConf()
+	fc := &FunctionContext{
 		InstanceConf: NewInstanceConf(),
 		UserConfigs:  make(map[string]interface{}),
 		InputTopics:  cfg.InputTopics,
 	}
-	return fctx
+	return fc
 }
 
 func (c *FunctionContext) GetInstanceID() int {

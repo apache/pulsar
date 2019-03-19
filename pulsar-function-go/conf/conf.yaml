@@ -16,6 +16,7 @@
 #  specific language governing permissions and limitations
 #  under the License.
 #
+pulsarServiceURL: "pulsar://localhost:6650"
 intopics: [topic-1, topic-2]
 instanceID: 101
 funcID: "pulsar-function"
@@ -26,6 +27,7 @@ port: 8091
 clusterName: "pulsar-function-go"
 isRegexPattern: false
 receiverQueueVal: 10
-inputSpecs: topic-3
+inputSpecs: topic-01
 autoAck: true
-sinkSpec: topic-12
+sinkSpec: topic-02
+killAfterIdleMs: 50000

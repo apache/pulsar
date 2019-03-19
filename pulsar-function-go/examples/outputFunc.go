@@ -20,19 +20,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/examples/util"
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func HandleResponse(ctx context.Context, in []byte) ([]byte, error) {
-	in = []byte{110, 103}
-	res := fmt.Sprintf("hello, %s", string(in))
-	return []byte(res), nil
+	res := append(in, 110)
+	return res, nil
 }
 
 func main() {
-	util.SetProducer()
 	pf.Start(HandleResponse)
 }
