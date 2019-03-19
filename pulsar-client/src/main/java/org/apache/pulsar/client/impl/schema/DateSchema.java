@@ -22,18 +22,18 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.joda.time.LocalDate;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Date;
 
 /**
- * A schema for `org.joda.time.LocalDate`.
+ * A schema for `java.util.Date` or `java.sql.Date`.
  */
-public class DateSchema implements Schema<LocalDate> {
+public class DateSchema implements Schema<Date> {
    public static DateSchema of() {
       return INSTANCE;
    }
@@ -45,7 +45,7 @@ public class DateSchema implements Schema<LocalDate> {
          .setSchema(new byte[0]);
 
    @Override
-   public byte[] encode(LocalDate message) {
+   public byte[] encode(Date message) {
       if (null == message) {
          return null;
       }
@@ -59,13 +59,13 @@ public class DateSchema implements Schema<LocalDate> {
    }
 
    @Override
-   public LocalDate decode(byte[] bytes) {
+   public Date decode(byte[] bytes) {
       if (null == bytes) {
          return null;
       }
 
       try(ByteArrayInputStream bis = new ByteArrayInputStream(bytes); ObjectInputStream objIut = new ObjectInputStream(bis)) {
-         return (LocalDate) objIut.readObject();
+         return (Date) objIut.readObject();
       } catch (ClassNotFoundException | IOException e) {
          throw new SchemaSerializationException("Decoded data by DateSchema is an exception");
       }

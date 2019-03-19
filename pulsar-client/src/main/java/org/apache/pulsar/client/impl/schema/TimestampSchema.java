@@ -22,18 +22,18 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.joda.time.DateTime;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.sql.Timestamp;
 
 /**
- * A schema for `org.joda.time.DateTime`.
+ * A schema for `java.sql.Timestamp`.
  */
-public class TimestampSchema implements Schema<DateTime> {
+public class TimestampSchema implements Schema<Timestamp> {
    public static TimestampSchema of() {
       return INSTANCE;
    }
@@ -45,7 +45,7 @@ public class TimestampSchema implements Schema<DateTime> {
          .setSchema(new byte[0]);
 
    @Override
-   public byte[] encode(DateTime message) {
+   public byte[] encode(Timestamp message) {
       if (null == message) {
          return null;
       }
@@ -59,13 +59,13 @@ public class TimestampSchema implements Schema<DateTime> {
    }
 
    @Override
-   public DateTime decode(byte[] bytes) {
+   public Timestamp decode(byte[] bytes) {
       if (null == bytes) {
          return null;
       }
 
       try(ByteArrayInputStream bis = new ByteArrayInputStream(bytes); ObjectInputStream objIut = new ObjectInputStream(bis)) {
-         return (DateTime) objIut.readObject();
+         return (Timestamp) objIut.readObject();
       } catch (ClassNotFoundException | IOException e) {
          throw new SchemaSerializationException("Decoded data by TimestampSchema is an exception");
       }

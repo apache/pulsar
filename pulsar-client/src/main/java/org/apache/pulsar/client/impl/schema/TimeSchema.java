@@ -22,18 +22,18 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.joda.time.LocalTime;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.sql.Time;
 
 /**
- * A schema for `org.joda.time.LocalTime`.
+ * A schema for `java.sql.Time`.
  */
-public class TimeSchema implements Schema<LocalTime> {
+public class TimeSchema implements Schema<Time> {
    public static TimeSchema of() {
       return INSTANCE;
    }
@@ -45,7 +45,7 @@ public class TimeSchema implements Schema<LocalTime> {
          .setSchema(new byte[0]);
 
    @Override
-   public byte[] encode(LocalTime message) {
+   public byte[] encode(Time message) {
       if (null == message) {
          return null;
       }
@@ -59,13 +59,13 @@ public class TimeSchema implements Schema<LocalTime> {
    }
 
    @Override
-   public LocalTime decode(byte[] bytes) {
+   public Time decode(byte[] bytes) {
       if (null == bytes) {
          return null;
       }
 
       try(ByteArrayInputStream bis = new ByteArrayInputStream(bytes); ObjectInputStream objIut = new ObjectInputStream(bis)) {
-         return (LocalTime) objIut.readObject();
+         return (Time) objIut.readObject();
       } catch (ClassNotFoundException | IOException e) {
          throw new SchemaSerializationException("Decoded data by TimeSchema is an exception");
       }
