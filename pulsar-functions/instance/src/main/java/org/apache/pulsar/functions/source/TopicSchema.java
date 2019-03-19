@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -124,10 +125,10 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(clazz);
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case JSON:
-            return JSONSchema.of(clazz);
+            return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
             return (Schema<T>)Schema.KV_BYTES();

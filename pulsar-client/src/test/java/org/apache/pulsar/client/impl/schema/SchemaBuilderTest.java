@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
+import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -36,11 +37,17 @@ import org.testng.annotations.Test;
 public class SchemaBuilderTest {
 
     private static class AllOptionalFields {
+        @Nullable
         private Integer intField;
+        @Nullable
         private Long longField;
+        @Nullable
         private String stringField;
+        @Nullable
         private Boolean boolField;
+        @Nullable
         private Float floatField;
+        @Nullable
         private Double doubleField;
     }
 
