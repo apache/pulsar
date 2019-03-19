@@ -141,6 +141,21 @@ message FunctionMetaData {
     uint64 version = 3;
     uint64 createTime = 4;
     map<int32, FunctionState> instanceStates = 5;
+    FunctionAuthenticationSpec functionAuthSpec = 6;
+}
+
+message FunctionAuthenticationSpec {
+    /**
+     * function authentication related data that the function authentication provider
+     * needs to cache/distribute to all workers support function authentication.
+     * Depending on the function authentication provider implementation, this can be the actual auth credentials
+     * or a pointer to the auth credentials that this function should use
+     */
+    bytes data = 1;
+    /**
+     * classname of the function auth provicer this data is relevant to
+     */
+    string provider = 2;
 }
 
 message Instance {

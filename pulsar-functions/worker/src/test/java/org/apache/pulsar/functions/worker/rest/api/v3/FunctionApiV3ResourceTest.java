@@ -487,7 +487,7 @@ public class FunctionApiV3ResourceTest {
                 functionPkgUrl,
                 null,
                 new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -502,7 +502,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
@@ -1446,7 +1446,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null);
+                null, new Gson().toJson(functionConfig), null, null);
 
     }
 
@@ -1478,7 +1478,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null);
+                null, new Gson().toJson(functionConfig), null, null);
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {
