@@ -105,7 +105,15 @@ public class CmdSources extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
@@ -215,10 +223,6 @@ public class CmdSources extends CmdBase {
                 admin.source().updateSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Updated successfully");
-        }
-
-        protected void validateSourceConfigs(SourceConfig sourceConfig) {
-            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
         }
     }
 
