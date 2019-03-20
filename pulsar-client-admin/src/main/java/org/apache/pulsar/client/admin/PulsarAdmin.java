@@ -18,6 +18,25 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URL;
+import java.security.cert.X509Certificate;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Priority;
+import javax.net.ssl.SSLContext;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.ClientRequestContext;
+import javax.ws.rs.client.ClientRequestFilter;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Feature;
+import javax.ws.rs.core.FeatureContext;
+import javax.ws.rs.core.HttpHeaders;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
@@ -47,22 +66,13 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.jdk.connector.JdkConnectorProvider;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Pulsar client admin API client.
@@ -155,6 +165,7 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
+        httpConfig.connectorProvider(new JdkConnectorProvider());
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
