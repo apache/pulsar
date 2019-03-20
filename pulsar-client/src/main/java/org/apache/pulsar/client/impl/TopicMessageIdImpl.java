@@ -60,6 +60,11 @@ public class TopicMessageIdImpl implements MessageId {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(topicPartitionName, messageId);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof TopicMessageIdImpl)) {
             return false;
