@@ -310,17 +310,17 @@ public class SinkConfigUtils {
             }
             // We use typeArg and classLoader as arguments for lambda functions that require them to be final
             // Thus we use these tmp vars
-            Class<?> typArg;
-            ClassLoader clsLoader;
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
             try {
-                typArg = getSinkType(sinkClassName, narClassLoader);
-                clsLoader = narClassLoader;
+                tmptypeArg = getSinkType(sinkClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
             } catch (Exception e) {
-                typArg = getSinkType(sinkClassName, jarClassLoader);
-                clsLoader = jarClassLoader;
+                tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
             }
-            typeArg = typArg;
-            classLoader = clsLoader;
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
         } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {

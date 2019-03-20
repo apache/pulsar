@@ -221,17 +221,17 @@ public class SourceConfigUtils {
             }
             // We use typeArg and classLoader as arguments for lambda functions that require them to be final
             // Thus we use these tmp vars
-            Class<?> typArg;
-            ClassLoader clsLoader;
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
             try {
-                typArg = getSourceType(sourceClassName, narClassLoader);
-                clsLoader = narClassLoader;
+                tmptypeArg = getSourceType(sourceClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
             } catch (Exception e) {
-                typArg = getSourceType(sourceClassName, jarClassLoader);
-                clsLoader = jarClassLoader;
+                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
             }
-            typeArg = typArg;
-            classLoader = clsLoader;
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
         } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
