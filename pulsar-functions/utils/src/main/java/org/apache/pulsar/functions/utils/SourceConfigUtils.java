@@ -219,6 +219,8 @@ public class SourceConfigUtils {
             if (jarClassLoader == null && narClassLoader == null) {
                 throw new IllegalArgumentException("Invalid Source Package");
             }
+            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
+            // Thus we use these tmp vars
             Class<?> typArg;
             ClassLoader clsLoader;
             try {
