@@ -26,7 +26,7 @@ port: 8091
 clusterName: "pulsar-function-go"
 isRegexPatternSubscription: false
 receiverQueueSize: 10
-inputSpecs: topic-01
+sourceSpecsTopic: persistent://public/default/topic-01
 autoAck: true
-sinkSpec: topic-02
+sinkSpecsTopic: persistent://public/default/topic-02
 killAfterIdleMs: 50000

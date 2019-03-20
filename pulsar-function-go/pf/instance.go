@@ -237,7 +237,8 @@ func (gi *GoInstance) ackInputMessage(inputMessage pulsar.Message) {
 }
 
 func (gi *GoInstance) nackInputMessage(inputMessage pulsar.Message) {
-	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+	//todo:please fix me
+	//gi.consumers[inputMessage.Topic()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
