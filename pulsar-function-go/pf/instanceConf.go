@@ -57,16 +57,16 @@ func NewInstanceConf() *InstanceConf {
 			AutoAck: cfg.AutoACK,
 			Source: &pb.SourceSpec{
 				InputSpecs: map[string]*pb.ConsumerSpec{
-					cfg.InputSpecsTopic: {
-						IsRegexPattern: cfg.IsRegexPattern,
+					cfg.SourceSpecTopic: {
+						IsRegexPattern: cfg.IsRegexPatternSubscription,
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-							Value: cfg.ReceiverQueueVal,
+							Value: cfg.ReceiverQueueSize,
 						},
 					},
 				},
 			},
 			Sink: &pb.SinkSpec{
-				Topic: cfg.SinkSpec,
+				Topic: cfg.SinkSpecTopic,
 			},
 			Resources:    &pb.Resources{},
 			RetryDetails: &pb.RetryDetails{},

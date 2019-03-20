@@ -46,26 +46,37 @@ func NewGoInstance() *GoInstance {
 
 func (gi *GoInstance) StartFunction(function Function) {
 	gi.function = function
-	gi.setupClient()
-	err := gi.setupProducer()
+	err := gi.setupClient()
 	if err != nil {
-		log.Errorf("setup producer failed, error is:%s", err.Error())
+		panic("setup client failed, please check.")
 	}
-	channel := gi.setupConsumer()
+	err = gi.setupProducer()
+	if err != nil {
+		panic("setup producer failed, please check.")
+	}
+	channel, err := gi.setupConsumer()
+	if err != nil {
+		panic("setup consumer failed, please check.")
+	}
 
 CLOSE:
 	for {
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
+			atMostOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
+			autoAck := gi.context.InstanceConf.FuncDetails.AutoAck
+			if autoAck && atMostOnce {
+				gi.ackInputMessage(msgInput)
+			}
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
 				log.Errorf("handler message error:%v", err)
+				gi.nackInputMessage(msgInput)
+			} else {
+				gi.processResult(msgInput, output)
 			}
-			err = gi.processResult(msgInput, output)
-			if err != nil {
-				log.Errorf("process result error:%v", err)
-			}
+
 		case <-time.After(time.Millisecond * gi.context.InstanceConf.KillAfterIdleMs):
 			close(channel)
 			break CLOSE
@@ -75,22 +86,19 @@ CLOSE:
 	gi.close()
 }
 
-func (gi *GoInstance) setupClient() {
+func (gi *GoInstance) setupClient() error {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL: gi.context.InstanceConf.PulsarServiceURL,
 	})
 	if err != nil {
 		log.Errorf("create client error:%v", err)
-		return
+		return err
 	}
 	gi.client = client
+	return nil
 }
 
 func (gi *GoInstance) setupProducer() (err error) {
-	if gi.client == nil {
-		gi.setupClient()
-	}
-
 	if gi.context.InstanceConf.FuncDetails.Sink.Topic != "" && len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
 		log.Debugf("Setting up producer for topic %s", gi.context.InstanceConf.FuncDetails.Sink.Topic)
 		properties := getProperties(getDefaultSubscriptionName(
@@ -110,13 +118,13 @@ func (gi *GoInstance) setupProducer() (err error) {
 		})
 		if err != nil {
 			log.Errorf("create producer error:%s", err.Error())
+			return err
 		}
-		return err
 	}
 	return nil
 }
 
-func (gi *GoInstance) setupConsumer() chan pulsar.ConsumerMessage {
+func (gi *GoInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	subscriptionType := pulsar.Shared
 	if int32(gi.context.InstanceConf.FuncDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
 		subscriptionType = pulsar.Failover
@@ -182,10 +190,12 @@ func (gi *GoInstance) setupConsumer() chan pulsar.ConsumerMessage {
 
 		if err != nil {
 			log.Errorf("create consumer error:%s", err.Error())
+			return nil, err
 		}
 		gi.consumers[topic] = consumer
+		gi.context.InputTopics = append(gi.context.InputTopics, topic)
 	}
-	return channel
+	return channel, nil
 }
 
 func (gi *GoInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
@@ -193,29 +203,12 @@ func (gi *GoInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 	defer cancel()
 	ctx = NewContext(ctx, gi.context)
 	msgInput := input.Payload()
-	output, err = gi.function.Process(ctx, msgInput)
-	if err != nil {
-		log.Errorf("process function err:%v", err)
-		return nil, err
-	}
-
-	return output, nil
+	return gi.function.Process(ctx, msgInput)
 }
 
-func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) error {
+func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atMostOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-	atLeastOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
 	autoAck := gi.context.InstanceConf.FuncDetails.AutoAck
-
-	if atMostOnce && autoAck {
-		for topic, consumer := range gi.consumers {
-			err := consumer.Ack(msgInput)
-			if err != nil {
-				log.Errorf("[at most once] ack input message error:%v, topic is:[%s]", err, topic)
-				return err
-			}
-		}
-	}
 
 	if output != nil && gi.context.InstanceConf.FuncDetails.Sink.Topic != "" {
 		asyncMsg := pulsar.ProducerMessage{
@@ -225,19 +218,25 @@ func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) erro
 		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
 			if e != nil {
 				log.Fatal(e)
-			}
-
-			if atLeastOnce && autoAck {
-				for topic, consumer := range gi.consumers {
-					err := consumer.Ack(msgInput)
-					if err != nil {
-						log.Errorf("[at least once] ack input message error:%v, topic is:[%s]", err, topic)
-					}
-				}
+				gi.nackInputMessage(msgInput)
+			} else if !atMostOnce && autoAck {
+				gi.ackInputMessage(msgInput)
 			}
 		})
+	} else {
+		if autoAck {
+			gi.ackInputMessage(msgInput)
+		}
 	}
-	return nil
+}
+
+// ackInputMessage doesn't produce any result or the user doesn't want the result.
+func (gi *GoInstance) ackInputMessage(inputMessage pulsar.Message) {
+	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
+}
+
+func (gi *GoInstance) nackInputMessage(inputMessage pulsar.Message) {
+	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
 }
 
 func (gi *GoInstance) close() {

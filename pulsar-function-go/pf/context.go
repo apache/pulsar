@@ -20,8 +20,6 @@ package pf
 
 import (
 	"context"
-
-	"github.com/apache/pulsar/pulsar-function-go/conf"
 )
 
 type FunctionContext struct {
@@ -31,12 +29,9 @@ type FunctionContext struct {
 }
 
 func NewFuncContext() *FunctionContext {
-	config := &conf.Conf{}
-	cfg := config.GetConf()
 	fc := &FunctionContext{
 		InstanceConf: NewInstanceConf(),
 		UserConfigs:  make(map[string]interface{}),
-		InputTopics:  cfg.InputTopics,
 	}
 	return fc
 }

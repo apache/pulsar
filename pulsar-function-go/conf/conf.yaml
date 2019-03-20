@@ -17,7 +17,6 @@
 #  under the License.
 #
 pulsarServiceURL: "pulsar://localhost:6650"
-intopics: [topic-1, topic-2]
 instanceID: 101
 funcID: "pulsar-function"
 funcVersion: "1.0.0"
@@ -25,8 +24,8 @@ name: "go-function"
 maxBufTuples: 10
 port: 8091
 clusterName: "pulsar-function-go"
-isRegexPattern: false
-receiverQueueVal: 10
+isRegexPatternSubscription: false
+receiverQueueSize: 10
 inputSpecs: topic-01
 autoAck: true
 sinkSpec: topic-02
