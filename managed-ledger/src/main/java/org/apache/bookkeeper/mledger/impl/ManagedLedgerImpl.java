@@ -643,8 +643,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return openCursor(cursorName, InitialPosition.Latest);
     }
 
+
     @Override
     public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition)
+            throws InterruptedException, ManagedLedgerException {
+        return openCursor(cursorName, initialPosition, Collections.emptyMap());
+    }
+
+    @Override
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition, Map<String, Long> properties)
             throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
@@ -653,7 +660,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, initialPosition, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, properties, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -681,13 +688,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx) {
+    public void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx) {
         this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
+    public void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
             final OpenCursorCallback callback, final Object ctx) {
+        this.asyncOpenCursor(cursorName, initialPosition, Collections.emptyMap(), callback, ctx);
+    }
+
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
+            Map<String, Long> properties, final OpenCursorCallback callback, final Object ctx) {
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -721,7 +734,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, config, this, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
-        cursor.initialize(getLastPosition(), new VoidCallback() {
+        cursor.initialize(getLastPosition(), properties, new VoidCallback() {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);

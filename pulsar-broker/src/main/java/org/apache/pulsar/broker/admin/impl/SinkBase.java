@@ -79,7 +79,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                              final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT

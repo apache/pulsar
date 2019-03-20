@@ -133,7 +133,10 @@ public class WebService implements AutoCloseable {
             });
         }
 
-        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
+        // TODO: isSaslAuthentication used to bypass web resource check.
+        //  will remove it after implementation the support.
+        //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled() && !pulsar.getConfiguration().isSaslAuthentication()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(
                                                            pulsar.getBrokerService().getAuthenticationService()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
