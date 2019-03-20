@@ -94,10 +94,6 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
-    private long backoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
-    
-    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
-
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
