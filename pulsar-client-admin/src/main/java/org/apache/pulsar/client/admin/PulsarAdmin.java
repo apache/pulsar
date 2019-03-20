@@ -21,25 +21,13 @@ package org.apache.pulsar.client.admin;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Priority;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.Priorities;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.ClientRequestContext;
-import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Feature;
-import javax.ws.rs.core.FeatureContext;
-import javax.ws.rs.core.HttpHeaders;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
@@ -57,18 +45,15 @@ import org.apache.pulsar.client.admin.internal.SourceImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.WorkerImpl;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.jdk.connector.JdkConnectorProvider;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,7 +150,7 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
-        httpConfig.connectorProvider(new JdkConnectorProvider());
+        httpConfig.connectorProvider(new AsyncHttpConnectorProvider(clientConfigData));
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
@@ -173,45 +158,7 @@ public class PulsarAdmin implements Closeable {
                 .readTimeout(this.readTimeout, this.readTimeoutUnit)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        boolean useTls = false;
-
-        if (clientConfigData != null && StringUtils.isNotBlank(clientConfigData.getServiceUrl())
-                && clientConfigData.getServiceUrl().startsWith("https://")) {
-            useTls = true;
-            try {
-                SSLContext sslCtx = null;
-
-                X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
-
-                // Set private key and certificate if available
-                AuthenticationDataProvider authData = auth.getAuthData();
-                if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
-                            trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
-                } else {
-                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
-                            trustCertificates);
-                }
-
-                clientBuilder.sslContext(sslCtx);
-                if (clientConfigData.isTlsHostnameVerificationEnable()) {
-                    clientBuilder.hostnameVerifier(new DefaultHostnameVerifier());
-                } else {
-                    // Disable hostname verification
-                    clientBuilder.hostnameVerifier(NoopHostnameVerifier.INSTANCE);
-                }
-            } catch (Exception e) {
-                try {
-                    if (auth != null) {
-                        auth.close();
-                    }
-                } catch (IOException ioe) {
-                    LOG.error("Failed to close the authentication service", ioe);
-                }
-                throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
-            }
-        }
+        boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
 
         this.client = clientBuilder.build();
 

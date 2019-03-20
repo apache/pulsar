@@ -56,11 +56,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.glassfish.jersey.connectors</groupId>
-      <artifactId>jersey-jdk-connector</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
     </dependency>
