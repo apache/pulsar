@@ -584,6 +584,9 @@ public abstract class ComponentImpl {
             } else if (uploadedInputStream != null) {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, uploadedInputStreamAsFile,
                         fileDetail, functionDetailsJson, mergedComponentConfigJson, componentType);
+            } else if (existingComponent.getPackageLocation().getPackagePath().startsWith("builtin://")) {
+                functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, null,
+                        null, functionDetailsJson, mergedComponentConfigJson, componentType);
             } else {
                 functionDetails = validateUpdateRequestParamsWithExistingMetadata(
                         tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfigJson, componentType);

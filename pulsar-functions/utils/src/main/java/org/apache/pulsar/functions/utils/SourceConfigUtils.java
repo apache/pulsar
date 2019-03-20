@@ -201,14 +201,35 @@ public class SourceConfigUtils {
         }
 
         String sourceClassName;
-        ClassLoader classLoader;
+        final Class<?> typeArg;
+        final ClassLoader classLoader;
         if (!isEmpty(sourceConfig.getClassName())) {
             sourceClassName = sourceConfig.getClassName();
+            // We really don't know if we should use nar class loader or regular classloader
+            ClassLoader jarClassLoader = null;
+            ClassLoader narClassLoader = null;
             try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid Source Jar");
             }
+            try {
+                narClassLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+            }
+            if (jarClassLoader == null && narClassLoader == null) {
+                throw new IllegalArgumentException("Invalid Source Package");
+            }
+            Class<?> typArg;
+            ClassLoader clsLoader;
+            try {
+                typArg = getSourceType(sourceClassName, narClassLoader);
+                clsLoader = narClassLoader;
+            } catch (Exception e) {
+                typArg = getSourceType(sourceClassName, jarClassLoader);
+                clsLoader = jarClassLoader;
+            }
+            typeArg = typArg;
+            classLoader = clsLoader;
         } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
@@ -221,9 +242,8 @@ public class SourceConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
+            typeArg = getSourceType(sourceClassName, classLoader);
         }
-
-        Class<?> typeArg = getSourceType(sourceClassName, classLoader);
 
         // Only one of serdeClassName or schemaType should be set
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
