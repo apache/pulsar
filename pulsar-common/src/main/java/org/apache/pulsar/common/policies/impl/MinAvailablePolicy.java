@@ -51,6 +51,11 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(min_limit, usage_threshold);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof MinAvailablePolicy) {
             MinAvailablePolicy other = (MinAvailablePolicy) obj;
