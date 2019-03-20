@@ -49,13 +49,8 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -115,23 +110,6 @@ public class PulsarBrokerStarter {
         return Arrays.asList(args).contains(arg);
     }
 
-    private static ClusterData retrieveClusterData(ServiceConfiguration config) throws Exception {
-        String configurationStoreServers = config.getConfigurationStoreServers();
-        Long zkSessionTimeoutMillis = config.getZooKeeperSessionTimeoutMillis();
-        String clusterName = config.getClusterName();
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper configStoreZk = zkfactory.create(
-            configurationStoreServers, ZooKeeperClientFactory.SessionType.ReadWrite, zkSessionTimeoutMillis.intValue()).get();
-        byte[] metadata = configStoreZk.getData("/admin/clusters/" + clusterName, false, null);
-        ClusterData clusterData = ObjectMapperFactory.getThreadLocal().readValue(metadata, ClusterData.class);
-        return clusterData;
-    }
-
-    private static int retrievePort(String url) {
-        String[] uris = url.split(":");
-        return Integer.parseInt(uris[uris.length-1]);
-    }
-
     private static class BrokerStarter {
         private final ServiceConfiguration brokerConfig;
         private final PulsarService pulsarService;
@@ -141,7 +119,7 @@ public class PulsarBrokerStarter {
         private final ServerConfiguration bookieConfig;
         private final WorkerService functionsWorkerService;
 
-        BrokerStarter(String[] args) throws Exception {
+        BrokerStarter(String[] args) throws Exception{
             StarterArguments starterArguments = new StarterArguments();
             JCommander jcommander = new JCommander(starterArguments);
             jcommander.setProgramName("PulsarBrokerStarter");
@@ -160,15 +138,6 @@ public class PulsarBrokerStarter {
             } else {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
-
-            // get the cluster metadata initialized in zookeeper
-            ClusterData clusterData = retrieveClusterData(brokerConfig);
-
-            // override the port of service urls in brokerConfig (i.e. config priority: initialized in zookeeper > broker.conf)
-            brokerConfig.setBrokerServicePort(retrievePort(clusterData.getBrokerServiceUrl()));
-            brokerConfig.setBrokerServicePortTls(retrievePort(clusterData.getBrokerServiceUrlTls()));
-            brokerConfig.setWebServicePort(retrievePort(clusterData.getServiceUrl()));
-            brokerConfig.setWebServicePortTls(retrievePort(clusterData.getServiceUrlTls()));
 
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
