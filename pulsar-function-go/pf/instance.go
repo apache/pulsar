@@ -20,6 +20,7 @@ package pf
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/apache/pulsar/pulsar-client-go/pulsar"
@@ -77,7 +78,7 @@ CLOSE:
 				gi.processResult(msgInput, output)
 			}
 
-		case <-time.After(time.Millisecond * gi.context.InstanceConf.KillAfterIdleMs):
+		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.InstanceConf.KillAfterIdleMs)):
 			close(channel)
 			break CLOSE
 		}
@@ -237,6 +238,13 @@ func (gi *GoInstance) ackInputMessage(inputMessage pulsar.Message) {
 
 func (gi *GoInstance) nackInputMessage(inputMessage pulsar.Message) {
 	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+}
+
+func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
+	if timeoutMilliSecond < 0 {
+		return time.Duration(math.MaxInt64)
+	}
+	return timeoutMilliSecond
 }
 
 func (gi *GoInstance) close() {
