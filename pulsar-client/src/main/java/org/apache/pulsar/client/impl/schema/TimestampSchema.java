@@ -19,15 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.sql.Timestamp;
 
 /**
@@ -50,12 +44,8 @@ public class TimestampSchema implements Schema<Timestamp> {
          return null;
       }
 
-      try(ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream objOut = new ObjectOutputStream(bos)) {
-         objOut.writeObject(message);
-         return bos.toByteArray();
-      } catch (IOException e) {
-         throw new SchemaSerializationException("Encoded data by TimestampSchema is an exception");
-      }
+      Long timestamp = message.getTime();
+      return LongSchema.of().encode(timestamp);
    }
 
    @Override
@@ -64,11 +54,8 @@ public class TimestampSchema implements Schema<Timestamp> {
          return null;
       }
 
-      try(ByteArrayInputStream bis = new ByteArrayInputStream(bytes); ObjectInputStream objIut = new ObjectInputStream(bis)) {
-         return (Timestamp) objIut.readObject();
-      } catch (ClassNotFoundException | IOException e) {
-         throw new SchemaSerializationException("Decoded data by TimestampSchema is an exception");
-      }
+      Long decode = LongSchema.of().decode(bytes);
+      return new Timestamp(decode);
    }
 
    @Override

@@ -187,20 +187,20 @@ public class DefaultImplementation {
 
     public static Schema<Date> newDateSchema() {
         return catchExceptions(
-                () -> (Schema<Date>) newClassInstance("org.apache.pulsar.client.impl.schema.DateSchema")
-                        .newInstance());
+                () -> (Schema<Date>) getStaticMethod("org.apache.pulsar.client.impl.schema.DateSchema", "of", null)
+                        .invoke(null, null));
     }
 
     public static Schema<Time> newTimeSchema() {
         return catchExceptions(
-                () -> (Schema<Time>) newClassInstance("org.apache.pulsar.client.impl.schema.TimeSchema")
-                        .newInstance());
+              () -> (Schema<Time>) getStaticMethod("org.apache.pulsar.client.impl.schema.TimeSchema", "of", null)
+                    .invoke(null, null));
     }
 
     public static Schema<Timestamp> newTimestampSchema() {
         return catchExceptions(
-                () -> (Schema<Timestamp>) newClassInstance("org.apache.pulsar.client.impl.schema.TimestampSchema")
-                        .newInstance());
+              () -> (Schema<Timestamp>) getStaticMethod("org.apache.pulsar.client.impl.schema.TimestampSchema", "of", null)
+                    .invoke(null, null));
     }
 
     public static <T> Schema<T> newAvroSchema(Class<T> clazz) {
