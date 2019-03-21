@@ -192,11 +192,6 @@ public class WorkerService {
 
             this.authorizationService = authorizationService;
 
-//            this.authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
-//
-//            this.authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig),
-//                        this.configurationCacheService);
-
             // Starting cluster services
             log.info("Start cluster services...");
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(

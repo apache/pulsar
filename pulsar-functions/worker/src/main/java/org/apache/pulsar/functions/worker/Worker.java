@@ -158,7 +158,9 @@ public class Worker {
             log.info("starting configuration cache service");
 
             this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) workerConfig.getZooKeeperSessionTimeoutMillis(), workerConfig.getConfigurationStoreServers(),
+                    (int) workerConfig.getZooKeeperSessionTimeoutMillis(),
+                    workerConfig.getZooKeeperOperationTimeoutSeconds(),
+                    workerConfig.getConfigurationStoreServers(),
                     orderedExecutor, cacheExecutor);
             try {
                 this.globalZkCache.start();

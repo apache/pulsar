@@ -299,6 +299,11 @@ public class PulsarStandalone implements AutoCloseable {
                     + "-" + workerConfig.getWorkerPort());
             // inherit broker authorization setting
             workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
+            workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
+
+            workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
+            workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
+
             fnWorkerService = new WorkerService(workerConfig);
         }
 

@@ -117,6 +117,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long zooKeeperSessionTimeoutMillis = 30000;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper operation timeout in seconds"
+    )
+    private int zooKeeperOperationTimeoutSeconds = 30;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
