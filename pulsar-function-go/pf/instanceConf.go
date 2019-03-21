@@ -53,23 +53,43 @@ func NewInstanceConf() *InstanceConf {
 		PulsarServiceURL: cfg.PulsarServiceURL,
 		KillAfterIdleMs:  cfg.KillAfterIdleMs,
 		FuncDetails: pb.FunctionDetails{
-			Name:    cfg.Name,
-			AutoAck: cfg.AutoACK,
+			Tenant:               cfg.Tenant,
+			Namespace:            cfg.NameSpace,
+			Name:                 cfg.Name,
+			LogTopic:             cfg.LogTopic,
+			ProcessingGuarantees: pb.ProcessingGuarantees(cfg.ProcessingGuarantees),
+			SecretsMap:           cfg.SecretsMap,
+			Runtime:              pb.FunctionDetails_Runtime(cfg.Runtime),
+			AutoAck:              cfg.AutoACK,
+			Parallelism:          cfg.Parallelism,
 			Source: &pb.SourceSpec{
+				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
 				InputSpecs: map[string]*pb.ConsumerSpec{
 					cfg.SourceSpecTopic: {
+						SchemaType:     cfg.SourceSchemaType,
 						IsRegexPattern: cfg.IsRegexPatternSubscription,
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
 							Value: cfg.ReceiverQueueSize,
 						},
 					},
 				},
+				TimeoutMs:           cfg.TimeoutMs,
+				SubscriptionName:    cfg.SubscriptionName,
+				CleanupSubscription: cfg.CleanupSubscription,
 			},
 			Sink: &pb.SinkSpec{
-				Topic: cfg.SinkSpecTopic,
+				Topic:      cfg.SinkSpecTopic,
+				SchemaType: cfg.SinkSchemaType,
 			},
-			Resources:    &pb.Resources{},
-			RetryDetails: &pb.RetryDetails{},
+			Resources: &pb.Resources{
+				Cpu:  cfg.Cpu,
+				Ram:  cfg.Ram,
+				Disk: cfg.Disk,
+			},
+			RetryDetails: &pb.RetryDetails{
+				MaxMessageRetries: cfg.MaxMessageRetries,
+				DeadLetterTopic:   cfg.DeadLetterTopic,
+			},
 		},
 	}
 	return instanceConf

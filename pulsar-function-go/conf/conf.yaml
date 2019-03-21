@@ -20,13 +20,37 @@ pulsarServiceURL: "pulsar://localhost:6650"
 instanceID: 101
 funcID: "pulsar-function"
 funcVersion: "1.0.0"
-name: "go-function"
 maxBufTuples: 10
 port: 8091
 clusterName: "pulsar-function-go"
+killAfterIdleMs: 50000
+# function details config
+tenant: ""
+nameSpace: ""
+name: "go-function"
+logTopic: ""
+processingGuarantees: 0
+secretsMap: ""
+runtime: 0
+autoAck: true
+parallelism: 0
+# source config
+subscriptionType: 0
+timeoutMs: 0
+subscriptionName: ""
+cleanupSubscription: false
+# source input specs
+sourceSpecsTopic: persistent://public/default/topic-01
+sourceSchemaType: ""
 isRegexPatternSubscription: false
 receiverQueueSize: 10
-sourceSpecsTopic: persistent://public/default/topic-01
-autoAck: true
+# sink specs config
 sinkSpecsTopic: persistent://public/default/topic-02
-killAfterIdleMs: 50000
+sinkSchemaType: ""
+# resource config
+cpu: 0
+ram: 0
+disk: 0
+# retryDetails config
+maxMessageRetries: 0
+deadLetterTopic: ""

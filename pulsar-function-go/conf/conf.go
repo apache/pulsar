@@ -34,20 +34,44 @@ import (
 const ConfigPath = "github.com/apache/pulsar/pulsar-function-go/conf/conf.yaml"
 
 type Conf struct {
-	PulsarServiceURL           string        `yaml:"pulsarServiceURL"`
-	InstanceID                 int           `yaml:"instanceID"`
-	FuncID                     string        `yaml:"funcID"`
-	FuncVersion                string        `yaml:"funcVersion"`
-	Name                       string        `yaml:"name"`
-	MaxBufTuples               int           `yaml:"maxBufTuples"`
-	Port                       int           `yaml:"port"`
-	ClusterName                string        `yaml:"clusterName"`
-	IsRegexPatternSubscription bool          `yaml:"isRegexPatternSubscription"`
-	ReceiverQueueSize          int32         `yaml:"receiverQueueSize"`
-	AutoACK                    bool          `yaml:"autoAck"`
-	SinkSpecTopic              string        `yaml:"sinkSpecsTopic"`
-	SourceSpecTopic            string        `yaml:"sourceSpecsTopic"`
-	KillAfterIdleMs            time.Duration `yaml:"killAfterIdleMs"`
+	PulsarServiceURL string        `yaml:"pulsarServiceURL"`
+	InstanceID       int           `yaml:"instanceID"`
+	FuncID           string        `yaml:"funcID"`
+	FuncVersion      string        `yaml:"funcVersion"`
+	MaxBufTuples     int           `yaml:"maxBufTuples"`
+	Port             int           `yaml:"port"`
+	ClusterName      string        `yaml:"clusterName"`
+	KillAfterIdleMs  time.Duration `yaml:"killAfterIdleMs"`
+	// function details config
+	Tenant               string `yaml:"tenant"`
+	NameSpace            string `yaml:"nameSpace"`
+	Name                 string `yaml:"name"`
+	LogTopic             string `yaml:"logTopic"`
+	ProcessingGuarantees int32  `yaml:"processingGuarantees"`
+	SecretsMap           string `yaml:"secretsMap"`
+	Runtime              int32  `yaml:"runtime"`
+	AutoACK              bool   `yaml:"autoAck"`
+	Parallelism          int32  `yaml:"parallelism"`
+	//source config
+	SubscriptionType    int32  `yaml:"subscriptionType"`
+	TimeoutMs           uint64 `yaml:"timeoutMs"`
+	SubscriptionName    string `yaml:"subscriptionName"`
+	CleanupSubscription bool   `yaml:"cleanupSubscription"`
+	//source input specs
+	SourceSpecTopic            string `yaml:"sourceSpecsTopic"`
+	SourceSchemaType           string `yaml:"sourceSchemaType"`
+	IsRegexPatternSubscription bool   `yaml:"isRegexPatternSubscription"`
+	ReceiverQueueSize          int32  `yaml:"receiverQueueSize"`
+	//sink spec config
+	SinkSpecTopic  string `yaml:"sinkSpecsTopic"`
+	SinkSchemaType string `yaml:"sinkSchemaType"`
+	//resources config
+	Cpu  float64 `yaml:"cpu"`
+	Ram  int64   `yaml:"ram"`
+	Disk int64   `yaml:"disk"`
+	//retryDetails config
+	MaxMessageRetries int32  `yaml:"maxMessageRetries"`
+	DeadLetterTopic   string `yaml:"deadLetterTopic"`
 }
 
 var opts string
