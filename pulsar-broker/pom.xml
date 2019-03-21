@@ -388,7 +388,7 @@
                   <info>
                     <title>Pulsar Functions REST API</title>
                     <version>v3</version>
-                    <description>This provides the REST API for admin operations</description>
+                    <description>This provides the REST API for Pulsar Functions operations</description>
                     <license>
                       <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
