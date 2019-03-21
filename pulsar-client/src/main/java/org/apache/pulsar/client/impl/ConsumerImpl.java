@@ -156,14 +156,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         if(schema instanceof AvroSchema && schema.supportSchemaVersioning()){
-            Map<String, MultiVersionSchema> multiVersionSchemaCatch = client.getMultiVersionSchemaCatch();
-            if(multiVersionSchemaCatch.get(topic) != null){
-                schema = multiVersionSchemaCatch.get(topic);
-            }else{
+            Map<String, MultiVersionSchema> multiVersionSchemaCache = client.getMultiVersionSchemaCache();
+            schema = multiVersionSchemaCache.get(topic);
+            if(schema == null){
                 MultiVersionSchema<T> multiVersionSchema = new MultiVersionSchema<T>(((AvroSchema<T>) schema).getAvroSchema(),
                         new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
                 schema = multiVersionSchema;
-                multiVersionSchemaCatch.put(topic, multiVersionSchema);
+                multiVersionSchemaCache.put(topic, multiVersionSchema);
             }
         }
         if (conf.getReceiverQueueSize() == 0) {

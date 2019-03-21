@@ -70,8 +70,8 @@ public final class Schemas {
 
         private String name;
         private int age;
-        @AvroDefault("\"man\"")
-        private String sex;
+        @AvroDefault("\"male\"")
+        private String gender;
 
     }
 

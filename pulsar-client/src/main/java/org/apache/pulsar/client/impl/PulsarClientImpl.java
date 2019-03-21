@@ -84,7 +84,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
-    private Map<String, MultiVersionSchema> multiVersionSchemaCatch = new HashMap<>();
+    private Map<String, MultiVersionSchema> multiVersionSchemaCache = new HashMap<>();
 
     enum State {
         Open, Closing, Closed
@@ -739,7 +739,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    public Map<String, MultiVersionSchema> getMultiVersionSchemaCatch(){
-        return this.multiVersionSchemaCatch;
+    public Map<String, MultiVersionSchema> getMultiVersionSchemaCache(){
+        return this.multiVersionSchemaCache;
     }
 }
