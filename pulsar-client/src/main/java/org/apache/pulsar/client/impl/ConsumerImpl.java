@@ -220,8 +220,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS,
-            		    backoffIntervalNanos, maxBackoffIntervalNanos),
+        		        new BackoffBuilder()
+        	               .setInitialTime(100, TimeUnit.MILLISECONDS)
+        	               .setMandatoryStop(60, TimeUnit.SECONDS)
+        	               .setMax(0, TimeUnit.MILLISECONDS)
+        	               .useUserConfiguredIntervals(backoffIntervalNanos, 
+        	                                           maxBackoffIntervalNanos)
+        	               .create(),
                         this);
 
         this.topicName = TopicName.get(topic);
@@ -1454,10 +1459,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
-            0 , TimeUnit.MILLISECONDS,
-            backoffIntervalNanos, maxBackoffIntervalNanos);
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(0, TimeUnit.MILLISECONDS)
+                .useUserConfiguredIntervals(backoffIntervalNanos, 
+                                            maxBackoffIntervalNanos)
+                .create();
+        
         CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
 
         internalGetLastMessageIdAsync(backoff, opTimeoutMs, getLastMessageIdFuture);

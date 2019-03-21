@@ -39,7 +39,7 @@ public class BackoffBuilder {
         this.initial = 0;
         this.max = 0;
         this.mandatoryStop = 0;
-        this.clock = null;
+        this.clock = Clock.systemDefaultZone();
         this.backoffIntervalNanos = 0;
         this.maxBackoffIntervalNanos = 0;
     }
@@ -59,11 +59,6 @@ public class BackoffBuilder {
     public BackoffBuilder setMandatoryStop(long mandatoryStop, TimeUnit unitMandatoryStop) {
     	this.mandatoryStop = mandatoryStop;
     	this.unitMandatoryStop = unitMandatoryStop;
-    	return this;
-    }
-    
-    public BackoffBuilder setClock(Clock clock) {
-    	this.clock = clock;
     	return this;
     }
     
