@@ -29,6 +29,9 @@ find $ROOT_DIR -name CMakeFiles | xargs rm -rf
 cd $ROOT_DIR/pulsar-client-cpp
 cmake . 
 make -j8 _pulsar
+pip install enum34
+pip install six
+pip install fastavro
 
 DESTINATION=$ROOT_DIR/generated-site/api/python
 rm -fr $DESTINATION/{index.html,functions,pulsar}
