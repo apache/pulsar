@@ -27,30 +27,34 @@ import (
 )
 
 func main() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL: "pulsar://localhost:6650",
-	})
-
+	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 
 	defer client.Close()
 
-	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic: "topic-01",
+	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+		Topic:            "topic-02",
+		SubscriptionName: "my-subscription",
+		Type:             pulsar.Shared,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	defer producer.Close()
+	defer consumer.Close()
 
-	ctx := context.Background()
-
-	for i := 0; i < 10; i++ {
-		if err := producer.Send(ctx, pulsar.ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
-		}); err != nil {
+	for {
+		msg, err := consumer.Receive(context.Background())
+		if err != nil {
 			log.Fatal(err)
 		}
+
+		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
+			msg.ID(), string(msg.Payload()))
+
+		consumer.Ack(msg)
 	}
 }
+
