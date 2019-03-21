@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.testng.annotations.Test;
 
 public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
@@ -133,6 +134,30 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getMarkDeletedPosition(), p3);
+        assertEquals(c1.getProperties(), properties);
+    }
+
+    @Test
+    void testPropertiesAtCreation() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
+
+
+        Map<String, Long> properties = new TreeMap<>();
+        properties.put("a", 1L);
+        properties.put("b", 2L);
+        properties.put("c", 3L);
+
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties);
+        assertEquals(c1.getProperties(), properties);
+
+        ledger.addEntry("entry-1".getBytes());
+
+        ledger.close();
+
+        // Reopen the managed ledger
+        ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+
         assertEquals(c1.getProperties(), properties);
     }
 

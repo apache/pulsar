@@ -27,6 +27,8 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -90,14 +92,16 @@ public class PulsarClientTool {
 
     private void updateConfig() throws UnsupportedAuthenticationException, MalformedURLException {
         ClientBuilder clientBuilder = PulsarClient.builder();
+        Authentication authentication = null;
         if (isNotBlank(this.authPluginClassName)) {
-            clientBuilder.authentication(authPluginClassName, authParams);
+            authentication = AuthenticationFactory.create(authPluginClassName, authParams);
+            clientBuilder.authentication(authentication);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
         clientBuilder.serviceUrl(serviceURL);
-        this.produceCommand.updateConfig(clientBuilder);
-        this.consumeCommand.updateConfig(clientBuilder);
+        this.produceCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
+        this.consumeCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
     }
 
     public int run(String[] args) {

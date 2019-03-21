@@ -54,7 +54,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                 "namespaces", "get-schema-autoupdate-strategy", namespace);
         Assert.assertEquals(result.getStdout().trim(), "FULL");
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-schema-autoupdate-strategy",
-                                                 "--compatibility", "BACKWARD", namespace);
+                "--compatibility", "BACKWARD", namespace);
 
         try (PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
@@ -67,6 +67,31 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                 Assert.fail("Forward compat schema should be rejected");
             } catch (PulsarClientException e) {
                 Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            }
+
+            log.info("try with backward compat, should succeed");
+            try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
+                p.send(new V2Data("test2"));
+            }
+        }
+    }
+
+    private void testNone(String namespace, String topicName) throws Exception {
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-schema-autoupdate-strategy", namespace);
+        Assert.assertEquals(result.getStdout().trim(), "FULL");
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-schema-autoupdate-strategy",
+                "--compatibility", "NONE", namespace);
+
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
+            try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+                p.send(new V1Data("test1", 1));
+            }
+
+            log.info("try with forward compat, should succeed");
+            try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
+                p.send(new V3Data("test3", 1, 2));
             }
 
             log.info("try with backward compat, should succeed");
@@ -100,6 +125,11 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             log.info("try with forward compat, should succeed");
             try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
                 p.send(new V3Data("test2", 1, 2));
+            }
+
+            log.info("try with fully compat, should succeed");
+            try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
+                p.send(new V4Data("test2", 1, (short)100));
             }
         }
 
@@ -281,6 +311,17 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     @Test
+    public void testNoneV2() throws Exception {
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
+                pulsarCluster.getClusterName(), "public/none-p-v2");
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
+                pulsarCluster.getClusterName(), "public/none-np-v2");
+
+        testNone("public/none-p-v2", "persistent://public/none-p-v2/topic1");
+        testNone("public/none-np-v2", "non-persistent://public/none-np-v2/topic1");
+    }
+
+    @Test
     public void testDisabledV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                                                  pulsarCluster.getClusterName(), "public/dis-p-v2");
@@ -325,6 +366,18 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                            "persistent://public/" + pulsarCluster.getClusterName() + "/full-p-v1/topic1");
         testAutoUpdateFull("public/" + pulsarCluster.getClusterName() + "/full-np-v1",
                            "persistent://public/" + pulsarCluster.getClusterName() + "/full-np-v1/topic1");
+    }
+
+    @Test
+    public void testNoneV1() throws Exception {
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
+                "public/" + pulsarCluster.getClusterName() + "/none-p-v1");
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
+                "public/" + pulsarCluster.getClusterName() + "/none-np-v1");
+        testNone("public/" + pulsarCluster.getClusterName() + "/none-p-v1",
+                "persistent://public/" + pulsarCluster.getClusterName() + "/none-p-v1/topic1");
+        testNone("public/" + pulsarCluster.getClusterName() + "/none-np-v1",
+                "persistent://public/" + pulsarCluster.getClusterName() + "/none-np-v1/topic1");
     }
 
     @Test

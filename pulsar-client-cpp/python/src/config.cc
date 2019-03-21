@@ -151,6 +151,8 @@ void export_config() {
             .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
             .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
             .def("property", &ConsumerConfiguration::setProperty, return_self<>())
+            .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
+            .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")

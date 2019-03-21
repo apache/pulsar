@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -62,13 +63,14 @@ abstract class StructSchema<T> implements Schema<T> {
         return this.schemaInfo;
     }
 
-    protected static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo) {
-        return ReflectData.AllowNull.get().getSchema(pojo);
+    protected static org.apache.avro.Schema createAvroSchema(SchemaDefinition schemaDefinition) {
+        Class pojo = schemaDefinition.getPojo();
+        return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
     }
 
-    protected static org.apache.avro.Schema parseAvroSchema(String definition) {
+    protected static org.apache.avro.Schema parseAvroSchema(String jsonDef) {
         Parser parser = new Parser();
-        return parser.parse(definition);
+        return parser.parse(jsonDef);
     }
 
 }

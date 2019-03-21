@@ -31,6 +31,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -108,7 +109,7 @@ public class HbaseGenericRecordSinkTest {
         obj.setAddress("address_value");
         obj.setAge(30);
         obj.setFlag(true);
-        AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
+        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
         byte[] bytes = schema.encode(obj);
         ByteBuf payload = Unpooled.copiedBuffer(bytes);

@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.IOException;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
 import java.util.Set;
-import javax.naming.AuthenticationException;
-import org.apache.pulsar.common.api.AuthData;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import javax.naming.AuthenticationException;
+
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Interface for accessing data which are used in variety of authentication schemes on client side
@@ -119,7 +120,7 @@ public interface AuthenticationDataProvider extends Serializable {
      *
      * Mainly used for mutual authentication like sasl.
      */
-    default AuthData authenticate(AuthData data) throws IOException, AuthenticationException {
+    default AuthData authenticate(AuthData data) throws AuthenticationException {
         byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);
         return AuthData.of(bytes);
     }

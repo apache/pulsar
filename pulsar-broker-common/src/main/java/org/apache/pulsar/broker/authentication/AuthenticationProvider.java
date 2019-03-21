@@ -69,7 +69,7 @@ public interface AuthenticationProvider extends Closeable {
     default AuthenticationState newAuthState(AuthData authData,
                                              SocketAddress remoteAddress,
                                              SSLSession sslSession)
-        throws AuthenticationException{
+        throws AuthenticationException {
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
     }
 

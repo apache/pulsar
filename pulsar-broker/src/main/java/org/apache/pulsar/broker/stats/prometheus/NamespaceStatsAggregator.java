@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
@@ -50,6 +51,8 @@ public class NamespaceStatsAggregator {
 
         printDefaultBrokerStats(stream, cluster);
 
+        LongAdder topicsCount = new LongAdder();
+
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
 
@@ -58,6 +61,7 @@ public class NamespaceStatsAggregator {
                     getTopicStats(topic, topicStats, includeConsumerMetrics);
 
                     if (includeTopicMetrics) {
+                        topicsCount.add(1);
                         TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
                     } else {
                         namespaceStats.updateStats(topicStats);
@@ -69,6 +73,8 @@ public class NamespaceStatsAggregator {
                 // Only include namespace level stats if we don't have the per-topic, otherwise we're going to report
                 // the same data twice, and it will make the aggregation difficult
                 printNamespaceStats(stream, cluster, namespace, namespaceStats);
+            } else {
+                printTopicsCountStats(stream, cluster, namespace, topicsCount);
             }
         });
     }
@@ -168,6 +174,11 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, "pulsar_storage_write_rate", 0);
         metric(stream, cluster, "pulsar_storage_read_rate", 0);
         metric(stream, cluster, "pulsar_msg_backlog", 0);
+    }
+
+    private static void printTopicsCountStats(SimpleTextOutputStream stream, String cluster, String namespace,
+                                              LongAdder topicsCount) {
+        metric(stream, cluster, namespace, "pulsar_topics_count", topicsCount.sum());
     }
 
     private static void printNamespaceStats(SimpleTextOutputStream stream, String cluster, String namespace,
