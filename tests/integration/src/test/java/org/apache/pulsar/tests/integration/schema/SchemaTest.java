@@ -64,11 +64,11 @@ public class SchemaTest extends PulsarTestSuite {
              tenant,
              namespace,
              topic
-        ).toString();
+         ).toString();
 
         admin.namespaces().createNamespace(
-    tenant + "/" + namespace,
-              Sets.newHashSet(pulsarCluster.getClusterName())
+            tenant + "/" + namespace,
+            Sets.newHashSet(pulsarCluster.getClusterName())
         );
 
         // Create a topic with `Person`
@@ -92,8 +92,8 @@ public class SchemaTest extends PulsarTestSuite {
 
         // after deleting the topic, try to create a topic with a different schema
         try (Producer<Student> producer = client.newProducer(Schema.AVRO(Student.class))
-                .topic(fqtn)
-                .create()
+             .topic(fqtn)
+             .create()
         ) {
             Student student = new Student();
             student.setName("Tom Jerry");
