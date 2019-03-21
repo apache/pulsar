@@ -61,6 +61,7 @@ public class AuthenticationFilter implements Filter {
             request.setAttribute(AuthenticatedDataAttributeName,
                     new AuthenticationDataHttps((HttpServletRequest) request));
 
+            LOG.info("[{}] - {} - Authenticated HTTP request with role {}", request.getRemoteAddr(), ((HttpServletRequest) request).getRequestURI(), role);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
             }

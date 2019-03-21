@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
@@ -210,10 +211,12 @@ public class SinkImpl extends ComponentImpl {
                                                                                       final String namespace,
                                                                                       final String sinkName,
                                                                                       final String instanceId,
-                                                                                      final URI uri) {
+                                                                                      final URI uri,
+                                                                                      final String clientRole,
+                                                                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId), clientRole, clientAuthenticationDataHttps);
 
 
         SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
@@ -232,10 +235,12 @@ public class SinkImpl extends ComponentImpl {
     public SinkStatus getSinkStatus(final String tenant,
                                     final String namespace,
                                     final String componentName,
-                                    final URI uri) {
+                                    final URI uri,
+                                    final String clientRole,
+                                    final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName);
+        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
 
         SinkStatus sinkStatus;
         try {

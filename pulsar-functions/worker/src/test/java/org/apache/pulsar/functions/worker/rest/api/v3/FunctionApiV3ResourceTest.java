@@ -1250,7 +1250,7 @@ public class FunctionApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            function
+            function,null,null
         );
 
     }
@@ -1259,7 +1259,9 @@ public class FunctionApiV3ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function
+            function,
+                null,
+                null
         );
     }
 
@@ -1341,7 +1343,7 @@ public class FunctionApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace,null,null
         );
 
     }
@@ -1349,7 +1351,7 @@ public class FunctionApiV3ResourceTest {
     private List<String> listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace
+            namespace,null,null
         );
     }
 

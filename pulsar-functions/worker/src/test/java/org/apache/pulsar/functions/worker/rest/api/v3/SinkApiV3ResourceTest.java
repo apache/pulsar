@@ -1167,7 +1167,7 @@ public class SinkApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            sink
+            sink, null, null
         );
 
     }
@@ -1265,7 +1265,7 @@ public class SinkApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
 
     }
@@ -1273,7 +1273,7 @@ public class SinkApiV3ResourceTest {
     private List<String> listDefaultSinks() {
         return resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
     }
 

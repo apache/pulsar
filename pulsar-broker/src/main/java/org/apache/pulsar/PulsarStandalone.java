@@ -297,6 +297,8 @@ public class PulsarStandalone implements AutoCloseable {
                 "c-" + config.getClusterName()
                     + "-fw-" + hostname
                     + "-" + workerConfig.getWorkerPort());
+            // inherit broker authorization setting
+            workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
             fnWorkerService = new WorkerService(workerConfig);
         }
 

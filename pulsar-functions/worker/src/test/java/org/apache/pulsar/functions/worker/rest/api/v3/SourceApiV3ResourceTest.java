@@ -1191,7 +1191,7 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            source
+            source, null, null
         );
     }
 
@@ -1281,14 +1281,14 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace, null, null);
     }
 
     @Test

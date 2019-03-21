@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -211,10 +212,12 @@ public class FunctionsImpl extends ComponentImpl {
                                                                                                       final String namespace,
                                                                                                       final String componentName,
                                                                                                       final String instanceId,
-                                                                                                      final URI uri) {
+                                                                                                      final URI uri,
+                                                                                                      final String clientRole,
+                                                                                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, componentName, Integer.parseInt(instanceId));
+        componentInstanceStatusRequestValidate(tenant, namespace, componentName, Integer.parseInt(instanceId), clientRole, clientAuthenticationDataHttps);
 
         FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
         try {
@@ -241,10 +244,12 @@ public class FunctionsImpl extends ComponentImpl {
     public FunctionStatus getFunctionStatus(final String tenant,
                                             final String namespace,
                                             final String componentName,
-                                            final URI uri) {
+                                            final URI uri,
+                                            final String clientRole,
+                                            final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName);
+        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
 
         FunctionStatus functionStatus;
         try {
