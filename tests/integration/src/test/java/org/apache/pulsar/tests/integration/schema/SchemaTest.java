@@ -60,21 +60,21 @@ public class SchemaTest extends PulsarTestSuite {
         final String namespace = "test-namespace-" + randomName(16);
         final String topic = "test-create-schema-after-deletion";
         final String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
+             TopicDomain.persistent.value(),
+             tenant,
+             namespace,
+             topic
         ).toString();
 
         admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(pulsarCluster.getClusterName())
+    tenant + "/" + namespace,
+              Sets.newHashSet(pulsarCluster.getClusterName())
         );
 
         // Create a topic with `Person`
         try (Producer<Person> producer = client.newProducer(Schema.AVRO(Person.class))
-                .topic(fqtn)
-                .create()
+             .topic(fqtn)
+             .create()
         ) {
             Person person = new Person();
             person.setName("Tom Hanks");
