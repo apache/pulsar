@@ -54,7 +54,7 @@ abstract class StructSchema<T> implements Schema<T> {
         this.schemaInfo.setProperties(properties);
     }
 
-    protected org.apache.avro.Schema getAvroSchema() {
+    public org.apache.avro.Schema getAvroSchema() {
         return schema;
     }
 

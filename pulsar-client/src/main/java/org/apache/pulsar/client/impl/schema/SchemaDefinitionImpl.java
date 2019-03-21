@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -48,11 +47,14 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
 
     private String jsonDef;
 
-    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String,String> properties) {
+    private boolean supportSchemaVersioning;
+
+    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String,String> properties, boolean supportSchemaVersioning) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
         this.jsonDef = jsonDef;
         this.pojo = pojo;
+        this.supportSchemaVersioning = supportSchemaVersioning;
     }
     /**
      * get schema whether always allow null or not
@@ -60,7 +62,6 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
      * @return schema always null or not
      */
     public boolean getAlwaysAllowNull() {
-
         return alwaysAllowNull;
     }
 
@@ -70,7 +71,6 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
      * @return schema class
      */
     public String getJsonDef() {
-
         return jsonDef;
     }
     /**
@@ -83,16 +83,18 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
         return pojo;
     }
 
+    @Override
+    public boolean getSupportSchemaVersioning() {
+        return supportSchemaVersioning;
+    }
+
     /**
      * Get schema class
      *
      * @return schema class
      */
     public Map<String, String> getProperties() {
-
         return properties;
     }
-
-
 
 }

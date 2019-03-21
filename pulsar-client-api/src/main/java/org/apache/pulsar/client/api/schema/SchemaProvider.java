@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema.generic;
+package org.apache.pulsar.client.api.schema;
 
 import org.apache.pulsar.client.api.Schema;
 

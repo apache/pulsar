@@ -63,6 +63,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.MultiVersionSchema;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -152,6 +155,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+        if(schema instanceof AvroSchema && schema.supportSchemaVersioning()){
+            Map<String, MultiVersionSchema> multiVersionSchemaCatch = client.getMultiVersionSchemaCatch();
+            if(multiVersionSchemaCatch.get(topic) != null){
+                schema = multiVersionSchemaCatch.get(topic);
+            }else{
+                MultiVersionSchema<T> multiVersionSchema = new MultiVersionSchema<T>(((AvroSchema<T>) schema).getAvroSchema(),
+                        new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
+                schema = multiVersionSchema;
+                multiVersionSchemaCatch.put(topic, multiVersionSchema);
+            }
+        }
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
                     subscriptionMode, startMessageId, schema, interceptors);

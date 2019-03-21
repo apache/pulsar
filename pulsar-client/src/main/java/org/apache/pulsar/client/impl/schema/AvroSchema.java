@@ -44,10 +44,9 @@ public class AvroSchema<T> extends StructSchema<T> {
     private ReflectDatumReader<T> reader;
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
-
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
-
+    private boolean supportSchemaVersioning;
     private AvroSchema(org.apache.avro.Schema schema,
                        SchemaDefinition schemaDefinition) {
         super(
@@ -58,6 +57,7 @@ public class AvroSchema<T> extends StructSchema<T> {
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
         this.datumWriter = new ReflectDatumWriter<>(this.schema);
         this.reader = new ReflectDatumReader<>(this.schema);
+        this.supportSchemaVersioning = schemaDefinition.getSupportSchemaVersioning();
     }
 
     @Override
@@ -104,6 +104,10 @@ public class AvroSchema<T> extends StructSchema<T> {
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
         return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
+    }
+
+    public boolean supportSchemaVersioning(){
+        return supportSchemaVersioning;
     }
 
 }

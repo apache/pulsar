@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaProvider;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
