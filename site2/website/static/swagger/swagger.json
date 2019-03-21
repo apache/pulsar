@@ -281,7 +281,7 @@
     "/broker-stats/topics" : {
       "get" : {
         "tags" : [ "broker-stats" ],
-        "summary" : "Get all the topic stats by namespace",
+        "summary" : "Get all the topic stats by namesapce",
         "description" : "",
         "operationId" : "getTopics2",
         "produces" : [ "application/json" ],
@@ -314,29 +314,6 @@
                 "type" : "object"
               }
             }
-          }
-        }
-      }
-    },
-    "/brokers/configuration/runtime" : {
-      "get" : {
-        "tags" : [ "brokers" ],
-        "summary" : "Get all runtime configurations. This operation requires Pulsar super-user privileges.",
-        "description" : "",
-        "operationId" : "getRuntimeConfiguration",
-        "produces" : [ "application/json" ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "object",
-              "additionalProperties" : {
-                "type" : "object"
-              }
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
           }
         }
       }
@@ -394,26 +371,6 @@
           },
           "412" : {
             "description" : "Configuration can't be updated dynamically"
-          }
-        }
-      }
-    },
-    "/brokers/health" : {
-      "get" : {
-        "tags" : [ "brokers" ],
-        "summary" : "Run a healthcheck against the broker",
-        "description" : "",
-        "operationId" : "healthcheck",
-        "produces" : [ "application/json" ],
-        "responses" : {
-          "200" : {
-            "description" : "Everything is OK"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Cluster doesn't exist"
           }
         }
       }
@@ -1050,6 +1007,243 @@
         }
       }
     },
+    "/namespaces/{property}/{namespace}/compactionThreshold" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
+        "operationId" : "getCompactionThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
+        "operationId" : "setCompactionThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "compactionThreshold value is not valid"
+          }
+        }
+      }
+    },
+    "/namespaces/{property}/{namespace}/offloadDeletionLagMs" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
+        "description" : "A negative value denotes that deletion has been completely disabled. 'null' denotes that the topics in the namespace will fall back to the broker default for deletion lag.",
+        "operationId" : "getOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
+        "description" : "A negative value disables the deletion completely.",
+        "operationId" : "setOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "offloadDeletionLagMs value is not valid"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker",
+        "description" : "",
+        "operationId" : "clearOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
+    "/namespaces/{property}/{namespace}/offloadThreshold" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
+        "description" : "A negative value disables automatic offloading",
+        "operationId" : "getOffloadThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
+        "description" : "A negative value disables automatic offloading",
+        "operationId" : "setOffloadThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "offloadThreshold value is not valid"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -1511,75 +1705,6 @@
         }
       }
     },
-    "/namespaces/{tenant}/{namespace}/compactionThreshold" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Maximum number of uncompacted bytes in topics before compaction is triggered.",
-        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
-        "operationId" : "getCompactionThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
-        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
-        "operationId" : "setCompactionThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "compactionThreshold value is not valid"
-          }
-        }
-      }
-    },
     "/namespaces/{tenant}/{namespace}/deduplication" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -1973,174 +2098,6 @@
         }
       }
     },
-    "/namespaces/{tenant}/{namespace}/offloadDeletionLagMs" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
-        "description" : "A negative value denotes that deletion has been completely disabled. 'null' denotes that the topics in the namespace will fall back to the broker default for deletion lag.",
-        "operationId" : "getOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
-        "description" : "A negative value disables the deletion completely.",
-        "operationId" : "setOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "offloadDeletionLagMs value is not valid"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker",
-        "description" : "",
-        "operationId" : "clearOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      }
-    },
-    "/namespaces/{tenant}/{namespace}/offloadThreshold" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
-        "description" : "A negative value disables automatic offloading",
-        "operationId" : "getOffloadThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
-        "description" : "A negative value disables automatic offloading",
-        "operationId" : "setOffloadThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "offloadThreshold value is not valid"
-          }
-        }
-      }
-    },
     "/namespaces/{tenant}/{namespace}/permissions" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -2220,9 +2177,6 @@
           },
           "409" : {
             "description" : "Concurrent modification"
-          },
-          "501" : {
-            "description" : "Authorization is not enabled"
           }
         }
       },
@@ -2472,134 +2426,6 @@
         }
       }
     },
-    "/namespaces/{tenant}/{namespace}/schemaAutoUpdateCompatibilityStrategy" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "The strategy used to check the compatibility of new schemas, provided by producers, before automatically updating the schema",
-        "description" : "The value AutoUpdateDisabled prevents producers from updating the schema.  If set to AutoUpdateDisabled, schemas must be updated through the REST api",
-        "operationId" : "getSchemaAutoUpdateCompatibilityStrategy",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "string",
-              "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Update the strategy used to check the compatibility of new schemas, provided by producers, before automatically updating the schema",
-        "description" : "The value AutoUpdateDisabled prevents producers from updating the schema.  If set to AutoUpdateDisabled, schemas must be updated through the REST api",
-        "operationId" : "setSchemaAutoUpdateCompatibilityStrategy",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      }
-    },
-    "/namespaces/{tenant}/{namespace}/subscribeRate" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Get subscribe-rate configured for the namespace",
-        "description" : "",
-        "operationId" : "getSubscribeRate",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/SubscribeRate"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace does not exist"
-          }
-        }
-      },
-      "post" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set subscribe-rate throttling for all topics of the namespace",
-        "description" : "",
-        "operationId" : "setSubscribeRate",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          }
-        }
-      }
-    },
     "/namespaces/{tenant}/{namespace}/subscriptionAuthMode" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -2709,13 +2535,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "mode",
-          "in" : "query",
-          "required" : false,
-          "type" : "string",
-          "default" : "PERSISTENT",
-          "enum" : [ "PERSISTENT", "NON_PERSISTENT", "ALL" ]
         } ],
         "responses" : {
           "200" : {
@@ -3184,49 +3003,6 @@
       }
     },
     "/non-persistent/{tenant}/{namespace}/{topic}" : {
-      "put" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Create a non-partitioned topic.",
-        "description" : "This is the only REST endpoint from which non-partitioned topics could be created.",
-        "operationId" : "createNonPartitionedTopic",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "409" : {
-            "description" : "Partitioned topic already exist"
-          },
-          "412" : {
-            "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
-          }
-        }
-      },
       "delete" : {
         "tags" : [ "non-persistent topic" ],
         "summary" : "Delete a topic.",
@@ -3533,54 +3309,6 @@
         }
       }
     },
-    "/non-persistent/{tenant}/{namespace}/{topic}/lastMessageId" : {
-      "get" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Return the last commit message id of topic",
-        "description" : "",
-        "operationId" : "getLastMessageId",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/MessageId"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Operation not allowed on persistent topic"
-          }
-        }
-      }
-    },
     "/non-persistent/{tenant}/{namespace}/{topic}/offload" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
@@ -3713,9 +3441,6 @@
           },
           "404" : {
             "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -3789,9 +3514,6 @@
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -3829,12 +3551,6 @@
           },
           "409" : {
             "description" : "Partitioned topic already exists"
-          },
-          "412" : {
-            "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -3878,9 +3594,6 @@
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -4040,7 +3753,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "403" : {
@@ -4650,49 +4363,6 @@
       }
     },
     "/persistent/{tenant}/{namespace}/{topic}" : {
-      "put" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Create a non-partitioned topic.",
-        "description" : "This is the only REST endpoint from which non-partitioned topics could be created.",
-        "operationId" : "createNonPartitionedTopic",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "409" : {
-            "description" : "Partitioned topic already exist"
-          },
-          "412" : {
-            "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
-          }
-        }
-      },
       "delete" : {
         "tags" : [ "persistent topic" ],
         "summary" : "Delete a topic.",
@@ -4999,54 +4669,6 @@
         }
       }
     },
-    "/persistent/{tenant}/{namespace}/{topic}/lastMessageId" : {
-      "get" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Return the last commit message id of topic",
-        "description" : "",
-        "operationId" : "getLastMessageId",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/MessageId"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Operation not allowed on persistent topic"
-          }
-        }
-      }
-    },
     "/persistent/{tenant}/{namespace}/{topic}/offload" : {
       "get" : {
         "tags" : [ "persistent topic" ],
@@ -5179,9 +4801,6 @@
           },
           "404" : {
             "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -5224,12 +4843,6 @@
           },
           "403" : {
             "description" : "Don't have admin permission"
-          },
-          "409" : {
-            "description" : "Partitioned topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -5261,9 +4874,6 @@
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -5301,12 +4911,6 @@
           },
           "409" : {
             "description" : "Partitioned topic already exist"
-          },
-          "412" : {
-            "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -5350,9 +4954,6 @@
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
-          },
-          "412" : {
-            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -6221,12 +5822,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -6285,12 +5880,6 @@
           "x-examples" : {
             "application/json" : "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
           }
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -6337,12 +5926,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -6396,12 +5979,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -6628,16 +6205,6 @@
                 "type" : "string",
                 "enum" : [ "produce", "consume" ]
               }
-            }
-          }
-        },
-        "subscription_auth_roles" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "array",
-            "uniqueItems" : true,
-            "items" : {
-              "type" : "string"
             }
           }
         }
@@ -6895,7 +6462,7 @@
         },
         "type" : {
           "type" : "string",
-          "enum" : [ "NONE", "BOOLEAN", "STRING", "INT8", "INT16", "INT32", "INT64", "FLOAT", "DOUBLE", "BYTES", "JSON", "PROTOBUF", "AVRO", "AUTO", "AUTO_CONSUME", "AUTO_PUBLISH", "KEY_VALUE" ]
+          "enum" : [ "NONE", "STRING", "JSON", "PROTOBUF", "AVRO" ]
         },
         "timestamp" : {
           "type" : "integer",
@@ -6922,9 +6489,6 @@
           "type" : "string"
         },
         "ledgersRootPath" : {
-          "type" : "string"
-        },
-        "stateStorageServiceUrl" : {
           "type" : "string"
         }
       }
@@ -7099,13 +6663,13 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
@@ -7123,14 +6687,14 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
         }
       }
     },
@@ -7293,13 +6857,13 @@
         "address" : {
           "type" : "string"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         }
       }
@@ -7733,12 +7297,6 @@
             "$ref" : "#/definitions/DispatchRate"
           }
         },
-        "clusterSubscribeRate" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "$ref" : "#/definitions/SubscribeRate"
-          }
-        },
         "persistence" : {
           "$ref" : "#/definitions/PersistencePolicies"
         },
@@ -7795,10 +7353,6 @@
         "offload_deletion_lag_ms" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "schema_auto_update_compatibility_strategy" : {
-          "type" : "string",
-          "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
         }
       }
     },
@@ -8007,13 +7561,13 @@
         "address" : {
           "type" : "string"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         }
       }
@@ -8148,19 +7702,6 @@
     },
     "SchemaVersion" : {
       "type" : "object"
-    },
-    "SubscribeRate" : {
-      "type" : "object",
-      "properties" : {
-        "subscribeThrottlingRatePerConsumer" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "ratePeriodInSecond" : {
-          "type" : "integer",
-          "format" : "int32"
-        }
-      }
     },
     "SubscriptionStats" : {
       "type" : "object",
