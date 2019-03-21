@@ -49,7 +49,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 @Path("/functions")
-@Api(value = "/functions", description = "Functions admin apis", tags = "functions")
+@Api(value = "/functions", description = "Functions admin apis", tags = "functions", enabled = false)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class Functions extends AdminResource implements Supplier<WorkerService> {

@@ -23,6 +23,8 @@ const createVariableInjectionPlugin = variables => {
       // rest api: rest:<name>:<path>
       } else if (keyparts[0] == 'rest') {
           return renderUrl(initializedPlugin, restApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'functions') {
+          return renderUrl(initializedPlugin, functionsApiUrl + "#", keyparts);
       } else {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
@@ -65,6 +67,7 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
 const restApiUrl = url + '/en' + "/admin-rest-api";
+const functionsApiUrl = url + '/en' + "/functions-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
@@ -95,6 +98,7 @@ const siteConfig = {
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Clients'},
     {page: 'admin-rest-api', label: 'REST API'},
+    {page: 'functions-rest-api', label: 'Functions REST API'},
     {blog: true, label: 'Blog'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},

@@ -378,7 +378,7 @@
                     </license>
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
-                  <swaggerFileName>swaggerv2</swaggerFileName>
+                  <swaggerFileName>swagger</swaggerFileName>
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
@@ -386,7 +386,7 @@
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
                   <info>
-                    <title>Pulsar Admin REST API</title>
+                    <title>Pulsar Functions REST API</title>
                     <version>v3</version>
                     <description>This provides the REST API for admin operations</description>
                     <license>
@@ -395,7 +395,7 @@
                     </license>
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
-                  <swaggerFileName>swaggerv3</swaggerFileName>
+                  <swaggerFileName>swaggerfunctions</swaggerFileName>
                 </apiSource>
               </apiSources>
             </configuration>
