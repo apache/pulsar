@@ -27,5 +27,15 @@ import lombok.Data;
  * A wrapper for authentication data for functions
  */
 public class FunctionAuthData {
+    /**
+     * function authentication related data that the function authentication provider
+     * needs to cache/distribute to all workers support function authentication.
+     * Depending on the function authentication provider implementation, this can be the actual auth credentials
+     * or a pointer to the auth credentials that this function should use
+     */
     private byte[] data;
+    /**
+     * classname of the function auth provicer this data is relevant to
+     */
+    private String provider;
 }
