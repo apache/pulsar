@@ -33,7 +33,9 @@ import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -108,8 +110,8 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
     public void write(Record<V> record) {
         long now = System.currentTimeMillis();
 
-        switch (alluxioState.ordinal()) {
-            case 0:
+        switch (alluxioState) {
+            case WRITE_STARTED:
                 try {
                     writeToAlluxio(record);
                     if (!shouldRotate(now)) {
@@ -119,8 +121,9 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
                 } catch (AlluxioException | IOException e) {
                     log.error("Unable to write record to alluxio.", e);
                     record.fail();
+                    break;
                 }
-            case 1:
+            case FILE_ROTATED:
                 try {
                     closeAndCommitTmpFile();
                     alluxioState = AlluxioState.FILE_COMMITTED;
@@ -128,13 +131,20 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
                 } catch (AlluxioException | IOException e) {
                     log.error("Unable to flush records to alluxio.", e);
                     failRecords();
+                    try {
+                        deleteTmpFile();
+                    } catch (AlluxioException | IOException e1) {
+                        log.error("Failed to delete tmp cache file.", e);
+                    }
+                    break;
                 }
-            case 2:
+            case FILE_COMMITTED:
                 alluxioState = AlluxioState.WRITE_STARTED;
                 break;
             default:
                 log.error("{} is not a valid state when writing record to alluxio temp dir {}.",
                     alluxioState, tmpFileDirPath);
+                break;
         }
     }
 
@@ -166,7 +176,7 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
         if (fileOutStream == null) {
             createTmpFile();
         }
-        fileOutStream.write(keyValue.getValue().toString().getBytes(StandardCharsets.UTF_8));
+        fileOutStream.write(toBytes(keyValue.getValue()));
         if (alluxioSinkConfig.getLineSeparator() != '\u0000') {
             fileOutStream.write(alluxioSinkConfig.getLineSeparator());
         }
@@ -224,6 +234,32 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
             }
         }
         return rotated;
+    }
+
+    private byte[] toByteArray(Object obj) {
+        byte[] bytes = null;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(obj);
+            oos.flush();
+            bytes = baos.toByteArray();
+        } catch (IOException e) {
+            log.error("Failed to serialize the object.", e);
+        }
+        return bytes;
+    }
+
+    private byte[] toBytes(Object obj) {
+        byte[] bytes;
+        if (obj instanceof String) {
+            String s = (String) obj;
+            bytes = s.getBytes(StandardCharsets.UTF_8);
+        } else if (obj instanceof byte[]) {
+            bytes = (byte[]) obj;
+        } else {
+            bytes = toByteArray(obj);
+        }
+        return bytes;
     }
 
     public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
