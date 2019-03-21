@@ -27,7 +27,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 
 import lombok.Data;
@@ -42,7 +41,6 @@ import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.avro.generated.NasaMission;
@@ -242,7 +240,7 @@ public class AvroSchemaTest {
         org.apache.avro.Schema recordSchema = new org.apache.avro.Schema.Parser().parse(
               new String(schemaInfo.getSchema(), UTF_8)
         );
-        AvroSchema<NasaMission> avroSchema = AvroSchema.of(NasaMission.class, null);
+        AvroSchema<NasaMission> avroSchema = AvroSchema.of(SchemaDefinition.<NasaMission>builder().withPojo(NasaMission.class).build());
         assertEquals(recordSchema, avroSchema.schema);
 
         NasaMission nasaMission = NasaMission.newBuilder()

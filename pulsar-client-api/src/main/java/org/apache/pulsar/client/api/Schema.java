@@ -21,9 +21,7 @@ package org.apache.pulsar.client.api;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Collections;
 import java.util.Date;
-import java.util.Map;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
