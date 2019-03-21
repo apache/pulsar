@@ -39,7 +39,6 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
-
     std::stringstream consumerStrStream;
     consumerStrStream << "[Muti Topics Consumer: "
                       << "TopicName - " << topic_ << " - Subscription - " << subscriptionName << "]";
