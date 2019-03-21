@@ -39,6 +39,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
+
     std::stringstream consumerStrStream;
     consumerStrStream << "[Muti Topics Consumer: "
                       << "TopicName - " << topic_ << " - Subscription - " << subscriptionName << "]";
@@ -450,6 +451,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         }
         messages_.push(msg);
         if (messageListener_) {
+                unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
         }
