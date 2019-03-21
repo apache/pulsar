@@ -220,6 +220,10 @@ public class CmdSinks extends CmdBase {
             }
             print("Updated successfully");
         }
+
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        }
     }
 
     abstract class SinkDetailsCommand extends BaseCommand {

@@ -224,6 +224,10 @@ public class CmdSources extends CmdBase {
             }
             print("Updated successfully");
         }
+
+        protected void validateSourceConfigs(SourceConfig sourceConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+        }
     }
 
     abstract class SourceDetailsCommand extends BaseCommand {
