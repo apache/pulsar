@@ -64,6 +64,35 @@ window.addEventListener('load', function() {
     }
   });
 
+  // setup rest api menu items in nav bar
+  const restapis = document.querySelector("a[href='#restapis']").parentNode;
+  const restapisMenu =
+    '<li>' +
+    '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+    '<div id="restapis-dropdown" class="hide">' +
+      '<ul id="restapis-dropdown-items">' +
+        '<li><a href="/admin-rest-api">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api">Functions </a></li>' +
+        '<li><a href="/source-rest-api">Sources </a></li>' +
+        '<li><a href="/sink-rest-api">Sinks </a></li>' +
+      '</ul>' +
+    '</div>' +
+    '</li>';
+
+  restapis.innerHTML = restapisMenu;
+
+  const restapisMenuItem = document.getElementById("restapis-menu");
+  const restapisDropDown = document.getElementById("restapis-dropdown");
+  restapisMenuItem.addEventListener("click", function(event) {
+    event.preventDefault();
+
+    if (restapisDropDown.className == 'hide') {
+      restapisDropDown.className = 'visible';
+    } else {
+      restapisDropDown.className = 'hide';
+    }
+  });
+
 
   function button(label, ariaLabel, icon, className) {
     const btn = document.createElement('button');
