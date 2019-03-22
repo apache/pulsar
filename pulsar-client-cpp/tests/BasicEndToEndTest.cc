@@ -35,8 +35,9 @@
 #include <lib/PatternMultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
-#include <unistd.h>
 #include <functional>
+#include <thread>
+#include <chrono>
 
 DECLARE_LOG_OBJECT()
 
@@ -2979,11 +2980,11 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
     long timeWaited = 0;
     while(true) {
         // maximum wait time
-        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 1000 * 3);
+        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
         if (regexTestMessagesReceived >= 10 * 2) {
             break;
         }
-        usleep(500000);
-        timeWaited += 500000;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timeWaited += 500;
     }
 }
