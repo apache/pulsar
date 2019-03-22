@@ -382,7 +382,7 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v3</locations>
+                  <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
                   <info>
@@ -396,6 +396,40 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swaggerfunctions</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Source</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Source REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Source operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggersource</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Sink</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Sink REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Sink operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggersink</swaggerFileName>
                 </apiSource>
               </apiSources>
             </configuration>
