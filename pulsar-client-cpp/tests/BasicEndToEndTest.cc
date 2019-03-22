@@ -2963,7 +2963,8 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
 
     Producer producer;
     ProducerConfiguration producerConf;
-    Result result = client.createProducer("persistent://public/default/testRegexTopicsWithMessageListenerTopic-1", producerConf, producer);
+    Result result = client.createProducer(
+        "persistent://public/default/testRegexTopicsWithMessageListenerTopic-1", producerConf, producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
@@ -2978,7 +2979,7 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
 
     producer.flush();
     long timeWaited = 0;
-    while(true) {
+    while (true) {
         // maximum wait time
         ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
         if (regexTestMessagesReceived >= 10 * 2) {
