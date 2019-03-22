@@ -2953,12 +2953,11 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
     Client client(lookupUrl);
     long unAckedMessagesTimeoutMs = 10000;
     std::string subsName = "testRegexTopicsWithMessageListener-sub";
-    std::string pattern =
-        "persistent://public/default/testRegexTopicsWithMessageListenerTopic-.*";
+    std::string pattern = "persistent://public/default/testRegexTopicsWithMessageListenerTopic-.*";
     ConsumerConfiguration consumerConf;
     consumerConf.setConsumerType(ConsumerShared);
     consumerConf.setMessageListener(
-            std::bind(regexMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
+        std::bind(regexMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     consumerConf.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
 
     Producer producer;
