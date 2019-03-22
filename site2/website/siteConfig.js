@@ -103,11 +103,7 @@ const siteConfig = {
     {doc: 'standalone', label: 'Docs'},
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Clients'},
-    {page: 'admin-rest-api', label: 'REST API'},
-    {page: 'functions-rest-api', label: 'Functions REST API'},
-    {page: 'source-rest-api', label: 'Source REST API'},
-    {page: 'sink-rest-api', label: 'Sink REST API'},
-
+    {href: '#restapis', label: 'REST APIs'},
     {blog: true, label: 'Blog'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
