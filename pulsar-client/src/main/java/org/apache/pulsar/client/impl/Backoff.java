@@ -115,6 +115,16 @@ public class Backoff {
         return firstBackoffTimeInMillis;
     }
 
+    @VisibleForTesting
+    long backoffIntervalNanos() {
+    	return backoffIntervalNanos;
+    }
+    
+    @VisibleForTesting
+    long maxBackoffIntervalNanos() {
+    	return maxBackoffIntervalNanos;
+    }
+    
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts, 
     									long defaultInterval, long maxBackoffInterval) {
     	long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);

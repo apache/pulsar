@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.mockito.Matchers;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+
+import junit.framework.Assert;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +42,8 @@ import static org.testng.Assert.assertNotNull;
  */
 public class ProducerBuilderImplTest {
 
+    private static final long BACKOFF_INTERVAL_IN_NANOSECONDS = TimeUnit.SECONDS.toNanos(2);
+    private static final long MAX_BACKOFF_INTERVAL_IN_NANOSECONDS = TimeUnit.SECONDS.toNanos(40);
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
@@ -46,13 +51,33 @@ public class ProducerBuilderImplTest {
     @BeforeTest
     public void setup() {
         Producer producer = mock(Producer.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+
         client = mock(PulsarClientImpl.class);
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
+        clientConf.setDefaultBackoffIntervalNanos(BACKOFF_INTERVAL_IN_NANOSECONDS);
+        clientConf.setMaxBackoffIntervalNanos(MAX_BACKOFF_INTERVAL_IN_NANOSECONDS);
+        when(client.getConfiguration()).thenReturn(clientConf);
 
         when(client.createProducerAsync(
                 Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class), eq(null)))
                 .thenReturn(CompletableFuture.completedFuture(producer));
+    }
+
+    @Test
+    public void testCorrectBackoffConfiguration() { 
+    	producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+    	try {
+			ProducerImpl producer = (ProducerImpl) producerBuilderImpl.topic(TOPIC_NAME)
+					 .producerName("Test-Producer-Configuration")
+					 .create();
+			Backoff backoff = producer.getConnectionHandler().backoff;
+			Assert.assertEquals(backoff.backoffIntervalNanos(), BACKOFF_INTERVAL_IN_NANOSECONDS);
+			Assert.assertEquals(backoff.maxBackoffIntervalNanos(), MAX_BACKOFF_INTERVAL_IN_NANOSECONDS);
+		} catch (PulsarClientException e) { 
+			// this will not happen
+		}
     }
 
     @Test
