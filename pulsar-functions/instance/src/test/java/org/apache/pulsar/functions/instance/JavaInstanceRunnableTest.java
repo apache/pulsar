@@ -20,8 +20,6 @@ package org.apache.pulsar.functions.instance;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
@@ -33,7 +31,6 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 
-@Slf4j
 public class JavaInstanceRunnableTest {
 
     static class IntegerSerDe implements SerDe<Integer> {
