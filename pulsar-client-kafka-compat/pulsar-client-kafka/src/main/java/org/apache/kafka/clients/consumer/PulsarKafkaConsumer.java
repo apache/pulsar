@@ -45,6 +45,7 @@ import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -155,7 +156,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         String serviceUrl = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
-        maxRecordsInSinglePoll = config.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        // If MAX_POLL_RECORDS_CONFIG is provided then use the config, else use default value.
+        if(config.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
+            maxRecordsInSinglePoll = config.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        } else {
+            maxRecordsInSinglePoll = 1000;
+        }
 
         this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
