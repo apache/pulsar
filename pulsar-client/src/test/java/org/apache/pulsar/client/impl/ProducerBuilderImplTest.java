@@ -25,8 +25,6 @@ import org.mockito.Matchers;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import junit.framework.Assert;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -73,8 +71,10 @@ public class ProducerBuilderImplTest {
 					 .producerName("Test-Producer-Configuration")
 					 .create();
 			Backoff backoff = producer.getConnectionHandler().backoff;
-			Assert.assertEquals(backoff.backoffIntervalNanos(), BACKOFF_INTERVAL_IN_NANOSECONDS);
-			Assert.assertEquals(backoff.maxBackoffIntervalNanos(), MAX_BACKOFF_INTERVAL_IN_NANOSECONDS);
+			Object result = backoff.backoffIntervalNanos() != BACKOFF_INTERVAL_IN_NANOSECONDS ? null : new Object();
+			assertNotNull(result);
+			result = backoff.maxBackoffIntervalNanos() != MAX_BACKOFF_INTERVAL_IN_NANOSECONDS ? null : new Object();
+			assertNotNull(result);
 		} catch (PulsarClientException e) { 
 			// this will not happen
 		}
