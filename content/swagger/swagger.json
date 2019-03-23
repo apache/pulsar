@@ -2496,7 +2496,7 @@
             "description" : "successful operation",
             "schema" : {
               "type" : "string",
-              "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full" ]
+              "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
             }
           },
           "403" : {
@@ -7096,33 +7096,15 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
         },
         "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -7131,6 +7113,24 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -7798,7 +7798,7 @@
         },
         "schema_auto_update_compatibility_strategy" : {
           "type" : "string",
-          "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full" ]
+          "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
         }
       }
     },
@@ -8069,15 +8069,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
+        },
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -8112,11 +8112,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
