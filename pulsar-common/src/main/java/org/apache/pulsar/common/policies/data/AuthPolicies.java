@@ -36,6 +36,12 @@ public class AuthPolicies {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(namespace_auth, destination_auth,
+                subscription_auth_roles);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof AuthPolicies) {
             AuthPolicies other = (AuthPolicies) obj;

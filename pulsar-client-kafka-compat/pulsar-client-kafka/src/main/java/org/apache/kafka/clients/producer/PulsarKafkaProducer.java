@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.kafka.compat.KafkaMessageRouter;
+import org.apache.pulsar.client.kafka.compat.KafkaProducerInterceptorWrapper;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
@@ -68,6 +69,8 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private final Partitioner partitioner;
     private volatile Cluster cluster = Cluster.empty();
+
+    private List<ProducerInterceptor<K, V>> interceptors;
 
     public PulsarKafkaProducer(Map<String, Object> configs) {
         this(configs, null, null);
@@ -119,7 +122,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
         try {
             // Support Kafka's ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG in ms.
-            // If passed in value is greater than Integer.MAX_VALUE in second will throw ArithmeticException.
+            // If passed in value is greater than Integer.MAX_VALUE in second will throw IllegalArgumentException.
             int keepAliveInterval = Math.toIntExact(keepAliveIntervalMs / 1000);
             client = PulsarClientKafkaConfig.getClientBuilder(properties).serviceUrl(serviceUrl).keepAliveInterval(keepAliveInterval, TimeUnit.SECONDS).build();
         } catch (ArithmeticException e) {
@@ -146,7 +149,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         pulsarProducerBuilder.messageRouter(new KafkaMessageRouter(lingerMs));
 
-        int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.MAX_BLOCK_MS_CONFIG, "60000"));
+        int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "30000"));
         pulsarProducerBuilder.sendTimeout(sendTimeoutMillis, TimeUnit.MILLISECONDS);
 
         boolean blockOnBufferFull = Boolean
@@ -157,6 +160,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         // Kafka, on the other hand, still blocks for "max.block.ms" time and then gives error.
         boolean shouldBlockPulsarProducer = sendTimeoutMillis > 0 || blockOnBufferFull;
         pulsarProducerBuilder.blockIfQueueFull(shouldBlockPulsarProducer);
+
+        interceptors = (List) producerConfig.getConfiguredInstances(
+                ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptor.class);
     }
 
     @Override
@@ -238,7 +244,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         try {
             // Add the partitions info for the new topic
             cluster = cluster.withPartitions(readPartitionsInfo(topic));
-            return pulsarProducerBuilder.clone().topic(topic).create();
+            List<org.apache.pulsar.client.api.ProducerInterceptor> wrappedInterceptors = interceptors.stream()
+                    .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySerializer, valueSerializer, topic))
+                    .collect(Collectors.toList());
+            return pulsarProducerBuilder.clone()
+                    .topic(topic)
+                    .intercept(wrappedInterceptors.toArray(new org.apache.pulsar.client.api.ProducerInterceptor[wrappedInterceptors.size()]))
+                    .create();
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
@@ -306,6 +318,24 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         TopicPartition tp = new TopicPartition(topic, partition);
         TypedMessageBuilderImpl<byte[]> mb = (TypedMessageBuilderImpl<byte[]>) msgBuilder;
         return new RecordMetadata(tp, offset, 0, mb.getPublishTime(), 0, mb.hasKey() ? mb.getKey().length() : 0, size);
+    }
+
+    private ProducerInterceptor createKafkaProducerInterceptor(String clazz) {
+        try {
+            return (ProducerInterceptor) Class.forName(clazz).newInstance();
+        } catch (ClassNotFoundException e) {
+            String errorMessage = "Can't find Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        } catch (InstantiationException e) {
+            String errorMessage = "Can't initiate provided Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        } catch (IllegalAccessException e) {
+            String errorMessage = "Can't access provided Interceptor class: " + e.getMessage();
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+        }
     }
 
     private static final Logger logger = LoggerFactory.getLogger(PulsarKafkaProducer.class);

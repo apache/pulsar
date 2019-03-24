@@ -69,7 +69,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                  final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, functionConfigJson, clientAppId());
+                functionPkgUrl, null, functionConfigJson, clientAppId(), clientAuthData());
 
     }
 

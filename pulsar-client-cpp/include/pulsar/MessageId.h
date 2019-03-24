@@ -22,7 +22,6 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <memory>
-//#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
 
@@ -87,6 +86,7 @@ class MessageId {
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class PulsarFriend;
+    friend class NegativeAcksTracker;
 
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 

@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -167,23 +169,43 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a Avro schema type by extracting the fields of the specified class.
+     * Create a  Avro schema type by default configuration of the class
      *
-     * @param clazz the POJO class to be used to extract the Avro schema
+     * @param pojo the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
-    static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(clazz);
+    static <T> Schema<T> AVRO(Class<T> pojo) {
+        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+    }
+
+    /**
+     * Create a Avro schema type with schema definition
+     *
+     * @param schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> AVRO(SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newAvroSchema(schemaDefinition);
     }
 
     /**
      * Create a JSON schema type by extracting the fields of the specified class.
      *
-     * @param clazz the POJO class to be used to extract the JSON schema
+     * @param pojo the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
-    static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(clazz);
+    static <T> Schema<T> JSON(Class<T> pojo) {
+        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+    }
+
+    /**
+     * Create a JSON schema type with schema definition
+     *
+     * @param schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
+        return DefaultImplementation.newJSONSchema(schemaDefinition);
     }
 
     /**

@@ -26,6 +26,7 @@ import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 
 import com.google.gson.Gson;
 
+import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -43,6 +44,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +52,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
@@ -77,6 +78,7 @@ import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -93,6 +95,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -292,7 +295,8 @@ public abstract class ComponentImpl {
                                  final String functionPkgUrl,
                                  final String functionDetailsJson,
                                  final String componentConfigJson,
-                                 final String clientRole) {
+                                 final String clientRole,
+                                 AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -377,8 +381,30 @@ public abstract class ComponentImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
 
+        // cache auth if need
+        if (clientAuthenticationDataHttps != null) {
+            try {
+                Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
+                        .getRuntimeFactory()
+                        .getAuthProvider()
+                        .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+
+                if (functionAuthData.isPresent()) {
+                    functionMetaDataBuilder.setFunctionAuthSpec(
+                            Function.FunctionAuthenticationSpec.newBuilder()
+                                    .setData(ByteString.copyFrom(functionAuthData.get().getData()))
+                                    .build());
+                }
+            } catch (Exception e) {
+                log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+            }
+        }
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         try {
@@ -494,6 +520,7 @@ public abstract class ComponentImpl {
         String existingComponentConfigJson;
 
         FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+
         if (componentType.equals(FUNCTION)) {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
@@ -573,9 +600,9 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
         }
 
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+        // merge from existing metadata
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
+                .setFunctionDetails(functionDetails);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         if (isNotBlank(functionPkgUrl) || uploadedInputStreamAsFile != null) {
@@ -590,6 +617,7 @@ public abstract class ComponentImpl {
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
         updateRequest(functionMetaDataBuilder.build());
     }
 
