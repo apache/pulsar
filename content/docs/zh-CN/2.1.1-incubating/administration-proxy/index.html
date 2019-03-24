@@ -95,30 +95,30 @@ $ bin/pulsar proxy \
 <tr><th>Name</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>zookeeperServers</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
-<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
-<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
-<tr><td>servicePort</td><td>The port to use for server binary Protobuf requests</td><td>6650</td></tr>
-<tr><td>servicePortTls</td><td>The port to use to server binary Protobuf TLS requests</td><td>6651</td></tr>
-<tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks</td><td></td></tr>
-<tr><td>authenticationEnabled</td><td>Whether authentication is enabled for the Pulsar proxy</td><td>false</td></tr>
-<tr><td>authenticationProviders</td><td>Authentication provider name list (a comma-separated list of class names)</td><td></td></tr>
-<tr><td>authorizationEnabled</td><td>Whether authorization is enforced by the Pulsar proxy</td><td>false</td></tr>
-<tr><td>authorizationProvider</td><td>Authorization provider as a fully qualified class name</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
-<tr><td>brokerClientAuthenticationPlugin</td><td>The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
-<tr><td>brokerClientAuthenticationParameters</td><td>The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
-<tr><td>brokerClientTrustCertsFilePath</td><td>The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
-<tr><td>superUserRoles</td><td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin</td><td></td></tr>
-<tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
-<tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
-<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
-<tr><td>tlsEnabledInProxy</td><td>Whether TLS is enabled for the proxy</td><td>false</td></tr>
-<tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers</td><td>false</td></tr>
-<tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
-<tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
-<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate pem file</td><td></td></tr>
-<tr><td>tlsHostnameVerificationEnabled</td><td>Whether the hostname is validated when the proxy creates a TLS connection with brokers</td><td>false</td></tr>
-<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted.</td><td>false</td></tr>
+<tr><td>zookeeperServers</td><td>ZooKeeper仲裁连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>configurationStoreServers</td><td>配置存储连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper会话超时（以毫秒为单位）</td><td>30000</td></tr>
+<tr><td>servicePort</td><td>用于服务器二进制Protobuf请求的端口</td><td>6650</td></tr>
+<tr><td>servicePortTls</td><td>用于服务器二进制Protobuf TLS请求的端口</td><td>6651</td></tr>
+<tr><td>statusFilePath</td><td>在响应服务发现健康检查时，用于确定代理实例的轮换状态的文件的路径</td><td></td></tr>
+<tr><td>authenticationEnabled</td><td>是否为Pulsar代理启用身份验证</td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td>身份验证提供者名称列表(以逗号分隔的类名列表)</td><td></td></tr>
+<tr><td>authorizationEnabled</td><td>是否由Pulsar代理强制执行授权</td><td>false</td></tr>
+<tr><td>authorizationProvider</td><td>授权提供程序的完全限定类名</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td>Pulsar代理使用的身份验证插件，用于对Pulsar brokers进行身份验证</td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的参数</td><td></td></tr>
+<tr><td>brokerClientTrustCertsFilePath</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的可信证书的路径</td><td></td></tr>
+<tr><td>superUserRoles</td><td>“超级用户”的角色名，这意味着它们将能够执行所有管理</td><td></td></tr>
+<tr><td>forwardAuthorizationCredentials</td><td>客户端授权凭据是否转发给broker以进行重新授权。必须通过AuthenticationEnabled=true启用身份验证才能生效。</td><td>false</td></tr>
+<tr><td>maxConcurrentInboundConnections</td><td>最大进站并发连接数， 代理将拒绝超出此范围的请求。</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequests</td><td>最大出站并发连接数。代理将错误地输出超过此范围的请求。</td><td>50000</td></tr>
+<tr><td>tlsEnabledInProxy</td><td>是否为代理启用TLS</td><td>false</td></tr>
+<tr><td>tlsEnabledWithBroker</td><td>与Pulsar Brokers通信时是否启用TLS</td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>TLS证书文件的路径</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>TLS私钥文件的路径</td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>受信任的TLS证书pem文件的路径</td><td></td></tr>
+<tr><td>tlsHostnameVerificationEnabled</td><td>当代理与brokers建立TLS连接时是否验证主机名</td><td>false</td></tr>
+<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>TLS是否需要客户端证书。如果客户端证书不受信任，连接将被拒绝。</td><td>false</td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/administration-load-distribution"><span class="arrow-prev">← </span><span>Load distribution</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/security-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#running-the-proxy">Running the proxy</a></li><li><a href="#stopping-the-proxy">Stopping the proxy</a></li><li><a href="#proxy-frontends">Proxy frontends</a></li><li><a href="#using-pulsar-clients-with-the-proxy">Using Pulsar clients with the proxy</a></li><li><a href="#proxy-configuration">Proxy configuration</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
