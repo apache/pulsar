@@ -51,7 +51,7 @@ public class Worker {
     private WorkerServer server;
 
     private ZooKeeperClientFactory zkClientFactory = null;
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered").build();
+    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
     private GlobalZooKeeperCache globalZkCache;
