@@ -20,9 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -40,6 +38,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -202,7 +201,7 @@ public class ClientCnx extends PulsarHandler {
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-            getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override
@@ -300,7 +299,7 @@ public class ClientCnx extends PulsarHandler {
             ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
                 authData,
                 this.protocolVersion,
-                getPulsarClientVersion());
+                PulsarVersion.getVersion());
 
             if (log.isDebugEnabled()) {
                 log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());

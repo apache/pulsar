@@ -532,43 +532,46 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
+        if (stats != null) {
+            bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
+            bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
+            bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
+            bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
+            bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
+            bldr.setLastInvocation((long) stats.getLastInvocation());
 
-        bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
-        bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
-        bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
-        bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
-        bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
-        bldr.setLastInvocation((long) stats.getLastInvocation());
-
-        bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
-        bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
-        bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
-        bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
-        bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+            bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
+            bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
+            bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
+            bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
+            bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+        }
 
         return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumReceived((long)stats.getTotalRecordsReceived());
-        functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
-        functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
-        stats.getLatestUserExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestUserExceptions(ex);
-        });
-        functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
-        stats.getLatestSystemExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSystemExceptions(ex);
-        });
-        stats.getLatestSourceExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSourceExceptions(ex);
-        });
-        stats.getLatestSinkExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSinkExceptions(ex);
-        });
-        functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
-        functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
+        if (stats != null) {
+            functionStatusBuilder.setNumReceived((long) stats.getTotalRecordsReceived());
+            functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
+            functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
+            stats.getLatestUserExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestUserExceptions(ex);
+            });
+            functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
+            stats.getLatestSystemExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSystemExceptions(ex);
+            });
+            stats.getLatestSourceExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSourceExceptions(ex);
+            });
+            stats.getLatestSinkExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSinkExceptions(ex);
+            });
+            functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
+            functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
+        }
         return functionStatusBuilder;
     }
 
