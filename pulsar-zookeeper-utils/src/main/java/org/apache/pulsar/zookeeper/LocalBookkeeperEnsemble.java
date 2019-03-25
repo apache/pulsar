@@ -363,6 +363,12 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("journalMaxGroupWaitMSec", 0L);
         conf.setAllowLoopback(true);
         conf.setGcWaitTime(60000);
+        conf.setNumAddWorkerThreads(0);
+        conf.setNumReadWorkerThreads(0);
+        conf.setNumHighPriorityWorkerThreads(0);
+        conf.setNumJournalCallbackThreads(0);
+        conf.setServerNumIOThreads(1);
+        conf.setNumLongPollWorkerThreads(1);
 
         runZookeeper(1000);
         initializeZookeper();

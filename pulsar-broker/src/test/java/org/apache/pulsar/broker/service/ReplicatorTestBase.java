@@ -19,13 +19,15 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import com.google.common.collect.Sets;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,16 +39,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -80,7 +81,8 @@ public class ReplicatorTestBase {
 
     ZookeeperServerTest globalZkS;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            new DefaultThreadFactory("ReplicatorTestBase"));
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
@@ -211,13 +213,10 @@ public class ReplicatorTestBase {
         admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
                 pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
 
-        admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
         admin1.tenants().createTenant("pulsar",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
-        admin1.namespaces().createNamespace("pulsar/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
-        admin1.namespaces().createNamespace("pulsar/ns1");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns1", Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
@@ -225,6 +224,11 @@ public class ReplicatorTestBase {
         assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+
+        // Also create V1 namespace for compatibility check
+        admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
+        admin1.namespaces().createNamespace("pulsar/global/ns");
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
@@ -253,7 +257,7 @@ public class ReplicatorTestBase {
         globalZkS.stop();
     }
 
-    static class MessageProducer {
+    static class MessageProducer implements AutoCloseable {
         URL url;
         String namespace;
         String topicName;
@@ -289,13 +293,12 @@ public class ReplicatorTestBase {
 
         void produceBatch(int messages) throws Exception {
             log.info("Start sending batch messages");
-            List<CompletableFuture<MessageId>> futureList = new ArrayList<>();
 
             for (int i = 0; i < messages; i++) {
-                futureList.add(producer.sendAsync(("test-" + i).getBytes()));
+                producer.sendAsync(("test-" + i).getBytes());
                 log.info("queued message {}", ("test-" + i));
             }
-            FutureUtil.waitForAll(futureList).get();
+            producer.flush();
         }
 
         void produce(int messages) throws Exception {
@@ -315,19 +318,23 @@ public class ReplicatorTestBase {
         void produce(int messages, TypedMessageBuilder<byte[]> messageBuilder) throws Exception {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
-                final String m = new String("test-builder-" + i);
+                final String m = new String("test-" + i);
                 messageBuilder.value(m.getBytes()).send();
                 log.info("Sent message {}", m);
             }
         }
 
-        void close() throws Exception {
-            client.close();
+        public void close() {
+            try {
+                client.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close client", e);
+            }
         }
 
     }
 
-    static class MessageConsumer {
+    static class MessageConsumer implements AutoCloseable {
         final URL url;
         final String namespace;
         final String topicName;
@@ -357,12 +364,24 @@ public class ReplicatorTestBase {
             log.info("Start receiving messages");
             Message<byte[]> msg;
 
-            for (int i = 0; i < messages; i++) {
-                msg = consumer.receive();
+            Set<String> receivedMessages = new TreeSet<>();
+
+            int i = 0;
+            while (i < messages) {
+                msg = consumer.receive(10, TimeUnit.SECONDS);
+                assertNotNull(msg);
                 consumer.acknowledge(msg);
+
                 String msgData = new String(msg.getData());
-                assertEquals(msgData, "test-" + i);
                 log.info("Received message {}", msgData);
+
+                boolean added = receivedMessages.add(msgData);
+                if (added) {
+                    assertEquals(msgData, "test-" + i);
+                    i++;
+                } else {
+                    log.info("Ignoring duplicate {}", msgData);
+                }
             }
         }
 
@@ -370,8 +389,12 @@ public class ReplicatorTestBase {
             return consumer.receive(0, TimeUnit.MICROSECONDS) == null;
         }
 
-        void close() throws Exception {
-            client.close();
+        public void close() {
+            try {
+                client.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close client", e);
+            }
         }
     }
 
