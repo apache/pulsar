@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.mockito.Matchers;
 import org.testng.annotations.BeforeTest;
@@ -47,7 +46,6 @@ public class ProducerBuilderImplTest {
     @BeforeTest
     public void setup() {
         Producer producer = mock(Producer.class);
-
         client = mock(PulsarClientImpl.class);
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
