@@ -115,6 +115,14 @@ public class FlinkPulsarProducer<IN>
                                String defaultTopicName,
                                SerializationSchema<IN> serializationSchema,
                                PulsarKeyExtractor<IN> keyExtractor) {
+        this(serviceUrl, defaultTopicName, serializationSchema, keyExtractor, null);
+    }
+
+    public FlinkPulsarProducer(String serviceUrl,
+                               String defaultTopicName,
+                               SerializationSchema<IN> serializationSchema,
+                               PulsarKeyExtractor<IN> keyExtractor,
+                               Producer<byte[]> producer) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
         this.serviceUrl = serviceUrl;
@@ -122,6 +130,7 @@ public class FlinkPulsarProducer<IN>
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
+        this.producer = producer;
     }
 
     // ---------------------------------- Properties --------------------------
@@ -185,7 +194,10 @@ public class FlinkPulsarProducer<IN>
      */
     @Override
     public void open(Configuration parameters) throws Exception {
-        this.producer = createProducer();
+        if (producer == null) {
+            // If no custom producer was specified create a default one
+            this.producer = createProducer();
+        }
 
         RuntimeContext ctx = getRuntimeContext();
 
