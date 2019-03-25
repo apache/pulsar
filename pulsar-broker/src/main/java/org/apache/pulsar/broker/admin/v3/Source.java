@@ -27,7 +27,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 @Path("/source")
-@Api(value = "/source", description = "Source admin apis", tags = "source", hidden = true)
+@Api(value = "/source", description = "Source admin apis", tags = "source")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class Source extends SourceBase {

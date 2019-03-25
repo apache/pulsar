@@ -16,29 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar;
 
-import java.util.List;
-
-import com.google.common.base.Objects;
-
-public class BrokerNamespaceIsolationData {
-
-    public String brokerName;
-    public List<String> namespaceRegex; //isolated namespace regex
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(brokerName, namespaceRegex);
+public class PulsarVersion {
+    public static String getVersion() {
+        return "${project.version}";
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BrokerNamespaceIsolationData) {
-            BrokerNamespaceIsolationData other = (BrokerNamespaceIsolationData) obj;
-            return Objects.equal(brokerName, other.brokerName) && Objects.equal(namespaceRegex, other.namespaceRegex);
-        }
-        return false;
-    }
-
 }
