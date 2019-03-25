@@ -90,6 +90,34 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
+    /**
+     * File can have spaces and newlines before or after the token. We should be able to read
+     * the token correctly anyway.
+     */
+    @Test
+    public void testAuthTokenConfigFromFileWithNewline() throws Exception {
+        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        tokenFile.deleteOnExit();
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
+
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("file://" + tokenFile);
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+
+        // Ensure if the file content changes, the token will get refreshed as well
+        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+
+        AuthenticationDataProvider authData2 = authToken.getAuthData();
+        assertTrue(authData2.hasDataFromCommand());
+        assertEquals(authData2.getCommandData(), "other-token");
+
+        authToken.close();
+    }
+
     @Test
     public void testAuthTokenConfigNoPrefix() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken();
