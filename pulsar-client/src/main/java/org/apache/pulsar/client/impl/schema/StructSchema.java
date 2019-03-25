@@ -25,6 +25,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -42,6 +43,7 @@ abstract class StructSchema<T> implements Schema<T> {
 
     protected final org.apache.avro.Schema schema;
     protected final SchemaInfo schemaInfo;
+    protected SchemaProvider schemaProvider;
 
     protected StructSchema(SchemaType schemaType,
                            org.apache.avro.Schema schema,
@@ -71,6 +73,10 @@ abstract class StructSchema<T> implements Schema<T> {
     protected static org.apache.avro.Schema parseAvroSchema(String jsonDef) {
         Parser parser = new Parser();
         return parser.parse(jsonDef);
+    }
+
+    public void setSchemaProvider(SchemaProvider schemaProvider){
+        this.schemaProvider = schemaProvider;
     }
 
 }

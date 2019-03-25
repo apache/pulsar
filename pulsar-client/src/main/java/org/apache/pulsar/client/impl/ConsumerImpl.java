@@ -64,7 +64,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.MultiVersionSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -155,14 +154,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        if(schema instanceof AvroSchema && schema.supportSchemaVersioning()){
-            Map<String, MultiVersionSchema> multiVersionSchemaCache = client.getMultiVersionSchemaCache();
-            schema = multiVersionSchemaCache.get(topic);
-            if(schema == null){
-                MultiVersionSchema<T> multiVersionSchema = new MultiVersionSchema<T>(((AvroSchema<T>) schema).getAvroSchema(),
-                        new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
-                schema = multiVersionSchema;
-                multiVersionSchemaCache.put(topic, multiVersionSchema);
+        if(schema instanceof AvroSchema){
+            Map<String, Schema> supportSchemaVersioningSchemaCache = client.getSupportSchemaVersioningSchemaCache();
+            Schema<T> schemaFromCache = supportSchemaVersioningSchemaCache.get(topic);
+            if(schemaFromCache == null){
+                ((AvroSchema<T>) schema).setSchemaProvider(new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
+                supportSchemaVersioningSchemaCache.put(topic, schema);
+            }else{
+                schema = schemaFromCache;
             }
         }
         if (conf.getReceiverQueueSize() == 0) {

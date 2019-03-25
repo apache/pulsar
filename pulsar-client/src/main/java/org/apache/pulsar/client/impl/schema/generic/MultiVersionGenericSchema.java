@@ -47,12 +47,12 @@ public class MultiVersionGenericSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes) {
-        return provider.getSchema(null).decode(bytes);
+        return provider.getVersionSchema(null).decode(bytes);
     }
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        return provider.getSchema(schemaVersion).decode(bytes, schemaVersion);
+        return provider.getVersionSchema(schemaVersion).decode(bytes, schemaVersion);
     }
 
     @Override

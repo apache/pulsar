@@ -31,6 +31,12 @@ public interface SchemaProvider<T> {
      * @param schemaVersion schema version
      * @return schema instance of the provided <tt>schemaVersion</tt>
      */
-    Schema<T> getSchema(byte[] schemaVersion);
+    Schema<T> getVersionSchema(byte[] schemaVersion);
+    /**
+     * Retrieve the current schema.
+     *
+     * @return the current schema
+     */
+    Schema<T> getCurrentSchema() throws InterruptedException;
 
 }

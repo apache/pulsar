@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -27,26 +30,41 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An AVRO schema implementation.
  */
 @Slf4j
 public class AvroSchema<T> extends StructSchema<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
 
     private ReflectDatumWriter<T> datumWriter;
-    private ReflectDatumReader<T> reader;
+    private ReflectDatumReader<T> datumReader;
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
     private boolean supportSchemaVersioning;
+    private final LoadingCache<byte[], ReflectDatumReader<T>> cache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], ReflectDatumReader<T>>() {
+                @Override
+                public ReflectDatumReader<T> load(byte[] schemaVersion) throws Exception {
+                    return loadReader(schemaVersion);
+                }
+            });
     private AvroSchema(org.apache.avro.Schema schema,
                        SchemaDefinition schemaDefinition) {
         super(
@@ -55,8 +73,8 @@ public class AvroSchema<T> extends StructSchema<T> {
             schemaDefinition.getProperties());
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
-        this.datumWriter = new ReflectDatumWriter<>(this.schema);
-        this.reader = new ReflectDatumReader<>(this.schema);
+        this.datumWriter = new ReflectDatumWriter<>(schema);
+        this.datumReader = new ReflectDatumReader<>(schema);
         this.supportSchemaVersioning = schemaDefinition.getSupportSchemaVersioning();
     }
 
@@ -81,9 +99,27 @@ public class AvroSchema<T> extends StructSchema<T> {
             if (decoderFromCache == null) {
                 decoders.set(decoder);
             }
-            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
+            return datumReader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
+        }
+    }
+
+    @Override
+    public T decode(byte[] bytes, byte[] schemaVersion) {
+        try {
+            BinaryDecoder decoderFromCache = decoders.get();
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+            if (decoderFromCache == null) {
+                decoders.set(decoder);
+            }
+            return cache.get(schemaVersion).read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
+        } catch (IOException e) {
+            throw new SchemaSerializationException(e);
+        } catch (ExecutionException e) {
+            LOG.error("Can't get generic schema for topic {} schema version {}",
+                    ((MultiVersionGenericSchemaProvider)schemaProvider).getTopic().toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+            return null;
         }
     }
 
@@ -108,6 +144,10 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     public boolean supportSchemaVersioning(){
         return supportSchemaVersioning;
+    }
+
+    private ReflectDatumReader loadReader(byte[] schemaVersion)  {
+        return new ReflectDatumReader<T>(((GenericAvroSchema)schemaProvider.getVersionSchema(schemaVersion)).getAvroSchema(),schema);
     }
 
 }

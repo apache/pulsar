@@ -152,7 +152,7 @@ public class SchemaTest extends PulsarTestSuite {
             PersonConsumeSchema personConsumeSchema = consumer.receive().getValue();
             assertEquals("Tom Hanks", personConsumeSchema.getName());
             assertEquals(60, personConsumeSchema.getAge());
-            assertEquals("man", personConsumeSchema.getSex());
+            assertEquals("man", personConsumeSchema.getGender());
             log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
         }
     }

@@ -63,7 +63,7 @@ public class MultiVersionGenericSchemaProviderTest {
                         any(TopicName.class),
                         any(byte[].class)))
                 .thenReturn(completableFuture);
-        GenericSchema schema = schemaProvider.getSchema(new byte[0]);
+        GenericSchema schema = schemaProvider.getVersionSchema(new byte[0]);
         assertEquals(schema.getSchemaInfo(), schemaInfo);
     }
 }

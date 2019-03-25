@@ -28,9 +28,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 
-public class MultiVersionSchemaTest {
+public class SupportVersioningAvroSchemaTest {
     private MultiVersionGenericSchemaProvider multiVersionGenericSchemaProvider;
-    private MultiVersionSchema schema;
+    private AvroSchema schema;
     private GenericAvroSchema genericAvroSchema;
     private AvroSchema<SchemaTestUtils.FooV2> avroFooV2Schema;
 
@@ -40,14 +40,18 @@ public class MultiVersionSchemaTest {
         this.multiVersionGenericSchemaProvider = mock(MultiVersionGenericSchemaProvider.class);
         avroFooV2Schema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.FooV2>builder()
                 .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.FooV2.class).build());
-        this.schema = new MultiVersionSchema(AvroSchema.of(SchemaDefinition.builder()
-                .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.Foo.class).build()).getAvroSchema(), multiVersionGenericSchemaProvider);
+        this.schema = AvroSchema.of(SchemaDefinition.builder()
+        .withPojo(SchemaTestUtils.Foo.class)
+                .withAlwaysAllowNull(false)
+                .withSupportSchemaVersioning(true)
+                .build());
+        schema.setSchemaProvider(multiVersionGenericSchemaProvider);
         genericAvroSchema = new GenericAvroSchema(avroFooV2Schema.getSchemaInfo());
     }
 
     @Test
     public void testDecode() {
-        when(multiVersionGenericSchemaProvider.getSchema(any(byte[].class)))
+        when(multiVersionGenericSchemaProvider.getVersionSchema(any(byte[].class)))
                 .thenReturn(genericAvroSchema);
         SchemaTestUtils.FooV2 fooV2 = new SchemaTestUtils.FooV2();
         fooV2.setField1(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING);

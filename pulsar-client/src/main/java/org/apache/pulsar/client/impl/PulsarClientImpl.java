@@ -59,7 +59,6 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.MultiVersionSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -84,7 +83,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
-    private Map<String, MultiVersionSchema> multiVersionSchemaCache = new HashMap<>();
+    private Map<String, Schema> supportSchemaVersioningSchemaCache = new HashMap<>();
 
     enum State {
         Open, Closing, Closed
@@ -739,7 +738,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    public Map<String, MultiVersionSchema> getMultiVersionSchemaCache(){
-        return this.multiVersionSchemaCache;
+    public Map<String, Schema> getSupportSchemaVersioningSchemaCache(){
+        return this.supportSchemaVersioningSchemaCache;
     }
 }
