@@ -4,9 +4,9 @@ const CompLibrary = require('../../core/CompLibrary.js');
 const Container = CompLibrary.Container;
 const siteConfig = require(`${process.cwd()}/siteConfig.js`);
 
-class AdminRestApi extends React.Component {
+class SourceRestApi extends React.Component {
   render() {
-    const swaggerUrl = `${siteConfig.baseUrl}swagger/swagger.json`
+    const swaggerUrl = `${siteConfig.baseUrl}swagger/swaggersource.json`
 
     return (
       <div className="pageContainer">
@@ -19,4 +19,4 @@ class AdminRestApi extends React.Component {
   }
 }
 
-module.exports = AdminRestApi;
+module.exports = SourceRestApi;

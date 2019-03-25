@@ -24,7 +24,14 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 
 # Make sure the Python client lib is installed
 # so that Pdoc can import the module
-pip install pulsar-client
+find $ROOT_DIR -name CMakeCache.txt | xargs rm -f
+find $ROOT_DIR -name CMakeFiles | xargs rm -rf
+cd $ROOT_DIR/pulsar-client-cpp
+cmake . 
+make -j8 _pulsar
+pip install enum34
+pip install six
+pip install fastavro
 
 DESTINATION=$ROOT_DIR/generated-site/api/python
 rm -fr $DESTINATION/{index.html,functions,pulsar}

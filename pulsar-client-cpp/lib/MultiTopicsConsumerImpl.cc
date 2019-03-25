@@ -450,6 +450,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         }
         messages_.push(msg);
         if (messageListener_) {
+            unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
         }
