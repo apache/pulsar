@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
 
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.EventLoopGroup;
 
 public class ProxyClientCnx extends ClientCnx {
 
@@ -58,7 +57,8 @@ public class ProxyClientCnx extends ClientCnx {
             authData = authentication.getAuthData().getCommandData();
         }
         return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData, clientAuthMethod);
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
+                clientAuthMethod);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyClientCnx.class);
