@@ -140,6 +140,9 @@ public class RuntimeUtils {
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+            }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
@@ -151,6 +154,9 @@ public class RuntimeUtils {
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+            }
             args.add(instanceFile);
             args.add("--py");
             args.add(originalCodeFileName);
