@@ -154,13 +154,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        if(schema instanceof AvroSchema){
+        if (schema.supportSchemaVersioning()) {
             Map<String, Schema> supportSchemaVersioningSchemaCache = client.getSupportSchemaVersioningSchemaCache();
             Schema<T> schemaFromCache = supportSchemaVersioningSchemaCache.get(topic);
-            if(schemaFromCache == null){
+            if (schemaFromCache == null) {
                 ((AvroSchema<T>) schema).setSchemaProvider(new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
                 supportSchemaVersioningSchemaCache.put(topic, schema);
-            }else{
+            } else {
                 schema = schemaFromCache;
             }
         }
