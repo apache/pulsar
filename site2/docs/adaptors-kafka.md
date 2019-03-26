@@ -198,7 +198,7 @@ Properties:
 | Config property                 | Supported | Notes                                                 |
 |:--------------------------------|:----------|:------------------------------------------------------|
 | `group.id`                      | Yes       | Maps to a Pulsar subscription name                    |
-| `max.poll.records`              | Ignored   |                                                       |
+| `max.poll.records`              | Yes       |                                                       |
 | `max.poll.interval.ms`          | Ignored   | Messages are "pushed" from broker                     |
 | `session.timeout.ms`            | Ignored   |                                                       |
 | `heartbeat.interval.ms`         | Ignored   |                                                       |
@@ -206,7 +206,7 @@ Properties:
 | `enable.auto.commit`            | Yes       |                                                       |
 | `auto.commit.interval.ms`       | Ignored   | With auto-commit, acks are sent immediately to broker |
 | `partition.assignment.strategy` | Ignored   |                                                       |
-| `auto.offset.reset`             | Ignored   |                                                       |
+| `auto.offset.reset`             | Yes       | Only support earliest and latest.                     |
 | `fetch.min.bytes`               | Ignored   |                                                       |
 | `fetch.max.bytes`               | Ignored   |                                                       |
 | `fetch.max.wait.ms`             | Ignored   |                                                       |
