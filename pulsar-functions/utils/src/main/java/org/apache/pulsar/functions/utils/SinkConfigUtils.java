@@ -189,6 +189,10 @@ public class SinkConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (isNotBlank(sinkConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(sinkConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -246,6 +250,10 @@ public class SinkConfigUtils {
             resources.setCpu(functionDetails.getResources().getCpu());
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
+        }
+
+        if (isNotBlank(functionDetails.getRuntimeFlags())) {
+            sinkConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
 
         return sinkConfig;
