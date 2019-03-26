@@ -101,7 +101,7 @@ public class PulsarClusterMetadataSetup {
         }, description = "Num storage containers of BookKeeper stream storage")
         private int numStreamStorageContainers = 16;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(names = { "-h", "--help" }, description = "Show this description message")
         private boolean help = false;
     }
 

@@ -43,27 +43,27 @@ public class CassandraSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "A comma-separated list of cassandra hosts to connect to")
+        description = "A comma-separated list of cassandra hosts to connect to")
     private String roots;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The key space used for writing pulsar messages to")
+        description = "The key space used for writing pulsar messages to")
     private String keyspace;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The key name of the cassandra column family")
+        description = "The key name of the cassandra column family")
     private String keyname;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The cassandra column family name")
+        description = "The cassandra column family name")
     private String columnFamily;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The column name of the cassandra column family")
+        description = "The column name of the cassandra column family")
     private String columnName;
 
     public static CassandraSinkConfig load(String yamlFile) throws IOException {

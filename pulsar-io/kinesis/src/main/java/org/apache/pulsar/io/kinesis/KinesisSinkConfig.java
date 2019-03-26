@@ -43,25 +43,25 @@ public class KinesisSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+        description = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
     )
     private String awsEndpoint;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "Appropriate aws region. E.g. us-west-1, us-west-2"
+        description = "Appropriate aws region. E.g. us-west-1, us-west-2"
     )
     private String awsRegion;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "Kinesis stream name"
+        description = "Kinesis stream name"
     )
     private String awsKinesisStreamName;
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
+        description = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
             + " It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink."
             + " If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map"
             + " of credentials in `awsCredentialPluginParam`")
@@ -69,12 +69,12 @@ public class KinesisSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
+        description = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
     private String awsCredentialPluginParam;
     @FieldDoc(
         required = true,
         defaultValue = "ONLY_RAW_PAYLOAD",
-        help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
+        description = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
             + "  #\n"
             + "  # The available messages formats are: \n"
             + "  #\n"
@@ -96,7 +96,7 @@ public class KinesisSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "false",
-        help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
+        description = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
     private boolean retainOrdering = false;
 
     public static KinesisSinkConfig load(String yamlFile) throws IOException {

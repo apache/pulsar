@@ -237,7 +237,7 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Parameter(names = { "-h", "--help" }, description = "Show this description message")
     private boolean help = false;
 
     public void start() throws Exception {

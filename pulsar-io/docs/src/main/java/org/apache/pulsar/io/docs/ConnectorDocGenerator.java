@@ -82,7 +82,7 @@ public class ConnectorDocGenerator {
             if (null == fieldDoc) {
                 throw new RuntimeException("Missing `FieldDoc` for field '" + field.getName() + "'");
             }
-            writer.println(INDENT + "# " + fieldDoc.help());
+            writer.println(INDENT + "# " + fieldDoc.description());
             String fieldPrefix = "";
             if (!fieldDoc.required()) {
                 fieldPrefix = "# ";

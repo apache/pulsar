@@ -42,26 +42,26 @@ public class FlumeConfig {
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "the name of this agent")
+            description = "the name of this agent")
     private String name;
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "specify a config file (required if -z missing)")
+            description = "specify a config file (required if -z missing)")
     private String confFile;
     @FieldDoc(
             defaultValue = "false",
-            help = "do not reload config file if changed")
+            description = "do not reload config file if changed")
     private Boolean noReloadConf;
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "specify the ZooKeeper connection to use (required if -f missing)")
+            description = "specify the ZooKeeper connection to use (required if -f missing)")
     private String zkConnString;
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "specify the base path in ZooKeeper for agent configs")
+            description = "specify the base path in ZooKeeper for agent configs")
     private String zkBasePath;
 
     public static FlumeConfig load(String yamlFile) throws IOException {

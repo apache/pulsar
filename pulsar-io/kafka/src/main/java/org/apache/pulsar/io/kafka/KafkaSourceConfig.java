@@ -43,63 +43,63 @@ public class KafkaSourceConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help =
+        description =
             "A comma-separated list of host and port pairs that are the addresses of "
           + "the Kafka brokers that a Kafka client connects to initially bootstrap itself")
     private String bootstrapServers;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help =
+        description =
             "A string that uniquely identifies the group of consumer processes to which this consumer belongs.")
     private String groupId;
     @FieldDoc(
         defaultValue = "1",
-        help =
+        description =
             "The minimum amount of data the server should return for a fetch request.")
     private long fetchMinBytes = 1L;
     @FieldDoc(
         defaultValue = "5000",
-        help =
+        description =
             "The frequency in milliseconds that the consumer offsets are auto-committed to Kafka "
           + "if autoCommitEnabled is set to true.")
     private long autoCommitIntervalMs = 5000L;
     @FieldDoc(
         defaultValue = "30000",
-        help =
+        description =
             "The timeout used to detect failures when using Kafka's group management facilities.")
     private long sessionTimeoutMs = 30000L;
     @FieldDoc(
         defaultValue = "3000",
-        help =
+        description =
             "The interval between heartbeats to the consumer when using Kafka's group management facilities. "
                 + "The value must be lower than session timeout.")
     private long heartbeatIntervalMs = 3000L;
     @FieldDoc(
         defaultValue = "true",
-        help =
+        description =
             "If true the consumer's offset will be periodically committed in the background.")
     private boolean autoCommitEnabled = true;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help =
+        description =
             "The Kafka topic that is used for Pulsar moving messages to.")
     private String topic;
     @FieldDoc(
         defaultValue = "org.apache.kafka.common.serialization.StringDeserializer",
-        help =
+        description =
             "The deserializer class for Kafka consumer to deserialize keys.")
     private String keyDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
     @FieldDoc(
         defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        help =
+        description =
             "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "
                 + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
     private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
     @FieldDoc(
         defaultValue = "",
-        help =
+        description =
             "The consumer config properties to be passed to Consumer. Note that other properties specified "
                 + "in the connector config file take precedence over this config.")
     private Map<String, Object> consumerConfigProperties;

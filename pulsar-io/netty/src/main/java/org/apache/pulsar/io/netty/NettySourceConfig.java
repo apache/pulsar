@@ -50,25 +50,25 @@ public class NettySourceConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "tcp",
-            help = "The network protocol to use, supported values are 'tcp', 'udp', and 'http'")
+            description = "The network protocol to use, supported values are 'tcp', 'udp', and 'http'")
     private String type = "tcp";
 
     @FieldDoc(
             required = true,
             defaultValue = "127.0.0.1",
-            help = "The host name or address that the source instance to listen on")
+            description = "The host name or address that the source instance to listen on")
     private String host = "127.0.0.1";
 
     @FieldDoc(
             required = true,
             defaultValue = "10999",
-            help = "The port that the source instance to listen on")
+            description = "The port that the source instance to listen on")
     private int port = 10999;
 
     @FieldDoc(
             required = true,
             defaultValue = "1",
-            help = "The number of threads of Netty Tcp Server to accept incoming connections and "
+            description = "The number of threads of Netty Tcp Server to accept incoming connections and "
                     + "handle the traffic of the accepted connections")
     private int numberOfThreads = 1;
 

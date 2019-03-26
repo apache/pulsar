@@ -60,7 +60,7 @@ public class TwitterFireHoseConfig implements Serializable {
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Your twitter app consumer key. See "
+        description = "Your twitter app consumer key. See "
                 + "https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
     private String consumerKey;
@@ -69,7 +69,7 @@ public class TwitterFireHoseConfig implements Serializable {
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Your twitter app consumer secret. "
+        description = "Your twitter app consumer secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
     private String consumerSecret;
@@ -78,7 +78,7 @@ public class TwitterFireHoseConfig implements Serializable {
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Your twitter app token. "
+        description = "Your twitter app token. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
     private String token;
@@ -87,7 +87,7 @@ public class TwitterFireHoseConfig implements Serializable {
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Your twitter app token secret. "
+        description = "Your twitter app token secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
     private String tokenSecret;
@@ -97,7 +97,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "false",
-        help = "Most firehose events have null createdAt time.If this parameter is set to true, "
+        description = "Most firehose events have null createdAt time.If this parameter is set to true, "
                 + "the connector estimates the createdTime of each firehose event to be current time."
     )
     private Boolean guestimateTweetTime = false;
@@ -107,35 +107,35 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "pulsario-twitter-source",
-        help = "The Twitter Firehose Client name"
+        description = "The Twitter Firehose Client name"
     )
     private String clientName = "pulsario-twitter-source";
 
     @FieldDoc(
         required = false,
         defaultValue = Constants.STREAM_HOST,
-        help = "The Twitter Firehose stream hosts that the connector connects to"
+        description = "The Twitter Firehose stream hosts that the connector connects to"
     )
     private String clientHosts = Constants.STREAM_HOST;
 
     @FieldDoc(
         required = false,
         defaultValue = "50000",
-        help = "The Twitter Firehose client buffer size"
+        description = "The Twitter Firehose client buffer size"
     )
     private int clientBufferSize = 50000;
 
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "A comma separated list of user IDs, indicating the users to return statuses for in the stream."
+        description = "A comma separated list of user IDs, indicating the users to return statuses for in the stream."
     )
     private String followings;
 
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "Keywords to track. Phrases of keywords are specified by a comma-separated list."
+        description = "Keywords to track. Phrases of keywords are specified by a comma-separated list."
     )
     private String terms;
 

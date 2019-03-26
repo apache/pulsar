@@ -49,28 +49,28 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The url of elastic search cluster that the connector connects to"
+        description = "The url of elastic search cluster that the connector connects to"
     )
     private String elasticSearchUrl;
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The index name that the connector writes messages to"
+        description = "The index name that the connector writes messages to"
     )
     private String indexName;
 
     @FieldDoc(
         required = false,
         defaultValue = "1",
-        help = "The number of shards of the index"
+        description = "The number of shards of the index"
     )
     private int indexNumberOfShards = 1;
 
     @FieldDoc(
         required = false,
         defaultValue = "1",
-        help = "The number of replicas of the index"
+        description = "The number of replicas of the index"
     )
     private int indexNumberOfReplicas = 1;
 
@@ -78,7 +78,7 @@ public class ElasticSearchConfig implements Serializable {
         required = false,
         defaultValue = "",
         sensitive = true,
-        help = "The username used by the connector to connect to the elastic search cluster. If username is set, a password should also be provided."
+        description = "The username used by the connector to connect to the elastic search cluster. If username is set, a password should also be provided."
     )
     private String username;
 
@@ -86,7 +86,7 @@ public class ElasticSearchConfig implements Serializable {
         required = false,
         defaultValue = "",
         sensitive = true,
-        help = "The password used by the connector to connect to the elastic search cluster. If password is set, a username should also be provided"
+        description = "The password used by the connector to connect to the elastic search cluster. If password is set, a username should also be provided"
     )
     private String password;
 

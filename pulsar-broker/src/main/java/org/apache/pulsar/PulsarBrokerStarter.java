@@ -86,7 +86,7 @@ public class PulsarBrokerStarter {
         @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
         private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this description message")
         private boolean help = false;
     }
 

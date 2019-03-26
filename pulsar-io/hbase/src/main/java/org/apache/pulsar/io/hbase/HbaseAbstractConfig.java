@@ -45,31 +45,31 @@ public class HbaseAbstractConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "hbase system configuration 'hbase-site.xml' file")
+        description = "hbase system configuration 'hbase-site.xml' file")
     private String hbaseConfigResources;
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "hbase system configuration about hbase.zookeeper.quorum value")
+        description = "hbase system configuration about hbase.zookeeper.quorum value")
     private String zookeeperQuorum;
 
     @FieldDoc(
         required = false,
         defaultValue = "2181",
-        help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
+        description = "hbase system configuration about hbase.zookeeper.property.clientPort value")
     private String zookeeperClientPort = "2181";
 
     @FieldDoc(
         required = false,
         defaultValue = "/hbase",
-        help = "hbase system configuration about zookeeper.znode.parent value")
+        description = "hbase system configuration about zookeeper.znode.parent value")
     private String zookeeperZnodeParent = "/hbase";
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "hbase table, value is namespace:tableName, namespace default value is default")
+        description = "hbase table, value is namespace:tableName, namespace default value is default")
     private String tableName;
 
     public void validate() {

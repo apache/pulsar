@@ -49,31 +49,31 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The hbase table rowkey name")
+        description = "The hbase table rowkey name")
     private String rowKeyName;
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The hbase table column family name")
+        description = "The hbase table column family name")
     private String familyName;
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The hbase table column qualifier names")
+        description = "The hbase table column qualifier names")
     private List<String> qualifierNames;
 
     @FieldDoc(
        required = false,
        defaultValue = "1000l",
-       help = "The hbase operation time in milliseconds")
+       description = "The hbase operation time in milliseconds")
     private long batchTimeMs = 1000l;
 
     @FieldDoc(
         required = false,
         defaultValue = "200",
-        help = "The batch size of write to the hbase table"
+        description = "The batch size of write to the hbase table"
     )
     private int batchSize = 200;
 

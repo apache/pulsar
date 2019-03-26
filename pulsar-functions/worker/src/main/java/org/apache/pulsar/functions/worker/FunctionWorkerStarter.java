@@ -37,7 +37,7 @@ public class FunctionWorkerStarter {
             description = "Configuration File for Function Worker")
         private String configFile;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this description message")
         private boolean help = false;
     }
 

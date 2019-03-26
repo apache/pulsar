@@ -51,7 +51,7 @@ public class MongoConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The uri of mongodb that the connector connects to" +
+        description = "The uri of mongodb that the connector connects to" +
                 " (see: https://docs.mongodb.com/manual/reference/connection-string/)"
     )
     private String mongoUri;
@@ -59,28 +59,28 @@ public class MongoConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The name of the database to which the collection belongs to"
+        description = "The name of the database to which the collection belongs to"
     )
     private String database;
 
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The collection name that the connector writes messages to"
+        description = "The collection name that the connector writes messages to"
     )
     private String collection;
 
     @FieldDoc(
         required = false,
         defaultValue = "" + DEFAULT_BATCH_SIZE,
-        help = "The batch size of write to the collection"
+        description = "The batch size of write to the collection"
     )
     private int batchSize = DEFAULT_BATCH_SIZE;
 
     @FieldDoc(
             required = false,
             defaultValue = "" + DEFAULT_BATCH_TIME_MS,
-            help = "The batch operation interval in milliseconds")
+            description = "The batch operation interval in milliseconds")
     private long batchTimeMs = DEFAULT_BATCH_TIME_MS;
 
 

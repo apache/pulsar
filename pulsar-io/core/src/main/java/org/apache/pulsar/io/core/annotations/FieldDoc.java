@@ -46,7 +46,7 @@ public @interface FieldDoc {
 
     /**
      * Return if the field is a sensitive type or not.
-     * usernames/password/accesstokensm etc are some example of sensitive fields
+     * usernames/password/accesstokens etc are some example of sensitive fields
      * @return true if the field is sensitive, otherwise false
      */
     boolean sensitive() default false;
@@ -54,8 +54,22 @@ public @interface FieldDoc {
     /**
      * Return the description of this field.
      *
-     * @return the help message of this field
+     * @return the description message of this field
      */
-    String help();
+    String description();
+
+    /**
+     * Return the suggested display of this field.
+     *
+     * @return the display name associated with this field useful for docs and ui
+     */
+    String displayName();
+
+    /**
+     * Return the suggested value of this field.
+     *
+     * @return the display value associated with this field useful for docs and ui
+     */
+    String displayValue();
 
 }

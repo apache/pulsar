@@ -45,44 +45,44 @@ public class CanalSourceConfig implements Serializable{
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Username to connect to mysql database")
+        description = "Username to connect to mysql database")
     private String username;
     @FieldDoc(
         required = true,
         defaultValue = "",
         sensitive = true,
-        help = "Password to connect to mysql database")
+        description = "Password to connect to mysql database")
     private String password;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "Source destination that Canal source connector connects to")
+        description = "Source destination that Canal source connector connects to")
     private String destination;
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The mysql database hostname")
+        description = "The mysql database hostname")
     private String singleHostname;
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The mysql database port")
+        description = "The mysql database port")
     private int singlePort;
     @FieldDoc(
         required = true,
         defaultValue = "false",
-        help = "If setting to true, it will be talking to `zkServers` to figure out the actual database hosts."
+        description = "If setting to true, it will be talking to `zkServers` to figure out the actual database hosts."
             + " If setting to false, it will connect to the database specified by `singleHostname` and `singlePort`.")
     private Boolean cluster = false;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The zookeeper servers that canal source connector talks to figure out the actual database hosts")
+        description = "The zookeeper servers that canal source connector talks to figure out the actual database hosts")
     private String zkServers;
     @FieldDoc(
         required = false,
         defaultValue = "1000",
-        help = "The batch size to fetch from canal.")
+        description = "The batch size to fetch from canal.")
     private int batchSize = 1000;
 
     public static CanalSourceConfig load(String yamlFile) throws IOException {

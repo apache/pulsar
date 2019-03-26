@@ -46,17 +46,17 @@ public class RabbitMQConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The connection name used for connecting to RabbitMQ")
+        description = "The connection name used for connecting to RabbitMQ")
     private String connectionName;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The AMQ uri used for connecting to RabbitMQ")
+        description = "The AMQ uri used for connecting to RabbitMQ")
     private String amqUri;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The RabbitMQ queue name")
+        description = "The RabbitMQ queue name")
     private String queueName;
 
     public static RabbitMQConfig load(String yamlFile) throws IOException {

@@ -60,7 +60,7 @@ public class PulsarAdminTool {
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
-    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this description.")
     boolean help;
 
     PulsarAdminTool(Properties properties) throws Exception {

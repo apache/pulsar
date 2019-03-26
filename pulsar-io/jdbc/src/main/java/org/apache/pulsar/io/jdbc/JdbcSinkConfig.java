@@ -44,26 +44,26 @@ public class JdbcSinkConfig implements Serializable {
         required = false,
         defaultValue = "",
         sensitive = true,
-        help = "Username used to connect to the database specified by `jdbcUrl`"
+        description = "Username used to connect to the database specified by `jdbcUrl`"
     )
     private String userName;
     @FieldDoc(
         required = false,
         defaultValue = "",
         sensitive = true,
-        help = "Password used to connect to the database specified by `jdbcUrl`"
+        description = "Password used to connect to the database specified by `jdbcUrl`"
     )
     private String password;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The JDBC url of the database this connector connects to"
+        description = "The JDBC url of the database this connector connects to"
     )
     private String jdbcUrl;
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The name of the table this connector writes messages to"
+        description = "The name of the table this connector writes messages to"
     )
     private String tableName;
 
@@ -71,13 +71,13 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "500",
-        help = "The jdbc operation timeout in milliseconds"
+        description = "The jdbc operation timeout in milliseconds"
     )
     private int timeoutMs = 500;
     @FieldDoc(
         required = false,
         defaultValue = "200",
-        help = "The batch size of updates made to the database"
+        description = "The batch size of updates made to the database"
     )
     private int batchSize = 200;
 

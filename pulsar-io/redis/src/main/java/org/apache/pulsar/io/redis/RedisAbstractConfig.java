@@ -49,56 +49,56 @@ public class RedisAbstractConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "A comma separated list of Redis hosts to connect to")
+        description = "A comma separated list of Redis hosts to connect to")
     private String redisHosts;
 
     @FieldDoc(
         required = false,
         defaultValue = "",
         sensitive = true,
-        help = "The password used to connect to Redis")
+        description = "The password used to connect to Redis")
     private String redisPassword;
 
     @FieldDoc(
         required = true,
         defaultValue = "0",
-        help = "The Redis database to connect to")
+        description = "The Redis database to connect to")
     private int redisDatabase = 0;
 
     @FieldDoc(
         required = false,
         defaultValue = "Standalone",
-        help = "The client mode to use when interacting with the Redis cluster. Possible values [Standalone, Cluster]")
+        description = "The client mode to use when interacting with the Redis cluster. Possible values [Standalone, Cluster]")
     private String clientMode = "Standalone";
 
     @FieldDoc(
         required = false,
         defaultValue = "true",
-        help = "Flag to determine if the Redis client should automatically reconnect")
+        description = "Flag to determine if the Redis client should automatically reconnect")
     private boolean autoReconnect = true;
 
     @FieldDoc(
         required = false,
         defaultValue = "2147483647",
-        help = "The maximum number of queued requests to Redis")
+        description = "The maximum number of queued requests to Redis")
     private int requestQueue = 2147483647;
 
     @FieldDoc(
         required = false,
         defaultValue = "false",
-        help = "Flag to enable TCP no delay should be used")
+        description = "Flag to enable TCP no delay should be used")
     private boolean tcpNoDelay = false;
 
     @FieldDoc(
         required = false,
         defaultValue = "false",
-        help = "Flag to enable a keepalive to Redis")
+        description = "Flag to enable a keepalive to Redis")
     private boolean keepAlive = false;
 
     @FieldDoc(
         required = false,
         defaultValue = "10000L",
-        help = "The amount of time in milliseconds to wait before timing out when connecting")
+        description = "The amount of time in milliseconds to wait before timing out when connecting")
     private long connectTimeout = 10000L;
 
     public void validate() {

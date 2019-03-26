@@ -54,7 +54,7 @@ public class PulsarClientTool {
             "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
-    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this description.")
     boolean help;
 
     boolean tlsAllowInsecureConnection = false;

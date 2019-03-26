@@ -53,7 +53,7 @@ public class CompactorTool {
         @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required=true)
         private String topic;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this description message")
         private boolean help = false;
     }
 

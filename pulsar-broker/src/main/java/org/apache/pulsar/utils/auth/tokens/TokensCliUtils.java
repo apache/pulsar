@@ -52,7 +52,7 @@ import org.apache.pulsar.common.util.RelativeTimeUtil;
 public class TokensCliUtils {
 
     public static class Arguments {
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(names = { "-h", "--help" }, description = "Show this description message")
         private boolean help = false;
     }
 
