@@ -401,13 +401,24 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
     	validateAdminAccessForTenant(topicName.getTenant());
 
-    	try {
-    		getOrCreateTopic(topicName);
-    		log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
-    	} catch (Exception e) {
-    		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-    		throw new RestException(e);
-    	}
+      try {
+          String path = ZkAdminPaths.partitionedTopicPath(topicName);
+          byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata());
+          zkCreateOptimistic(path, data);
+          // we wait for the data to be synced in all quorums and the observers
+          Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+          log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
+      } catch (KeeperException.NodeExistsException e) {
+          log.warn("[{}] Failed to create already existing non-partitioned topic {}", clientAppId(), topicName);
+          throw new RestException(Status.CONFLICT, "Non-partitioned topic already exists");
+      } catch (KeeperException.BadVersionException e) {
+          log.warn("[{}] Failed to create non-partitioned topic {}: concurrent modification", clientAppId(),
+                topicName);
+          throw new RestException(Status.CONFLICT, "Concurrent modification");
+      } catch (Exception e) {
+          log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+          throw new RestException(e);
+      }
     }
 
     /**
