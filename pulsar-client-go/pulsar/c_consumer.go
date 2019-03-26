@@ -109,6 +109,11 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_subscription_initial_position(conf, C.initial_position(options.SubscriptionInitPos))
 	}
 
+	if options.Schema.Type != NONE {
+		C.pulsar_consumer_configuration_set_schema_type(conf, C.pulsar_schema_type(options.Schema.Type),
+			C.CString(options.Schema.Name), C.CString(options.Schema.Schema))
+	}
+
 	// ReceiverQueueSize==0 means to use the default queue size
 	// -1 means to disable the consumer prefetching
 	if options.ReceiverQueueSize > 0 {
@@ -210,7 +215,9 @@ func (c *consumer) Subscription() string {
 func (c *consumer) Unsubscribe() error {
 	channel := make(chan error)
 	c.UnsubscribeAsync(func(err error) {
-		channel <- err; close(channel) })
+		channel <- err;
+		close(channel)
+	})
 	return <-channel
 }
 

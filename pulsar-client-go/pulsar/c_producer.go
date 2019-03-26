@@ -108,6 +108,11 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 		C.pulsar_producer_configuration_set_compression_type(conf, C.pulsar_compression_type(options.CompressionType))
 	}
 
+	if options.SchemaInfo.Type != NONE {
+		C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(options.SchemaInfo.Type),
+			C.CString(options.Name), C.CString(options.Schema))
+	}
+
 	if options.MessageRouter != nil {
 		C._pulsar_producer_configuration_set_message_router(conf, savePointer(&options.MessageRouter))
 	}
@@ -251,7 +256,6 @@ func (p *producer) Flush() error {
 func (p *producer) FlushAsync(callback func(error)) {
 	C._pulsar_producer_flush_async(p.ptr, savePointer(callback))
 }
-
 
 //export pulsarProducerFlushCallbackProxy
 func pulsarProducerFlushCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {

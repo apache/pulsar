@@ -40,6 +40,19 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
     return (pulsar_consumer_type)consumer_configuration->consumerConfiguration.getConsumerType();
 }
 
+void pulsar_consumer_configuration_set_schema_type(pulsar_consumer_configuration_t *consumer_configuration,
+                                                   pulsar_schema_type schemaType,const char *name,
+                                                   const char *schema){
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType) schemaType, name, schema);
+    consumer_configuration->consumerConfiguration.setSchema(schemaInfo);
+}
+
+pulsar_schema_type pulsar_consumer_configuration_get_schema_type(
+        pulsar_consumer_configuration_t *consumer_configuration){
+    auto schemaInfo = consumer_configuration->consumerConfiguration.getSchema();
+    return pulsar_schema_type(schemaInfo.getSchemaType());
+}
+
 static void message_listener_callback(pulsar::Consumer consumer, const pulsar::Message &msg,
                                       pulsar_message_listener listener, void *ctx) {
     pulsar_consumer_t c_consumer;

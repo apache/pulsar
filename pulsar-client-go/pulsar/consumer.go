@@ -124,6 +124,12 @@ type ConsumerOptions struct {
 	//  failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
 	//  shared subscription, will lead to the subscription call throwing a PulsarClientException.
 	ReadCompacted bool
+
+	// Declare the schema of the data that this consumer will be accepting.
+	//
+	// The schema will be checked against the schema of the topic, and the
+	// consumer creation will fail if it's not compatible.
+	Schema SchemaInfo
 }
 
 // An interface that abstracts behavior of Pulsar's consumer

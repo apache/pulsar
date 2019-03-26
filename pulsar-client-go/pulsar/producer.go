@@ -125,6 +125,12 @@ type ProducerOptions struct {
 	// release in order to be able to receive messages compressed with ZSTD.
 	CompressionType
 
+	// Declare the schema of the data that this consumer will be accepting.
+	//
+	// The schema will be checked against the schema of the topic, and the
+	// consumer creation will fail if it's not compatible.
+	SchemaInfo
+
 	// Set a custom message routing policy by passing an implementation of MessageRouter
 	// The router is a function that given a particular message and the topic metadata, returns the
 	// partition index where the message should be routed to
