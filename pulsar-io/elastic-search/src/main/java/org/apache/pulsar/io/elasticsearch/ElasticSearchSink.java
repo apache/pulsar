@@ -100,7 +100,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     }
 
     public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(null);
+        String key = record.getKey().orElse("");
         return new KeyValue<>(key, record.getValue());
     }
 
