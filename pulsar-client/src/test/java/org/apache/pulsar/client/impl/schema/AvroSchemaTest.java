@@ -45,6 +45,10 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.joda.time.chrono.ISOChronology;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -77,6 +81,16 @@ public class AvroSchemaTest {
                 "  \"scale\": 2\n" +
                 "}")
         BigDecimal decimal;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
+        LocalDate date;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
+        DateTime timestampMillis;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
+        LocalTime timeMillis;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
+        long timestampMicros;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"time-micros\"}")
+        long timeMicros;
     }
 
     @Test
@@ -224,5 +238,25 @@ public class AvroSchemaTest {
 
     }
 
+    @Test
+    public void testLogicalType() {
+        AvroSchema<SchemaLogicalType> avroSchema = AvroSchema.of(SchemaDefinition.<SchemaLogicalType>builder().withPojo(SchemaLogicalType.class).build());
+
+        SchemaLogicalType schemaLogicalType = new SchemaLogicalType();
+        schemaLogicalType.setTimestampMicros(System.currentTimeMillis()*1000);
+        schemaLogicalType.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
+        schemaLogicalType.setDecimal(new BigDecimal("12.34"));
+        schemaLogicalType.setDate(LocalDate.now());
+        schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
+        schemaLogicalType.setTimeMillis(LocalTime.now());
+
+        byte[] bytes1 = avroSchema.encode(schemaLogicalType);
+        Assert.assertTrue(bytes1.length > 0);
+
+        SchemaLogicalType object1 = avroSchema.decode(bytes1);
+
+        assertEquals(object1, schemaLogicalType);
+
+    }
 
 }
