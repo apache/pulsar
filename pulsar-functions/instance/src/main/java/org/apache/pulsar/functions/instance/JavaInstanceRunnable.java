@@ -207,13 +207,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     ContextImpl setupContext() {
-        List<String> inputTopics = null;
-        if (source instanceof PulsarSource) {
-            inputTopics = ((PulsarSource<?>) source).getInputTopics();
-        }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
+        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats);
     }
 
@@ -470,7 +466,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (source != null) {
             try {
                 source.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
 
             }
@@ -479,7 +475,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (sink != null) {
             try {
                 sink.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
             }
         }
