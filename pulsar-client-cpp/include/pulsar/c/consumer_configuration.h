@@ -88,7 +88,7 @@ void pulsar_consumer_configuration_set_schema_type(pulsar_consumer_configuration
                                                    const char *schema);
 
 pulsar_schema_type pulsar_consumer_configuration_get_schema_type(
-        pulsar_consumer_configuration_t *consumer_configuration);
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 /**
  * A message listener enables your application to configure how to process

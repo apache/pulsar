@@ -41,14 +41,14 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
 }
 
 void pulsar_consumer_configuration_set_schema_type(pulsar_consumer_configuration_t *consumer_configuration,
-                                                   pulsar_schema_type schemaType,const char *name,
-                                                   const char *schema){
-    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType) schemaType, name, schema);
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema) {
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema);
     consumer_configuration->consumerConfiguration.setSchema(schemaInfo);
 }
 
 pulsar_schema_type pulsar_consumer_configuration_get_schema_type(
-        pulsar_consumer_configuration_t *consumer_configuration){
+    pulsar_consumer_configuration_t *consumer_configuration) {
     auto schemaInfo = consumer_configuration->consumerConfiguration.getSchema();
     return pulsar_schema_type(schemaInfo.getSchemaType());
 }
