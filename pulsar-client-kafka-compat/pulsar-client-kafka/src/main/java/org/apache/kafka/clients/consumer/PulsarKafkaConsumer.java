@@ -88,6 +88,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private volatile boolean closed = false;
 
+    private final int maxRecordsInSinglePoll;
+
     private final Properties properties;
 
     private static class QueueItem {
@@ -152,6 +154,13 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         log.info("Offset reset strategy has been assigned value {}", strategy);
 
         String serviceUrl = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
+
+        // If MAX_POLL_RECORDS_CONFIG is provided then use the config, else use default value.
+        if(config.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
+            maxRecordsInSinglePoll = config.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        } else {
+            maxRecordsInSinglePoll = 1000;
+        }
 
         this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
@@ -304,8 +313,6 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         });
     }
 
-    private static final int MAX_RECORDS_IN_SINGLE_POLL = 1000;
-
     @SuppressWarnings("unchecked")
     @Override
     public ConsumerRecords<K, V> poll(long timeoutMillis) {
@@ -354,7 +361,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 lastReceivedOffset.put(tp, offset);
                 unpolledPartitions.remove(tp);
 
-                if (++numberOfRecords >= MAX_RECORDS_IN_SINGLE_POLL) {
+                if (++numberOfRecords >= maxRecordsInSinglePoll) {
                     break;
                 }
 
