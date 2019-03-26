@@ -140,12 +140,6 @@ public class AsyncHttpConnector implements Connector {
 
         BoundRequestBuilder builder = httpClient.prepare(jerseyRequest.getMethod(), jerseyRequest.getUri().toString());
 
-        jerseyRequest.getHeaders().forEach((key, headers) -> {
-            if (!HttpHeaders.USER_AGENT.equals(key)) {
-                builder.addHeader(key, headers);
-            }
-        });
-
         if (jerseyRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             jerseyRequest.setStreamProvider(contentLength -> outStream);
@@ -158,6 +152,12 @@ public class AsyncHttpConnector implements Connector {
 
             builder.setBody(outStream.toByteArray());
         }
+
+        jerseyRequest.getHeaders().forEach((key, headers) -> {
+            if (!HttpHeaders.USER_AGENT.equals(key)) {
+                builder.addHeader(key, headers);
+            }
+        });
 
         builder.execute(new AsyncCompletionHandler<Response>() {
             @Override
