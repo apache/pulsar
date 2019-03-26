@@ -66,6 +66,7 @@ message FunctionDetails {
     Resources resources = 13;
     string packageUrl = 14; //present only if function submitted with package-url
     RetryDetails retryDetails = 15;
+    string runtimeFlags = 17;
 }
 
 message ConsumerSpec {

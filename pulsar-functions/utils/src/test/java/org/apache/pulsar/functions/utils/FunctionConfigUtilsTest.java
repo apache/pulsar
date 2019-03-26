@@ -62,6 +62,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
+        functionConfig.setRuntimeFlags("-DKerberos");
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
