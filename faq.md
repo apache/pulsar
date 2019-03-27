@@ -99,7 +99,7 @@ The “subscription” concept is roughly similar to a “consumer-group” in K
 
 If you use the “exclusive” type, a consumer tries to consume messages from all partitions. The consumer fails to consume messages if any partition already has a consumer.
 
-The “failover” subscription mode is similar to Kafka consumption mode. In this case, you have an active consumer per partition, the active/stand-by decision is made at the partition level, and Pulsar makes sure to spread the partition assignments evenly across consumers.
+The “failover” subscription mode is similar to Kafka's consumption mode. In this case, you have an active consumer per partition. The active/stand-by decision is made at the partition level. Pulsar makes sure to spread the partition assignments evenly across consumers.
 
 ### What is the proxy component?
 It’s a stateless proxy that speaks Pulsar binary protocol. The motivation is to avoid (or overcome the impossibility of) direct connection between clients and brokers.
