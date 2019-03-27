@@ -11,7 +11,7 @@ persisting messages.
 In all of the instructions and commands below, the topic name structure is:
 
 ```shell
-persistent://tenant/namespace/topic
+non-persistent://tenant/namespace/topic
 ```
 
 ## Non-persistent topics resources
