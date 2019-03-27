@@ -78,7 +78,7 @@ There are several points of flow control:
 You can configure different storage quotas for different tenants/namespaces, and take different actions(block producer, give an exception, drop older messages) when the quotas have been exceeded.
 
 #### Broker level isolation
-There is an option to isolate certain tenants/namespaces to a particular set of broker. Typically, you use the option when you are to experiment with different configurations, debug or quickly react to unexpected situations.
+There is an option to isolate certain tenants/namespaces to a particular set of brokers. Typically, you use the option when you wish to experiment with different configurations, debug or quickly react to unexpected situations.
 
 For example, a particular user might be triggering a bad behavior in the broker that impacts performance for other tenants.
 
