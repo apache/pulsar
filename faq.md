@@ -125,7 +125,7 @@ You can create new subscriptions over the WebSocket API. For details, see [Pulsa
 ### Is there any sort of order of operations or best practices on the upgrade procedure for a geo-replicated Pulsar cluster?
 In general, it is easy to update the Pulsar brokers, since the brokers don't have local state. The typical rollout is a rolling upgrade, either updating a broker at a time or some percentage of brokers in parallel.
 
-There are no complicated requirements to upgrade geo-replicated clusters, we ensure backward and forward compatibility.
+There are no complicated requirements to upgrade geo-replicated clusters,  as we ensure backward and forward compatibility.
 
 Both clients and brokers report their own protocol versions, and they can disable newer features if the other side does not support them yet.
 
