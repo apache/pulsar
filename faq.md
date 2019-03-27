@@ -97,7 +97,7 @@ Yes, see [PIP-9](https://github.com/ivankelly/pulsar-wiki/pull/1/files) for more
 On a partitioned topic, you can use all the three supported subscription types (exclusive, failover, shared), which work the same as with non partitioned topics. 
 The “subscription” concept is roughly similar to a “consumer-group” in Kafka. You can have multiple of them in the same topic, with different names.
 
-If you use the “exclusive” type, a consumer tries to consume messages from all partitions. The consumer fails to consume messages if any partition has already been consumed.
+If you use the “exclusive” type, a consumer tries to consume messages from all partitions. The consumer fails to consume messages if any partition already has a consumer.
 
 The “failover” subscription mode is similar to Kafka consumption mode. In this case, you have an active consumer per partition, the active/stand-by decision is made at the partition level, and Pulsar makes sure to spread the partition assignments evenly across consumers.
 
