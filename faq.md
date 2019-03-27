@@ -159,7 +159,7 @@ We don’t have anything available for Mesos/DCOS, yet nothing could prevent it.
 Surely, it is useful.
 
 ### Where can I find information about `receiveAsync` parameters? In particular, is there a timeout on `receive`?
-There’s no other information about the `receiveAsync()` method. The method doesn’t take any parameters. Currently there’s no timeout on it. You can always set a timeout on the `CompletableFuture` instance, but the problem is how to cancel the future and avoid “getting” the message.
+There’s no other information about the `receiveAsync()` method. The method doesn’t take any parameters. Currently there’s no timeout on it. Cancelling the returned future will not the request if it is still outstanding.
 
 ### I'm facing some issues using `.receiveAsync` that it seems to be related with `UnAckedMessageTracker` and `PartitionedConsumerImpl`. We are consuming messages with `receiveAsync`, doing instant `acknowledgeAsync` when message is received, after that the process will delay the next execution of itself. In such scenario we are consuming a lot more messages (repeated) than the number of messages produced. We are using Partitioned topics with setAckTimeout 30 seconds and I believe this issue could be related with `PartitionedConsumerImpl` because the same test in a non-partitioned topic does not generate any repeated message.
 PartitionedConsumer is composed of a set of regular consumers, one per partition. To have a single `receive()` abstraction, messages from all partitions are pushed into a shared queue. 
