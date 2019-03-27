@@ -31,7 +31,7 @@ There are a few parameters to look at :
 When a subscription is created, it retains all messages published after that (minus explicit TTL). You can drop subscriptions by explicitly unsubscribing (in `Consumer` API) or through the REST/CLI .
 
 ### What is a bundle?
-In Pulsar, "namespace" is the administrative unit: you can configure most options on a namespace, and the configuration is applied on the topics contained on the namespace. It is convenient to configure settings and operations on a group of topics rather than doing it once per topic.
+In Pulsar, "namespace" is an administrative unit: you can configure most options on a namespace, and the configuration is applied to the topics contained on the namespace. It is convenient to configure settings and operations on a group of topics rather than doing it once per topic.
 
 In general, the pattern is to use a namespace for each user application. So a single user/tenant can create multiple namespaces to manage its own applications.
 
