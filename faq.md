@@ -88,7 +88,7 @@ This is a lightweight option of having multiple clusters for different users, si
 
 
 ### Is there "regex" topic subscription in Pulsar?
-There is a regex subscription in Pulsar 2.0 release. See [PIP-13](https://github.com/apache/pulsar/wiki/PIP-13:-Subscribe-to-topics-represented-by-regular-expressions).
+Regex topic subscription is supported in the Pulsar 2.0 release. See [PIP-13](https://github.com/apache/pulsar/wiki/PIP-13:-Subscribe-to-topics-represented-by-regular-expressions).
 
 ### Does Pulsar have, or plan to have, a concept of log compaction where only the latest message with the same key will be kept ?
 Yes, see [PIP-9](https://github.com/ivankelly/pulsar-wiki/pull/1/files) for more details.
