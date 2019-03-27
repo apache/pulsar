@@ -133,6 +133,10 @@ public class SourceConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -173,6 +177,10 @@ public class SourceConfigUtils {
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
             sourceConfig.setResources(resources);
+        }
+
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getRuntimeFlags())) {
+            sourceConfig .setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
         return sourceConfig;
     }
