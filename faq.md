@@ -185,7 +185,9 @@ Another option is to "terminate" the topic. Once a topic is "terminated", no mor
 A third option is to check the topic stats. This is a tiny bit involved, because it requires the admin client (or using REST) to get the stats for the topic and checking the "backlog". If the backlog is 0, it means you've hit the end.
 
 ### How can I prevent an inactive topic to be deleted under any circumstance? I do not want to set time or space limit for a certain namespace.
-Currently, there is not an option for “infinite” (though it sounds a good idea! Maybe we could use `-1` for that). The only option is to use INT_MAX for `retentionTimeInMinutes` and LONG_MAX for `retentionSizeInMB`. It’s not “infinite”, yet 4085 years of retention is probably be enough!
+You can set *infinite* retention time or size, by setting `-1` for either time or
+size retention.
+For more details, see [Pulsar retention policy](http://pulsar.apache.org/docs/en/cookbooks-retention-expiry/#retention-policies).
 <!--@Sijie: could you please refine this answer when you read here?-->
 
 ### Is there a profiling option in Pulsar, so that we can breakdown the time costed in every stage? For instance, message A stays in queue 1ms, bookkeeper writes in 2ms(interval between sending to bk and receiving ack from bk) and so on.
