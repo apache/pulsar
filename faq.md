@@ -80,7 +80,7 @@ You can configure different storage quotas for different tenants/namespaces, and
 #### Broker level isolation
 There is an option to isolate certain tenants/namespaces to a particular set of brokers. Typically, you use the option when you wish to experiment with different configurations, debug or quickly react to unexpected situations.
 
-For example, a particular user might be triggering a bad behavior in the broker that impacts performance for other tenants.
+For example, a particular user might trigger a bad behavior in the broker that impacts performance for other tenants.
 
 In this case, the particular user is "isolated" to a subset of brokers that do not serve any other traffic, until a proper fix that correctly handles the condition is deployed.
 
