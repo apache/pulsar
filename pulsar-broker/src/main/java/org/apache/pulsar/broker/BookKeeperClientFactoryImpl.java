@@ -97,7 +97,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 if (!clientIsolationZkCache.compareAndSet(null, zkc)) {
                     zkc.stop();
                 }
-                bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.clientIsolationZkCache);
+                bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.clientIsolationZkCache.get());
             }
         }
 
