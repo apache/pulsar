@@ -209,7 +209,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder defaultBackoffInterval(long duration, TimeUnit unit) {
+    public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
     	conf.setDefaultBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }

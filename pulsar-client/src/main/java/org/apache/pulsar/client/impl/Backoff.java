@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 // All variables are in TimeUnit millis by default
 public class Backoff {
-	public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
+    public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
     public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
     private final long backoffIntervalNanos;
     private final long maxBackoffIntervalNanos;
