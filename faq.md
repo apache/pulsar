@@ -188,7 +188,6 @@ A third option is to check the topic stats. This is a tiny bit involved, because
 You can set *infinite* retention time or size, by setting `-1` for either time or
 size retention.
 For more details, see [Pulsar retention policy](http://pulsar.apache.org/docs/en/cookbooks-retention-expiry/#retention-policies).
-<!--@Sijie: could you please refine this answer when you read here?-->
 
 ### Is there a profiling option in Pulsar, so that we can breakdown the time costed in every stage? For instance, message A stays in queue 1ms, bookkeeper writes in 2ms(interval between sending to bk and receiving ack from bk) and so on.
 There are latency stats at different stages: client, bookie and broker. 
