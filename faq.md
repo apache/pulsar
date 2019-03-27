@@ -116,7 +116,7 @@ The producer wrapper is thread-safe.
 ### Can I just remove a subscription?
 Yes, you can remove a subscription by using the cli tool `bin/pulsar-admin persistent unsubscribe $TOPIC -s $SUBSCRIPTION`.
 
-### How to set subscription modes? Can I create new subscriptions over the WebSocket API?
+### How do I set subscription modes? Can I create new subscriptions over the WebSocket API?
 Yes, you can set most of the producer/consumer configuration option in websocket, by passing them as HTTP query parameters as follows:
 `ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub?subscriptionType=Shared`
 
