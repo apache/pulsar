@@ -147,7 +147,7 @@ It also means that data is kept forever, by default, if the consumers are not ac
 2. You can use the client API `seek`.
 
 ### When creating a consumer, is the default set to "tail" from "now" on the topic, or from the "last acknowledged" or something else?
-When you spin up a consumer, it tries to subscribe to the topic. If the subscription doesn't exist, a new one is created, and it is positioned at the end of the topic ("now"). 
+When you create up a consumer, it tries to subscribe to the topic. If the subscription doesn't exist, a new one is created, and it is positioned at the end of the topic ("now"). 
 
 Once you reconnect, the subscription is still there and it is positioned on the last acknowledged messages from the previous session.
 
