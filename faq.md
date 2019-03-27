@@ -87,7 +87,7 @@ In this case, the particular user is "isolated" to a subset of brokers that do n
 This is a lightweight option of having multiple clusters for different users, since most of the other parts are still shared (ZK, BK,...).
 
 
-### Is there a "regex" topic in Pulsar?
+### Is there "regex" topic subscription in Pulsar?
 There is a regex subscription in Pulsar 2.0 release. See [PIP-13](https://github.com/apache/pulsar/wiki/PIP-13:-Subscribe-to-topics-represented-by-regular-expressions).
 
 ### Does Pulsar have, or plan to have, a concept of log compaction where only the latest message with the same key will be kept ?
