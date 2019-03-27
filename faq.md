@@ -59,7 +59,7 @@ You can configure all the thresholds for auto-splitting in the `broker.conf` fil
 The isolation between tenants (and topics of the same tenant) happens at many different points. I'll start from the bottom up.
 
 #### Storage
-You're probably familiar with BookKeeper. The main strength is that each bookie can efficiently serve many different ledgers (segments of topic data). We have tested with 100s of thousand per single node. 
+Pulsar uses Apache BookKeeper as its storage layer. BookKeeper's main strength is that each bookie can efficiently serve many different ledgers (segments of topic data). We have tested with 100s of thousand per single node. 
 
 This is because there is a single journal (on its own device) where all the write operations get appended and then the entries are periodically flushed in background on the storage device.
 
