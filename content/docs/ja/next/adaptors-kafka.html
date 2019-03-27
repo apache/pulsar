@@ -240,7 +240,7 @@ consumer.subscribe(Arrays.asList(topic));
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>group.id</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Maps to a Pulsar subscription name</td></tr>
-<tr><td style="text-align:left"><code>max.poll.records</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>max.poll.records</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>max.poll.interval.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left">Messages are &quot;pushed&quot; from broker</td></tr>
 <tr><td style="text-align:left"><code>session.timeout.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>heartbeat.interval.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
@@ -248,7 +248,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>enable.auto.commit</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>auto.commit.interval.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left">With auto-commit, acks are sent immediately to broker</td></tr>
 <tr><td style="text-align:left"><code>partition.assignment.strategy</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Only support earliest and latest.</td></tr>
 <tr><td style="text-align:left"><code>fetch.min.bytes</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>fetch.max.bytes</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>fetch.max.wait.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
