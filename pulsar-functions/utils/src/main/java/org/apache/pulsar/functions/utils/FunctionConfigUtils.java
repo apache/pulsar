@@ -221,6 +221,10 @@ public class FunctionConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (!StringUtils.isEmpty(functionConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(functionConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -313,6 +317,10 @@ public class FunctionConfigUtils {
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
             functionConfig.setResources(resources);
+        }
+
+        if (!isEmpty(functionDetails.getRuntimeFlags())) {
+            functionConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
 
         return functionConfig;

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -219,6 +220,36 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
              Consumer<byte[]> c = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe()) {
             p.send(new V1Data(1));
             Assert.assertTrue(c.receive().getValue().length > 0);
+        }
+    }
+
+    @Test
+    public void getSchemaVersionFromMessagesBatchingDisabled() throws Exception {
+        getSchemaVersionFromMessages(false);
+    }
+
+    @Test
+    public void getSchemaVersionFromMessagesBatchingEnabled() throws Exception {
+        getSchemaVersionFromMessages(true);
+    }
+
+    private void getSchemaVersionFromMessages(boolean batching) throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+             .topic(topic)
+             .enableBatching(batching)
+             .create();
+             Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+             .topic(topic)
+             .subscriptionName("sub1")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe()) {
+
+            p.send(new V1Data(1));
+            Message<V1Data> data = c.receive();
+            assertNotNull(data.getSchemaVersion());
+            assertEquals(data.getValue(), new V1Data(1));
         }
     }
 }

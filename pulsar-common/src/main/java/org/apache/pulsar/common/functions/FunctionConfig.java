@@ -48,6 +48,10 @@ public class FunctionConfig {
         PYTHON
     }
 
+    // Any flags that you want to pass to the runtime.
+    // note that in thread mode, these flags will have no impact
+    private String runtimeFlags;
+
     private String tenant;
     private String namespace;
     private String name;
