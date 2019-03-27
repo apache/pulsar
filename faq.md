@@ -170,7 +170,7 @@ The thing is that the unacked message tracker works at the partition level. So w
 - another option is to reduce the receiver queue size, so that less messages are sitting in the queue
 
 ### Can I use bookkeeper newer v3 wire protocol in Pulsar? How can I enable it?
-Currently, you cannot use bookkeeper v3 wire protocol in Pulsar. Because the broker is designed to use v2 protocol, and it is not configurable at the moment.
+Currently, you cannot use bookkeeper v3 wire protocol in Pulsar. The broker is designed to use v2 protocol, and this is not configurable at the moment.
 
 ### Is "kubernetes/generic/proxy.yaml" meant to be used whenever we want to expose a Pulsar broker outside the Kubernetes cluster?
 Yes, the “proxy” is an additional component to deploy a stateless proxy frontend that can be exposed through a load balancer, and that doesn’t require direct connectivity to the actual brokers. You do not need to use the proxy within Kubernetes cluster. In some cases, it’s simpler to expose the brokers through `NodePort` or `ClusterIp` for other producer/consumers outsides.
