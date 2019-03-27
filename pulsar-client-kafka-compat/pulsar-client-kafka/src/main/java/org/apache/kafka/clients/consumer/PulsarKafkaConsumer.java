@@ -478,7 +478,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             try {
                 processedConsumerRecords = interceptor.onConsume(processedConsumerRecords);
             } catch (Exception e) {
-                log.warn("Error executing interceptor onConsume callback.", e);
+                log.warn("Error executing onConsume for interceptor {}.", interceptor.getClass().getCanonicalName(), e);
             }
         }
         return processedConsumerRecords;
@@ -496,7 +496,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             try {
                 interceptor.onCommit(offsets);
             } catch (Exception e) {
-                log.warn("Error executing interceptor onCommit callback.", e);
+                log.warn("Error executing onCommit for interceptor {}.", interceptor.getClass().getCanonicalName(), e);
             }
         }
     }
