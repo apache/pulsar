@@ -1012,6 +1012,9 @@ public class Commands {
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }
+        if (builder.hasSchemaVersion()) {
+            messageMetadata.setSchemaVersion(builder.getSchemaVersion());
+        }
         return builder.getSequenceId();
     }
 
