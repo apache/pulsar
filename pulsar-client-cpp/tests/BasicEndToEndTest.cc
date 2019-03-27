@@ -2816,6 +2816,8 @@ TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
     // Since this is a shared consumer over same client cnx
     // closing consumerA should result in consumerB also being closed.
     ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
     ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
 }
 
@@ -2867,6 +2869,8 @@ TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
     ASSERT_EQ(ResultOk, resultB);
     ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
     ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
     ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
 
     // consumer C should be a different instance from A and B and should be with open state.
