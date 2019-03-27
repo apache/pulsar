@@ -71,7 +71,7 @@ Everything in the broker happens asynchronously. The amount of memory that is us
 Whenever a broker is marked as overloaded, traffic is quickly shifted (manually or without intervention) to less loaded brokers. The LoadManager component in brokers is dedicated to that.
 
 There are several points of flow control:
-- On the producer side, there are limits on the in-flight message for broker bookies, which controls users' speed in publishing messages, so that the speed is not faster than the system can absorb. 
+- On the producer side, there are limits on the number of in-flight message for broker bookies, which controls the user's speed in publishing messages, so that the speed is not faster than what the system can absorb. 
 - On the consumer side, it's possible to throttle the delivery to a certain rate.
 
 #### Quotas
