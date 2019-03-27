@@ -55,7 +55,7 @@ If you want to have a high traffic on a particular namespace, it's a good practi
 
 You can configure all the thresholds for auto-splitting in the `broker.conf` file. For example, you can configure the number of topics and partitions, messages in/out, bytes in/out, and so on.
 
-### How does the design deal with isolation between tenants? Which concepts enable that and up to what extent? How huge differences can exist between tenants so that impact on each other is noticeable via degraded latency?
+### How does the design deal with isolation between tenants? Which concepts enable that and to what extent? 
 The isolation between tenants (and topics of the same tenant) happens at many different points. I'll start from the bottom up.
 
 #### Storage
