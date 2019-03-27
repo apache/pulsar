@@ -75,7 +75,7 @@ There are several points of flow control:
 - On the consumer side, it's possible to throttle the delivery to a certain rate.
 
 #### Quotas
-You can configure different storage quotas for different tenants/namespaces, and take different actions(block producer, give exception, drop older messages) when the quotas are filled up.
+You can configure different storage quotas for different tenants/namespaces, and take different actions(block producer, give an exception, drop older messages) when the quotas have been exceeded.
 
 #### Broker level isolation
 There is an option to isolate certain tenants/namespaces to a particular set of broker. Typically, you use the option when you are to experiment with different configurations, debug or quickly react to unexpected situations.
