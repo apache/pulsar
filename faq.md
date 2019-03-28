@@ -136,7 +136,8 @@ So, when Pulsar cluster recognizes the new formats in a release, it starts using
 It is allowed to downgrade a running cluster to a previous version, in case any server problem is identified in production.
 
 ### Since Pulsar has configurable retention per namespace, can I set a "forever" value, and keep all data in the namespaces forever?
-Retention applies to "consumed" messages, for which the consumer has already acknowledged the processing. By default, retention is set to 0, which means data is deleted as soon as all consumers acknowledge. You can set retention to delay the retention.
+You can set *infinite* retention time or size, by setting `-1` for either time or size retention.
+For more details, see [Pulsar retention policy](http://pulsar.apache.org/docs/en/cookbooks-retention-expiry/#retention-policies).
 
 It also means that data is kept forever, by default, if the consumers are not acknowledging.
 
