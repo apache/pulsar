@@ -18,7 +18,7 @@ Yes, ack is tied to a particular subscription.
 
 ### Where do I look into to tweak load balancing ?
 There are a few parameters to look at :
-1. The topic assignments to brokers are done in terms of “bundles”, that is in group of topic.
+1. The topic assignments to brokers are done in terms of “bundles”, which are groups of topics.
 2. Topics are matched to bundles by hashing on the name.
 3. A bundle is a hash-range where topics fall into.
 4. The default is to have four “bundles” for a namespace.
