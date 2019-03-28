@@ -423,7 +423,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
+            Type type = new TypeToken<Map<String, Object>>(){}.getType();
             return new Gson().fromJson(str, type);
         }
 
