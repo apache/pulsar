@@ -139,7 +139,6 @@ It is allowed to downgrade a running cluster to a previous version, in case any 
 You can set *infinite* retention time or size, by setting `-1` for either time or size retention.
 For more details, see [Pulsar retention policy](http://pulsar.apache.org/docs/en/cookbooks-retention-expiry/#retention-policies).
 
-It also means that data is kept forever, by default, if the consumers are not acknowledging.
 
 ### How can a consumer "replay" a topic from the beginning? Where can I set an offset for the consumer?
 1. Use admin API (or CLI tool):
