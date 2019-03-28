@@ -28,7 +28,7 @@ There are a few parameters to look at :
 8. The load-manager threshold controls when a broker should offload some of the bundles to other brokers.
 
 ### What is the life-cycle of subscription?
-When a subscription is created, it retains all messages published after that (minus explicit TTL). You can drop subscriptions by explicitly unsubscribing (in `Consumer` API) or through the REST/CLI .
+When a subscription is created, it retains all messages published after that point in time. You can drop subscriptions by explicitly unsubscribing (in `Consumer` API) or through the REST/CLI .
 
 ### What is a bundle?
 In Pulsar, "namespace" is an administrative unit: you can configure most options on a namespace, and the configuration is applied to the topics contained on the namespace. It is convenient to configure settings and operations on a group of topics rather than doing it once per topic.
