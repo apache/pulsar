@@ -82,7 +82,7 @@ There is an option to isolate certain tenants/namespaces to a particular set of 
 
 For example, a particular user might trigger a bad behavior in the broker that impacts performance for other tenants.
 
-In this case, the particular user is "isolated" to a subset of brokers that do not serve any other traffic, until a proper fix that correctly handles the condition is deployed.
+In this case, the particular user can be "isolated" to a subset of brokers that do not serve any other traffic, until a proper fix that correctly handles the condition is deployed.
 
 This is a lightweight option of having multiple clusters for different users, since most of the other parts are still shared (ZK, BK,...).
 
