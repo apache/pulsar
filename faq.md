@@ -155,7 +155,7 @@ If the subscription already existed, when you reconnect, the subscription is pos
 To ensure only one producer is connected, you need to use the same "producerName". The broker ensures that no two producers with the same name on a given topic are connected at the same time.
 
 ### Is there any work on a Mesos Framework for Pulsar/Bookkeeper at this point? Would this be useful?
-We don’t have anything available for Mesos/DCOS, yet nothing could prevent it.
+We don’t have anything available for Mesos/DCOS, though there is nothing to prevent it.
 Surely, it is useful.
 
 ### Where can I find information about `receiveAsync` parameters? In particular, is there a timeout on `receive`?
