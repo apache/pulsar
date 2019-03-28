@@ -152,7 +152,7 @@ When you create up a consumer, it tries to subscribe to the topic. If the subscr
 If the subscription already existed, when you reconnect, the subscription is positioned on the last acknowledged messages from the previous session.
 
 ### I want a producer lock, i.e., to pessimistically or optimistically lock a specified topic, so only one producer can write at a time and all further producers know that they have to reprocess data before trying again to write a topic.
-To ensure only one producer is connected, you just need to use the same "producerName". The broker ensures that no two producers with the same name are publishing on a given topic.
+To ensure only one producer is connected, you need to use the same "producerName". The broker ensures that no two producers with the same name on a given topic are connected at the same time.
 
 ### Is there any work on a Mesos Framework for Pulsar/Bookkeeper at this point? Would this be useful?
 We don’t have anything available for Mesos/DCOS, yet nothing could prevent it.
