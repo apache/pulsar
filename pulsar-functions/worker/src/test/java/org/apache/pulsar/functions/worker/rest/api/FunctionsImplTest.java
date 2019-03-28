@@ -175,7 +175,7 @@ public class FunctionsImplTest {
 
     @Test
     public void testStatusEmpty() {
-        Assert.assertTrue(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null) !=null);
+        Assert.assertTrue(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null, null) !=null);
     }
 
     @Test
