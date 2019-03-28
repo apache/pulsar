@@ -258,6 +258,7 @@ public class Utils {
     }
 
     public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
+        log.info("extractFileFromPkg: {}", destPkgUrl);
         if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
@@ -270,10 +271,7 @@ public class Utils {
             File tempFile = File.createTempFile("function", ".tmp");
             ReadableByteChannel rbc = Channels.newChannel(website.openStream());
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.getChannel().transferFrom(rbc, 0, 10);
-            }
-            if (tempFile.exists()) {
-                tempFile.delete();
+                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
             }
             return tempFile;
         } else {
@@ -337,10 +335,7 @@ public class Utils {
                     File tempFile = File.createTempFile("function", ".tmp");
                     ReadableByteChannel rbc = Channels.newChannel(website.openStream());
                     try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                        fos.getChannel().transferFrom(rbc, 0, 10);
-                    }
-                    if (tempFile.exists()) {
-                        tempFile.delete();
+                        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
                     }
                     return NarClassLoader.getFromArchive(tempFile, Collections.emptySet());
                 } catch (Exception e) {
