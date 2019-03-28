@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Date;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +42,12 @@ import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
-
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
+import org.apache.pulsar.client.avro.generated.NasaMission;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
@@ -258,5 +262,44 @@ public class AvroSchemaTest {
         assertEquals(object1, schemaLogicalType);
 
     }
+
+  @Test
+  public void testDateAndTimestamp() {
+    RecordSchemaBuilder recordSchemaBuilder =
+        SchemaBuilder.record("org.apache.pulsar.client.avro.generated.NasaMission");
+    recordSchemaBuilder.field("id")
+        .type(SchemaType.INT32);
+    recordSchemaBuilder.field("name")
+        .type(SchemaType.STRING);
+    recordSchemaBuilder.field("create_year")
+        .type(SchemaType.DATE);
+    recordSchemaBuilder.field("create_time")
+        .type(SchemaType.TIME);
+    recordSchemaBuilder.field("create_timestamp")
+        .type(SchemaType.TIMESTAMP);
+    SchemaInfo schemaInfo = recordSchemaBuilder.build(
+        SchemaType.AVRO
+    );
+
+    org.apache.avro.Schema recordSchema = new org.apache.avro.Schema.Parser().parse(
+        new String(schemaInfo.getSchema(), UTF_8)
+    );
+    AvroSchema<NasaMission> avroSchema = AvroSchema.of(SchemaDefinition.<NasaMission>builder().withPojo(NasaMission.class).build());
+    assertEquals(recordSchema, avroSchema.schema);
+
+    NasaMission nasaMission = NasaMission.newBuilder()
+        .setId(1001)
+        .setName("one")
+        .setCreateYear(new LocalDate(new Date().getTime()))
+        .setCreateTime(new LocalTime(new Date().getTime()))
+        .setCreateTimestamp(new DateTime(new Date().getTime()))
+        .build();
+
+    byte[] bytes = avroSchema.encode(nasaMission);
+    Assert.assertTrue(bytes.length > 0);
+
+    NasaMission object = avroSchema.decode(bytes);
+    assertEquals(object, nasaMission);
+  }
 
 }
