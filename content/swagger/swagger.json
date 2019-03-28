@@ -6895,7 +6895,7 @@
         },
         "type" : {
           "type" : "string",
-          "enum" : [ "NONE", "BOOLEAN", "STRING", "INT8", "INT16", "INT32", "INT64", "FLOAT", "DOUBLE", "BYTES", "JSON", "PROTOBUF", "AVRO", "AUTO", "AUTO_CONSUME", "AUTO_PUBLISH", "KEY_VALUE" ]
+          "enum" : [ "NONE", "BOOLEAN", "STRING", "INT8", "INT16", "INT32", "INT64", "FLOAT", "DOUBLE", "BYTES", "DATE", "TIME", "TIMESTAMP", "JSON", "PROTOBUF", "AVRO", "AUTO", "AUTO_CONSUME", "AUTO_PUBLISH", "KEY_VALUE" ]
         },
         "timestamp" : {
           "type" : "integer",
@@ -7096,17 +7096,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -7126,7 +7115,18 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
@@ -7290,10 +7290,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -8004,10 +8004,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
