@@ -9,7 +9,7 @@
 ## Getting Started
 
 ### What is the minimum requirements for Apache Pulsar ?
-You need three kinds of clusters: bookie, broker, and zookeeper. If you do not have enough resources, you can also run the three clusters on the same machine.
+You need three kinds of nodes: bookie, broker, and zookeeper. If you do not have enough resources, you can also run the three clusters on the same machine.
 ---
 ## Concepts and Design
 
