@@ -20,7 +20,7 @@ Yes, ack is tied to a particular subscription.
 There are a few parameters to look at :
 1. The topic assignments to brokers are done in terms of “bundles”, which are groups of topics.
 2. Topics are matched to bundles by hashing on the name.
-3. A bundle is a hash-range where topics fall into.
+3. A bundle is a hash-range into which topics fall.
 4. The default is to have four “bundles” for a namespace.
 5. When the traffic increases on a given bundle, it  is split in two and reassigned to a different broker.
 6. There are some adjustable thresholds that can be used to control when the split happens, based on the number of topics/partitions, messages in/out, bytes in/out, and so on.
