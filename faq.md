@@ -149,7 +149,7 @@ It also means that data is kept forever, by default, if the consumers are not ac
 ### When creating a consumer, is the default set to "tail" from "now" on the topic, or from the "last acknowledged" or something else?
 When you create up a consumer, it tries to subscribe to the topic. If the subscription doesn't exist, a new one is created, and it is positioned at the end of the topic ("now"). 
 
-Once you reconnect, the subscription is still there and it is positioned on the last acknowledged messages from the previous session.
+If the subscription already existed, when you reconnect, the subscription is positioned on the last acknowledged messages from the previous session.
 
 ### I want a producer lock, i.e., to pessimistically or optimistically lock a specified topic, so only one producer can write at a time and all further producers know that they have to reprocess data before trying again to write a topic.
 To ensure only one producer is connected, you just need to use the same "producerName". The broker ensures that no two producers with the same name are publishing on a given topic.
