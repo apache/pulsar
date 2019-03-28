@@ -258,7 +258,6 @@ public class Utils {
     }
 
     public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
-        log.info("extractFileFromPkg: {}", destPkgUrl);
         if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
