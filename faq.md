@@ -199,7 +199,7 @@ In broker, there’s just the write latency on Bookkeeper, because there is no o
 ### How can multiple readers get all the messages from a topic from the beginning concurrently? I.e., no round-robin, no exclusivity.
 You can create reader with `MessageId.earliest`.
 
-### Does broker validate if a property exists or not when producer/consumer connects ?
+### Does broker validate if a tenant exists or not when producer/consumer connects ?
 Yes, broker performs auth&auth while creating producer/consumer and this information presents under namespace policies. So, if auth is enabled, and then broker performs validation.
 
 ### For subscribing to a large number of topics like that, would I need to call `subscribe` for each one individually, or is there some sort of wildcard capability?
