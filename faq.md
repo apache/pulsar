@@ -166,7 +166,7 @@ PartitionedConsumer is composed of a set of regular consumers, one per partition
 
 The thing is that the unacked message tracker works at the partition level. So when timeout happens, it’s able to request redelivery for the messages and clear them from the queue when that happens. But if messages were already pushed into the shared queue, the “clearing” part will not happen.
 
-- a quick workaround is to increase the “ack-timeout” to a level in which timeout doesn’t occur in processing
+- A quick workaround is to increase the “ack-timeout” to a level in which timeout doesn’t occur in processing.
 - Another option is to reduce the receiver queue size, so that less messages are sitting in the queue.
 
 ### Can I use bookkeeper newer v3 wire protocol in Pulsar? How can I enable it?
