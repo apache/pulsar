@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -156,6 +157,9 @@ public class PulsarFunctionE2ETest {
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(providers);
+
+        config.setAuthorizationEnabled(true);
+        config.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
 
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
