@@ -209,6 +209,7 @@ Properties:
 | `fetch.min.bytes`               | Ignored   |                                                       |
 | `fetch.max.bytes`               | Ignored   |                                                       |
 | `fetch.max.wait.ms`             | Ignored   |                                                       |
+| `interceptor.classes`           | Yes       |                                                       |
 | `metadata.max.age.ms`           | Ignored   |                                                       |
 | `max.partition.fetch.bytes`     | Ignored   |                                                       |
 | `send.buffer.bytes`             | Ignored   |                                                       |
