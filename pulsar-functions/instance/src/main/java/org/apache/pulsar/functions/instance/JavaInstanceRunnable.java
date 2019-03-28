@@ -456,6 +456,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return record;
     }
 
+    /**
+     * NOTE: this method is be syncrhonized because it is potentially called by two different places
+     *       one inside the run/finally clause and one inside the ThreadRuntime::stop
+     */
     @Override
     synchronized public void close() {
 
