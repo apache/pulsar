@@ -811,7 +811,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         // get function status
-        getFunctionStatus(functionName, numMessages);
+        getFunctionStatus(functionName, numMessages, true);
 
         // get function stats
         getFunctionStats(functionName, numMessages);
@@ -1032,7 +1032,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
+    private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -1053,7 +1053,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        if (checkRestarts) {
+            assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        }
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
@@ -1189,8 +1191,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // publish and consume result
         publishAndConsumeAvroMessages(inputTopicName, outputTopicName, numMessages);
 
-        // get function status
-        getFunctionStatus(functionName, numMessages);
+        // get function status. Note that this function might restart a few times until
+        // the producer above writes the messages.
+        getFunctionStatus(functionName, numMessages, false);
 
         // delete function
         deleteFunction(functionName);

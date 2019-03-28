@@ -797,7 +797,7 @@ public class SinkApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sinkConfig),
-                null);
+                null, null);
 
     }
 
@@ -837,7 +837,7 @@ public class SinkApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sinkConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
@@ -938,7 +938,7 @@ public class SinkApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sinkConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
@@ -1044,7 +1044,7 @@ public class SinkApiV3ResourceTest {
             tenant,
             namespace,
             sink,
-                null);
+                null, null);
 
     }
 
@@ -1053,7 +1053,7 @@ public class SinkApiV3ResourceTest {
             tenant,
             namespace,
                 sink,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
@@ -1167,7 +1167,7 @@ public class SinkApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            sink
+            sink, null, null
         );
 
     }
@@ -1265,7 +1265,7 @@ public class SinkApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
 
     }
@@ -1273,7 +1273,7 @@ public class SinkApiV3ResourceTest {
     private List<String> listDefaultSinks() {
         return resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
     }
 

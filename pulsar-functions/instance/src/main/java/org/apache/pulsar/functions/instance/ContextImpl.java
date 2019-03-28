@@ -76,8 +76,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
 
-    private final List<String> inputTopics;
-
     private final TopicSchema topicSchema;
 
     private final SecretsProvider secretsProvider;
@@ -102,13 +100,12 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
     private final Utils.ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Utils.ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
-        this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
 
@@ -169,7 +166,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputTopics;
+        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
     }
 
     @Override

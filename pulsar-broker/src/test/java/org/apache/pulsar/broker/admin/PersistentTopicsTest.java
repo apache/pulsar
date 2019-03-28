@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -129,5 +130,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     	final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
     	persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true);
     	Assert.assertEquals(persistentTopics.getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true).partitions, 0);
+    }
+
+    @Test
+    public void testCreateNonPartitionedTopic() {
+        final String topicName = "standard-topic";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+        PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName, true);
+        Assert.assertEquals(pMetadata.partitions, 0);
     }
 }

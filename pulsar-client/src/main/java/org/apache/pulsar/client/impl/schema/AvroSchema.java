@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Conversions;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -47,6 +50,32 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
+//      the aim to fix avro's bug
+//      https://issues.apache.org/jira/browse/AVRO-1891  bug address explain
+//      fix the avro logical type read and write
+    static {
+        ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
+
+        reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+
+        ReflectData reflectDataNotAllowNull = ReflectData.get();
+
+        reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+    }
 
     private AvroSchema(org.apache.avro.Schema schema,
                        SchemaDefinition schemaDefinition) {

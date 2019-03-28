@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.JsonProperties;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.SchemaBuilder;
@@ -120,6 +121,16 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
                 break;
             case BYTES:
                 baseSchema = SchemaBuilder.builder().bytesType();
+                break;
+            // DATE, TIME, TIMESTAMP support from generic record
+            case DATE:
+                baseSchema = LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT));
+                break;
+            case TIME:
+                baseSchema = LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.INT));
+                break;
+            case TIMESTAMP:
+                baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
                 break;
             default:
                 throw new RuntimeException("Schema `" + type + "` is not supported to be used as a field for now");

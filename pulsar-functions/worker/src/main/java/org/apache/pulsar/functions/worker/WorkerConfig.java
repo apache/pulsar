@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -104,6 +105,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Number of threads to use for HTTP requests processing"
     )
     private int numHttpServerThreads = 8;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            required = false,
+            doc = "Configuration store connection string (as a comma-separated list)"
+    )
+    private String configurationStoreServers;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper session timeout in milliseconds"
+    )
+    private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper operation timeout in seconds"
+    )
+    private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -273,6 +290,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Enforce authorization on accessing functions admin-api"
     )
     private boolean authorizationEnabled = false;
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Authorization provider fully qualified class-name"
+    )
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
