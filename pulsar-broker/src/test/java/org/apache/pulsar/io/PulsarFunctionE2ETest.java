@@ -20,6 +20,10 @@ package org.apache.pulsar.io;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
@@ -61,12 +65,23 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -123,6 +138,8 @@ public class PulsarFunctionE2ETest {
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
+    private Thread fileServer;
+    private static final int FILE_SERVER_PORT = PortManager.nextFreePort();
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -213,12 +230,70 @@ public class PulsarFunctionE2ETest {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
 
-        Thread.sleep(100);
+        // setting up simple web sever to test submitting function via URL
+        fileServer = new Thread(() -> {
+            HttpServer server = null;
+            try {
+                server = HttpServer.create(new InetSocketAddress(FILE_SERVER_PORT), 0);
+                server.createContext("/pulsar-io-data-generator.nar", he -> {
+                    try {
+
+                        Headers headers = he.getResponseHeaders();
+                        headers.add("Content-Type", "application/octet-stream");
+
+                        File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
+                        byte[] bytes  = new byte [(int)file.length()];
+
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                        bufferedInputStream.read(bytes, 0, bytes.length);
+
+                        he.sendResponseHeaders(200, file.length());
+                        OutputStream outputStream = he.getResponseBody();
+                        outputStream.write(bytes, 0, bytes.length);
+                        outputStream.close();
+
+                    } catch (Exception e) {
+                        log.error("error: {}", e, e);
+                    }
+                });
+                server.createContext("/pulsar-functions-api-examples.jar", he -> {
+                    try {
+
+                        Headers headers = he.getResponseHeaders();
+                        headers.add("Content-Type", "application/octet-stream");
+
+                        File file = new File(getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile());
+                        byte[] bytes  = new byte [(int)file.length()];
+
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                        bufferedInputStream.read(bytes, 0, bytes.length);
+
+                        he.sendResponseHeaders(200, file.length());
+                        OutputStream outputStream = he.getResponseBody();
+                        outputStream.write(bytes, 0, bytes.length);
+                        outputStream.close();
+
+                    } catch (Exception e) {
+                        log.error("error: {}", e, e);
+                    }
+                });
+                server.setExecutor(null); // creates a default executor
+                log.info("Starting file server...");
+                server.start();
+            } catch (IOException e) {
+                log.error("Failed to start file server: ", e);
+            }
+
+        });
+        fileServer.start();
     }
 
     @AfterMethod
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
+        fileServer.stop();
         pulsarClient.close();
         admin.close();
         functionsWorkerService.stop();
@@ -309,8 +384,7 @@ public class PulsarFunctionE2ETest {
      *
      * @throws Exception
      */
-    @Test(timeOut = 20000)
-    public void testE2EPulsarFunction() throws Exception {
+    private void testE2EPulsarFunction(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -328,7 +402,6 @@ public class PulsarFunctionE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
@@ -383,6 +456,18 @@ public class PulsarFunctionE2ETest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
+    }
+
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionWithFile() throws Exception {
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionWithUrl() throws Exception {
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar",  FILE_SERVER_PORT);
+        testE2EPulsarFunction(jarFilePathUrl);
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
@@ -591,12 +676,11 @@ public class PulsarFunctionE2ETest {
 
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
-        String jarFilePathUrl = "https://dist.apache.org/repos/dist/release/pulsar/pulsar-2.3.0/connectors/pulsar-io-data-generator-2.3.0.nar";
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",  FILE_SERVER_PORT);
         testPulsarSinkStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000)
-    public void testPulsarSourceStats() throws Exception {
+    private void testPulsarSourceStats(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
@@ -605,7 +689,6 @@ public class PulsarFunctionE2ETest {
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, functionName, sinkTopic);
         admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
 
@@ -617,7 +700,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 10, 150);
+        }, 50, 150);
         assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 1);
 
         String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
@@ -687,6 +770,18 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPulsarSourceStatsWithFile() throws Exception {
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        testPulsarSourceStats(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 40000)
+    public void testPulsarSourceStatsWithUrl() throws Exception {
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",  FILE_SERVER_PORT);
+        testPulsarSourceStats(jarFilePathUrl);
     }
 
     @Test(timeOut = 20000)
