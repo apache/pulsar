@@ -130,8 +130,9 @@ public class PulsarFunctionE2ETest {
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
-    private Thread fileServer;
-    private static final int FILE_SERVER_PORT = PortManager.nextFreePort();
+    private Thread fileServerThread;
+    private static final int fileServerPort = PortManager.nextFreePort();
+    private HttpServer fileServer;
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -223,11 +224,10 @@ public class PulsarFunctionE2ETest {
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
 
         // setting up simple web sever to test submitting function via URL
-        fileServer = new Thread(() -> {
-            HttpServer server = null;
+        fileServerThread = new Thread(() -> {
             try {
-                server = HttpServer.create(new InetSocketAddress(FILE_SERVER_PORT), 0);
-                server.createContext("/pulsar-io-data-generator.nar", he -> {
+                fileServer = HttpServer.create(new InetSocketAddress(fileServerPort), 0);
+                fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
                     try {
 
                         Headers headers = he.getResponseHeaders();
@@ -246,10 +246,10 @@ public class PulsarFunctionE2ETest {
                         outputStream.close();
 
                     } catch (Exception e) {
-                        log.error("error: {}", e, e);
+                        log.error("Error when downloading: {}", e, e);
                     }
                 });
-                server.createContext("/pulsar-functions-api-examples.jar", he -> {
+                fileServer.createContext("/pulsar-functions-api-examples.jar", he -> {
                     try {
 
                         Headers headers = he.getResponseHeaders();
@@ -268,24 +268,26 @@ public class PulsarFunctionE2ETest {
                         outputStream.close();
 
                     } catch (Exception e) {
-                        log.error("error: {}", e, e);
+                        log.error("Error when downloading: {}", e, e);
                     }
                 });
-                server.setExecutor(null); // creates a default executor
+                fileServer.setExecutor(null); // creates a default executor
                 log.info("Starting file server...");
-                server.start();
-            } catch (IOException e) {
+                fileServer.start();
+            } catch (Exception e) {
                 log.error("Failed to start file server: ", e);
+                fileServer.stop(0);
             }
 
         });
-        fileServer.start();
+        fileServerThread.start();
     }
 
     @AfterMethod
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        fileServer.stop();
+        fileServer.stop(0);
+        fileServerThread.interrupt();
         pulsarClient.close();
         admin.close();
         functionsWorkerService.stop();
@@ -458,7 +460,7 @@ public class PulsarFunctionE2ETest {
 
     @Test(timeOut = 40000)
     public void testE2EPulsarFunctionWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar",  FILE_SERVER_PORT);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar", fileServerPort);
         testE2EPulsarFunction(jarFilePathUrl);
     }
 
@@ -668,7 +670,7 @@ public class PulsarFunctionE2ETest {
 
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",  FILE_SERVER_PORT);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServerPort);
         testPulsarSinkStats(jarFilePathUrl);
     }
 
@@ -772,7 +774,7 @@ public class PulsarFunctionE2ETest {
 
     @Test(timeOut = 40000)
     public void testPulsarSourceStatsWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",  FILE_SERVER_PORT);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServerPort);
         testPulsarSourceStats(jarFilePathUrl);
     }
 
