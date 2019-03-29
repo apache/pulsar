@@ -268,12 +268,11 @@ public class Utils {
             URL website = new URL(destPkgUrl);
             File tempFile = File.createTempFile("function", ".tmp");
             ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+            log.info("Downloading function package from {} to {} ...", destPkgUrl, tempFile.getAbsoluteFile());
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.getChannel().transferFrom(rbc, 0, 10);
+                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
             }
-            if (tempFile.exists()) {
-                tempFile.delete();
-            }
+            log.info("Downloading function package from {} to {} completed!", destPkgUrl, tempFile.getAbsoluteFile());
             return tempFile;
         } else {
             throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
@@ -317,39 +316,16 @@ public class Utils {
                 throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
             }
         }
+
         if (!isEmpty(pkgUrl)) {
-            if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-                try {
-                    URL url = new URL(pkgUrl);
-                    File file = new File(url.toURI());
-                    if (!file.exists()) {
-                        throw new IOException(pkgUrl + " does not exists locally");
-                    }
-                    return NarClassLoader.getFromArchive(file, Collections.emptySet());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(
-                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
-                }
-            } else if (pkgUrl.startsWith("http")) {
-                try {
-                    URL website = new URL(pkgUrl);
-                    File tempFile = File.createTempFile("function", ".tmp");
-                    ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-                    try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                        fos.getChannel().transferFrom(rbc, 0, 10);
-                    }
-                    if (tempFile.exists()) {
-                        tempFile.delete();
-                    }
-                    return NarClassLoader.getFromArchive(tempFile, Collections.emptySet());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(
-                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
-                }
-            } else {
-                throw new IllegalArgumentException("Unsupported url protocol "+ pkgUrl +", supported url protocols: [file/http/https]");
+            try {
+                return NarClassLoader.getFromArchive(extractFileFromPkg(pkgUrl), Collections.emptySet());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
             }
         }
+
         if (uploadedInputStreamFileName != null) {
             try {
                 return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
