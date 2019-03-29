@@ -21,16 +21,13 @@ package org.apache.pulsar.io.debezium;
 import java.util.Map;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
-import io.debezium.relational.history.AbstractDatabaseHistory;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
 import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
 
 public abstract class DebeziumSource extends KafkaConnectSource {
-    //static private final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
     static private final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
     static private final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
     static private final String DEFAULT_OFFSET_TOPIC = "debezium-offset-topic";
