@@ -32,7 +32,7 @@ public enum SchemaCompatibilityStrategy {
     ALWAYS_COMPATIBLE,
 
     /**
-     * Messages written by an old schema can be read be a new schema
+     * Messages written by an old schema can be read by a new schema
      */
     BACKWARD,
 
