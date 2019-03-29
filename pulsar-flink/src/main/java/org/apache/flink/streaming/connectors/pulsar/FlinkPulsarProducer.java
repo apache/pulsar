@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.Authentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,12 @@ public class FlinkPulsarProducer<IN>
      * The name of the default topic this producer is writing data to.
      */
     protected final String defaultTopicName;
+
+    /**
+     * Pulsar client will use this authentication information, if required.
+     */
+    private final Authentication authentication;
+
 
     /**
      * (Serializable) SerializationSchema for turning objects used with Flink into.
@@ -113,13 +120,15 @@ public class FlinkPulsarProducer<IN>
 
     public FlinkPulsarProducer(String serviceUrl,
                                String defaultTopicName,
+                               Authentication authentication,
                                SerializationSchema<IN> serializationSchema,
                                PulsarKeyExtractor<IN> keyExtractor) {
-        this(serviceUrl, defaultTopicName, serializationSchema, keyExtractor, null);
+        this(serviceUrl, defaultTopicName, authentication, serializationSchema, keyExtractor, null);
     }
 
     public FlinkPulsarProducer(String serviceUrl,
                                String defaultTopicName,
+                               Authentication authentication,
                                SerializationSchema<IN> serializationSchema,
                                PulsarKeyExtractor<IN> keyExtractor,
                                Producer<byte[]> producer) {
@@ -127,6 +136,7 @@ public class FlinkPulsarProducer<IN>
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
         this.serviceUrl = serviceUrl;
         this.defaultTopicName = defaultTopicName;
+        this.authentication = authentication;
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
@@ -182,7 +192,7 @@ public class FlinkPulsarProducer<IN>
     }
 
     private Producer<byte[]> createProducer() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).authentication(authentication).build();
         return client.newProducer().topic(defaultTopicName).create();
     }
 
