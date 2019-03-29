@@ -16,18 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.debezium.mysql;
+package org.apache.pulsar.io.debezium.postgres;
 
 import java.util.Map;
 
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
+
 /**
- * A pulsar source that runs debezium mysql source
+ * A pulsar source that runs debezium postgres source
  */
-public class DebeziumMysqlSource extends DebeziumSource {
-    static private final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
+public class DebeziumPostgresSource extends DebeziumSource {
+    static private final String DEFAULT_TASK = "io.debezium.connector.postgresql.PostgresConnectorTask";
 
     @Override
     public void setDbConnectorTask(Map<String, Object> config) throws Exception {
