@@ -183,7 +183,14 @@ public class FlinkPulsarProducer<IN>
 
     private Producer<byte[]> createProducer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-        return client.newProducer().topic(defaultTopicName).create();
+        return client.newProducer()
+        .topic(defaultTopicName)
+        .batchingMaxMessages(1024)
+        .batchingMaxPublishDelay(10L, TimeUnit.MILLISECONDS)
+        .enableBatching(true)
+        .blockIfQueueFull(true)
+        .maxPendingMessages(2048)
+        .create();
     }
 
     /**
