@@ -36,7 +36,6 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Tenants;
@@ -642,8 +641,8 @@ public class PulsarAdminToolTest {
     @Test
     void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        PersistentTopics mockTopics = mock(PersistentTopics.class);
-        when(admin.persistentTopics()).thenReturn(mockTopics);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
 
         CmdPersistentTopics topics = new CmdPersistentTopics(admin);
 

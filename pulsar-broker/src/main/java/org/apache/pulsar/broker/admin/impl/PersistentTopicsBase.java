@@ -463,7 +463,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
-                    pulsar().getAdminClient().persistentTopics().deleteAsync(topicNamePartition.toString(), force)
+                    pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force)
                             .whenComplete((r, ex) -> {
                                 if (ex != null) {
                                     if (ex instanceof NotFoundException) {
@@ -937,7 +937,7 @@ public class PersistentTopicsBase extends AdminResource {
                 AtomicInteger failureCount = new AtomicInteger(0);
 
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    admin.persistentTopics()
+                    admin.topics()
                             .createSubscriptionAsync(topicName.getPartition(i).toString(), subscriptionName, messageId)
                             .handle((result, ex) -> {
                                 if (ex != null) {
