@@ -385,7 +385,7 @@ public class PulsarFunctionE2ETest {
 
     }
 
-    public void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
+    private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
