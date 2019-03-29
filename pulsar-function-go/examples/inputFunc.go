@@ -16,24 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package main
 
-import "os"
+import (
+	"context"
+	"fmt"
 
-type SecretsProvider interface {
-	ProvideSecret(secretName, pathToSecret string) string
+	"github.com/apache/pulsar/pulsar-function-go/pf"
+)
+
+func HandleRequest(ctx context.Context, in []byte) error{
+	fmt.Println(string(in) + "!")
+	return nil
 }
 
-type ClearTextSecretsProvider struct {
-}
-
-func (ctsp *ClearTextSecretsProvider) ProvideSecret(secretName, pathToSecret string) string {
-	return pathToSecret
-}
-
-type EnvironmentBasedSecretsProvider struct {
-}
-
-func (ebsp *EnvironmentBasedSecretsProvider) ProvideSecret(secretName, pathToSecret string) string {
-	return os.Getenv(secretName)
+func main() {
+	pf.Start(HandleRequest)
 }

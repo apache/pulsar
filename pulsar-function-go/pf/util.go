@@ -16,50 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package pf
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
-
-	"github.com/apache/pulsar/pulsar-function-go/log"
 )
 
-type SerDe interface {
-	Serialize(input interface{}) []byte
-	Deserialize(input []byte) interface{}
-}
-
-type IdentitySerDe struct {
-}
-
-func (isd *IdentitySerDe) Serialize(input interface{}) []byte {
-	buf := bytes.Buffer{}
-	ser := gob.NewEncoder(&buf)
-	err := ser.Encode(input)
-	if err != nil {
-		log.Errorf("failed gob Encode, %v", err)
-	}
-	return buf.Bytes()
-}
-
-func (isd *IdentitySerDe) Deserialize(input []byte) interface{} {
-	buf := bytes.Buffer{}
-	buf.Write(input)
-	de := gob.NewDecoder(&buf)
-	err := de.Decode(&buf)
-	if err != nil {
-		log.Errorf("failed gob Decode, %v", err)
-	}
-	return buf
-}
-
-func init() {
-	gob.Register(IdentitySerDe{})
-}
-
-func GetProperties(fullyQualifiedName string, instanceId int) map[string]string {
+func getProperties(fullyQualifiedName string, instanceId int) map[string]string {
 	propertiesMap := make(map[string]string)
 	propertiesMap["application"] = "pulsar-function"
 	propertiesMap["id"] = fullyQualifiedName
@@ -68,10 +31,10 @@ func GetProperties(fullyQualifiedName string, instanceId int) map[string]string 
 	return propertiesMap
 }
 
-func GetDefaultSubscriptionName(tenant, namespace, name string) string {
+func getDefaultSubscriptionName(tenant, namespace, name string) string {
 	return fmt.Sprintf("%s/%s/%s", tenant, namespace, name)
 }
 
-func GetFullyQualifiedInstanceId(tenant, namespace, name string, instanceID int) string {
+func getFullyQualifiedInstanceId(tenant, namespace, name string, instanceID int) string {
 	return fmt.Sprintf("%s/%s/%s:%d", tenant, namespace, name, instanceID)
 }

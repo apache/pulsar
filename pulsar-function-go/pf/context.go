@@ -16,31 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package instance
+package pf
 
 import (
 	"context"
-
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 type FunctionContext struct {
 	InstanceConf *InstanceConf
 	UserConfigs  map[string]interface{}
 	InputTopics  []string
-	Producer     pulsar.Producer
 }
 
 func NewFuncContext() *FunctionContext {
-	fctx := &FunctionContext{
+	fc := &FunctionContext{
 		InstanceConf: NewInstanceConf(),
 		UserConfigs:  make(map[string]interface{}),
-		InputTopics: []string{
-			"pulsar1",
-			"pulsar2",
-		},
 	}
-	return fctx
+	return fc
 }
 
 func (c *FunctionContext) GetInstanceID() int {

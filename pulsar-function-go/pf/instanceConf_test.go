@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package main
+package pf
 
 import (
-	"fmt"
+	"testing"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/stretchr/testify/assert"
 )
 
-func hello() {
-	fmt.Println("hello pulsar function")
-}
-
-func main() {
-	pf.Start(hello)
+func TestInstanceConf_GetInstanceName(t *testing.T) {
+	instanceConf := NewInstanceConf()
+	str := instanceConf.GetInstanceName()
+	assert.Equal(t, "101", str)
 }

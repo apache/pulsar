@@ -16,18 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package main
+package pf
 
 import (
-	"fmt"
+	"context"
+	"testing"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/stretchr/testify/assert"
 )
 
-func hello() {
-	fmt.Println("hello pulsar function")
-}
+func TestContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fc := NewFuncContext()
+	ctx = NewContext(ctx, fc)
 
-func main() {
-	pf.Start(hello)
+	ctx = context.WithValue(ctx, "pulsar", "function")
+
+	if resfc, ok := FromContext(ctx); ok {
+		assert.Equal(t, []string{"topic-1", "topic-2"}, resfc.GetInputTopics())
+		assert.Equal(t, "1.0.0", resfc.GetFuncVersion())
+		assert.Equal(t, "pulsar-function", resfc.GetFuncID())
+		assert.Equal(t, "go-function", resfc.GetFuncName())
+		assert.Equal(t, "topic-3", resfc.GetOutputTopic())
+	}
+	assert.Equal(t, "function", ctx.Value("pulsar"))
 }

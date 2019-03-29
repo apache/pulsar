@@ -16,18 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package main
+package pf
 
 import (
 	"fmt"
+	"testing"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/stretchr/testify/assert"
 )
 
-func hello() {
-	fmt.Println("hello pulsar function")
-}
+var (
+	tenant     = "pulsar"
+	namespace  = "function"
+	name       = "go"
+	instanceID = 100
+)
 
-func main() {
-	pf.Start(hello)
+func TestUtils(t *testing.T) {
+	fqfn := tenant + "/" + namespace + "/" + name
+
+	propertiesMap := make(map[string]string)
+	propertiesMap["application"] = "pulsar-function"
+	propertiesMap["id"] = "pulsar/function/go"
+	propertiesMap["instance_id"] = fmt.Sprintf("%d", instanceID)
+
+	expectedFQFN := getDefaultSubscriptionName(tenant, namespace, name)
+	assert.Equal(t, expectedFQFN, fqfn)
+
+	actualtMap := getProperties(fqfn, 100)
+	assert.Equal(t, propertiesMap, actualtMap)
+
+	expectedRes := getFullyQualifiedInstanceId(tenant, namespace, name, instanceID)
+	assert.Equal(t, expectedRes, "pulsar/function/go:100")
 }

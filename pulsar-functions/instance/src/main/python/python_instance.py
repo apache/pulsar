@@ -239,9 +239,9 @@ class PythonInstance(object):
           # start timer for process time
           self.stats.process_time_start()
           if self.function_class is not None:
-            output_object = self.function_class.process(input_object, self.contextimpl) # todo: process
+            output_object = self.function_class.process(input_object, self.contextimpl)
           else:
-            output_object = self.function_purefunction.process(input_object) # todo: process
+            output_object = self.function_purefunction.process(input_object)
           successfully_executed = True
 
           # stop timer for process time
