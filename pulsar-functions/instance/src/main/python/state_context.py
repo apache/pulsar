@@ -106,9 +106,9 @@ class BKManagedStateContext(StateContext):
 
     def __init__(self, state_storage_serviceurl, table_ns, table_name):
         client_settings = StorageClientSettings(
-          service_uri=state_storage_serviceurl)
+            service_uri=state_storage_serviceurl)
         admin_client = admin.client.Client(
-          storage_client_settings=client_settings)
+            storage_client_settings=client_settings)
         # create namespace and table if needed
         ns = admin_client.namespace(table_ns)
         try:
@@ -154,3 +154,6 @@ class BKManagedStateContext(StateContext):
 
     def put(self, key, value):
         return self.__table__.put_str(key, value)
+
+    def delete_key(self, key):
+        return self.__table__.delete_str(key)
