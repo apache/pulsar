@@ -68,7 +68,7 @@ def fetch_broker_stats(cluster, broker_url, timestamp):
 
 def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     broker_url = 'http://%s/' % broker_host_port
-    logger.info('    Getting stats for %s' % broker_host_port)
+    logger.info('Getting stats for %s' % broker_host_port)
 
     broker, _ = Broker.objects.get_or_create(
         url=broker_host_port,
@@ -344,6 +344,7 @@ def update_or_create_object(db_bundles, db_topics, db_consumers, db_subscription
 
 
 def fetch_stats():
+    logger.info("Begin fetch stats")
     timestamp = current_milli_time()
 
     pool = multiprocessing.Pool(args.workers)
@@ -354,7 +355,7 @@ def fetch_stats():
         if cluster_name == 'global': continue
 
         cluster_url = get(args.serviceUrl, '/admin/v2/clusters/' + cluster_name)['serviceUrl']
-        logger.info('Cluster:', cluster_name, '->', cluster_url)
+        logger.info('Cluster:{} -> {}'.format(cluster_name, cluster_url))
         cluster, created = Cluster.objects.get_or_create(name=cluster_name)
         if cluster_url != cluster.serviceUrl:
             cluster.serviceUrl = cluster_url
@@ -380,9 +381,11 @@ def fetch_stats():
     latest, _ = LatestTimestamp.objects.get_or_create(name='latest')
     latest.timestamp = timestamp
     latest.save()
+    logger.info("Finished fetch stats")
 
 
 def purge_db():
+    logger.info("Begin purge db")
     now = current_milli_time()
     ttl_minutes = args.purge
     threshold = now - (ttl_minutes * 60 * 1000)
@@ -391,6 +394,7 @@ def purge_db():
     Topic.objects.filter(timestamp__lt=threshold).delete()
     Subscription.objects.filter(timestamp__lt=threshold).delete()
     Consumer.objects.filter(timestamp__lt=threshold).delete()
+    logger.info("Finsihed purge db")
 
 
 def collect_and_purge():

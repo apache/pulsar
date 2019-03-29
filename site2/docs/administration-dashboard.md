@@ -33,14 +33,11 @@ If token authentication is enabled:
 ```shell
 $ SERVICE_URL=http://broker.example.com:8080/
 $ JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
-$ COLLECTION_INTERVAL=60
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
   -e JWT_TOKEN=$JWT_TOKEN \
-  -e COLLECTION_INTERVAL=$COLLECTION_INTERVAL \
   apachepulsar/pulsar-dashboard
 ```
-Stats `COLLECTION_INTERVAL` should be provided in seconds.
  
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in standalone mode, the URL will be `http://<broker-ip>:8080` by default. `<broker-ip>` is the ip address or hostname of the machine running Pulsar standalone. The ip address or hostname should be accessible from the docker instance running dashboard.
 
