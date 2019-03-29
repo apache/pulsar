@@ -1401,7 +1401,8 @@ public abstract class ComponentImpl {
         final StreamingOutput streamingOutput = new StreamingOutput() {
             @Override
             public void write(final OutputStream output) throws IOException {
-                if (path.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)) {
+                if (path.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)
+                || path.startsWith(org.apache.pulsar.common.functions.Utils.HTTPS)) {
                     URL url = new URL(path);
                     IOUtils.copy(url.openStream(), output);
                 } else if (path.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {

@@ -27,11 +27,13 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 public class Utils {
     public static String HTTP = "http";
+    public static String HTTPS = "https";
     public static String FILE = "file";
     public static String BUILTIN = "builtin";
 
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(HTTP)
+                || functionPkgUrl.startsWith(HTTPS)
                 || functionPkgUrl.startsWith(FILE));
     }
 

@@ -67,6 +67,7 @@ import java.util.stream.Collectors;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
+import static org.apache.pulsar.common.functions.Utils.HTTPS;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
@@ -202,7 +203,7 @@ public class FunctionActioner {
             }
         }
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
-        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
+        boolean downloadFromHttp = isPkgUrlProvided && (pkgLocationPath.startsWith(HTTP) || pkgLocationPath.startsWith(HTTPS));
         log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
                 details.getNamespace(), details.getName(),
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());

@@ -265,7 +265,8 @@ public class Utils {
                 throw new IOException(destPkgUrl + " does not exists locally");
             }
             return file;
-        } else if (destPkgUrl.startsWith("http")) {
+        } else if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)
+                || destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.HTTPS)) {
             URL website = new URL(destPkgUrl);
             File tempFile = File.createTempFile("function", ".tmp");
             ReadableByteChannel rbc = Channels.newChannel(website.openStream());
@@ -331,7 +332,8 @@ public class Utils {
                     throw new IllegalArgumentException(
                             "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
                 }
-            } else if (pkgUrl.startsWith("http")) {
+            } else if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)
+                    || pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.HTTPS)) {
                 try {
                     URL website = new URL(pkgUrl);
                     File tempFile = File.createTempFile("function", ".tmp");
