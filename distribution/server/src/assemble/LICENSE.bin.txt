@@ -335,15 +335,12 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-beanutils-commons-beanutils-1.7.0.jar
-    - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
     - commons-codec-commons-codec-1.10.jar
     - commons-collections-commons-collections-3.2.2.jar
-    - commons-configuration-commons-configuration-1.6.jar
-    - commons-digester-commons-digester-1.8.jar
+    - commons-configuration-commons-configuration-1.10.jar
     - commons-io-commons-io-2.5.jar
-    - commons-lang-commons-lang-2.4.jar
+    - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.15.jar
