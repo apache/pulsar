@@ -1007,9 +1007,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
-            if (policies.message_ttl_in_seconds != 0) {
-                subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
-                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(policies.message_ttl_in_seconds));
+            int defaultTTL = brokerService.pulsar().getConfiguration().getTtlDurationDefaultInSeconds();
+            int message_ttl_in_seconds = (policies.message_ttl_in_seconds <= 0 && defaultTTL > 0) ? defaultTTL
+                    : policies.message_ttl_in_seconds;
+            if (message_ttl_in_seconds != 0) {
+                subscriptions.forEach((subName, sub) -> sub.expireMessages(message_ttl_in_seconds));
+                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(message_ttl_in_seconds));
             }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {

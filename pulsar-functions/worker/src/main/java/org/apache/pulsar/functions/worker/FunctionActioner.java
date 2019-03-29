@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
@@ -61,8 +61,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -70,6 +68,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -156,6 +155,7 @@ public class FunctionActioner {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
+                instance.getFunctionMetaData().getFunctionAuthSpec(),
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
@@ -166,7 +166,8 @@ public class FunctionActioner {
     }
 
 
-    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, int instanceId, String clusterName) {
+    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
+            functionAuthSpec, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
@@ -176,6 +177,7 @@ public class FunctionActioner {
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
+        instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         return instanceConfig;
     }
 
@@ -233,6 +235,25 @@ public class FunctionActioner {
         }
     }
 
+    private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {
+        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        // clean up function package
+        File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
+
+        if (pkgDir.exists()) {
+            try {
+                MoreFiles.deleteRecursively(
+                        Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
+            } catch (IOException e) {
+                log.warn("Failed to delete package for function: {}",
+                        FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
+            }
+        }
+    }
+
     public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
@@ -244,30 +265,31 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(null);
         }
 
-        // clean up function package
-        File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
-
-        if (pkgDir.exists()) {
-            try {
-                MoreFiles.deleteRecursively(
-                    Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
-            } catch (IOException e) {
-                log.warn("Failed to delete package for function: {}",
-                        FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
-            }
-        }
+        cleanupFunctionFiles(functionRuntimeInfo);
     }
 
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                .getFunctionDetails();
-        log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
-                functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
+        log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
 
-        stopFunction(functionRuntimeInfo);
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().close();
+            // cleanup any auth data cached
+            try {
+                functionRuntimeInfo.getRuntimeSpawner()
+                        .getRuntimeFactory().getAuthProvider()
+                        .cleanUpAuthData(
+                                details.getTenant(), details.getNamespace(), details.getName(),
+                                getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
+            } catch (Exception e) {
+                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+            }
+            functionRuntimeInfo.setRuntimeSpawner(null);
+        }
+
+        cleanupFunctionFiles(functionRuntimeInfo);
+
         //cleanup subscriptions
         if (details.getSource().getCleanupSubscription()) {
             Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();
@@ -283,9 +305,9 @@ public class FunctionActioner {
                             : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
 
                     try {
-                        RuntimeUtils.Actions.newBuilder()
+                        Actions.newBuilder()
                                 .addAction(
-                                        RuntimeUtils.Actions.Action.builder()
+                                        Actions.Action.builder()
                                                 .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
                                                 .numRetries(10)
                                                 .sleepBetweenInvocationsMs(1000)
@@ -300,7 +322,7 @@ public class FunctionActioner {
                                                         }
                                                     } catch (PulsarAdminException e) {
                                                         if (e instanceof PulsarAdminException.NotFoundException) {
-                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                            return Actions.ActionResult.builder()
                                                                     .success(true)
                                                                     .build();
                                                         } else {
@@ -311,22 +333,22 @@ public class FunctionActioner {
                                                                 SubscriptionStats sub = stats.subscriptions.get(InstanceUtils.getDefaultSubscriptionName(details));
                                                                 if (sub != null) {
                                                                     existingConsumers = sub.consumers.stream()
-                                                                    .map(consumerStats -> consumerStats.metadata)
-                                                                    .collect(Collectors.toList());
+                                                                            .map(consumerStats -> consumerStats.metadata)
+                                                                            .collect(Collectors.toList());
                                                                 }
                                                             } catch (PulsarAdminException e1) {
 
                                                             }
 
                                                             String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
-                                                            return RuntimeUtils.Actions.ActionResult.builder()
+                                                            return Actions.ActionResult.builder()
                                                                     .success(false)
                                                                     .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
                                                                     .build();
                                                         }
                                                     }
 
-                                                    return RuntimeUtils.Actions.ActionResult.builder()
+                                                    return Actions.ActionResult.builder()
                                                             .success(true)
                                                             .build();
 

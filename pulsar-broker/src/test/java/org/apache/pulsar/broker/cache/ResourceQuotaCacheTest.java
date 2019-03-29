@@ -54,7 +54,7 @@ public class ResourceQuotaCacheTest {
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), 30, executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
 
         // set mock pulsar localzkcache

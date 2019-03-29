@@ -29,6 +29,8 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
 
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+
 /**
  * Thread based function container factory implementation.
  */
@@ -112,7 +114,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
-                                          String originalcodeFileName,
+                                          String originalCodeFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -125,6 +127,12 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
+
+        // configure auth if necessary
+        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        }
+
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,

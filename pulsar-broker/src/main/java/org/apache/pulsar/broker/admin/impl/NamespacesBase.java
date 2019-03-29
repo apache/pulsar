@@ -549,7 +549,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalUnloadNamespace() {
-        log.info("[{}] Unloading namespace {}", clientAppId());
+        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
 
         validateSuperUserAccess();
 
@@ -584,12 +584,26 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         Policies policies = getNamespacePolicies(namespaceName);
 
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+        NamespaceBundle bundle = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName.toString(), bundleRange);
+        boolean isOwnedByLocalCluster = false;
+        try {
+            isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
+        } catch (Exception e) {
+            if(log.isDebugEnabled()) {
+                log.debug("Failed to validate cluster ownership for {}-{}, {}", namespaceName.toString(), bundleRange, e.getMessage(), e);
+            }
+        }
+        
+        // validate namespace ownership only if namespace is not owned by local-cluster (it happens when broker doesn't
+        // receive replication-cluster change watch and still owning bundle
+        if (!isOwnedByLocalCluster) {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                validateGlobalNamespaceOwnership(namespaceName);
+            } else {
+                validateClusterOwnership(namespaceName.getCluster());
+                validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+            }
         }
 
         validatePoliciesReadOnlyAccess();

@@ -27,6 +27,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -37,9 +40,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -70,6 +71,13 @@ public class DefaultImplementation {
 
     private static final Constructor<Authentication> AUTHENTICATION_TLS_String_String = getConstructor(
             "org.apache.pulsar.client.impl.auth.AuthenticationTls", String.class, String.class);
+
+    private static final Constructor<SchemaDefinitionBuilder> SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR = getConstructor(
+            "org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl");
+
+    public static <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
+        return catchExceptions(() -> (SchemaDefinitionBuilder<T>)SCHEMA_DEFINITION_BUILDER_CONSTRUCTOR.newInstance());
+    }
 
     public static ClientBuilder newClientBuilder() {
         return catchExceptions(() -> CLIENT_BUILDER_IMPL.newInstance());
@@ -182,10 +190,28 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static <T> Schema<T> newAvroSchema(Class<T> clazz) {
+    public static Schema<Date> newDateSchema() {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", Class.class)
-                        .invoke(null, clazz));
+                () -> (Schema<Date>) getStaticMethod("org.apache.pulsar.client.impl.schema.DateSchema", "of", null)
+                        .invoke(null, null));
+    }
+
+    public static Schema<Time> newTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<Time>) getStaticMethod("org.apache.pulsar.client.impl.schema.TimeSchema", "of", null)
+                    .invoke(null, null));
+    }
+
+    public static Schema<Timestamp> newTimestampSchema() {
+        return catchExceptions(
+              () -> (Schema<Timestamp>) getStaticMethod("org.apache.pulsar.client.impl.schema.TimestampSchema", "of", null)
+                    .invoke(null, null));
+    }
+
+    public static <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.AvroSchema", "of", SchemaDefinition.class)
+                        .invoke(null,schemaDefinition));
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
@@ -194,10 +220,10 @@ public class DefaultImplementation {
                         .invoke(null, clazz));
     }
 
-    public static <T> Schema<T> newJSONSchema(Class<T> clazz) {
+    public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", Class.class)
-                        .invoke(null, clazz));
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.JSONSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
     }
 
     public static Schema<GenericRecord> newAutoConsumeSchema() {
@@ -212,10 +238,16 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
+    public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
+        return catchExceptions(
+                () -> (Schema<KeyValue<byte[], byte[]>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "kvBytes").invoke(null));
+    }
+
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
         return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getConstructor("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        Schema.class, Schema.class).newInstance(keySchema, valueSchema));
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "of", Schema.class, Schema.class).invoke(null, keySchema, valueSchema));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {

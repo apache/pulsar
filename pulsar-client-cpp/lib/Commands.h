@@ -27,6 +27,8 @@
 #include "SharedBuffer.h"
 #include "Utils.h"
 
+#include <set>
+
 using namespace pulsar;
 
 namespace pulsar {
@@ -102,7 +104,8 @@ class Commands {
     static SharedBuffer newPing();
     static SharedBuffer newPong();
 
-    static SharedBuffer newRedeliverUnacknowledgedMessages(uint64_t consumerId);
+    static SharedBuffer newRedeliverUnacknowledgedMessages(uint64_t consumerId,
+                                                           const std::set<MessageId>& messageIds);
 
     static std::string messageType(proto::BaseCommand::Type type);
 

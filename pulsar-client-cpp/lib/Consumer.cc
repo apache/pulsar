@@ -142,6 +142,15 @@ void Consumer::acknowledgeCumulativeAsync(const MessageId& messageId, ResultCall
     impl_->acknowledgeCumulativeAsync(messageId, callback);
 }
 
+void Consumer::negativeAcknowledge(const Message& message) { negativeAcknowledge(message.getMessageId()); }
+
+void Consumer::negativeAcknowledge(const MessageId& messageId) {
+    if (impl_) {
+        impl_->negativeAcknowledge(messageId);
+        ;
+    }
+}
+
 Result Consumer::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));

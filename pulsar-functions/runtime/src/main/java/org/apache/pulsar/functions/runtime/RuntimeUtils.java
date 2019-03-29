@@ -47,7 +47,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
- * Util class for common runtime functionality
+ * Util class for common runtime functionality.
  */
 @Slf4j
 public class RuntimeUtils {
@@ -140,6 +140,9 @@ public class RuntimeUtils {
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+            }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
@@ -151,6 +154,9 @@ public class RuntimeUtils {
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+            }
             args.add(instanceFile);
             args.add("--py");
             args.add(originalCodeFileName);
@@ -257,110 +263,5 @@ public class RuntimeUtils {
         rd.close();
         return result.toString();
     }
-
-    public static class Actions {
-        private List<Action> actions = new LinkedList<>();
-
-        @Data
-        @Builder(toBuilder=true)
-        public static class Action {
-            private String actionName;
-            private int numRetries = 1;
-            private Supplier<ActionResult> supplier;
-            private long sleepBetweenInvocationsMs = 500;
-            private Boolean continueOn;
-            private Runnable onFail;
-            private Runnable onSuccess;
-
-            public void verifyAction() {
-                if (isBlank(actionName)) {
-                    throw new RuntimeException("Action name is empty!");
-                }
-                if (supplier == null) {
-                    throw new RuntimeException("Supplier is not specified!");
-                }
-            }
-        }
-
-        @Data
-        @Builder
-        public static class ActionResult {
-            private boolean success;
-            private String errorMsg;
-        }
-
-        private Actions() {
-
-        }
-
-
-        public Actions addAction(Action action) {
-            action.verifyAction();
-            this.actions.add(action);
-            return this;
-        }
-
-        public static Actions newBuilder() {
-            return new Actions();
-        }
-
-        public int numActions() {
-            return actions.size();
-        }
-
-        public void run() throws InterruptedException {
-            Iterator<Action> it = this.actions.iterator();
-            while(it.hasNext()) {
-                Action action  = it.next();
-
-                boolean success;
-                try {
-                    success = runAction(action);
-                } catch (Exception e) {
-                    log.error("Uncaught exception thrown when running action [ {} ]:", action.getActionName(), e);
-                    success = false;
-                }
-                if (action.getContinueOn() != null
-                        && success == action.getContinueOn()) {
-                    continue;
-                } else {
-                    // terminate
-                    break;
-                }
-            }
-        }
-
-        private boolean runAction(Action action) throws InterruptedException {
-            for (int i = 0; i< action.getNumRetries(); i++) {
-
-                ActionResult actionResult = action.getSupplier().get();
-
-                if (actionResult.isSuccess()) {
-                    log.info("Sucessfully completed action [ {} ]", action.getActionName());
-                    if (action.getOnSuccess() != null) {
-                        action.getOnSuccess().run();
-                    }
-                    return true;
-                } else {
-                    if (actionResult.getErrorMsg() != null) {
-                        log.warn("Error completing action [ {} ] :- {} - [ATTEMPT] {}/{}",
-                                action.getActionName(),
-                                actionResult.getErrorMsg(),
-                                i + 1, action.getNumRetries());
-                    } else {
-                        log.warn("Error completing action [ {} ] [ATTEMPT] {}/{}",
-                                action.getActionName(),
-                                i + 1, action.getNumRetries());
-                    }
-
-                    Thread.sleep(action.sleepBetweenInvocationsMs);
-                }
-            }
-            log.error("Failed completing action [ {} ]. Giving up!", action.getActionName());
-            if (action.getOnFail() != null) {
-                action.getOnFail().run();
-            }
-            return false;
-        }
-    }
+  
 }

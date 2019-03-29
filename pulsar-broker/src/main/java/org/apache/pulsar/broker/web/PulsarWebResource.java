@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -151,12 +150,12 @@ public abstract class PulsarWebResource {
             // Request has come from a proxy
             if (StringUtils.isBlank(originalPrincipal)) {
                 log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");               
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");
             }
             if (proxyRoles.contains(originalPrincipal)) {
                 log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");           
-            } 
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
+            }
         }
     }
 
@@ -167,7 +166,10 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     protected void validateSuperUserAccess() {
-        if (config().isAuthenticationEnabled()) {
+        // TODO: isSaslAuthentication used to bypass web resource check.
+        //  will remove it after implementation the support.
+        //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+        if (config().isAuthenticationEnabled() && !config().isSaslAuthentication()) {
             String appId = clientAppId();
             if(log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
@@ -243,7 +245,7 @@ public abstract class PulsarWebResource {
             throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
         }
 
-        if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
+        if (pulsar.getConfiguration().isAuthenticationEnabled() && !pulsar.getConfiguration().isSaslAuthentication() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId)) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
@@ -609,9 +611,10 @@ public abstract class PulsarWebResource {
      * @throws Exception
      */
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
+        int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
         try {
             ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
-                    .get(cacheTimeOutInSec, SECONDS);
+                    .get(timeout, SECONDS);
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
             if (peerClusterData != null) {
@@ -624,7 +627,7 @@ public abstract class PulsarWebResource {
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while validating policy on {} ", cacheTimeOutInSec, namespace);
+            log.warn("Time-out {} sec while validating policy on {} ", timeout, namespace);
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         } catch (WebApplicationException e) {

@@ -67,39 +67,27 @@ Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
 }
 
 void Consumer_acknowledge(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msgId);
-    Py_END_ALLOW_THREADS
+    consumer.acknowledgeAsync(msgId, nullptr);
+}
 
-    CHECK_RESULT(res);
+void Consumer_negative_acknowledge(Consumer& consumer, const Message& msg) {
+    consumer.negativeAcknowledge(msg);
+}
+
+void Consumer_negative_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
+     consumer.negativeAcknowledge(msgId);
 }
 
 void Consumer_acknowledge_cumulative(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msgId, nullptr);
 }
 
 void Consumer_close(Consumer& consumer) {
@@ -142,6 +130,8 @@ void export_consumer() {
             .def("acknowledge", &Consumer_acknowledge_message_id)
             .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative)
             .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative_message_id)
+            .def("negative_acknowledge", &Consumer_negative_acknowledge)
+            .def("negative_acknowledge", &Consumer_negative_acknowledge_message_id)
             .def("close", &Consumer_close)
             .def("pause_message_listener", &Consumer_pauseMessageListener)
             .def("resume_message_listener", &Consumer_resumeMessageListener)

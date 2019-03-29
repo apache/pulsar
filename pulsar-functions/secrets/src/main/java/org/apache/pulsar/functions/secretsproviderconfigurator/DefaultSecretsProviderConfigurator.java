@@ -43,7 +43,7 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
             case GO:
                 return "secretsprovider.ClearTextSecretsProvider go";
             default:
-                throw new RuntimeException("Unknwon runtime " + functionDetails.getRuntime());
+                throw new RuntimeException("Unknown runtime " + functionDetails.getRuntime());
         }
     }
 

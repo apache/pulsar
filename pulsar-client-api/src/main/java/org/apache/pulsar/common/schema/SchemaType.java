@@ -74,6 +74,24 @@ public enum SchemaType {
     BYTES,
 
     /**
+     * Date
+     * @since 2.4.0
+     */
+    DATE,
+
+    /**
+     * Time
+     * @since 2.4.0
+     */
+    TIME,
+
+    /**
+     * Timestamp
+     * @since 2.4.0
+     */
+    TIMESTAMP,
+
+    /**
      * JSON object encoding and validation
      */
     JSON,

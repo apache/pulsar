@@ -43,12 +43,14 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "Username used to connect to the database specified by `jdbcUrl`"
     )
     private String userName;
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "Password used to connect to the database specified by `jdbcUrl`"
     )
     private String password;

@@ -25,7 +25,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.pulsar.functions.api.utils.JavaSerDe;
 import org.testng.annotations.Test;
 
 /**

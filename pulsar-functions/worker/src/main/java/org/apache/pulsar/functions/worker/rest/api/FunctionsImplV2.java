@@ -55,7 +55,7 @@ public class FunctionsImplV2 {
             throws IOException {
 
         // run just for parameter checks
-        delegate.getFunctionInfo(tenant, namespace, functionName);
+        delegate.getFunctionInfo(tenant, namespace, functionName, null, null);
 
         FunctionMetaDataManager functionMetaDataManager = delegate.worker().getFunctionMetaDataManager();
 
@@ -69,7 +69,7 @@ public class FunctionsImplV2 {
                                               final String instanceId, URI uri) throws IOException {
 
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
-                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri);
+                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, null, null);
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(toProto(functionInstanceStatus, instanceId));
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
@@ -77,7 +77,7 @@ public class FunctionsImplV2 {
 
     public Response getFunctionStatusV2(String tenant, String namespace, String functionName, URI requestUri) throws
             IOException {
-        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri);
+        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri, null, null);
         InstanceCommunication.FunctionStatusList.Builder functionStatusList = InstanceCommunication.FunctionStatusList.newBuilder();
         functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
                 toProto(functionInstanceStatus.getStatus(),
@@ -90,7 +90,7 @@ public class FunctionsImplV2 {
             uploadedInputStream, FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                              functionDetailsJson, String functionConfigJson, String clientAppId) {
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId);
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId, null);
         return Response.ok().build();
     }
 
@@ -98,29 +98,29 @@ public class FunctionsImplV2 {
                                    FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                            functionDetailsJson, String functionConfigJson, String clientAppId) {
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId);
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId, null);
         return Response.ok().build();
     }
 
     public Response deregisterFunction(String tenant, String namespace, String functionName, String clientAppId) {
-        delegate.deregisterFunction(tenant, namespace, functionName, clientAppId);
+        delegate.deregisterFunction(tenant, namespace, functionName, clientAppId, null);
         return Response.ok().build();
     }
 
     public Response listFunctions(String tenant, String namespace) {
-        Collection<String> functionStateList = delegate.listFunctions( tenant, namespace);
+        Collection<String> functionStateList = delegate.listFunctions( tenant, namespace, null, null);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
     public Response triggerFunction(String tenant, String namespace, String functionName, String triggerValue,
                                     InputStream triggerStream, String topic) {
-        String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic);
+        String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, null, null);
         return Response.status(Response.Status.OK).entity(result).build();
     }
 
     public Response getFunctionState(String tenant, String namespace, String functionName, String key) {
         FunctionState functionState = delegate.getFunctionState(
-                tenant, namespace, functionName, key);
+                tenant, namespace, functionName, key, null, null);
 
         String value;
         if (functionState.getNumberValue() != null) {
@@ -135,23 +135,23 @@ public class FunctionsImplV2 {
 
     public Response restartFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
             uri) {
-        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri);
+        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, null, null);
         return Response.ok().build();
     }
 
     public Response restartFunctionInstances(String tenant, String namespace, String functionName) {
-        delegate.restartFunctionInstances(tenant, namespace, functionName);
+        delegate.restartFunctionInstances(tenant, namespace, functionName, null, null);
         return Response.ok().build();
     }
 
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
             uri) {
-        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri);
+        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, null ,null);
         return Response.ok().build();
     }
 
     public Response stopFunctionInstances(String tenant, String namespace, String functionName) {
-        delegate.stopFunctionInstances(tenant, namespace, functionName);
+        delegate.stopFunctionInstances(tenant, namespace, functionName, null, null);
         return Response.ok().build();
     }
 

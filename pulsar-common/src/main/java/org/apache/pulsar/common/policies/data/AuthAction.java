@@ -27,4 +27,7 @@ public enum AuthAction {
 
     /** Permission to consume messages */
     consume,
+
+    /** Permissions for functions ops **/
+    functions,
 }

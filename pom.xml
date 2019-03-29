@@ -105,6 +105,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-log4j2-appender</module>
     <module>pulsar-sql</module>
     <module>dashboard</module>
+    <module>pulsar-broker-auth-sasl</module>
+    <module>pulsar-client-auth-sasl</module>
 
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
@@ -177,9 +179,11 @@ flexible messaging model and an intuitive client API.</description>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
+    <joda.version>2.10.1</joda.version>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -195,6 +199,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.10.5</testcontainers.version>
+    <kerby.version>1.1.1</kerby.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -978,6 +983,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1127,7 +1137,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0.rc1</version>
+        <version>3.0</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1430,7 +1440,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.7.7.201606060606</version>
+            <version>0.8.3</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>
