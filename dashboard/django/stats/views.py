@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import logging
 from django.shortcuts import render, get_object_or_404
 from django.template import loader
 from django.urls import reverse
@@ -27,7 +27,7 @@ from django.http import HttpResponseRedirect, HttpResponse
 from .models import *
 
 from stats.templatetags.table import Table
-
+logger = logging.getLogger(__name__)
 def get_timestamp():
     try:
         return LatestTimestamp.objects.get(name='latest').timestamp
@@ -56,7 +56,7 @@ def home(request):
             throughputOut = Sum('namespace__topic__msgThroughputOut'),
         )
 
-    print(properties.query)
+    logger.info(properties.query)
 
     properties = Table(request, properties, default_sort='name')
 

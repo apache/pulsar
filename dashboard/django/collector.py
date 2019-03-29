@@ -19,6 +19,7 @@
 #
 
 
+import logging
 import os
 import django
 import requests
@@ -33,13 +34,15 @@ import time
 import argparse
 
 current_milli_time = lambda: int(round(time.time() * 1000))
+logger = logging.getLogger(__name__)
 
 def get(base_url, path):
     if base_url.endswith('/'): path = path[1:]
     return requests.get(base_url + path,
-            headers=http_headers,
-            proxies=http_proxyes,
-        ).json()
+                        headers=http_headers,
+                        proxies=http_proxyes,
+                        ).json()
+
 
 def parse_date(d):
     if d:
@@ -50,7 +53,9 @@ def parse_date(d):
         else:
             # Assume UTC if no timezone
             return pytz.timezone('UTC').localize(parse_datetime(d))
-    else: return None
+    else:
+        return None
+
 
 # Fetch the stats for a given broker
 def fetch_broker_stats(cluster, broker_url, timestamp):
@@ -63,19 +68,19 @@ def fetch_broker_stats(cluster, broker_url, timestamp):
 
 def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     broker_url = 'http://%s/' % broker_host_port
-    print('    Getting stats for %s' % broker_host_port)
+    logger.info('    Getting stats for %s' % broker_host_port)
 
     broker, _ = Broker.objects.get_or_create(
-                        url     = broker_host_port,
-                        cluster = cluster
-                )
+        url=broker_host_port,
+        cluster=cluster
+    )
     active_broker = ActiveBroker(broker=broker, timestamp=timestamp)
     active_broker.save()
 
     # Get topics stats
     topics_stats = get(broker_url, '/admin/broker-stats/destinations')
 
-    clusters = dict( (cluster.name, cluster) for cluster in Cluster.objects.all() )
+    clusters = dict((cluster.name, cluster) for cluster in Cluster.objects.all())
 
     db_create_bundles = []
     db_update_bundles = []
@@ -92,17 +97,17 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
         property, _ = Property.objects.get_or_create(name=property_name)
 
         namespace, _ = Namespace.objects.get_or_create(
-                            name=namespace_name,
-                            property=property)
+            name=namespace_name,
+            property=property)
         namespace.clusters.add(cluster)
         namespace.save()
 
         for bundle_range, topics_stats in bundles_stats.items():
 
             bundle = Bundle.objects.filter(
-                    cluster_id=cluster.id,
-                    namespace_id=namespace.id,
-                    range=bundle_range)
+                cluster_id=cluster.id,
+                namespace_id=namespace.id,
+                range=bundle_range)
             if bundle:
                 temp_bundle = bundle.first()
                 temp_bundle.timestame = timestamp
@@ -110,13 +115,13 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                 bundle = temp_bundle
             else:
                 bundle = Bundle(
-                                broker    = broker,
-                                namespace = namespace,
-                                range     = bundle_range,
-                                cluster   = cluster,
-                                timestamp = timestamp)
+                    broker=broker,
+                    namespace=namespace,
+                    range=bundle_range,
+                    cluster=cluster,
+                    timestamp=timestamp)
                 db_create_bundles.append(bundle)
-                
+
             for topic_name, stats in topics_stats['persistent'].items():
                 topic = Topic.objects.filter(
                     cluster_id=cluster.id,
@@ -126,34 +131,34 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                     name=topic_name)
                 if topic:
                     temp_topic = topic.first()
-                    temp_topic.timestamp              = timestamp
-                    temp_topic.averageMsgSize         = stats['averageMsgSize']
-                    temp_topic.msgRateIn              = stats['msgRateIn']
-                    temp_topic.msgRateOut             = stats['msgRateOut']
-                    temp_topic.msgThroughputIn        = stats['msgThroughputIn']
-                    temp_topic.msgThroughputOut       = stats['msgThroughputOut']
+                    temp_topic.timestamp = timestamp
+                    temp_topic.averageMsgSize = stats['averageMsgSize']
+                    temp_topic.msgRateIn = stats['msgRateIn']
+                    temp_topic.msgRateOut = stats['msgRateOut']
+                    temp_topic.msgThroughputIn = stats['msgThroughputIn']
+                    temp_topic.msgThroughputOut = stats['msgThroughputOut']
                     temp_topic.pendingAddEntriesCount = stats['pendingAddEntriesCount']
-                    temp_topic.producerCount          = stats['producerCount']
-                    temp_topic.storageSize            = stats['storageSize']
+                    temp_topic.producerCount = stats['producerCount']
+                    temp_topic.storageSize = stats['storageSize']
                     db_update_topics.append(temp_topic)
                     topic = temp_topic
                 else:
                     topic = Topic(
-                        broker                 = broker,
-                        active_broker          = active_broker,
-                        name                   = topic_name,
-                        namespace              = namespace,
-                        bundle                 = bundle,
-                        cluster                = cluster,
-                        timestamp              = timestamp,
-                        averageMsgSize         = stats['averageMsgSize'],
-                        msgRateIn              = stats['msgRateIn'],
-                        msgRateOut             = stats['msgRateOut'],
-                        msgThroughputIn        = stats['msgThroughputIn'],
-                        msgThroughputOut       = stats['msgThroughputOut'],
-                        pendingAddEntriesCount = stats['pendingAddEntriesCount'],
-                        producerCount          = stats['producerCount'],
-                        storageSize            = stats['storageSize']
+                        broker=broker,
+                        active_broker=active_broker,
+                        name=topic_name,
+                        namespace=namespace,
+                        bundle=bundle,
+                        cluster=cluster,
+                        timestamp=timestamp,
+                        averageMsgSize=stats['averageMsgSize'],
+                        msgRateIn=stats['msgRateIn'],
+                        msgRateOut=stats['msgRateOut'],
+                        msgThroughputIn=stats['msgThroughputIn'],
+                        msgThroughputOut=stats['msgThroughputOut'],
+                        pendingAddEntriesCount=stats['pendingAddEntriesCount'],
+                        producerCount=stats['producerCount'],
+                        storageSize=stats['storageSize']
                     )
                     db_create_topics.append(topic)
                 totalBacklog = 0
@@ -163,34 +168,34 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                 for subscription_name, subStats in stats['subscriptions'].items():
                     numSubscriptions += 1
                     subscription = Subscription.objects.filter(
-                            topic_id=topic.id,
-                            namespace_id=namespace.id,
-                            name=subscription_name)
+                        topic_id=topic.id,
+                        namespace_id=namespace.id,
+                        name=subscription_name)
                     if subscription:
                         temp_subscription = subscription.first()
-                        temp_subscription.timestamp        = timestamp
-                        temp_subscription.msgBacklog       = subStats['msgBacklog']
-                        temp_subscription.msgRateExpired   = subStats['msgRateExpired']
-                        temp_subscription.msgRateOut       = subStats['msgRateOut']
+                        temp_subscription.timestamp = timestamp
+                        temp_subscription.msgBacklog = subStats['msgBacklog']
+                        temp_subscription.msgRateExpired = subStats['msgRateExpired']
+                        temp_subscription.msgRateOut = subStats['msgRateOut']
                         temp_subscription.msgRateRedeliver = subStats.get('msgRateRedeliver', 0)
                         temp_subscription.msgThroughputOut = subStats['msgThroughputOut']
                         temp_subscription.subscriptionType = subStats['type'][0]
-                        temp_subscription.unackedMessages  = subStats.get('unackedMessages', 0)
+                        temp_subscription.unackedMessages = subStats.get('unackedMessages', 0)
                         db_update_subscriptions.append(temp_subscription)
                         subscription = temp_subscription
                     else:
                         subscription = Subscription(
-                            topic            = topic,
-                            name             = subscription_name,
-                            namespace        = namespace,
-                            timestamp        = timestamp,
-                            msgBacklog       = subStats['msgBacklog'],
-                            msgRateExpired   = subStats['msgRateExpired'],
-                            msgRateOut       = subStats['msgRateOut'],
-                            msgRateRedeliver = subStats.get('msgRateRedeliver', 0),
-                            msgThroughputOut = subStats['msgThroughputOut'],
-                            subscriptionType = subStats['type'][0],
-                            unackedMessages  = subStats.get('unackedMessages', 0),
+                            topic=topic,
+                            name=subscription_name,
+                            namespace=namespace,
+                            timestamp=timestamp,
+                            msgBacklog=subStats['msgBacklog'],
+                            msgRateExpired=subStats['msgRateExpired'],
+                            msgRateOut=subStats['msgRateOut'],
+                            msgRateRedeliver=subStats.get('msgRateRedeliver', 0),
+                            msgThroughputOut=subStats['msgThroughputOut'],
+                            subscriptionType=subStats['type'][0],
+                            unackedMessages=subStats.get('unackedMessages', 0),
                         )
                         db_create_subscriptions.append(subscription)
 
@@ -203,30 +208,31 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                             consumerName=consStats.get('consumerName'))
                         if consumer:
                             temp_consumer = consumer.first()
-                            temp_consumer.timestamp        = timestamp
-                            temp_consumer.address          = consStats['address']
+                            temp_consumer.timestamp = timestamp
+                            temp_consumer.address = consStats['address']
                             temp_consumer.availablePermits = consStats.get('availablePermits', 0)
-                            temp_consumer.connectedSince   = parse_date(consStats.get('connectedSince'))
-                            temp_consumer.msgRateOut       = consStats.get('msgRateOut', 0)
+                            temp_consumer.connectedSince = parse_date(consStats.get('connectedSince'))
+                            temp_consumer.msgRateOut = consStats.get('msgRateOut', 0)
                             temp_consumer.msgRateRedeliver = consStats.get('msgRateRedeliver', 0)
                             temp_consumer.msgThroughputOut = consStats.get('msgThroughputOut', 0)
-                            temp_consumer.unackedMessages  = consStats.get('unackedMessages', 0)
-                            temp_consumer.blockedConsumerOnUnackedMsgs  = consStats.get('blockedConsumerOnUnackedMsgs', False)
+                            temp_consumer.unackedMessages = consStats.get('unackedMessages', 0)
+                            temp_consumer.blockedConsumerOnUnackedMsgs = consStats.get('blockedConsumerOnUnackedMsgs',
+                                                                                       False)
                             db_update_consumers.append(temp_consumer)
                             consumer = temp_consumer
                         else:
                             consumer = Consumer(
-                                subscription     = subscription,
-                                timestamp        = timestamp,
-                                address          = consStats['address'],
-                                availablePermits = consStats.get('availablePermits', 0),
-                                connectedSince   = parse_date(consStats.get('connectedSince')),
-                                consumerName     = consStats.get('consumerName'),
-                                msgRateOut       = consStats.get('msgRateOut', 0),
-                                msgRateRedeliver = consStats.get('msgRateRedeliver', 0),
-                                msgThroughputOut = consStats.get('msgThroughputOut', 0),
-                                unackedMessages  = consStats.get('unackedMessages', 0),
-                                blockedConsumerOnUnackedMsgs  = consStats.get('blockedConsumerOnUnackedMsgs', False)
+                                subscription=subscription,
+                                timestamp=timestamp,
+                                address=consStats['address'],
+                                availablePermits=consStats.get('availablePermits', 0),
+                                connectedSince=parse_date(consStats.get('connectedSince')),
+                                consumerName=consStats.get('consumerName'),
+                                msgRateOut=consStats.get('msgRateOut', 0),
+                                msgRateRedeliver=consStats.get('msgRateRedeliver', 0),
+                                msgThroughputOut=consStats.get('msgThroughputOut', 0),
+                                unackedMessages=consStats.get('unackedMessages', 0),
+                                blockedConsumerOnUnackedMsgs=consStats.get('blockedConsumerOnUnackedMsgs', False)
                             )
                             db_create_consumers.append(consumer)
 
@@ -242,31 +248,31 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
 
                 for remote_cluster, replStats in stats['replication'].items():
                     replication = Replication(
-                        timestamp              = timestamp,
-                        topic                  = topic,
-                        local_cluster          = cluster,
-                        remote_cluster         = clusters[remote_cluster],
+                        timestamp=timestamp,
+                        topic=topic,
+                        local_cluster=cluster,
+                        remote_cluster=clusters[remote_cluster],
 
-                        msgRateIn              = replStats['msgRateIn'],
-                        msgRateOut             = replStats['msgRateOut'],
-                        msgThroughputIn        = replStats['msgThroughputIn'],
-                        msgThroughputOut       = replStats['msgThroughputOut'],
-                        replicationBacklog     = replStats['replicationBacklog'],
-                        connected              = replStats['connected'],
-                        replicationDelayInSeconds = replStats['replicationDelayInSeconds'],
-                        msgRateExpired         = replStats['msgRateExpired'],
+                        msgRateIn=replStats['msgRateIn'],
+                        msgRateOut=replStats['msgRateOut'],
+                        msgThroughputIn=replStats['msgThroughputIn'],
+                        msgThroughputOut=replStats['msgThroughputOut'],
+                        replicationBacklog=replStats['replicationBacklog'],
+                        connected=replStats['connected'],
+                        replicationDelayInSeconds=replStats['replicationDelayInSeconds'],
+                        msgRateExpired=replStats['msgRateExpired'],
 
-                        inboundConnectedSince  = parse_date(replStats.get('inboundConnectedSince')),
-                        outboundConnectedSince = parse_date(replStats.get('outboundConnectedSince')),
+                        inboundConnectedSince=parse_date(replStats.get('inboundConnectedSince')),
+                        outboundConnectedSince=parse_date(replStats.get('outboundConnectedSince')),
                     )
 
                     db_replication.append(replication)
 
-                    replicationMsgIn         += replication.msgRateIn
-                    replicationMsgOut        += replication.msgRateOut
-                    replicationThroughputIn  += replication.msgThroughputIn
+                    replicationMsgIn += replication.msgRateIn
+                    replicationMsgOut += replication.msgRateOut
+                    replicationThroughputIn += replication.msgThroughputIn
                     replicationThroughputOut += replication.msgThroughputOut
-                    replicationBacklog       += replication.replicationBacklog
+                    replicationBacklog += replication.replicationBacklog
 
                 topic.replicationRateIn = replicationMsgIn
                 topic.replicationRateOut = replicationMsgOut
@@ -317,6 +323,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
             replication.topic = replication.topic
             replication.save()
 
+
 def update_or_create_object(db_bundles, db_topics, db_consumers, db_subscriptions):
     # For DB providers we have to insert or update one by one
     # to be able to retrieve the PK of the newly inserted records
@@ -343,11 +350,11 @@ def fetch_stats():
 
     futures = []
 
-    for cluster_name in get(args.serviceUrl, '/admin/clusters'):
+    for cluster_name in get(args.serviceUrl, '/admin/v2/clusters'):
         if cluster_name == 'global': continue
 
-        cluster_url = get(args.serviceUrl, '/admin/clusters/' + cluster_name)['serviceUrl']
-        print('Cluster:', cluster_name,  '->', cluster_url)
+        cluster_url = get(args.serviceUrl, '/admin/v2/clusters/' + cluster_name)['serviceUrl']
+        logger.info('Cluster:', cluster_name, '->', cluster_url)
         cluster, created = Cluster.objects.get_or_create(name=cluster_name)
         if cluster_url != cluster.serviceUrl:
             cluster.serviceUrl = cluster_url
@@ -356,11 +363,11 @@ def fetch_stats():
     # Get the list of brokers for each cluster
     for cluster in Cluster.objects.all():
         try:
-            for broker_host_port in get(cluster.serviceUrl, '/admin/brokers/' + cluster.name):
+            for broker_host_port in get(cluster.serviceUrl, '/admin/v2/brokers/' + cluster.name):
                 f = pool.apply_async(fetch_broker_stats, (cluster, broker_host_port, timestamp))
                 futures.append(f)
         except Exception as e:
-            print('ERROR: ', e)
+            logger.error('ERROR: ', e)
 
     pool.close()
 
@@ -374,21 +381,24 @@ def fetch_stats():
     latest.timestamp = timestamp
     latest.save()
 
+
 def purge_db():
     now = current_milli_time()
     ttl_minutes = args.purge
     threshold = now - (ttl_minutes * 60 * 1000)
 
-    Bundle.objects.filter(timestamp__lt = threshold).delete()
-    Topic.objects.filter(timestamp__lt = threshold).delete()
-    Subscription.objects.filter(timestamp__lt = threshold).delete()
-    Consumer.objects.filter(timestamp__lt = threshold).delete()
+    Bundle.objects.filter(timestamp__lt=threshold).delete()
+    Topic.objects.filter(timestamp__lt=threshold).delete()
+    Subscription.objects.filter(timestamp__lt=threshold).delete()
+    Consumer.objects.filter(timestamp__lt=threshold).delete()
+
 
 def collect_and_purge():
-    print('-- Starting stats collection')
+    logger.info('Starting stats collection')
     fetch_stats()
     purge_db()
-    print('-- Finished collecting stats')
+    logger.info('Finished collecting stats')
+
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dashboard.settings")
@@ -400,22 +410,27 @@ if __name__ == "__main__":
     parser.add_argument(action="store", dest="serviceUrl", help='Service URL of one cluster in the Pulsar instance')
 
     parser.add_argument('--proxy', action='store',
-                            help="Connect using a HTTP proxy", dest="proxy")
+                        help="Connect using a HTTP proxy", dest="proxy")
     parser.add_argument('--header', action="append", dest="header",
-                            help='Add an additional HTTP header to all requests')
+                        help='Add an additional HTTP header to all requests')
     parser.add_argument('--purge', action="store", dest="purge", type=int, default=60,
-                            help='Purge statistics older than PURGE minutes. (default: 60min)')
+                        help='Purge statistics older than PURGE minutes. (default: 60min)')
 
     parser.add_argument('--workers', action="store", dest="workers", type=int, default=64,
-                            help='Number of worker processes to be used to fetch the stats (default: 64)')
+                        help='Number of worker processes to be used to fetch the stats (default: 64)')
 
     global args
     args = parser.parse_args(sys.argv[1:])
 
     global http_headers
     http_headers = {}
+    jwt_token = os.getenv("JWT_TOKEN", None)
+    if jwt_token is not None:
+        http_headers = {
+            "Authorization": "Bearer {}".format(jwt_token)}
     if args.header:
         http_headers = dict(x.split(': ') for x in args.header)
+        logger.info(http_headers)
 
     global http_proxyes
     http_proxyes = {}
@@ -427,4 +442,4 @@ if __name__ == "__main__":
     while True:
         p = multiprocessing.Process(target=collect_and_purge)
         p.start()
-        time.sleep(60)
+        time.sleep(int(os.getenv("COLLECTION_INTERVAL", 60)))
