@@ -361,7 +361,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink Jar")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink Package")
     public void testRegisterSinkHttpUrl() {
         try {
             testRegisterSinkMissingArguments(

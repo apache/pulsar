@@ -325,7 +325,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Jar")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Package")
     public void testRegisterSourceHttpUrl() {
         try {
             testRegisterSourceMissingArguments(

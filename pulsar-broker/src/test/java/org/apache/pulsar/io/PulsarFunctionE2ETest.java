@@ -599,6 +599,14 @@ public class PulsarFunctionE2ETest {
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, functionName, sinkTopic);
         admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
 
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 10, 150);
+
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
