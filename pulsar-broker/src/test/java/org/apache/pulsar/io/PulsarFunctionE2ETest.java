@@ -385,8 +385,7 @@ public class PulsarFunctionE2ETest {
 
     }
 
-    @Test(timeOut = 20000)
-    public void testPulsarSinkStats() throws Exception {
+    public void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -401,7 +400,6 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, functionName, sourceTopic, subscriptionName);
         admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
@@ -413,7 +411,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -583,6 +581,18 @@ public class PulsarFunctionE2ETest {
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPulsarSinkStatsWithFile() throws Exception {
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        testPulsarSinkStats(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 40000)
+    public void testPulsarSinkStatsWithUrl() throws Exception {
+        String jarFilePathUrl = "https://dist.apache.org/repos/dist/release/pulsar/pulsar-2.3.0/connectors/pulsar-io-data-generator-2.3.0.nar";
+        testPulsarSinkStats(jarFilePathUrl);
     }
 
     @Test(timeOut = 20000)
