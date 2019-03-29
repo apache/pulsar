@@ -172,6 +172,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // validate the sink result
         tester.validateSinkResult(kvs);
 
+        // update the sink
+        updateSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
+
         // delete the sink
         deleteSink(tenant, namespace, sinkName);
 
@@ -218,6 +221,45 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
+    }
+
+    protected void updateSinkConnector(SinkTester tester,
+                                       String tenant,
+                                       String namespace,
+                                       String sinkName,
+                                       String inputTopicName) throws Exception {
+        String[] commands;
+        if (tester.getSinkType() != SinkTester.SinkType.UNDEFINED) {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "update",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName,
+                    "--parallelism", "2"
+            };
+        } else {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--archive", tester.getSinkArchive(),
+                    "--classname", tester.getSinkClassName(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName,
+                    "--parallelism", "2"
+            };
+        }
+        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(
+                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout());
     }
 
     protected void getSinkInfoSuccess(SinkTester tester,
@@ -422,6 +464,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // validate the source result
         validateSourceResult(consumer, kvs);
 
+        // update the source connector
+        updateSourceConnector(tester, tenant, namespace, sourceName, outputTopicName);
+
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
@@ -453,6 +498,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
+    }
+
+    protected void updateSourceConnector(SourceTester tester,
+                                         String tenant,
+                                         String namespace,
+                                         String sourceName,
+                                         String outputTopicName) throws Exception {
+        String[] commands = {
+                PulsarCluster.ADMIN_SCRIPT,
+                "source", "update",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", sourceName,
+                "--source-type", tester.sourceType(),
+                "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
+                "--destinationTopicName", outputTopicName,
+                "--parallelism", "2"
+        };
+        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(
+                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout());
     }
 
     protected void getSourceInfoSuccess(SourceTester tester,
