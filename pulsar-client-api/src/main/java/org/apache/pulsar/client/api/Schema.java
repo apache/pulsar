@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -157,6 +160,21 @@ public interface Schema<T> {
      * Double Schema
      */
     Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
+
+    /**
+     * Date Schema
+     */
+    Schema<Date> DATE = DefaultImplementation.newDateSchema();
+
+    /**
+     * Time Schema
+     */
+    Schema<Time> TIME = DefaultImplementation.newTimeSchema();
+
+    /**
+     * Timestamp Schema
+     */
+    Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
 
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
