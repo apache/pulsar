@@ -102,7 +102,15 @@ public class CmdSinks extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
