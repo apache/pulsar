@@ -84,16 +84,17 @@ public class AsyncHttpConnector implements Connector {
             // Set client key and certificate if available
             AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
             if (authData.hasDataForTls()) {
-                sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                sslCtx = SecurityUtility.createNettySslContextForClient(
+                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
                         conf.getTlsTrustCertsFilePath(),
                         authData.getTlsCertificates(), authData.getTlsPrivateKey());
             } else {
-                sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                sslCtx = SecurityUtility.createNettySslContextForClient(
+                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
                         conf.getTlsTrustCertsFilePath());
             }
 
             confBuilder.setSslContext(sslCtx);
-            confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
     }
