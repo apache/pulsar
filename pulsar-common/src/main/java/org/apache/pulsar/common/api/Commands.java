@@ -45,6 +45,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -80,6 +82,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -150,6 +153,41 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
+                                     String targetBroker, String originalPrincipal, String originalAuthData,
+                                     String originalAuthMethod) {
+        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
+        connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
+        connectBuilder.setAuthMethodName(authMethodName);
+
+        if (targetBroker != null) {
+            // When connecting through a proxy, we need to specify which broker do we want to be proxied through
+            connectBuilder.setProxyToBrokerUrl(targetBroker);
+        }
+
+        if (authData != null) {
+            connectBuilder.setAuthData(ByteString.copyFrom(authData.getBytes()));
+        }
+
+        if (originalPrincipal != null) {
+            connectBuilder.setOriginalPrincipal(originalPrincipal);
+        }
+
+        if (originalAuthData != null) {
+            connectBuilder.setOriginalAuthData(originalAuthData);
+        }
+
+        if (originalAuthMethod != null) {
+            connectBuilder.setOriginalAuthMethod(originalAuthMethod);
+        }
+        connectBuilder.setProtocolVersion(protocolVersion);
+        CommandConnect connect = connectBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
+        connect.recycle();
+        connectBuilder.recycle();
+        return res;
+    }
+
     public static ByteBuf newConnected(int clientProtocolVersion) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
@@ -165,6 +203,51 @@ public class Commands {
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECTED).setConnected(connected));
         connected.recycle();
         connectedBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
+        CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
+
+        // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
+        // client supports, to avoid confusing the client.
+        int currentProtocolVersion = getCurrentProtocolVersion();
+        int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
+
+        challengeBuilder.setProtocolVersion(versionToAdvertise);
+
+        CommandAuthChallenge challenge = challengeBuilder
+            .setChallenge(PulsarApi.AuthData.newBuilder()
+                .setAuthData(copyFrom(brokerData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .build())
+            .build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
+        challenge.recycle();
+        challengeBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAuthResponse(String authMethod,
+                                           AuthData clientData,
+                                           int clientProtocolVersion,
+                                           String clientVersion) {
+        CommandAuthResponse.Builder responseBuilder  = CommandAuthResponse.newBuilder();
+
+        responseBuilder.setClientVersion(clientVersion != null ? clientVersion : "Pulsar Client");
+        responseBuilder.setProtocolVersion(clientProtocolVersion);
+
+        CommandAuthResponse response = responseBuilder
+            .setResponse(PulsarApi.AuthData.newBuilder()
+                .setAuthData(copyFrom(clientData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .build())
+            .build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_RESPONSE).setAuthResponse(response));
+        response.recycle();
+        responseBuilder.recycle();
         return res;
     }
 
@@ -466,39 +549,21 @@ public class Commands {
     }
 
     private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
-        switch (type) {
-            case NONE:
-                return PulsarApi.Schema.Type.None;
-            case STRING:
-                return PulsarApi.Schema.Type.String;
-            case JSON:
-                return PulsarApi.Schema.Type.Json;
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
-            default:
-                return PulsarApi.Schema.Type.None;
+        if (type.getValue() < 0) {
+            return Schema.Type.None;
+        } else {
+            return Schema.Type.valueOf(type.getValue());
         }
     }
 
     public static SchemaType getSchemaType(PulsarApi.Schema.Type type) {
-        switch (type) {
-            case None:
-                return SchemaType.NONE;
-            case String:
-                return SchemaType.STRING;
-            case Json:
-                return SchemaType.JSON;
-            case Protobuf:
-                return SchemaType.PROTOBUF;
-            case Avro:
-                return SchemaType.AVRO;
-            default:
-                return SchemaType.NONE;
+        if (type.getNumber() < 0) {
+            // this is unexpected
+            return SchemaType.NONE;
+        } else {
+            return SchemaType.valueOf(type.getNumber());
         }
     }
-
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
         PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
@@ -1026,6 +1091,9 @@ public class Commands {
         messageMetadata.setSequenceId(builder.getSequenceId());
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
+        }
+        if (builder.hasSchemaVersion()) {
+            messageMetadata.setSchemaVersion(builder.getSchemaVersion());
         }
         return builder.getSequenceId();
     }

@@ -19,8 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import java.nio.ByteBuffer;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -157,6 +162,21 @@ public interface Schema<T> {
     Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
 
     /**
+     * Date Schema
+     */
+    Schema<Date> DATE = DefaultImplementation.newDateSchema();
+
+    /**
+     * Time Schema
+     */
+    Schema<Time> TIME = DefaultImplementation.newTimeSchema();
+
+    /**
+     * Timestamp Schema
+     */
+    Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
+
+    /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
      *
      * @param clazz the Protobuf generated class to be used to extract the schema
@@ -167,23 +187,43 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a Avro schema type by extracting the fields of the specified class.
+     * Create a  Avro schema type by default configuration of the class
      *
-     * @param clazz the POJO class to be used to extract the Avro schema
+     * @param pojo the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
-    static <T> Schema<T> AVRO(Class<T> clazz) {
-        return DefaultImplementation.newAvroSchema(clazz);
+    static <T> Schema<T> AVRO(Class<T> pojo) {
+        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+    }
+
+    /**
+     * Create a Avro schema type with schema definition
+     *
+     * @param schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> AVRO(SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newAvroSchema(schemaDefinition);
     }
 
     /**
      * Create a JSON schema type by extracting the fields of the specified class.
      *
-     * @param clazz the POJO class to be used to extract the JSON schema
+     * @param pojo the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
-    static <T> Schema<T> JSON(Class<T> clazz) {
-        return DefaultImplementation.newJSONSchema(clazz);
+    static <T> Schema<T> JSON(Class<T> pojo) {
+        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+    }
+
+    /**
+     * Create a JSON schema type with schema definition
+     *
+     * @param schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
+        return DefaultImplementation.newJSONSchema(schemaDefinition);
     }
 
     /**
@@ -196,7 +236,9 @@ public interface Schema<T> {
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    Schema<KeyValue<byte[], byte[]>> KV_BYTES = DefaultImplementation.newKeyValueSchema(BYTES, BYTES);
+    static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {
+        return DefaultImplementation.newKeyValueBytesSchema();
+    }
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.

@@ -32,11 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
@@ -215,9 +212,11 @@ public class AuthorizationService {
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
         try {
-            return canProduceAsync(topicName, role, authenticationData).get(cacheTimeOutInSec, SECONDS);
+            return canProduceAsync(topicName, role, authenticationData).get(conf.getZooKeeperOperationTimeoutSeconds(),
+                    SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -229,13 +228,15 @@ public class AuthorizationService {
     public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
             String subscription) throws Exception {
         try {
-            return canConsumeAsync(topicName, role, authenticationData, subscription).get(cacheTimeOutInSec, SECONDS);
+            return canConsumeAsync(topicName, role, authenticationData, subscription)
+                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role,
-                    topicName, e.getMessage());
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
             throw e;
         }
     }
@@ -304,4 +305,8 @@ public class AuthorizationService {
         return finalResult;
     }
 
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                       AuthenticationDataSource authenticationData) {
+        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+    }
 }

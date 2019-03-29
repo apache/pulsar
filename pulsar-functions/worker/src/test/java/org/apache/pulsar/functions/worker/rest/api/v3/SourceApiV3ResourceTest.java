@@ -325,7 +325,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Jar")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Package")
     public void testRegisterSourceHttpUrl() {
         try {
             testRegisterSourceMissingArguments(
@@ -389,7 +389,7 @@ public class SourceApiV3ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -404,7 +404,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already exists")
@@ -498,7 +498,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
@@ -825,7 +825,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -862,7 +862,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
@@ -960,7 +960,7 @@ public class SourceApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -1067,7 +1067,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
 
     }
 
@@ -1076,7 +1076,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
                 source,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp= "Source test-source doesn't exist")
@@ -1191,7 +1191,7 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            source
+            source, null, null
         );
     }
 
@@ -1281,14 +1281,14 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace, null, null);
     }
 
     @Test

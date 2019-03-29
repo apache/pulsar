@@ -40,11 +40,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -68,7 +66,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -399,11 +396,16 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
-    	validateAdminAccessForTenant(topicName.getTenant());
-    	
+        validateAdminAccessForTenant(topicName.getTenant());
+
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+
+        validateTopicOwnership(topicName, authoritative);
     	try {
-    		getOrCreateTopic(topicName);
-    		log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName);
+            Topic createdTopic = getOrCreateTopic(topicName);
+            log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
     	} catch (Exception e) {
     		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
     		throw new RestException(e);
@@ -705,7 +707,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return stats;
     }
-    
+
     protected void internalDeleteSubscription(String subName, boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -967,6 +969,8 @@ public class PersistentTopicsBase extends AdminResource {
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
                         .createSubscription(subscriptionName, InitialPosition.Latest).get();
+                // Mark the cursor as "inactive" as it was created without a real consumer connected
+                subscription.deactivateCursor();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), topicName,
                         subscriptionName, messageId);

@@ -450,6 +450,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         }
         messages_.push(msg);
         if (messageListener_) {
+            unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
         }
@@ -561,6 +562,15 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
 
 void MultiTopicsConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     callback(ResultOperationNotSupported);
+}
+
+void MultiTopicsConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
+    auto iterator = consumers_.find(msgId.getTopicName());
+
+    if (consumers_.end() != iterator) {
+        unAckedMessageTrackerPtr_->remove(msgId);
+        iterator->second->negativeAcknowledge(msgId);
+    }
 }
 
 MultiTopicsConsumerImpl::~MultiTopicsConsumerImpl() {}

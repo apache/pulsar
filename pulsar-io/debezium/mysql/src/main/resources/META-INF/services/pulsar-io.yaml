@@ -17,4 +17,6 @@
 # under the License.
 #
 
-pulsar-client-version=${project.version}
+name: debezium-mysql
+description: Debezium MySql Source
+sourceClass: org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource

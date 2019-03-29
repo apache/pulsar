@@ -56,7 +56,6 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -208,18 +207,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     ContextImpl setupContext() {
-        List<String> inputTopics = null;
-        if (source instanceof PulsarSource) {
-            inputTopics = ((PulsarSource<?>) source).getInputTopics();
-        }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
+        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats);
     }
 
     /**
-     * The core logic that initialize the instance thread and executes the function
+     * The core logic that initialize the instance thread and executes the function.
      */
     @Override
     public void run() {
@@ -461,32 +456,39 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return record;
     }
 
+    /**
+     * NOTE: this method is be syncrhonized because it is potentially called by two different places
+     *       one inside the run/finally clause and one inside the ThreadRuntime::stop
+     */
     @Override
-    public void close() {
+    synchronized public void close() {
 
         if (stats != null) {
             stats.close();
+            stats = null;
         }
 
         if (source != null) {
             try {
                 source.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
-
             }
+            source = null;
         }
 
         if (sink != null) {
             try {
                 sink.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
             }
+            sink = null;
         }
 
         if (null != javaInstance) {
             javaInstance.close();
+            javaInstance = null;
         }
 
         // kill the state table
@@ -500,13 +502,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.warn("Failed to close state storage client", cause);
                     return null;
                 });
+            storageClient = null;
         }
 
-        // once the thread quits, clean up the instance
-        fnCache.unregisterFunctionInstance(
-                instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceName());
-        log.info("Unloading JAR files for function {}", instanceConfig);
+        if (instanceCache != null) {
+            // once the thread quits, clean up the instance
+            fnCache.unregisterFunctionInstance(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceName());
+            log.info("Unloading JAR files for function {}", instanceConfig);
+            instanceCache = null;
+        }
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
@@ -533,43 +539,46 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
+        if (stats != null) {
+            bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
+            bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
+            bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
+            bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
+            bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
+            bldr.setLastInvocation((long) stats.getLastInvocation());
 
-        bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
-        bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
-        bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
-        bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
-        bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
-        bldr.setLastInvocation((long) stats.getLastInvocation());
-
-        bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
-        bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
-        bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
-        bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
-        bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+            bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
+            bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
+            bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
+            bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
+            bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+        }
 
         return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumReceived((long)stats.getTotalRecordsReceived());
-        functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
-        functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
-        stats.getLatestUserExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestUserExceptions(ex);
-        });
-        functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
-        stats.getLatestSystemExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSystemExceptions(ex);
-        });
-        stats.getLatestSourceExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSourceExceptions(ex);
-        });
-        stats.getLatestSinkExceptions().forEach(ex -> {
-            functionStatusBuilder.addLatestSinkExceptions(ex);
-        });
-        functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
-        functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
+        if (stats != null) {
+            functionStatusBuilder.setNumReceived((long) stats.getTotalRecordsReceived());
+            functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
+            functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
+            stats.getLatestUserExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestUserExceptions(ex);
+            });
+            functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
+            stats.getLatestSystemExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSystemExceptions(ex);
+            });
+            stats.getLatestSourceExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSourceExceptions(ex);
+            });
+            stats.getLatestSinkExceptions().forEach(ex -> {
+                functionStatusBuilder.addLatestSinkExceptions(ex);
+            });
+            functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
+            functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
+        }
         return functionStatusBuilder;
     }
 

@@ -452,7 +452,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     /**
-     * Get stats of a function instance.  If this worker is not running the function instance,
+     * Get stats of a function instance.  If this worker is not running the function instance.
      * @param tenant the tenant the function belongs to
      * @param namespace the namespace the function belongs to
      * @param functionName the function name

@@ -236,7 +236,8 @@ public class Utils {
     }
 
     /**
-     * Load a jar
+     * Load a jar.
+     *
      * @param jar file of jar
      * @return classloader
      * @throws MalformedURLException

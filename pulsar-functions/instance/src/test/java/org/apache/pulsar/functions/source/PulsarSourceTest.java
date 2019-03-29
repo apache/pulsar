@@ -47,7 +47,6 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
 
@@ -74,9 +73,8 @@ public class PulsarSourceTest {
     }
 
     /**
-     * Verify that JavaInstance does not support functions that take Void type as input
+     * Verify that JavaInstance does not support functions that take Void type as input.
      */
-
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
@@ -173,22 +171,6 @@ public class PulsarSourceTest {
     @Test
     public void testDefaultSerDe() throws Exception {
 
-        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
-        // set type to void
-        pulsarConfig.setTypeClassName(String.class.getName());
-        consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
-                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
-        pulsarConfig.setTopicSchema(consumerConfigs);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
-
-        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
-    }
-
-    /**
-     * Verify that Explicit setting of Default Serializer works fine.
-     */
-    @Test
-    public void testExplicitDefaultSerDe() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());

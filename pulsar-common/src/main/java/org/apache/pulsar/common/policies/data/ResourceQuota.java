@@ -205,6 +205,12 @@ public class ResourceQuota {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(msgRateIn, msgRateOut, bandwidthIn,
+                bandwidthOut, memory, dynamic);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof ResourceQuota) {
             ResourceQuota other = (ResourceQuota) obj;

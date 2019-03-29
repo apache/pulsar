@@ -102,6 +102,14 @@ void pulsar_consumer_acknowledge_cumulative_async_id(pulsar_consumer_t *consumer
         messageId->messageId, std::bind(handle_result_callback, std::placeholders::_1, callback, ctx));
 }
 
+void pulsar_consumer_negative_acknowledge(pulsar_consumer_t *consumer, pulsar_message_t *message) {
+    consumer->consumer.negativeAcknowledge(message->message);
+}
+
+void pulsar_consumer_negative_acknowledge_id(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId) {
+    consumer->consumer.negativeAcknowledge(messageId->messageId);
+}
+
 pulsar_result pulsar_consumer_close(pulsar_consumer_t *consumer) {
     return (pulsar_result)consumer->consumer.close();
 }

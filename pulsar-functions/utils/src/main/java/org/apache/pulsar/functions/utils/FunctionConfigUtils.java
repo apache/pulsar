@@ -221,6 +221,10 @@ public class FunctionConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (!StringUtils.isEmpty(functionConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(functionConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -257,6 +261,7 @@ public class FunctionConfigUtils {
             functionConfig.setRetainOrdering(false);
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
+        functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
@@ -312,6 +317,10 @@ public class FunctionConfigUtils {
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
             functionConfig.setResources(resources);
+        }
+
+        if (!isEmpty(functionDetails.getRuntimeFlags())) {
+            functionConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
 
         return functionConfig;
@@ -656,7 +665,7 @@ public class FunctionConfigUtils {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Orderning cannot be altered");
@@ -693,6 +702,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getTimeoutMs() != null) {
             mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
+        }
+        if (newConfig.getCleanupSubscription() != null) {
+            mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
         return mergedConfig;
     }

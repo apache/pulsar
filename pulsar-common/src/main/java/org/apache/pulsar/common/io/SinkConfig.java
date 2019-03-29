@@ -69,4 +69,7 @@ public class SinkConfig {
     private String archive;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
+
+    // Any flags that you want to pass to the runtime.
+    private String runtimeFlags;
 }

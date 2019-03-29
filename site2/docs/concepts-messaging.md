@@ -40,7 +40,7 @@ Producers can send messages to brokers either synchronously (sync) or asynchrono
 
 ### Compression
 
-Messages published by producers can be compressed during transportation in order to save bandwidth. Pulsar currently supports two types of compression:
+Messages published by producers can be compressed during transportation in order to save bandwidth. Pulsar currently supports the following types of compression:
 
 * [LZ4](https://github.com/lz4/lz4)
 * [ZLIB](https://zlib.net/)

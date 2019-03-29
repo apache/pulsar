@@ -56,4 +56,6 @@ public class SourceConfig {
     private Resources resources;
 
     private String archive;
+    // Any flags that you want to pass to the runtime.
+    private String runtimeFlags;
 }

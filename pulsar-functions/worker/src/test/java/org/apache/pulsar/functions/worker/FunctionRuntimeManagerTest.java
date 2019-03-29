@@ -48,7 +48,14 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
@@ -663,7 +670,9 @@ public class FunctionRuntimeManagerTest {
     public void testExternallyManagedRuntimeUpdate() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setKubernetesContainerFactory(new WorkerConfig.KubernetesContainerFactory());
+        workerConfig.setKubernetesContainerFactory(
+                new WorkerConfig.KubernetesContainerFactory()
+                        .setSubmittingInsidePod(false));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setPulsarFunctionsCluster("cluster");
@@ -679,8 +688,8 @@ public class FunctionRuntimeManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
-
         KubernetesRuntimeFactory kubernetesRuntimeFactory = mock(KubernetesRuntimeFactory.class);
+        doNothing().when(kubernetesRuntimeFactory).setupClient();
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
         doReturn(mock(KubernetesRuntime.class)).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any());

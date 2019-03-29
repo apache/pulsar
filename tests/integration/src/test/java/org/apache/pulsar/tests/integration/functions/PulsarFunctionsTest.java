@@ -172,6 +172,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // validate the sink result
         tester.validateSinkResult(kvs);
 
+        // update the sink
+        updateSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
+
         // delete the sink
         deleteSink(tenant, namespace, sinkName);
 
@@ -218,6 +221,45 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
+    }
+
+    protected void updateSinkConnector(SinkTester tester,
+                                       String tenant,
+                                       String namespace,
+                                       String sinkName,
+                                       String inputTopicName) throws Exception {
+        String[] commands;
+        if (tester.getSinkType() != SinkTester.SinkType.UNDEFINED) {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "update",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName,
+                    "--parallelism", "2"
+            };
+        } else {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--archive", tester.getSinkArchive(),
+                    "--classname", tester.getSinkClassName(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName,
+                    "--parallelism", "2"
+            };
+        }
+        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(
+                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout());
     }
 
     protected void getSinkInfoSuccess(SinkTester tester,
@@ -422,6 +464,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // validate the source result
         validateSourceResult(consumer, kvs);
 
+        // update the source connector
+        updateSourceConnector(tester, tenant, namespace, sourceName, outputTopicName);
+
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
@@ -453,6 +498,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
+    }
+
+    protected void updateSourceConnector(SourceTester tester,
+                                         String tenant,
+                                         String namespace,
+                                         String sourceName,
+                                         String outputTopicName) throws Exception {
+        String[] commands = {
+                PulsarCluster.ADMIN_SCRIPT,
+                "source", "update",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", sourceName,
+                "--source-type", tester.sourceType(),
+                "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
+                "--destinationTopicName", outputTopicName,
+                "--parallelism", "2"
+        };
+        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(
+                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout());
     }
 
     protected void getSourceInfoSuccess(SourceTester tester,
@@ -743,7 +811,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         // get function status
-        getFunctionStatus(functionName, numMessages);
+        getFunctionStatus(functionName, numMessages, true);
 
         // get function stats
         getFunctionStats(functionName, numMessages);
@@ -964,7 +1032,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
+    private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -985,7 +1053,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        if (checkRestarts) {
+            assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        }
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
@@ -1121,8 +1191,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // publish and consume result
         publishAndConsumeAvroMessages(inputTopicName, outputTopicName, numMessages);
 
-        // get function status
-        getFunctionStatus(functionName, numMessages);
+        // get function status. Note that this function might restart a few times until
+        // the producer above writes the messages.
+        getFunctionStatus(functionName, numMessages, false);
 
         // delete function
         deleteFunction(functionName);
@@ -1163,7 +1234,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "dbserver1.inventory.products";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
             + functionRuntimeType + "-name-" + randomName(8);
 
@@ -1182,6 +1253,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .subscriptionType(SubscriptionType.Exclusive)
             .subscribe();
 
+        @Cleanup
         DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
 
         // setup debezium mysql server
@@ -1204,15 +1276,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, null);
+        sourceTester.validateSourceResult(consumer, 9);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
-
-        pulsarCluster.stopService("mysql", sourceTester.getDebeziumMySqlContainer());
     }
 
 }

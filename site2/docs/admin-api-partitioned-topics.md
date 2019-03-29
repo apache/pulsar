@@ -113,10 +113,7 @@ than the existing number.
 
 Decrementing the number of partitions would deleting the topic, which is not supported in Pulsar.
 
-Already created partitioned producers and consumers can’t see newly created partitions and
-it requires to recreate them at application so, newly created producers and consumers can connect
-to newly added partitions as well. Therefore, it can violate partition ordering at producers until
-all producers are restarted at application.
+Already created partitioned producers and consumers will automatically find the newly created partitions.
 
 #### pulsar-admin
 
