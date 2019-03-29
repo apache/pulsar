@@ -215,7 +215,7 @@ class ContextImpl(pulsar.Context):
   def get_counter(self, key):
     return self.state_context.get_amount(key)
 
-  def delete_counter(self, key):
+  def del_counter(self, key):
     return self.state_context.delete(key)
 
   def put_state(self, key, value):
