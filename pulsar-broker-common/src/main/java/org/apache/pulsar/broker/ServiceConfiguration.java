@@ -37,6 +37,7 @@ import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
  * Pulsar service configuration object.
@@ -75,6 +76,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_AUTHORIZATION = "Authorization";
     @Category
     private static final String CATEGORY_TOKEN_AUTH = "Token Authentication Provider";
+    @Category
+    private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
 
@@ -180,6 +183,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "ZooKeeper session timeout in milliseconds"
     )
     private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "ZooKeeper operation timeout in seconds"
+        )
+    private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -589,6 +597,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
     private String anonymousUserRole = null;
+
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "Whether Use SASL Authentication or not"
+    )
+    // TODO: isSaslAuthentication used to bypass web resource check.
+    //  will remove it after implementation the support.
+    //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+    private boolean isSaslAuthentication = false;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
+            + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
+    )
+    private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "Service Principal, for login context name. Default value is \"Broker\"."
+    )
+    private String saslJaasBrokerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "kerberos kinit command."
+    )
+    private String kinitCommand = "/usr/bin/kinit";
 
     /**** --- BookKeeper Client --- ****/
     @FieldContext(

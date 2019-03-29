@@ -33,7 +33,7 @@ function connectorReleaseUrl(version) {
     if (version.includes('incubating')) {
         return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
     } else if (version >= '2.3.0') {
-        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/connectors/`
+        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/connectors`
     } else {
         return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
     }

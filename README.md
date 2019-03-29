@@ -89,6 +89,8 @@ To configure annotation processing in IntelliJ:
 
 4. Click “OK”.
 
+5. Install the lombok plugin in intellij.
+
 ### Eclipse
 
 Follow the instructions [here](https://howtodoinjava.com/automation/lombok-eclipse-installation-examples/)

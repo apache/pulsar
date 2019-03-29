@@ -77,7 +77,7 @@ public class GenericSchemaImplTest {
             Bar bar = new Bar();
             bar.setField1(i % 2 == 0);
             foo.setField4(bar);
-
+            foo.setFieldUnableNull("fieldUnableNull-1-" + i);
             byte[] data = encodeSchema.encode(foo);
 
             log.info("Decoding : {}", new String(data, UTF_8));
@@ -93,6 +93,8 @@ public class GenericSchemaImplTest {
             assertTrue(field4 instanceof GenericRecord);
             GenericRecord field4Record = (GenericRecord) field4;
             assertEquals(i % 2 == 0, field4Record.getField("field1"));
+            Object fieldUnableNull = record.getField("fieldUnableNull");
+            assertEquals("fieldUnableNull-1-" + i, fieldUnableNull, "fieldUnableNull 1 is " + fieldUnableNull.getClass());
         }
     }
 
