@@ -113,6 +113,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
+    virtual void incrRefCount();
 
    protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
@@ -146,6 +147,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
+    unsigned int safeDecrRefCount();
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -176,6 +178,7 @@ class ConsumerImpl : public ConsumerImplBase,
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
     NegativeAcksTracker negativeAcksTracker_;
+    unsigned int refCount_ = 0;
 
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;

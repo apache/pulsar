@@ -903,7 +903,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -928,7 +928,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1015,7 +1015,7 @@ public class FunctionApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-                null);
+                null, null);
 
     }
 
@@ -1123,7 +1123,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
     }
 
     private void deregisterDefaultFunction() {
@@ -1131,7 +1131,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1250,7 +1250,7 @@ public class FunctionApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            function
+            function,null,null
         );
 
     }
@@ -1259,7 +1259,9 @@ public class FunctionApiV3ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function
+            function,
+                null,
+                null
         );
     }
 
@@ -1341,7 +1343,7 @@ public class FunctionApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace,null,null
         );
 
     }
@@ -1349,7 +1351,7 @@ public class FunctionApiV3ResourceTest {
     private List<String> listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace
+            namespace,null,null
         );
     }
 

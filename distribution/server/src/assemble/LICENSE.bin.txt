@@ -314,14 +314,14 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.9.7.jar
-     - com.fasterxml.jackson.core-jackson-core-2.9.7.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.9.7.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.7.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.7.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.7.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.7.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.7.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.9.8.jar
+     - com.fasterxml.jackson.core-jackson-core-2.9.8.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.9.8.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.8.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.8.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.8.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.8.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.8.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
@@ -335,15 +335,12 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-beanutils-commons-beanutils-1.7.0.jar
-    - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
     - commons-codec-commons-codec-1.10.jar
     - commons-collections-commons-collections-3.2.2.jar
-    - commons-configuration-commons-configuration-1.6.jar
-    - commons-digester-commons-digester-1.8.jar
+    - commons-configuration-commons-configuration-1.10.jar
     - commons-io-commons-io-2.5.jar
-    - commons-lang-commons-lang-2.4.jar
+    - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.15.jar

@@ -55,6 +55,7 @@ public class RedisAbstractConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The password used to connect to Redis")
     private String redisPassword;
 

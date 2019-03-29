@@ -549,7 +549,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalUnloadNamespace() {
-        log.info("[{}] Unloading namespace {}", clientAppId());
+        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
 
         validateSuperUserAccess();
 

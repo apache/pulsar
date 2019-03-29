@@ -82,6 +82,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -548,39 +549,21 @@ public class Commands {
     }
 
     private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
-        switch (type) {
-            case NONE:
-                return PulsarApi.Schema.Type.None;
-            case STRING:
-                return PulsarApi.Schema.Type.String;
-            case JSON:
-                return PulsarApi.Schema.Type.Json;
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
-            default:
-                return PulsarApi.Schema.Type.None;
+        if (type.getValue() < 0) {
+            return Schema.Type.None;
+        } else {
+            return Schema.Type.valueOf(type.getValue());
         }
     }
 
     public static SchemaType getSchemaType(PulsarApi.Schema.Type type) {
-        switch (type) {
-            case None:
-                return SchemaType.NONE;
-            case String:
-                return SchemaType.STRING;
-            case Json:
-                return SchemaType.JSON;
-            case Protobuf:
-                return SchemaType.PROTOBUF;
-            case Avro:
-                return SchemaType.AVRO;
-            default:
-                return SchemaType.NONE;
+        if (type.getNumber() < 0) {
+            // this is unexpected
+            return SchemaType.NONE;
+        } else {
+            return SchemaType.valueOf(type.getNumber());
         }
     }
-
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
         PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
@@ -1108,6 +1091,9 @@ public class Commands {
         messageMetadata.setSequenceId(builder.getSequenceId());
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
+        }
+        if (builder.hasSchemaVersion()) {
+            messageMetadata.setSchemaVersion(builder.getSchemaVersion());
         }
         return builder.getSequenceId();
     }
