@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -566,6 +567,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1 -d"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockSchemas).deleteSchema("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("unload persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
@@ -620,6 +622,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1 -d"));
         verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockSchemas, times(2)).deleteSchema("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
