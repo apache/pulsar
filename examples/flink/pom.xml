@@ -110,6 +110,7 @@
                     <include>org/apache/flink/streaming/examples/kafka/**</include>
                     <include>org/apache/flink/streaming/**</include>
                     <include>org/apache/pulsar/**</include>
+                    <include>org/bouncycastle/**</include>
                     <include>org/apache/flink/batch/**</include>
                     <include>net/jpountz/**</include>
                     <include>com/scurrilous/circe/**</include>
