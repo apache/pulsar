@@ -66,10 +66,8 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.StateUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -80,7 +78,6 @@ import java.io.FileNotFoundException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -131,7 +128,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private InstanceCache instanceCache;
 
-    private final Utils.ComponentType componentType;
+    private final FunctionCommon.ComponentType componentType;
 
     private final Map<String, String> properties;
 
@@ -156,13 +153,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getName(),
                 String.valueOf(instanceConfig.getInstanceId()),
                 instanceConfig.getClusterName(),
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())
+                FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails())
         };
 
         this.componentType = InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails());
 
         this.properties = InstanceUtils.getProperties(this.componentType,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                 this.instanceConfig.getInstanceId());
 
         // Declare function local collector registry so that it will not clash with other function instances'
@@ -176,7 +173,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     JavaInstance setupJavaInstance(ContextImpl contextImpl) throws Exception {
         // initialize the thread context
-        ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        ThreadContext.put("function", FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceName());
 
@@ -276,7 +273,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
-            log.error("[{}] Uncaught exception in Java Instance", Utils.getFullyQualifiedInstanceId(
+            log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
                     instanceConfig.getFunctionDetails().getTenant(),
                     instanceConfig.getFunctionDetails().getNamespace(),
                     instanceConfig.getFunctionDetails().getName(),
@@ -366,7 +363,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             return;
         }
 
-        String tableNs = StateUtils.getStateNamespace(
+        String tableNs = FunctionCommon.getStateNamespace(
             instanceConfig.getFunctionDetails().getTenant(),
             instanceConfig.getFunctionDetails().getNamespace()
         );
@@ -586,7 +583,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
                 !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
-                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                    FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
         }
     }

@@ -38,11 +38,12 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -88,7 +89,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SinkApiV3Resource}.
  */
-@PrepareForTest({Utils.class, SinkConfigUtils.class, ConnectorUtils.class, org.apache.pulsar.functions.utils.Utils.class})
+@PrepareForTest({WorkerUtils.class, SinkConfigUtils.class, ConnectorUtils.class, FunctionCommon.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SinkApiV3ResourceTest {
@@ -174,7 +175,7 @@ public class SinkApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SinkImpl(() -> mockedWorkerService));
-        Mockito.doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SINK).when(this.resource).calculateSubjectType(any());
+        Mockito.doReturn(FunctionCommon.ComponentType.SINK).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -455,9 +456,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSinkUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -473,9 +474,9 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -493,9 +494,9 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkConflictingFields() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -535,9 +536,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testRegisterSinkFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -560,9 +561,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterSinkInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -644,9 +645,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingPackage() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSinkMissingArguments(
                 tenant,
@@ -667,9 +668,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingInputs() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSinkMissingArguments(
                 tenant,
@@ -690,9 +691,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateSinkDifferentInputs() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             Map<String, String> inputTopics = new HashMap<>();
             inputTopics.put("DifferntTopic", DEFAULT_SERDE);
@@ -714,9 +715,9 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testUpdateSinkDifferentParallelism() throws IOException {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
         testUpdateSinkMissingArguments(
                 tenant,
@@ -744,15 +745,15 @@ public class SinkApiV3ResourceTest {
         doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSinkType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
-        doReturn(ATLEAST_ONCE).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
@@ -814,15 +815,15 @@ public class SinkApiV3ResourceTest {
         doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSinkType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
-        doReturn(ATLEAST_ONCE).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
@@ -854,9 +855,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSinkUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -872,9 +873,9 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testUpdateSinkSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -909,15 +910,15 @@ public class SinkApiV3ResourceTest {
         doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSinkType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
-        doReturn(ATLEAST_ONCE).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
@@ -944,9 +945,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testUpdateSinkFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -969,9 +970,9 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateSinkInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -1307,9 +1308,9 @@ public class SinkApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+        doReturn(FunctionCommon.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(FunctionCommon.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(FunctionCommon.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> sinkList = listDefaultSinks();
         assertEquals(functions, sinkList);

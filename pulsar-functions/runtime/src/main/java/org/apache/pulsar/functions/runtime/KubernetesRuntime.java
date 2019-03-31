@@ -62,8 +62,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -370,7 +369,7 @@ public class KubernetesRuntime implements Runtime {
         final V1Service service = createService();
         log.info("Submitting the following service to k8 {}", coreClient.getApiClient().getJSON().serialize(service));
 
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
         Actions.Action createService = Actions.Action.builder()
                 .actionName(String.format("Submitting service for function %s", fqfn))
@@ -447,7 +446,7 @@ public class KubernetesRuntime implements Runtime {
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
 
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
         Actions.Action createStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Submitting statefulset for function %s", fqfn))
@@ -495,7 +494,7 @@ public class KubernetesRuntime implements Runtime {
         options.setGracePeriodSeconds(5L);
         options.setPropagationPolicy("Foreground");
 
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         Actions.Action deleteStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Deleting statefulset for function %s", fqfn))
                 .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
@@ -644,7 +643,7 @@ public class KubernetesRuntime implements Runtime {
         final V1DeleteOptions options = new V1DeleteOptions();
         options.setGracePeriodSeconds(0L);
         options.setPropagationPolicy("Foreground");
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         String serviceName = createJobName(instanceConfig.getFunctionDetails());
 
         Actions.Action deleteService = Actions.Action.builder()
@@ -846,7 +845,7 @@ public class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        Utils.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
+        FunctionCommon.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
         String component;
         switch (componentType) {
             case FUNCTION:

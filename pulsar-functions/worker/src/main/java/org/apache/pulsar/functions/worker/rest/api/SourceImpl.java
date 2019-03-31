@@ -27,7 +27,7 @@ import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
@@ -206,7 +206,7 @@ public class SourceImpl extends ComponentImpl {
     }
 
     public SourceImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, Utils.ComponentType.SOURCE);
+        super(workerServiceSupplier, FunctionCommon.ComponentType.SOURCE);
     }
 
     public SourceStatus getSourceStatus(final String tenant,
