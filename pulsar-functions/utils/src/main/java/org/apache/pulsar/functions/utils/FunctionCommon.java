@@ -418,22 +418,4 @@ public class FunctionCommon {
     public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
         return String.format("%s/%s/%s", tenant, namespace, functionName);
     }
-
-
-    public enum ComponentType {
-        FUNCTION("Function"),
-        SOURCE("Source"),
-        SINK("Sink");
-
-        private final String componentName;
-
-        ComponentType(String componentName) {
-            this.componentName = componentName;
-        }
-
-        @Override
-        public String toString() {
-            return componentName;
-        }
-    }
 }

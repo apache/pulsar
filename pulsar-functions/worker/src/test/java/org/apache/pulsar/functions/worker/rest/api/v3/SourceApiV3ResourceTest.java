@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -170,7 +171,7 @@ public class SourceApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SourceImpl(() -> mockedWorkerService));
-        Mockito.doReturn(FunctionCommon.ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
+        Mockito.doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -1322,9 +1323,9 @@ public class SourceApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(FunctionCommon.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(FunctionCommon.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(FunctionCommon.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+        doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> sourceList = listDefaultSources();
         assertEquals(functions, sourceList);

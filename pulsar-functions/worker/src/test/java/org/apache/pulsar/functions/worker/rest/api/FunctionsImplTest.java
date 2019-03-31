@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.pulsar.functions.utils.FunctionCommon.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;

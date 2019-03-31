@@ -75,7 +75,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.pulsar.functions.utils.FunctionCommon.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.FunctionCommon.mergeJson;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
