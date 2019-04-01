@@ -73,10 +73,10 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
-import static org.apache.pulsar.functions.utils.Utils.*;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.utils.FunctionCommon.*;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -108,14 +108,15 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
@@ -169,7 +170,7 @@ public abstract class ComponentImpl {
             // If I am running worker
             if (assignedWorkerId.equals(workerId)) {
                 FunctionRuntimeInfo functionRuntimeInfo = worker().getFunctionRuntimeManager().getFunctionRuntimeInfo(
-                        org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+                        FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()));
                 if (functionRuntimeInfo == null) {
                     return notRunning(assignedWorkerId, "");
                 }
@@ -446,20 +447,20 @@ public abstract class ComponentImpl {
                         sinkOrSource.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
                 File file = extractFileFromPkg(functionPkgUrl);
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         file.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(file.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         } else {
             // For pulsar managed schedulers, the pkgUrl/builtin stuff should be copied to bk
@@ -471,7 +472,7 @@ public abstract class ComponentImpl {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         }
         return packageLocationMetaDataBuilder;
@@ -651,7 +652,7 @@ public abstract class ComponentImpl {
 
         // delete state table
         if (null != worker().getStateStoreAdminClient()) {
-            final String tableNs = StateUtils.getStateNamespace(tenant, namespace);
+            final String tableNs = getStateNamespace(tenant, namespace);
             final String tableName = componentName;
             try {
                 FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
@@ -1339,7 +1340,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
-        String tableNs = StateUtils.getStateNamespace(tenant, namespace);
+        String tableNs = getStateNamespace(tenant, namespace);
         String tableName = functionName;
 
         String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
@@ -1389,7 +1390,7 @@ public abstract class ComponentImpl {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            WorkerUtils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
@@ -1414,7 +1415,7 @@ public abstract class ComponentImpl {
                         throw new IllegalArgumentException("invalid file url path: " + path);
                     }
                 } else {
-                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
+                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
                 }
             }
         };
@@ -1514,7 +1515,7 @@ public abstract class ComponentImpl {
                                                                             final ComponentType componentType) throws Exception {
         File tmpFile = File.createTempFile("functions", null);
         tmpFile.deleteOnExit();
-        Utils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
+        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
         return validateUpdateRequestParams(tenant, namespace, componentName,
                 null, componentConfigJson, componentType, null, tmpFile);
     }
@@ -1659,7 +1660,7 @@ public abstract class ComponentImpl {
             return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+        FunctionCommon.mergeJson(functionDetailsJson, functionDetailsBuilder);
         if (isNotBlank(functionPkgUrl)) {
             // set package-url if present
             functionDetailsBuilder.setPackageUrl(functionPkgUrl);
@@ -1728,7 +1729,7 @@ public abstract class ComponentImpl {
 
         // validate function class-type
         Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
-        Class<?>[] typeArgs = org.apache.pulsar.functions.utils.Utils.getFunctionTypes(functionObject, false);
+        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionObject, false);
 
         if (!(functionObject instanceof org.apache.pulsar.functions.api.Function)
                 && !(functionObject instanceof java.util.function.Function)) {
@@ -1832,7 +1833,7 @@ public abstract class ComponentImpl {
 
     public static String createPackagePath(String tenant, String namespace, String functionName, String fileName) {
         return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
-                Utils.getUniquePackageName(Codec.encode(fileName)));
+                getUniquePackageName(Codec.encode(fileName)));
     }
 
     public boolean isAuthorizedRole(String tenant, String namespace, String clientRole,

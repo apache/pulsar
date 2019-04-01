@@ -19,46 +19,86 @@
 
 package org.apache.pulsar.functions.utils;
 
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.util.UUID;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+
 /**
  * Unit test of {@link Exceptions}.
  */
-public class UtilsTest {
+public class FunctionCommonTest {
 
     @Test
     public void testValidateLocalFileUrl() throws Exception {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         try {
             // eg: fileLocation : /dir/fileName.jar (invalid)
-            Utils.extractClassLoader(fileLocation);
+            FunctionCommon.extractClassLoader(fileLocation);
             Assert.fail("should fail with invalid url: without protocol");
         } catch (IllegalArgumentException ie) {
             // Ok.. expected exception
         }
         String fileLocationWithProtocol = "file://" + fileLocation;
         // eg: fileLocation : file:///dir/fileName.jar (valid)
-        Utils.extractClassLoader(fileLocationWithProtocol);
+        FunctionCommon.extractClassLoader(fileLocationWithProtocol);
         // eg: fileLocation : file:/dir/fileName.jar (valid)
         fileLocationWithProtocol = "file:" + fileLocation;
-        Utils.extractClassLoader(fileLocationWithProtocol);
+        FunctionCommon.extractClassLoader(fileLocationWithProtocol);
     }
 
     @Test
     public void testValidateHttpFileUrl() throws Exception {
 
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        Utils.extractClassLoader(jarHttpUrl);
+        FunctionCommon.extractClassLoader(jarHttpUrl);
 
         jarHttpUrl = "http://_invalidurl_.com";
         try {
             // eg: fileLocation : /dir/fileName.jar (invalid)
-            Utils.extractClassLoader(jarHttpUrl);
+            FunctionCommon.extractClassLoader(jarHttpUrl);
             Assert.fail("should fail with invalid url: without protocol");
         } catch (Exception ie) {
             // Ok.. expected exception
         }
+    }
+
+    @Test
+    public void testDownloadFile() throws Exception {
+        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
+        String testDir = FunctionCommonTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, pkgFile);
+        Assert.assertTrue(pkgFile.exists());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testGetSequenceId() {
+        long lid = 12345L;
+        long eid = 34566L;
+        MessageIdImpl id = mock(MessageIdImpl.class);
+        when(id.getLedgerId()).thenReturn(lid);
+        when(id.getEntryId()).thenReturn(eid);
+
+        assertEquals((lid << 28) | eid, FunctionCommon.getSequenceId(id));
+    }
+
+    @Test
+    public void testGetMessageId() {
+        long lid = 12345L;
+        long eid = 34566L;
+        long sequenceId = (lid << 28) | eid;
+
+        MessageIdImpl id = (MessageIdImpl) FunctionCommon.getMessageId(sequenceId);
+        assertEquals(lid, id.getLedgerId());
+        assertEquals(eid, id.getEntryId());
     }
 }
