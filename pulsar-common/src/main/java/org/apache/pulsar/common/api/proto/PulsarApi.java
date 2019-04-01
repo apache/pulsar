@@ -333,6 +333,17 @@ public final class PulsarApi {
       Json(2, 2),
       Protobuf(3, 3),
       Avro(4, 4),
+      Bool(5, 5),
+      Int8(6, 6),
+      Int16(7, 7),
+      Int32(8, 8),
+      Int64(9, 9),
+      Float(10, 10),
+      Double(11, 11),
+      Date(12, 12),
+      Time(13, 13),
+      Timestamp(14, 14),
+      KeyValue(15, 15),
       ;
       
       public static final int None_VALUE = 0;
@@ -340,6 +351,17 @@ public final class PulsarApi {
       public static final int Json_VALUE = 2;
       public static final int Protobuf_VALUE = 3;
       public static final int Avro_VALUE = 4;
+      public static final int Bool_VALUE = 5;
+      public static final int Int8_VALUE = 6;
+      public static final int Int16_VALUE = 7;
+      public static final int Int32_VALUE = 8;
+      public static final int Int64_VALUE = 9;
+      public static final int Float_VALUE = 10;
+      public static final int Double_VALUE = 11;
+      public static final int Date_VALUE = 12;
+      public static final int Time_VALUE = 13;
+      public static final int Timestamp_VALUE = 14;
+      public static final int KeyValue_VALUE = 15;
       
       
       public final int getNumber() { return value; }
@@ -351,6 +373,17 @@ public final class PulsarApi {
           case 2: return Json;
           case 3: return Protobuf;
           case 4: return Avro;
+          case 5: return Bool;
+          case 6: return Int8;
+          case 7: return Int16;
+          case 8: return Int32;
+          case 9: return Int64;
+          case 10: return Float;
+          case 11: return Double;
+          case 12: return Date;
+          case 13: return Time;
+          case 14: return Timestamp;
+          case 15: return KeyValue;
           default: return null;
         }
       }

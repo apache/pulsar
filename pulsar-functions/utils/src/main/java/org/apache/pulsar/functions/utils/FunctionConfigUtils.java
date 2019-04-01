@@ -39,7 +39,7 @@ import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
-import static org.apache.pulsar.functions.utils.Utils.loadJar;
+import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
 public class FunctionConfigUtils {
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
@@ -48,7 +48,7 @@ public class FunctionConfigUtils {
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             if (classLoader != null) {
-                typeArgs = Utils.getFunctionTypes(functionConfig, classLoader);
+                typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
             }
         }
 
@@ -159,11 +159,11 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
         }
         if (functionConfig.getRuntime() != null) {
-            functionDetailsBuilder.setRuntime(Utils.convertRuntime(functionConfig.getRuntime()));
+            functionDetailsBuilder.setRuntime(FunctionCommon.convertRuntime(functionConfig.getRuntime()));
         }
         if (functionConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
-                    Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+                    FunctionCommon.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
@@ -234,7 +234,7 @@ public class FunctionConfigUtils {
         functionConfig.setNamespace(functionDetails.getNamespace());
         functionConfig.setName(functionDetails.getName());
         functionConfig.setParallelism(functionDetails.getParallelism());
-        functionConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
@@ -278,8 +278,8 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
-        functionConfig.setRuntime(Utils.convertRuntime(functionDetails.getRuntime()));
-        functionConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
+        functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         if (functionDetails.hasRetryDetails()) {
             functionConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
             if (!isEmpty(functionDetails.getRetryDetails().getDeadLetterTopic())) {
@@ -355,7 +355,7 @@ public class FunctionConfigUtils {
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
-        Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig, clsLoader);
+        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
         // inputs use default schema, so there is no check needed there
 
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
@@ -566,7 +566,7 @@ public class FunctionConfigUtils {
             ClassLoader classLoader = null;
             if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
                 try {
-                    classLoader = Utils.extractClassLoader(functionPkgUrl);
+                    classLoader = FunctionCommon.extractClassLoader(functionPkgUrl);
                 } catch (Exception e) {
                     throw new IllegalArgumentException("Corrupted Jar File", e);
                 }

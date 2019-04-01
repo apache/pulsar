@@ -31,9 +31,9 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 /**
  * A function container implemented using java thread.
@@ -104,7 +104,7 @@ class ThreadRuntime implements Runtime {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
-                        FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                        FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
         this.fnThread.start();
     }

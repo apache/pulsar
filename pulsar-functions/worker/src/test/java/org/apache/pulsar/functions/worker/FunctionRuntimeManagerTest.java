@@ -31,7 +31,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.KubernetesRuntime;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -219,7 +219,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment1);
         functionRuntimeManager.processAssignment(assignment2);
 
-        functionRuntimeManager.deleteAssignment(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
+        functionRuntimeManager.deleteAssignment(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()));
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
 
@@ -551,16 +551,16 @@ public class FunctionRuntimeManagerTest {
         List<Message<byte[]>> messageList = new LinkedList<>();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
-        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
-        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
         messageList.add(message1);
         messageList.add(message2);

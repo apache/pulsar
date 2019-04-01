@@ -36,6 +36,7 @@ import org.apache.bookkeeper.net.DNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
+import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
@@ -144,6 +145,18 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                     if (!isolationGroups.contains(group)) {
                         for (String bookieAddress : allGroupsBookieMapping.get(group).keySet()) {
                             blacklistedBookies.add(new BookieSocketAddress(bookieAddress));
+                        }
+                    }
+                }
+                // sometime while doing isolation, user might not want to remove isolated bookies from other default
+                // groups. so, same set of bookies could be overlapped into isolated-group and other default groups. so,
+                // try to remove those overlapped bookies from excluded-bookie list because ther are also part of
+                // isolated-group bookies.
+                for (String group : isolationGroups) {
+                    Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
+                    if (bookieGroup != null && !bookieGroup.isEmpty()) {
+                        for (String bookieAddress : bookieGroup.keySet()) {
+                            blacklistedBookies.remove(new BookieSocketAddress(bookieAddress));
                         }
                     }
                 }

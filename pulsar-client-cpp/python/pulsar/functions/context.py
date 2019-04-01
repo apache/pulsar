@@ -155,6 +155,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def del_counter(self, key):
+    """delete the counter of a given key in the managed state"""
+    pass
+
+  @abstractmethod
   def put_state(self, key, value):
     """update the value of a given key in the managed state"""
     pass

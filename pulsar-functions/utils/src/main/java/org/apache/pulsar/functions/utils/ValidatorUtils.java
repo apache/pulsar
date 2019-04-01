@@ -35,7 +35,7 @@ public class ValidatorUtils {
             // If it's empty, we use the default schema and no need to validate
             // If it's built-in, no need to validate
         } else {
-            Utils.implementsClass(schemaType, Schema.class, clsLoader);
+            FunctionCommon.implementsClass(schemaType, Schema.class, clsLoader);
             validateSchemaType(schemaType, typeArg, clsLoader, input);
         }
     }
@@ -54,13 +54,13 @@ public class ValidatorUtils {
         if (isEmpty(inputSerializer)) return;
         if (inputSerializer.equals(DEFAULT_SERDE)) return;
         try {
-            Class<?> serdeClass = Utils.loadClass(inputSerializer, clsLoader);
+            Class<?> serdeClass = FunctionCommon.loadClass(inputSerializer, clsLoader);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
                     String.format("The input serialization/deserialization class %s does not exist",
                             inputSerializer));
         }
-        Utils.implementsClass(inputSerializer, SerDe.class, clsLoader);
+        FunctionCommon.implementsClass(inputSerializer, SerDe.class, clsLoader);
 
         SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, clsLoader);
         if (serDe == null) {
