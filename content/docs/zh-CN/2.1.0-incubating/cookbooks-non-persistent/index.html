@@ -74,7 +74,7 @@
 <ul>
 <li>非持久性主题的基本<a href="#overview">概念概述</a></li>
 <li>非持久性主题相关的<a href="#configuration">可配置参数</a>信息</li>
-<li>用于管理非持久性主题<a href="#cli"> CLI(命令行工具)</a>指南</li>
+<li>用于管理非持久性主题<a href="#cli"> CLI (命令行工具) 接口</a>指南</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="概述"></a><a href="#概述" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>概述</h2>
 <p>默认情况下，Pulsar会在多个<a href="#persistent-storage"> BookKeeper </a> bookies（存储节点）上持续存储<em>所有</em>未确认的消息。 因此，持久性主题上的消息数据可以在 broker 重启和订阅者故障转移之后继续存在。</p>
