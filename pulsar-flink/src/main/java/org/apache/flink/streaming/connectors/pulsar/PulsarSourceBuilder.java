@@ -158,8 +158,9 @@ public class PulsarSourceBuilder<T> {
     public PulsarSourceBuilder<T> acknowledgementBatchSize(long size) {
         if (size > 0 && size <= MAX_ACKNOWLEDGEMENT_BATCH_SIZE) {
             acknowledgementBatchSize = size;
+            return this;
         }
-        return this;
+        throw new IllegalArgumentException("acknowledgementBatchSize can only take values > 0 and <= " + MAX_ACKNOWLEDGEMENT_BATCH_SIZE);
     }
 
     public SourceFunction<T> build() {
