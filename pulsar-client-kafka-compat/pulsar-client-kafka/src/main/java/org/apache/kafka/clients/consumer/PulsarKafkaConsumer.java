@@ -86,6 +86,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final Set<TopicPartition> unpolledPartitions = new HashSet<>();
     private final SubscriptionInitialPosition strategy;
 
+    private List<ConsumerInterceptor<K, V>> interceptors;
+
     private volatile boolean closed = false;
 
     private final int maxRecordsInSinglePoll;
@@ -161,6 +163,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         } else {
             maxRecordsInSinglePoll = 1000;
         }
+
+        interceptors = (List) config.getConfiguredInstances(
+                ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, ConsumerInterceptor.class);
 
         this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
@@ -374,7 +379,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 commitAsync();
             }
 
-            return new ConsumerRecords<>(records);
+            // If no interceptor is provided, interceptors list will an empty list, original ConsumerRecords will be return.
+            return applyConsumerInterceptorsOnConsume(interceptors, new ConsumerRecords<>(records));
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -438,6 +444,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private CompletableFuture<Void> doCommitOffsets(Map<TopicPartition, OffsetAndMetadata> offsets) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
+        applyConsumerInterceptorsOnCommit(interceptors, offsets);
         offsets.forEach((topicPartition, offsetAndMetadata) -> {
             org.apache.pulsar.client.api.Consumer<byte[]> consumer = consumers.get(topicPartition);
             lastCommittedOffset.put(topicPartition, offsetAndMetadata);
@@ -455,6 +462,43 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         });
 
         return offsets;
+    }
+
+    /**
+     * Apply all onConsume methods in a list of ConsumerInterceptors.
+     * Catch any exception during the process.
+     *
+     * @param interceptors     Interceptors provided.
+     * @param consumerRecords  ConsumerRecords returned by calling {@link this#poll(long)}.
+     * @return                 ConsumerRecords after applying all ConsumerInterceptor in interceptors list.
+     */
+    private ConsumerRecords applyConsumerInterceptorsOnConsume(List<ConsumerInterceptor<K, V>> interceptors, ConsumerRecords consumerRecords) {
+        ConsumerRecords processedConsumerRecords = consumerRecords;
+        for (ConsumerInterceptor interceptor : interceptors) {
+            try {
+                processedConsumerRecords = interceptor.onConsume(processedConsumerRecords);
+            } catch (Exception e) {
+                log.warn("Error executing onConsume for interceptor {}.", interceptor.getClass().getCanonicalName(), e);
+            }
+        }
+        return processedConsumerRecords;
+    }
+
+    /**
+     * Apply all onCommit methods in a list of ConsumerInterceptors.
+     * Catch any exception during the process.
+     *
+     * @param interceptors   Interceptors provided.
+     * @param offsets        Offsets need to be commit.
+     */
+    private void applyConsumerInterceptorsOnCommit(List<ConsumerInterceptor<K, V>> interceptors, Map<TopicPartition, OffsetAndMetadata> offsets) {
+        for (ConsumerInterceptor interceptor : interceptors) {
+            try {
+                interceptor.onCommit(offsets);
+            } catch (Exception e) {
+                log.warn("Error executing onCommit for interceptor {}.", interceptor.getClass().getCanonicalName(), e);
+            }
+        }
     }
 
     @Override

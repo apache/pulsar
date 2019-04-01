@@ -34,6 +34,7 @@
   <modules>
     <module>core</module>
     <module>mysql</module>
+    <module>postgres</module>
   </modules>
 
 </project>

@@ -24,6 +24,9 @@ import static org.testng.Assert.assertNull;
 
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +56,9 @@ public class PrimitiveSchemaTest {
             put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
             put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
             put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
+            put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
+            put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
+            put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()), new Timestamp(new java.util.Date().getTime())));
         }
     };
 
@@ -68,6 +74,9 @@ public class PrimitiveSchemaTest {
             put(Schema.DOUBLE, Arrays.asList(5678567.12312d, -5678567.12341d));
             put(Schema.BYTES, Arrays.asList("my string".getBytes(UTF_8)));
             put(Schema.BYTEBUFFER, Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
+            put(Schema.DATE, Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
+            put(Schema.TIME, Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
+            put(Schema.TIMESTAMP, Arrays.asList(new Timestamp(new java.util.Date().getTime() - 10000), new Timestamp(new java.util.Date().getTime())));
         }
     };
 
@@ -113,6 +122,9 @@ public class PrimitiveSchemaTest {
         assertEquals(SchemaType.BYTES, BytesSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.BYTES, ByteBufferSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.BYTES, ByteBufSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.DATE, DateSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.TIME, TimeSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.TIMESTAMP, TimestampSchema.of().getSchemaInfo().getType());
     }
 
 

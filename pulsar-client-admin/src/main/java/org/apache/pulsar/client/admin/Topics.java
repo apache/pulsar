@@ -829,7 +829,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void expireMessages(String topic, String subscriptionName, long expireTimeInSeconds)
+    void expireMessages(String topic, String subscriptionName, long expireTimeInSeconds)
             throws PulsarAdminException;
 
     /**
@@ -843,7 +843,7 @@ public interface Topics {
      *            Expire messages older than time in seconds
      * @return
      */
-    public CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
+    CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
             long expireTimeInSeconds);
 
     /**
@@ -857,7 +857,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void expireMessagesForAllSubscriptions(String topic, long expireTimeInSeconds)
+    void expireMessagesForAllSubscriptions(String topic, long expireTimeInSeconds)
             throws PulsarAdminException;
 
     /**
@@ -869,7 +869,7 @@ public interface Topics {
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
      */
-    public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String topic, long expireTimeInSeconds);
+    CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String topic, long expireTimeInSeconds);
 
     /**
      * Peek messages from a topic subscription

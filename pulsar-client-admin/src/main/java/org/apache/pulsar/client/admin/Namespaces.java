@@ -662,7 +662,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
+    void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
 
     /**
      * Remove a backlog quota policy from a namespace.
@@ -681,7 +681,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void removeBacklogQuota(String namespace) throws PulsarAdminException;
+    void removeBacklogQuota(String namespace) throws PulsarAdminException;
 
     /**
      * Set the persistence configuration for all the topics on a namespace.
@@ -721,7 +721,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException;
+    void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException;
 
     /**
      * Get the persistence configuration for a namespace.
@@ -759,7 +759,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
+    PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
     /**
      * Set the retention configuration for all the topics on a namespace.

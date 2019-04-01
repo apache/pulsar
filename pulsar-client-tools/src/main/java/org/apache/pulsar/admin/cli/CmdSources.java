@@ -105,7 +105,15 @@ public class CmdSources extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
@@ -376,8 +384,7 @@ public class CmdSources extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, String>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>(){}.getType();
             return new Gson().fromJson(str, type);
         }
 
