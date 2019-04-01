@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -75,9 +75,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -93,7 +93,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link FunctionApiV2Resource}.
  */
-@PrepareForTest(Utils.class)
+@PrepareForTest(WorkerUtils.class)
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
 public class FunctionApiV3ResourceTest {
@@ -521,10 +521,10 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
 
-            Utils.uploadFileToBookkeeper(
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -540,9 +540,9 @@ public class FunctionApiV3ResourceTest {
     @Test
     public void testRegisterFunctionSuccess() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadToBookeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -587,9 +587,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadToBookeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -612,9 +612,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadToBookeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -702,9 +702,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -726,9 +726,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingInputTopic() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             testUpdateFunctionMissingArguments(
                     tenant,
                     namespace,
@@ -750,9 +750,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -774,9 +774,9 @@ public class FunctionApiV3ResourceTest {
     @Test
     public void testUpdateFunctionChangedParallelism() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -798,9 +798,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
     public void testUpdateFunctionChangedInputs() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -822,9 +822,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
             testUpdateFunctionMissingArguments(
@@ -945,9 +945,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -963,9 +963,9 @@ public class FunctionApiV3ResourceTest {
 
     @Test
     public void testUpdateFunctionSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadToBookeeper(
             any(Namespace.class),
             any(InputStream.class),
             anyString());
@@ -1022,9 +1022,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadToBookeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1047,9 +1047,9 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadToBookeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());

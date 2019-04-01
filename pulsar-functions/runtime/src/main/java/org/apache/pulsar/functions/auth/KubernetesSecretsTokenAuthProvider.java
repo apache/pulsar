@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -112,7 +112,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
+        String fqfn = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
 
         String secretName = new String(functionAuthData.getData());
         Actions.Action deleteSecrets = Actions.Action.builder()

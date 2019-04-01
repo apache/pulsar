@@ -44,8 +44,8 @@ import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
 @Slf4j
 public class SinkConfigUtils {
@@ -204,7 +204,7 @@ public class SinkConfigUtils {
         sinkConfig.setNamespace(functionDetails.getNamespace());
         sinkConfig.setName(functionDetails.getName());
         sinkConfig.setParallelism(functionDetails.getParallelism());
-        sinkConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sinkConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
@@ -306,11 +306,11 @@ public class SinkConfigUtils {
             ClassLoader jarClassLoader = null;
             ClassLoader narClassLoader = null;
             try {
-                jarClassLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             } catch (Exception e) {
             }
             try {
-                narClassLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             } catch (Exception e) {
             }
             if (jarClassLoader == null && narClassLoader == null) {
@@ -332,7 +332,7 @@ public class SinkConfigUtils {
         } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Sink Package is not provided");
             }

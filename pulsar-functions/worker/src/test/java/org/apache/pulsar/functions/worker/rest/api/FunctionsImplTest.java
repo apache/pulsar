@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
@@ -197,9 +197,9 @@ public class FunctionsImplTest {
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(runtimeSpawner).when(functionRuntimeInfo).getRuntimeSpawner();
 
-        FunctionStats.FunctionInstanceStats instanceStats1 = Utils
+        FunctionStats.FunctionInstanceStats instanceStats1 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 0);
-        FunctionStats.FunctionInstanceStats instanceStats2 = Utils
+        FunctionStats.FunctionInstanceStats instanceStats2 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 1);
 
         FunctionStats functionStats = new FunctionStats();
