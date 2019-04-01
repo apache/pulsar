@@ -51,7 +51,7 @@ public class SupportVersioningAvroSchemaTest {
 
     @Test
     public void testDecode() {
-        when(multiVersionGenericSchemaProvider.getVersionSchema(any(byte[].class)))
+        when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(genericAvroSchema);
         SchemaTestUtils.FooV2 fooV2 = new SchemaTestUtils.FooV2();
         fooV2.setField1(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING);

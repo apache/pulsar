@@ -18,27 +18,13 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import org.apache.pulsar.client.api.Schema;
-
-/**
- * Schema Provider.
- */
-public interface SchemaProvider<T> {
+public interface SchemaWriter<T> {
 
     /**
-     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
+     * serialize the object into bytes
      *
-     * @param schemaVersion schema version
-     * @return schema instance of the provided <tt>schemaVersion</tt>
+     * @param pojo the pojo
+     * @return the serialized bytes
      */
-    Schema<T> getSchemaByVersion(byte[] schemaVersion);
-    /**
-     * Retrieve the latest schema.
-     *
-     * @return the latest schema
-     */
-    Schema<T> getLatestSchema() throws InterruptedException;
-
-    String getTopicName();
-
+    byte[] write(T pojo);
 }

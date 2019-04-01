@@ -60,7 +60,7 @@ public class MultiVersionGenericSchemaProvider implements SchemaProvider<Generic
     }
 
     @Override
-    public GenericSchema getVersionSchema(byte[] schemaVersion) {
+    public GenericSchema getSchemaByVersion(byte[] schemaVersion) {
         try {
             if (null == schemaVersion) {
                 return null;
@@ -74,7 +74,7 @@ public class MultiVersionGenericSchemaProvider implements SchemaProvider<Generic
     }
 
     @Override
-    public GenericSchema getCurrentSchema() throws InterruptedException {
+    public GenericSchema getLatestSchema() throws InterruptedException {
         try {
             Optional<SchemaInfo> schemaInfo = pulsarClient.getLookup()
                     .getSchema(topicName).get();
@@ -85,6 +85,11 @@ public class MultiVersionGenericSchemaProvider implements SchemaProvider<Generic
             return null;
         }
 
+    }
+
+    @Override
+    public String getTopicName() {
+        return topicName.getLocalName();
     }
 
     private GenericSchema loadSchema(byte[] schemaVersion) throws ExecutionException, InterruptedException {

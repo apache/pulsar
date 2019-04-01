@@ -16,29 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.client.impl.schema.writer;
 
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-/**
- * Schema Provider.
- */
-public interface SchemaProvider<T> {
+public class ProtobufWriter<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaWriter<T> {
 
-    /**
-     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
-     *
-     * @param schemaVersion schema version
-     * @return schema instance of the provided <tt>schemaVersion</tt>
-     */
-    Schema<T> getSchemaByVersion(byte[] schemaVersion);
-    /**
-     * Retrieve the latest schema.
-     *
-     * @return the latest schema
-     */
-    Schema<T> getLatestSchema() throws InterruptedException;
+    @Override
+    public byte[] write(T pojo) {
+        return pojo.toByteArray();
 
-    String getTopicName();
-
+    }
 }

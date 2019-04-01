@@ -66,9 +66,9 @@ public class MultiVersionGenericSchemaTest {
     @Test
     public void testDecode() {
         Schema<GenericRecord> mockSchema = mock(Schema.class);
-        when(schemaProvider.getVersionSchema(any(byte[].class)))
+        when(schemaProvider.getSchemaByVersion(any(byte[].class)))
             .thenReturn(mockSchema);
-        when(schemaProvider.getVersionSchema(eq(null)))
+        when(schemaProvider.getSchemaByVersion(eq(null)))
             .thenReturn(mockSchema);
 
         GenericRecord mockRecord = mock(GenericRecord.class);

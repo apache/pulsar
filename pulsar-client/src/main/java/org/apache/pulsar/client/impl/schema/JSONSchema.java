@@ -25,12 +25,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.impl.schema.reader.JsonReader;
+import org.apache.pulsar.client.impl.schema.writer.JsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -48,39 +49,21 @@ public class JSONSchema<T> extends StructSchema<T> {
     });
 
     private final Class<T> pojo;
-    private final ObjectMapper objectMapper;
 
     private JSONSchema(org.apache.avro.Schema schema,
                         SchemaDefinition<T> schemaDefinition) {
         super(
             SchemaType.JSON,
             schema,
-            schemaDefinition.getProperties());
+            schemaDefinition,
+                new JsonWriter<>(JSON_MAPPER.get()),
+                new JsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
         this.pojo = schemaDefinition.getPojo();
-        this.objectMapper = JSON_MAPPER.get();
     }
 
     @Override
-    public byte[] encode(T message) throws SchemaSerializationException {
-        try {
-            return objectMapper.writeValueAsBytes(message);
-        } catch (JsonProcessingException e) {
-            throw new SchemaSerializationException(e);
-        }
-    }
-
-    @Override
-    public T decode(byte[] bytes) {
-        try {
-            return objectMapper.readValue(bytes, this.pojo);
-        } catch (IOException e) {
-            throw new SchemaSerializationException(e);
-        }
-    }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return this.schemaInfo;
+    protected SchemaReader loadReader(byte[] schemaVersion) {
+        return null;
     }
 
     /**

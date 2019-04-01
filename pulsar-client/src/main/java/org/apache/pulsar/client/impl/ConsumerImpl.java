@@ -62,8 +62,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaProvider;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -155,15 +156,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         if (schema != null && schema.supportSchemaVersioning()) {
-            Map<String, Schema> supportSchemaVersioningSchemaCache = client.getSupportSchemaVersioningSchemaCache();
-            Schema<T> schemaFromCache = supportSchemaVersioningSchemaCache.get(topic);
-            if (schemaFromCache == null) {
-                ((AvroSchema<T>) schema).setSchemaProvider(new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
-                supportSchemaVersioningSchemaCache.put(topic, schema);
-            } else {
-                schema = schemaFromCache;
-            }
+                    schema.setSchemaProvider(new MultiVersionGenericSchemaProvider(TopicName.get(topic), client));
         }
+
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
                     subscriptionMode, startMessageId, schema, interceptors);

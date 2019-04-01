@@ -20,14 +20,29 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.Map;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.avro.Schema.Parser;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaProvider;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a base schema implementation for `Struct` types.
@@ -41,23 +56,60 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 abstract class StructSchema<T> implements Schema<T> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
+
     protected final org.apache.avro.Schema schema;
     protected final SchemaInfo schemaInfo;
+    protected final SchemaReader<T> reader;
+    protected final SchemaWriter<T> writer;
+    private boolean supportSchemaVersioning;
     protected SchemaProvider schemaProvider;
+    private final LoadingCache<byte[], SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaReader<T>>() {
+                @Override
+                public SchemaReader<T> load(byte[] schemaVersion) throws Exception {
+                    return loadReader(schemaVersion);
+                }
+            });
 
     protected StructSchema(SchemaType schemaType,
                            org.apache.avro.Schema schema,
-                           Map<String, String> properties) {
+                           SchemaDefinition schemaDefinition,
+                           SchemaWriter<T> writer,
+                           SchemaReader<T> reader) {
         this.schema = schema;
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
         this.schemaInfo.setType(schemaType);
         this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
-        this.schemaInfo.setProperties(properties);
+        this.schemaInfo.setProperties(schemaDefinition.getProperties());
+        this.supportSchemaVersioning = schemaDefinition.getSupportSchemaVersioning();
+        this.writer = writer;
+        this.reader = reader;
     }
 
     public org.apache.avro.Schema getAvroSchema() {
         return schema;
+    }
+
+    @Override
+    public byte[] encode(T message) {
+        return writer.write(message);
+    }
+
+    @Override
+    public T decode(byte[] bytes) {
+        return reader.read(bytes);
+    }
+    @Override
+    public T decode(byte[] bytes, byte[] schemaVersion) {
+        try {
+            return readerCache.get(schemaVersion).read(bytes);
+        } catch (ExecutionException e) {
+            LOG.error("Can't get generic schema for topic {} schema version {}",
+                    ((MultiVersionGenericSchemaProvider)schemaProvider).getTopic().toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+            return null;
+        }
     }
 
     @Override
@@ -75,8 +127,14 @@ abstract class StructSchema<T> implements Schema<T> {
         return parser.parse(jsonDef);
     }
 
-    public void setSchemaProvider(SchemaProvider schemaProvider){
+    public boolean supportSchemaVersioning() {
+        return supportSchemaVersioning;
+    }
+
+    public void setSchemaProvider(SchemaProvider schemaProvider) {
         this.schemaProvider = schemaProvider;
     }
+
+    protected abstract SchemaReader loadReader(byte[] schemaVersion);
 
 }

@@ -83,7 +83,6 @@ public class PulsarClientImpl implements PulsarClient {
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
-    private Map<String, Schema> supportSchemaVersioningSchemaCache = new HashMap<>();
 
     enum State {
         Open, Closing, Closed
@@ -738,7 +737,4 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    public Map<String, Schema> getSupportSchemaVersioningSchemaCache(){
-        return this.supportSchemaVersioningSchemaCache;
-    }
 }
