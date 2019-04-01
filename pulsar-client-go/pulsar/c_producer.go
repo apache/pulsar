@@ -111,6 +111,9 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	if options.SchemaInfo.Type != NONE {
 		C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(options.SchemaInfo.Type),
 			C.CString(options.Name), C.CString(options.Schema))
+	} else {
+		C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
+			C.CString("BYTES"), C.CString(""))
 	}
 
 	if options.MessageRouter != nil {

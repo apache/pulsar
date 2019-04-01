@@ -112,6 +112,9 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 	if options.Schema.Type != NONE {
 		C.pulsar_consumer_configuration_set_schema_type(conf, C.pulsar_schema_type(options.Schema.Type),
 			C.CString(options.Schema.Name), C.CString(options.Schema.Schema))
+	} else {
+		C.pulsar_consumer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
+			C.CString("BYTES"), C.CString(""))
 	}
 
 	// ReceiverQueueSize==0 means to use the default queue size
