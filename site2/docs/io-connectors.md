@@ -15,6 +15,7 @@ Pulsar Functions cluster.
 - [Kafka Source Connector](io-kafka.md#source)
 - [Kinesis Sink Connector](io-kinesis.md#sink)
 - [RabbitMQ Source Connector](io-rabbitmq.md#source)
+- [RabbitMQ Sink Connector](io-rabbitmq.md#sink)
 - [Twitter Firehose Source Connector](io-twitter.md)
 - [CDC Source Connector based on Debezium](io-cdc.md)
 - [Netty Source Connector](io-netty.md#source)
