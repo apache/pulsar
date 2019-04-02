@@ -23,3 +23,4 @@ Pulsar Functions cluster.
 - [File Source Connector](io-file.md#source)
 - [Hdfs Sink Connector](io-hdfs.md#sink)
 - [MongoDB Sink Connector](io-mongo.md#sink)
+- [Solr Sink Connector](io-solr.md#sink)

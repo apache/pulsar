@@ -49,9 +49,21 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq-client.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.qpid</groupId>
+      <artifactId>qpid-broker</artifactId>
+      <version>6.1.6</version>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
