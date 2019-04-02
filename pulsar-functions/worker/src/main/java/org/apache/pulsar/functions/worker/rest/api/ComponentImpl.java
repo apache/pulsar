@@ -293,6 +293,8 @@ public abstract class ComponentImpl {
                                  final String clientRole,
                                  AuthenticationDataHttps clientAuthenticationDataHttps) {
 
+        log.info("registerFunction: {}", componentConfigJson);
+
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -347,7 +349,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s already exists", componentType, componentName));
         }
 
-        FunctionDetails functionDetails;
+        FunctionDetails functionDetails = null;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
         try {
@@ -426,8 +428,12 @@ public abstract class ComponentImpl {
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
             updateRequest(functionMetaDataBuilder.build());
         } finally {
+            log.info("REG delete: {}", !(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
+                    && componentPackageFile != null && componentPackageFile.exists());
+
             if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
                     && componentPackageFile != null && componentPackageFile.exists()) {
+                log.info("REGISTER deleting file: {}", componentPackageFile.getAbsolutePath());
                 componentPackageFile.delete();
             }
         }
@@ -460,12 +466,12 @@ public abstract class ComponentImpl {
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
                 WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
-                File file = extractFileFromPkgURL(functionPkgUrl);
+//                File file = extractFileFromPkgURL(functionPkgUrl);
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        file.getName()));
-                packageLocationMetaDataBuilder.setOriginalFileName(file.getName());
+                        uploadedInputStreamAsFile.getName()));
+                packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         fileDetail.getFileName()));
@@ -499,6 +505,8 @@ public abstract class ComponentImpl {
                                final String componentConfigJson,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps) {
+
+        log.info("updateFunction: {}", componentConfigJson);
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -585,7 +593,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, "Update contains no change");
         }
 
-        FunctionDetails functionDetails;
+        FunctionDetails functionDetails = null;
         File componentPackageFile = null;
         try {
 
@@ -613,7 +621,7 @@ public abstract class ComponentImpl {
                         throw new IllegalArgumentException(componentType + " Package is not provided");
                     }
                 } else {
-                    componentPackageFile = File.createTempFile("functions", null);
+                    componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
@@ -652,8 +660,12 @@ public abstract class ComponentImpl {
 
             updateRequest(functionMetaDataBuilder.build());
         } finally {
+            log.info("UPDATE delete: {}", !(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
+                    && componentPackageFile != null && componentPackageFile.exists());
+
             if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
                     && componentPackageFile != null && componentPackageFile.exists()) {
+                log.info("UPDATE deleting file: {}", componentPackageFile.getAbsolutePath());
                 componentPackageFile.delete();
             }
         }

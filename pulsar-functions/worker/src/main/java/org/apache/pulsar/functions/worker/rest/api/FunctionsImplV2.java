@@ -26,8 +26,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.proto.Function;
@@ -35,8 +33,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.SinkConfigUtils;
-import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -56,12 +52,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.join;
-import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
-import static org.apache.pulsar.functions.utils.FunctionCommon.extractClassLoader;
 import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 import static org.apache.pulsar.functions.worker.WorkerUtils.dumpToTmpFile;
 import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
@@ -331,7 +323,7 @@ public class FunctionsImplV2 {
                         throw new IllegalArgumentException(ComponentType.FUNCTION + " Package is not provided");
                     }
                 } else {
-                    functionPackageFile = File.createTempFile("functions", null);
+                    functionPackageFile = FunctionCommon.createPkgTempFile();
                     functionPackageFile.deleteOnExit();
                     WorkerUtils.downloadFromBookkeeper(delegate.worker().getDlogNamespace(), functionPackageFile, existingComponent.getPackageLocation().getPackagePath());
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,

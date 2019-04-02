@@ -35,6 +35,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -217,7 +218,7 @@ public final class WorkerUtils {
 
     public static File dumpToTmpFile(final InputStream uploadedInputStream) {
         try {
-            File tmpFile = File.createTempFile("functions", null);
+            File tmpFile = FunctionCommon.createPkgTempFile();
             tmpFile.deleteOnExit();
             Files.copy(uploadedInputStream, tmpFile.toPath(), REPLACE_EXISTING);
             return tmpFile;

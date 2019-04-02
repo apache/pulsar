@@ -31,6 +31,7 @@ import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -270,6 +271,12 @@ public class FunctionCommon {
         }
     }
 
+    public static File createPkgTempFile() throws IOException {
+        File file = File.createTempFile("functions", ".tmp");
+        log.info("createPkgTempFile: {} - {}", file.getAbsolutePath(), Arrays.asList(Thread.currentThread().getStackTrace()));
+        return file;
+    }
+
     public static File extractFileFromPkgURL(String destPkgUrl) throws IOException, URISyntaxException {
         if (destPkgUrl.startsWith(Utils.FILE)) {
             URL url = new URL(destPkgUrl);
@@ -279,7 +286,7 @@ public class FunctionCommon {
             }
             return file;
         } else if (destPkgUrl.startsWith("http")) {
-            File tempFile = File.createTempFile("function", ".tmp");
+            File tempFile = createPkgTempFile();
             tempFile.deleteOnExit();
             downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;

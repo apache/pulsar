@@ -593,46 +593,6 @@ public class FunctionConfigUtils {
         }
     }
 
-//    public static ClassLoader validate(FunctionConfig functionConfig, String functionPkgUrl, File uploadedInputStreamAsFile) {
-//        doCommonChecks(functionConfig);
-//        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-//            ClassLoader classLoader = null;
-//            if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
-//                try {
-//                    log.info("here-1-2");
-//                    classLoader = FunctionCommon.extractClassLoader(functionPkgUrl);
-//                } catch (Exception e) {
-//                    throw new IllegalArgumentException("Corrupted Jar File", e);
-//                }
-//            } else
-//
-//                if (uploadedInputStreamAsFile != null) {
-//                try {
-//                    classLoader = loadJar(uploadedInputStreamAsFile);
-//                } catch (MalformedURLException e) {
-//                    throw new IllegalArgumentException("Corrupted Jar File", e);
-//                }
-//            } else if (!isEmpty(functionConfig.getJar())) {
-//                File jarFile = new File(functionConfig.getJar());
-//                if (!jarFile.exists()) {
-//                    throw new IllegalArgumentException("Jar file does not exist");
-//                }
-//                try {
-//                    classLoader = loadJar(jarFile);
-//                } catch (Exception e) {
-//                    throw new IllegalArgumentException("Corrupted Jar File", e);
-//                }
-//            } else {
-//                throw new IllegalArgumentException("Function Package is not provided");
-//            }
-//            doJavaChecks(functionConfig, classLoader);
-//            return classLoader;
-//        } else {
-//            doPythonChecks(functionConfig);
-//            return null;
-//        }
-//    }
-
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
