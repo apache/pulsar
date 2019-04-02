@@ -17,7 +17,20 @@
 # under the License.
 #
 
-name: rabbitmq
-description: RabbitMQ source and sink connector
-sourceClass: org.apache.pulsar.io.rabbitmq.RabbitMQSource
-sinkClass: org.apache.pulsar.io.rabbitmq.RabbitMQSink
+{
+"host": "localhost",
+"port": "5672",
+"virtualHost": "/",
+"username": "guest",
+"password": "guest",
+"queueName": "test-queue",
+"connectionName": "test-connection",
+"requestedChannelMax": "0",
+"requestedFrameMax": "0",
+"connectionTimeout": "60000",
+"handshakeTimeout": "10000",
+"requestedHeartbeat": "60",
+"exchangeName": "test-exchange",
+"routingKey": "test-key"
+
+}
