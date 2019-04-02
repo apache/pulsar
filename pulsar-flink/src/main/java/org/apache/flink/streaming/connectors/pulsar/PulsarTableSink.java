@@ -33,6 +33,7 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.apache.pulsar.client.api.Authentication;
 
 /**
  * An append-only table sink to emit a streaming table as a Pulsar stream.
@@ -41,6 +42,7 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
 
     protected final String serviceUrl;
     protected final String topic;
+    protected Authentication authentication;
     protected SerializationSchema<Row> serializationSchema;
     protected PulsarKeyExtractor<Row> keyExtractor;
     protected String[] fieldNames;
@@ -50,9 +52,11 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
     public PulsarTableSink(
             String serviceUrl,
             String topic,
+            Authentication authentication,
             String routingKeyFieldName) {
         this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
         this.topic = checkNotNull(topic, "Topic is null");
+        this.authentication = checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
         this.routingKeyFieldName = routingKeyFieldName;
     }
 
@@ -78,6 +82,7 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
         return new FlinkPulsarProducer<Row>(
                 serviceUrl,
                 topic,
+                authentication,
                 serializationSchema,
                 keyExtractor);
     }

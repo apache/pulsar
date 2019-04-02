@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.Authentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     private final int messageReceiveTimeoutMs = 100;
     private final String serviceUrl;
     private final Set<String> topicNames;
+    private final Authentication authentication;
     private final Pattern topicsPattern;
     private final String subscriptionName;
     private final DeserializationSchema<T> deserializer;
@@ -75,6 +77,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     PulsarConsumerSource(PulsarSourceBuilder<T> builder) {
         super(MessageId.class);
         this.serviceUrl = builder.serviceUrl;
+        this.authentication = builder.authentication;
         this.topicNames = builder.topicNames;
         this.topicsPattern = builder.topicsPattern;
         this.deserializer = builder.deserializationSchema;
@@ -191,6 +194,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     PulsarClient createClient() throws PulsarClientException {
         return PulsarClient.builder()
             .serviceUrl(serviceUrl)
+            .authentication(authentication)
             .build();
     }
 
