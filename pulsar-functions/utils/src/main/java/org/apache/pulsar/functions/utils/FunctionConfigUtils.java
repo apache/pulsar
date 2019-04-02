@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -41,6 +42,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
+@Slf4j
 public class FunctionConfigUtils {
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
@@ -560,19 +562,13 @@ public class FunctionConfigUtils {
         return retval;
     }
 
-    public static ClassLoader validate(FunctionConfig functionConfig, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
         doCommonChecks(functionConfig);
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             ClassLoader classLoader = null;
-            if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+            if (functionPackageFile != null) {
                 try {
-                    classLoader = FunctionCommon.extractClassLoader(functionPkgUrl);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
-                }
-            } else if (uploadedInputStreamAsFile != null) {
-                try {
-                    classLoader = loadJar(uploadedInputStreamAsFile);
+                    classLoader = loadJar(functionPackageFile);
                 } catch (MalformedURLException e) {
                     throw new IllegalArgumentException("Corrupted Jar File", e);
                 }
@@ -596,6 +592,46 @@ public class FunctionConfigUtils {
             return null;
         }
     }
+
+//    public static ClassLoader validate(FunctionConfig functionConfig, String functionPkgUrl, File uploadedInputStreamAsFile) {
+//        doCommonChecks(functionConfig);
+//        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+//            ClassLoader classLoader = null;
+//            if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+//                try {
+//                    log.info("here-1-2");
+//                    classLoader = FunctionCommon.extractClassLoader(functionPkgUrl);
+//                } catch (Exception e) {
+//                    throw new IllegalArgumentException("Corrupted Jar File", e);
+//                }
+//            } else
+//
+//                if (uploadedInputStreamAsFile != null) {
+//                try {
+//                    classLoader = loadJar(uploadedInputStreamAsFile);
+//                } catch (MalformedURLException e) {
+//                    throw new IllegalArgumentException("Corrupted Jar File", e);
+//                }
+//            } else if (!isEmpty(functionConfig.getJar())) {
+//                File jarFile = new File(functionConfig.getJar());
+//                if (!jarFile.exists()) {
+//                    throw new IllegalArgumentException("Jar file does not exist");
+//                }
+//                try {
+//                    classLoader = loadJar(jarFile);
+//                } catch (Exception e) {
+//                    throw new IllegalArgumentException("Corrupted Jar File", e);
+//                }
+//            } else {
+//                throw new IllegalArgumentException("Function Package is not provided");
+//            }
+//            doJavaChecks(functionConfig, classLoader);
+//            return classLoader;
+//        } else {
+//            doPythonChecks(functionConfig);
+//            return null;
+//        }
+//    }
 
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();

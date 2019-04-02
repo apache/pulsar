@@ -34,6 +34,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -44,15 +45,15 @@ import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
@@ -90,7 +91,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SinkApiV3Resource}.
  */
-@PrepareForTest({WorkerUtils.class, SinkConfigUtils.class, ConnectorUtils.class, FunctionCommon.class})
+@PrepareForTest({WorkerUtils.class, SinkConfigUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SinkApiV3ResourceTest {
@@ -176,7 +177,8 @@ public class SinkApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SinkImpl(() -> mockedWorkerService));
-        Mockito.doReturn(ComponentType.SINK).when(this.resource).calculateSubjectType(any());
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(ComponentType.SINK);
     }
 
     //
@@ -363,7 +365,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink Package")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Encountered error .*. when getting Sink package from .*")
     public void testRegisterSinkHttpUrl() {
         try {
             testRegisterSinkMissingArguments(
@@ -420,7 +422,6 @@ public class SinkApiV3ResourceTest {
                 inputStream,
                 details,
                 pkgUrl,
-                null,
                 new Gson().toJson(sinkConfig),
                 null, null);
 
@@ -434,7 +435,6 @@ public class SinkApiV3ResourceTest {
                 sink,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
             null,
             new Gson().toJson(sinkConfig),
                 null, null);
@@ -464,6 +464,8 @@ public class SinkApiV3ResourceTest {
                 any(File.class),
                 any(Namespace.class));
 
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
             registerDefaultSink();
@@ -481,6 +483,8 @@ public class SinkApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -501,6 +505,9 @@ public class SinkApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
         String actualName = "DIFFERENT_NAME";
@@ -529,7 +536,6 @@ public class SinkApiV3ResourceTest {
                 new FileInputStream(JAR_FILE_PATH),
                 mockedFormData,
                 null,
-                null,
                 new Gson().toJson(sinkConfig),
                 null, null);
     }
@@ -543,6 +549,8 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -568,6 +576,8 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -644,11 +654,13 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateSinkMissingPackage() throws IOException {
+    public void testUpdateSinkMissingPackage() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             testUpdateSinkMissingArguments(
                 tenant,
@@ -667,11 +679,13 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateSinkMissingInputs() throws IOException {
+    public void testUpdateSinkMissingInputs() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             testUpdateSinkMissingArguments(
                 tenant,
@@ -690,11 +704,13 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
-    public void testUpdateSinkDifferentInputs() throws IOException {
+    public void testUpdateSinkDifferentInputs() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             Map<String, String> inputTopics = new HashMap<>();
             inputTopics.put("DifferntTopic", DEFAULT_SERDE);
@@ -715,10 +731,12 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkDifferentParallelism() throws IOException {
+    public void testUpdateSinkDifferentParallelism() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
         WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         testUpdateSinkMissingArguments(
                 tenant,
@@ -751,7 +769,7 @@ public class SinkApiV3ResourceTest {
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
@@ -797,7 +815,6 @@ public class SinkApiV3ResourceTest {
             inputStream,
             details,
             null,
-            null,
             new Gson().toJson(sinkConfig),
                 null, null);
 
@@ -821,7 +838,7 @@ public class SinkApiV3ResourceTest {
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
@@ -836,7 +853,6 @@ public class SinkApiV3ResourceTest {
                 sink,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
             null,
             new Gson().toJson(sinkConfig),
                 null, null);
@@ -862,6 +878,8 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -916,7 +934,7 @@ public class SinkApiV3ResourceTest {
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
@@ -938,7 +956,6 @@ public class SinkApiV3ResourceTest {
             null,
             null,
             filePackageUrl,
-            null,
             new Gson().toJson(sinkConfig),
                 null, null);
     }
@@ -1085,6 +1102,8 @@ public class SinkApiV3ResourceTest {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
+            when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(FunctionMetaData.newBuilder().build());
+
             RequestResult rr = new RequestResult()
                 .setSuccess(false)
                 .setMessage("sink failed to deregister");
@@ -1102,6 +1121,8 @@ public class SinkApiV3ResourceTest {
     public void testDeregisterSinkInterrupted() {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+            when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(FunctionMetaData.newBuilder().build());
 
             CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
                 new IOException("Function deregistration interrupted"));
@@ -1309,9 +1330,11 @@ public class SinkApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(ComponentType.FUNCTION);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(ComponentType.SINK);
 
         List<String> sinkList = listDefaultSinks();
         assertEquals(functions, sinkList);

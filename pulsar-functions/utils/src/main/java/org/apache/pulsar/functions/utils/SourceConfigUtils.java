@@ -185,7 +185,7 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -217,11 +217,11 @@ public class SourceConfigUtils {
             ClassLoader jarClassLoader = null;
             ClassLoader narClassLoader = null;
             try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
             } catch (Exception e) {
             }
             try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
             } catch (Exception e) {
             }
             if (jarClassLoader == null && narClassLoader == null) {
@@ -243,7 +243,7 @@ public class SourceConfigUtils {
         } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Source Package is not provided");
             }

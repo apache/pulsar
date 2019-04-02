@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -42,6 +43,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -53,6 +55,7 @@ import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
@@ -93,7 +96,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link FunctionApiV2Resource}.
  */
-@PrepareForTest(WorkerUtils.class)
+@PrepareForTest({WorkerUtils.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
 public class FunctionApiV3ResourceTest {
@@ -179,7 +182,8 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        doReturn(FUNCTION).when(this.resource).calculateSubjectType(any());
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(ComponentType.FUNCTION);
     }
 
     //
@@ -418,7 +422,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Corrupted Jar File")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Encountered error .*. when getting Function package from .*")
     public void testRegisterFunctionHttpUrl() {
         try {
             testRegisterFunctionMissingArguments(
@@ -485,7 +489,6 @@ public class FunctionApiV3ResourceTest {
                 inputStream,
                 details,
                 functionPkgUrl,
-                null,
                 new Gson().toJson(functionConfig),
                 null, null);
 
@@ -499,7 +502,6 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
             null,
             new Gson().toJson(functionConfig),
                 null, null);
@@ -528,6 +530,8 @@ public class FunctionApiV3ResourceTest {
                     anyString(),
                 any(File.class),
                 any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
             registerDefaultFunction();
@@ -546,6 +550,8 @@ public class FunctionApiV3ResourceTest {
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -594,6 +600,8 @@ public class FunctionApiV3ResourceTest {
                 any(InputStream.class),
                 anyString());
 
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
             RequestResult rr = new RequestResult()
@@ -618,6 +626,8 @@ public class FunctionApiV3ResourceTest {
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -700,11 +710,12 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateFunctionMissingPackage() throws IOException {
+    public void testUpdateFunctionMissingPackage() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -724,11 +735,13 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateFunctionMissingInputTopic() throws IOException {
+    public void testUpdateFunctionMissingInputTopic() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             testUpdateFunctionMissingArguments(
                     tenant,
                     namespace,
@@ -748,11 +761,13 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateFunctionMissingClassName() throws IOException {
+    public void testUpdateFunctionMissingClassName() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -772,11 +787,13 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionChangedParallelism() throws IOException {
+    public void testUpdateFunctionChangedParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -796,11 +813,13 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
-    public void testUpdateFunctionChangedInputs() throws IOException {
+    public void testUpdateFunctionChangedInputs() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -820,11 +839,13 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
-    public void testUpdateFunctionChangedOutput() throws IOException {
+    public void testUpdateFunctionChangedOutput() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
             testUpdateFunctionMissingArguments(
@@ -901,7 +922,6 @@ public class FunctionApiV3ResourceTest {
             inputStream,
             details,
             null,
-            null,
             new Gson().toJson(functionConfig),
                 null, null);
 
@@ -925,7 +945,6 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
             null,
             new Gson().toJson(functionConfig),
                 null, null);
@@ -951,6 +970,7 @@ public class FunctionApiV3ResourceTest {
                     anyString(),
                 any(File.class),
                 any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -969,6 +989,7 @@ public class FunctionApiV3ResourceTest {
             any(Namespace.class),
             any(InputStream.class),
             anyString());
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1013,7 +1034,6 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             filePackageUrl,
-            null,
             new Gson().toJson(functionConfig),
                 null, null);
 
@@ -1028,6 +1048,7 @@ public class FunctionApiV3ResourceTest {
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1053,6 +1074,7 @@ public class FunctionApiV3ResourceTest {
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1387,9 +1409,11 @@ public class FunctionApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(SINK).when(this.resource).calculateSubjectType(f3);
+
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(ComponentType.FUNCTION);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(ComponentType.SINK);
 
         List<String> functionList = listDefaultFunctions();
         assertEquals(functions, functionList);
@@ -1447,8 +1471,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
 
     }
 
@@ -1479,8 +1502,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

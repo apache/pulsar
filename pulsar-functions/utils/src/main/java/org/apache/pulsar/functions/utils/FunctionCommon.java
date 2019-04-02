@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
@@ -54,8 +55,6 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
-
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Utils used for runtime.
@@ -228,21 +227,19 @@ public class FunctionCommon {
         return typeArg;
     }
 
-    public static ClassLoader extractClassLoader(Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) throws Exception {
-        if (!isEmpty(functionPkgUrl)) {
-            return extractClassLoader(functionPkgUrl);
-        }
+    public static ClassLoader extractClassLoader(Path archivePath, File packageFile) throws Exception {
         if (archivePath != null) {
             return loadJar(archivePath.toFile());
         }
-        if (uploadedInputStreamAsFile != null) {
-            return loadJar(uploadedInputStreamAsFile);
+        if (packageFile != null) {
+            return loadJar(packageFile);
         }
         return null;
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
         URL website = new URL(destPkgUrl);
+
         ReadableByteChannel rbc = Channels.newChannel(website.openStream());
         log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
         try (FileOutputStream fos = new FileOutputStream(targetFile)) {
@@ -264,7 +261,7 @@ public class FunctionCommon {
     }
 
     public static ClassLoader extractClassLoader(String destPkgUrl) throws IOException, URISyntaxException {
-        File file = extractFileFromPkg(destPkgUrl);
+        File file = extractFileFromPkgURL(destPkgUrl);
         try {
             return loadJar(file);
         } catch (MalformedURLException e) {
@@ -273,8 +270,8 @@ public class FunctionCommon {
         }
     }
 
-    public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+    public static File extractFileFromPkgURL(String destPkgUrl) throws IOException, URISyntaxException {
+        if (destPkgUrl.startsWith(Utils.FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {
@@ -283,6 +280,7 @@ public class FunctionCommon {
             return file;
         } else if (destPkgUrl.startsWith("http")) {
             File tempFile = File.createTempFile("function", ".tmp");
+            tempFile.deleteOnExit();
             downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;
         } else {
@@ -318,7 +316,7 @@ public class FunctionCommon {
         return objectClass;
     }
 
-    public static NarClassLoader extractNarClassLoader(Path archivePath, String pkgUrl, File uploadedInputStreamFileName) {
+    public static NarClassLoader extractNarClassLoader(Path archivePath, File packageFile) {
         if (archivePath != null) {
             try {
                 return NarClassLoader.getFromArchive(archivePath.toFile(),
@@ -328,18 +326,9 @@ public class FunctionCommon {
             }
         }
 
-        if (!isEmpty(pkgUrl)) {
+        if (packageFile != null) {
             try {
-                return NarClassLoader.getFromArchive(extractFileFromPkg(pkgUrl), Collections.emptySet());
-            } catch (Exception e) {
-                throw new IllegalArgumentException(
-                        "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
-            }
-        }
-
-        if (uploadedInputStreamFileName != null) {
-            try {
-                return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
+                return NarClassLoader.getFromArchive(packageFile,
                         Collections.emptySet());
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
@@ -417,5 +406,15 @@ public class FunctionCommon {
 
     public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
         return String.format("%s/%s/%s", tenant, namespace, functionName);
+    }
+
+    public static Class<?> getTypeArg(String className, Class<?> funClass, ClassLoader classLoader)
+            throws ClassNotFoundException {
+        Class<?> loadedClass = classLoader.loadClass(className);
+        if (!funClass.isAssignableFrom(loadedClass)) {
+            throw new IllegalArgumentException(
+                    String.format("class %s is not type of %s", className, funClass.getName()));
+        }
+        return TypeResolver.resolveRawArgument(funClass, loadedClass);
     }
 }

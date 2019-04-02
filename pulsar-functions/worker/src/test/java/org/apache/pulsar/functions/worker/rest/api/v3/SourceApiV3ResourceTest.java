@@ -33,6 +33,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -47,15 +48,15 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
@@ -89,7 +90,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV3Resource}.
  */
-@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class})
+@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV3ResourceTest {
@@ -171,7 +172,8 @@ public class SourceApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SourceImpl(() -> mockedWorkerService));
-        Mockito.doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(ComponentType.SOURCE);
     }
 
     //
@@ -327,7 +329,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Package")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Encountered error .*. when getting Source package from .*")
     public void testRegisterSourceHttpUrl() {
         try {
             testRegisterSourceMissingArguments(
@@ -389,7 +391,6 @@ public class SourceApiV3ResourceTest {
                 inputStream,
                 details,
                 pkgUrl,
-                null,
                 new Gson().toJson(sourceConfig),
                 null, null);
 
@@ -403,7 +404,6 @@ public class SourceApiV3ResourceTest {
                 source,
             new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
             null,
             new Gson().toJson(sourceConfig),
                 null, null);
@@ -432,6 +432,8 @@ public class SourceApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -463,12 +465,14 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testRegisterSourceConflictingFields() throws Exception {
+
         mockStatic(WorkerUtils.class);
-        doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadFileToBookkeeper(
-                anyString(),
+        PowerMockito.doNothing().when(WorkerUtils.class, "uploadFileToBookkeeper", anyString(),
                 any(File.class),
                 any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
         String actualName = "DIFFERENT_NAME";
@@ -498,7 +502,6 @@ public class SourceApiV3ResourceTest {
                 new FileInputStream(JAR_FILE_PATH),
                 mockedFormData,
                 null,
-                null,
                 new Gson().toJson(sourceConfig),
                 null, null);
     }
@@ -512,6 +515,8 @@ public class SourceApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -537,6 +542,8 @@ public class SourceApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -664,11 +671,13 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testUpdateSourceNegativeParallelism() throws IOException {
+    public void testUpdateSourceNegativeParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -688,11 +697,13 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSourceChangedParallelism() throws IOException {
+    public void testUpdateSourceChangedParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             testUpdateSourceMissingArguments(
                 tenant,
@@ -736,11 +747,13 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testUpdateSourceZeroParallelism() throws IOException {
+    public void testUpdateSourceZeroParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
             WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -780,7 +793,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -825,7 +838,6 @@ public class SourceApiV3ResourceTest {
             inputStream,
             details,
             null,
-            null,
             new Gson().toJson(sourceConfig),
                 null, null);
 
@@ -850,7 +862,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -861,7 +873,6 @@ public class SourceApiV3ResourceTest {
                 source,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
             null,
             new Gson().toJson(sourceConfig),
                 null, null);
@@ -888,6 +899,8 @@ public class SourceApiV3ResourceTest {
                     any(File.class),
                     any(Namespace.class));
 
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
             updateDefaultSource();
         } catch (RestException re){
@@ -904,6 +917,8 @@ public class SourceApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -940,7 +955,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -960,7 +975,6 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             filePackageUrl,
-            null,
             new Gson().toJson(sourceConfig),
                 null, null);
 
@@ -975,6 +989,8 @@ public class SourceApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1000,6 +1016,8 @@ public class SourceApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1096,6 +1114,8 @@ public class SourceApiV3ResourceTest {
     public void testDeregisterSourceSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
+
         RequestResult rr = new RequestResult()
             .setSuccess(true)
             .setMessage("source deregistered");
@@ -1109,6 +1129,8 @@ public class SourceApiV3ResourceTest {
     public void testDeregisterSourceFailure() {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+            when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
             RequestResult rr = new RequestResult()
                 .setSuccess(false)
@@ -1127,6 +1149,8 @@ public class SourceApiV3ResourceTest {
     public void testDeregisterSourceInterrupted() {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+            when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
             CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
                 new IOException("Function deregistration interrupted"));
@@ -1323,9 +1347,10 @@ public class SourceApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+        mockStatic(InstanceUtils.class);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(ComponentType.FUNCTION);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(ComponentType.SINK);
 
         List<String> sourceList = listDefaultSources();
         assertEquals(functions, sourceList);

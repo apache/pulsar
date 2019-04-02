@@ -261,7 +261,7 @@ public class SinkConfigUtils {
         return sinkConfig;
     }
 
-    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
                                           File uploadedInputStreamAsFile) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
@@ -306,11 +306,11 @@ public class SinkConfigUtils {
             ClassLoader jarClassLoader = null;
             ClassLoader narClassLoader = null;
             try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, uploadedInputStreamAsFile);
             } catch (Exception e) {
             }
             try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
             } catch (Exception e) {
             }
             if (jarClassLoader == null && narClassLoader == null) {
@@ -332,7 +332,7 @@ public class SinkConfigUtils {
         } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Sink Package is not provided");
             }
