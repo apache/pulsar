@@ -92,7 +92,7 @@ import static org.testng.Assert.assertEquals;
  * Unit test of {@link SinkApiV3Resource}.
  */
 @PrepareForTest({WorkerUtils.class, SinkConfigUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*", "java.io.*" })
 @Slf4j
 public class SinkApiV3ResourceTest {
 
@@ -597,7 +597,7 @@ public class SinkApiV3ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testUpdateSinkMissingTenant() throws IOException {
+    public void testUpdateSinkMissingTenant() throws Exception {
         try {
             testUpdateSinkMissingArguments(
             null,
@@ -616,7 +616,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testUpdateSinkMissingNamespace() throws IOException {
+    public void testUpdateSinkMissingNamespace() throws Exception {
         try {
             testUpdateSinkMissingArguments(
             tenant,
@@ -635,7 +635,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testUpdateSinkMissingFunctionName() throws IOException {
+    public void testUpdateSinkMissingFunctionName() throws Exception {
         try {
             testUpdateSinkMissingArguments(
             tenant,
@@ -759,12 +759,14 @@ public class SinkApiV3ResourceTest {
             Map<String, String> inputTopicsMap,
             String className,
             Integer parallelism,
-            String expectedError) throws IOException {
+            String expectedError) throws Exception {
         mockStatic(ConnectorUtils.class);
         doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
         mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
@@ -820,7 +822,7 @@ public class SinkApiV3ResourceTest {
 
     }
 
-    private void updateDefaultSink() throws IOException {
+    private void updateDefaultSink() throws Exception {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
@@ -834,6 +836,8 @@ public class SinkApiV3ResourceTest {
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
         mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
 
@@ -859,7 +863,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
-    public void testUpdateNotExistedSink() throws IOException {
+    public void testUpdateNotExistedSink() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
             updateDefaultSink();

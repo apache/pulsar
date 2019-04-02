@@ -563,7 +563,7 @@ public class SourceApiV3ResourceTest {
     //
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
-    public void testUpdateSourceMissingTenant() throws IOException {
+    public void testUpdateSourceMissingTenant() throws Exception {
         try {
             testUpdateSourceMissingArguments(
                 null,
@@ -583,7 +583,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
-    public void testUpdateSourceMissingNamespace() throws IOException {
+    public void testUpdateSourceMissingNamespace() throws Exception {
         try {
             testUpdateSourceMissingArguments(
                 tenant,
@@ -603,7 +603,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
-    public void testUpdateSourceMissingFunctionName() throws IOException {
+    public void testUpdateSourceMissingFunctionName() throws Exception {
         try {
             testUpdateSourceMissingArguments(
                 tenant,
@@ -623,7 +623,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateSourceMissingPackage() throws IOException {
+    public void testUpdateSourceMissingPackage() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
@@ -647,7 +647,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
-    public void testUpdateSourceMissingTopicName() throws IOException {
+    public void testUpdateSourceMissingTopicName() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
@@ -723,7 +723,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
-    public void testUpdateSourceChangedTopic() throws IOException {
+    public void testUpdateSourceChangedTopic() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
@@ -782,13 +782,14 @@ public class SourceApiV3ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String expectedError) throws IOException {
+            String expectedError) throws Exception {
 
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
         mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
@@ -843,7 +844,7 @@ public class SourceApiV3ResourceTest {
 
     }
 
-    private void updateDefaultSource() throws IOException {
+    private void updateDefaultSource() throws Exception {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -858,6 +859,7 @@ public class SourceApiV3ResourceTest {
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
         mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
@@ -879,7 +881,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
-    public void testUpdateNotExistedSource() throws IOException {
+    public void testUpdateNotExistedSource() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
             updateDefaultSource();
