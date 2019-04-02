@@ -23,12 +23,16 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.Map;
 
 /**
  * A class for building a pulsar source.
@@ -43,6 +47,7 @@ public class PulsarSourceBuilder<T> {
     final DeserializationSchema<T> deserializationSchema;
     String serviceUrl = SERVICE_URL;
     final Set<String> topicNames = new TreeSet<>();
+    Authentication authentication;
     Pattern topicsPattern;
     String subscriptionName = "flink-sub";
     long acknowledgementBatchSize = ACKNOWLEDGEMENT_BATCH_SIZE;
@@ -161,6 +166,62 @@ public class PulsarSourceBuilder<T> {
             return this;
         }
         throw new IllegalArgumentException("acknowledgementBatchSize can only take values > 0 and <= " + MAX_ACKNOWLEDGEMENT_BATCH_SIZE);
+    }
+
+    /**
+     * Set the authentication provider to use in the Pulsar client instance.
+     *
+     * @param authentication an instance of the {@link Authentication} provider already constructed
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> authentication(Authentication authentication) {
+        Preconditions.checkArgument(authentication != null,
+                "authentication instance can not be null, use new AuthenticationDisabled() to disable authentication");
+        this.authentication = authentication;
+        return this;
+    }
+
+    /**
+     * Configure the authentication provider to use in the Pulsar client instance
+     *
+     * @param authPluginClassName
+     *            name of the Authentication-Plugin to use
+     * @param authParamsString
+     *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @return this builder
+     * @throws PulsarClientException.UnsupportedAuthenticationException
+     *             failed to instantiate specified Authentication-Plugin
+     */
+    public PulsarSourceBuilder<T> authentication(String authPluginClassName, String authParamsString)
+            throws PulsarClientException.UnsupportedAuthenticationException {
+        Preconditions.checkArgument(StringUtils.isNotBlank(authPluginClassName),
+                "Authentication-Plugin class name can not be blank");
+        Preconditions.checkArgument(StringUtils.isNotBlank(authParamsString),
+                "Authentication-Plugin parameters can not be blank");
+        this.authentication = AuthenticationFactory.create(authPluginClassName, authParamsString);
+        return this;
+    }
+
+    /**
+     * Configure the authentication provider to use in the Pulsar client instance
+     * using a config map.
+     *
+     * @param authPluginClassName
+     *            name of the Authentication-Plugin you want to use
+     * @param authParams
+     *            map which represents parameters for the Authentication-Plugin
+     * @return this builder
+     * @throws PulsarClientException.UnsupportedAuthenticationException
+     *             failed to instantiate specified Authentication-Plugin
+     */
+    public PulsarSourceBuilder<T> authentication(String authPluginClassName, Map<String, String> authParams)
+            throws PulsarClientException.UnsupportedAuthenticationException {
+        Preconditions.checkArgument(StringUtils.isNotBlank(authPluginClassName),
+                "Authentication-Plugin class name can not be blank");
+        Preconditions.checkArgument((authParams != null && authParams.isEmpty() == false),
+                "parameters to authentication plugin can not be null/empty");
+        this.authentication = AuthenticationFactory.create(authPluginClassName, authParams);
+        return this;
     }
 
     public SourceFunction<T> build() {
