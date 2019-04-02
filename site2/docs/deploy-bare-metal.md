@@ -303,17 +303,26 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configuring Brokers
 
-The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) and [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameters. In this case, since we only have 1 cluster and no configuration store setup, the `configurationStoreServers` will point to the same `zookeeperServers`.
+The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) and [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameters. In this case, since we only have 1 cluster and no configuration store setup, the `configurationStoreServers` will point to the same `zookeeperServers`.
 
 ```properties
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 configurationStoreServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
-You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata):
+You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata)):
 
 ```properties
 clusterName=pulsar-cluster-1
+```
+
+In addition, you need to match the broker and web service ports provided when initializing the cluster's metadata (especially when using a different port from default):
+
+```properties
+brokerServicePort=6650
+brokerServicePortTls=6651
+webServicePort=8080
+webServicePortTls=8443
 ```
 
 > If you deploy Pulsar in a one-node cluster, you should update the replication settings in `conf/broker.conf` to `1`
