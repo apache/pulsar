@@ -293,8 +293,6 @@ public abstract class ComponentImpl {
                                  final String clientRole,
                                  AuthenticationDataHttps clientAuthenticationDataHttps) {
 
-        log.info("registerFunction: {}", componentConfigJson);
-
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -428,12 +426,9 @@ public abstract class ComponentImpl {
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
             updateRequest(functionMetaDataBuilder.build());
         } finally {
-            log.info("REG delete: {}", !(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists());
 
             if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
                     && componentPackageFile != null && componentPackageFile.exists()) {
-                log.info("REGISTER deleting file: {}", componentPackageFile.getAbsolutePath());
                 componentPackageFile.delete();
             }
         }
@@ -466,7 +461,6 @@ public abstract class ComponentImpl {
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
                 WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
-//                File file = extractFileFromPkgURL(functionPkgUrl);
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         uploadedInputStreamAsFile.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
@@ -505,8 +499,6 @@ public abstract class ComponentImpl {
                                final String componentConfigJson,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps) {
-
-        log.info("updateFunction: {}", componentConfigJson);
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -660,12 +652,8 @@ public abstract class ComponentImpl {
 
             updateRequest(functionMetaDataBuilder.build());
         } finally {
-            log.info("UPDATE delete: {}", !(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists());
-
             if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
                     && componentPackageFile != null && componentPackageFile.exists()) {
-                log.info("UPDATE deleting file: {}", componentPackageFile.getAbsolutePath());
                 componentPackageFile.delete();
             }
         }

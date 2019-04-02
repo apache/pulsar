@@ -293,7 +293,6 @@ public class FunctionApiV2ResourceTest {
                     parallelism,
                     null);
         } catch (RestException re){
-            log.error("re: {}", re);
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
