@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -31,7 +33,11 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
@@ -56,7 +62,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
  */
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class Utils {
+public class FunctionCommon {
 
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
@@ -235,6 +241,16 @@ public class Utils {
         return null;
     }
 
+    public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
+        URL website = new URL(destPkgUrl);
+        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+        log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
+        try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        }
+        log.info("Downloading function package from {} to {} completed!", destPkgUrl, targetFile.getAbsoluteFile());
+    }
+
     /**
      * Load a jar.
      *
@@ -266,15 +282,8 @@ public class Utils {
             }
             return file;
         } else if (destPkgUrl.startsWith("http")) {
-            URL website = new URL(destPkgUrl);
             File tempFile = File.createTempFile("function", ".tmp");
-            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.getChannel().transferFrom(rbc, 0, 10);
-            }
-            if (tempFile.exists()) {
-                tempFile.delete();
-            }
+            downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;
         } else {
             throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
@@ -318,39 +327,16 @@ public class Utils {
                 throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
             }
         }
+
         if (!isEmpty(pkgUrl)) {
-            if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-                try {
-                    URL url = new URL(pkgUrl);
-                    File file = new File(url.toURI());
-                    if (!file.exists()) {
-                        throw new IOException(pkgUrl + " does not exists locally");
-                    }
-                    return NarClassLoader.getFromArchive(file, Collections.emptySet());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(
-                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
-                }
-            } else if (pkgUrl.startsWith("http")) {
-                try {
-                    URL website = new URL(pkgUrl);
-                    File tempFile = File.createTempFile("function", ".tmp");
-                    ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-                    try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                        fos.getChannel().transferFrom(rbc, 0, 10);
-                    }
-                    if (tempFile.exists()) {
-                        tempFile.delete();
-                    }
-                    return NarClassLoader.getFromArchive(tempFile, Collections.emptySet());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(
-                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
-                }
-            } else {
-                throw new IllegalArgumentException("Unsupported url protocol "+ pkgUrl +", supported url protocols: [file/http/https]");
+            try {
+                return NarClassLoader.getFromArchive(extractFileFromPkg(pkgUrl), Collections.emptySet());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
             }
         }
+
         if (uploadedInputStreamFileName != null) {
             try {
                 return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
@@ -375,20 +361,61 @@ public class Utils {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
 
-    public enum ComponentType {
-        FUNCTION("Function"),
-        SOURCE("Source"),
-        SINK("Sink");
+    public static final long getSequenceId(MessageId messageId) {
+        MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                : messageId);
+        long ledgerId = msgId.getLedgerId();
+        long entryId = msgId.getEntryId();
 
-        private final String componentName;
+        // Combine ledger id and entry id to form offset
+        // Use less than 32 bits to represent entry id since it will get
+        // rolled over way before overflowing the max int range
+        long offset = (ledgerId << 28) | entryId;
+        return offset;
+    }
 
-        ComponentType(String componentName) {
-            this.componentName = componentName;
+    public static final MessageId getMessageId(long sequenceId) {
+        // Demultiplex ledgerId and entryId from offset
+        long ledgerId = sequenceId >>> 28;
+        long entryId = sequenceId & 0x0F_FF_FF_FFL;
+
+        return new MessageIdImpl(ledgerId, entryId, -1);
+    }
+
+    public static byte[] toByteArray(Object obj) throws IOException {
+        byte[] bytes = null;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(obj);
+            oos.flush();
+            bytes = bos.toByteArray();
         }
+        return bytes;
+    }
 
-        @Override
-        public String toString() {
-            return componentName;
-        }
+    public static String getUniquePackageName(String packageName) {
+        return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
+    }
+
+    /**
+     * Convert pulsar tenant and namespace to state storage namespace.
+     *
+     * @param tenant pulsar tenant
+     * @param namespace pulsar namespace
+     * @return state storage namespace
+     */
+    public static String getStateNamespace(String tenant, String namespace) {
+        return String.format("%s_%s", tenant, namespace)
+            .replace("-", "_");
+    }
+
+    public static String getFullyQualifiedName(org.apache.pulsar.functions.proto.Function.FunctionDetails FunctionDetails) {
+        return getFullyQualifiedName(FunctionDetails.getTenant(), FunctionDetails.getNamespace(), FunctionDetails.getName());
+
+    }
+
+    public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
+        return String.format("%s/%s/%s", tenant, namespace, functionName);
     }
 }

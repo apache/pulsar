@@ -27,22 +27,17 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Supplier;
 
-import lombok.Builder;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -247,7 +242,7 @@ public class RuntimeUtils {
         return String.format(
                 "%s/%s",
                 logDirectory,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException{

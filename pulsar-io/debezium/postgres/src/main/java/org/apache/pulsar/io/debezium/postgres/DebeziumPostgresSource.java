@@ -16,8 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.io.debezium.postgres;
+
+import java.util.Map;
+
+import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.pulsar.io.debezium.DebeziumSource;
+
 
 /**
- * Helper classes.
+ * A pulsar source that runs debezium postgres source
  */
-package org.apache.pulsar.functions.utils;
+public class DebeziumPostgresSource extends DebeziumSource {
+    static private final String DEFAULT_TASK = "io.debezium.connector.postgresql.PostgresConnectorTask";
+
+    @Override
+    public void setDbConnectorTask(Map<String, Object> config) throws Exception {
+        throwExceptionIfConfigNotMatch(config, TaskConfig.TASK_CLASS_CONFIG, DEFAULT_TASK);
+    }
+}
