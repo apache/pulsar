@@ -417,9 +417,10 @@ public abstract class ComponentImpl {
 
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             try {
-                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails,
+                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
                         functionPkgUrl, fileDetail, componentPackageFile);
             } catch (Exception e) {
+                log.error("Failed process {} {}/{}/{} package: ", componentType, tenant, namespace, componentName, e);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
 
@@ -434,10 +435,11 @@ public abstract class ComponentImpl {
         }
     }
 
-    PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionDetails functionDetails,
+    PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
                                                                        final String functionPkgUrl,
                                                                        final FormDataContentDisposition fileDetail,
                                                                        final File uploadedInputStreamAsFile) throws Exception {
+        FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         String tenant = functionDetails.getTenant();
         String namespace = functionDetails.getNamespace();
         String componentName = functionDetails.getName();
@@ -466,6 +468,14 @@ public abstract class ComponentImpl {
                 packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
                 WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+            } else if (functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)
+                    || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+                String fileName = new File(new URL(functionMetaData.getPackageLocation().getPackagePath()).toURI()).getName();
+                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                        fileName));
+                packageLocationMetaDataBuilder.setOriginalFileName(fileName);
+                log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         fileDetail.getFileName()));
@@ -479,6 +489,9 @@ public abstract class ComponentImpl {
                 packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
             } else if (isPkgUrlProvided) {
                 packageLocationMetaDataBuilder.setPackagePath(functionPkgUrl);
+            } else if (functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)
+                    || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+                packageLocationMetaDataBuilder.setPackagePath(functionMetaData.getPackageLocation().getPackagePath());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
@@ -519,6 +532,7 @@ public abstract class ComponentImpl {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
                         componentName, clientRole, componentType);
                 throw new RestException(Status.UNAUTHORIZED, componentType + "client is not authorize to perform operation");
+
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -545,7 +559,8 @@ public abstract class ComponentImpl {
             functionConfig.setNamespace(namespace);
             functionConfig.setName(componentName);
             try {
-                FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig, functionConfig);
+                FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig,
+                        functionConfig);
                 mergedComponentConfigJson = new Gson().toJson(mergedConfig);
             } catch (Exception e) {
                 throw new RestException(Status.BAD_REQUEST, e.getMessage());
@@ -600,15 +615,24 @@ public abstract class ComponentImpl {
                     functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
                             mergedComponentConfigJson, componentType, componentPackageFile);
 
+                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
+                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
+                    try {
+                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), componentType, functionPkgUrl));
+                    }
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
+                            mergedComponentConfigJson, componentType, componentPackageFile);
                 } else if (uploadedInputStream != null) {
 
                     componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
                             mergedComponentConfigJson, componentType, componentPackageFile);
 
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith("builtin://")) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, componentName
-                            , mergedComponentConfigJson, componentType, componentPackageFile);
+                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
+                            mergedComponentConfigJson, componentType, componentPackageFile);
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(componentType + " Package is not provided");
                     }
@@ -629,7 +653,8 @@ public abstract class ComponentImpl {
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
                 log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory", componentType, tenant, namespace, componentName);
-                throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
+                throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
+                        componentType, componentName, e.getMessage()));
             }
 
             // merge from existing metadata
@@ -639,9 +664,10 @@ public abstract class ComponentImpl {
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(functionPkgUrl) || componentPackageFile != null) {
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails,
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
                             functionPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
+                    log.error("Failed process {} {}/{}/{} package: ", componentType, tenant, namespace, componentName, e);
                     throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {

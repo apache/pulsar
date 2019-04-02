@@ -144,6 +144,18 @@ public class PulsarFunctionE2ETest {
     @BeforeMethod
     void setup(Method method) throws Exception {
 
+        // delete all function temp files
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        for (File file : foundFiles) {
+            file.delete();
+        }
+
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble

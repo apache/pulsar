@@ -213,7 +213,7 @@ public class FunctionsImplV2 {
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             try {
-                packageLocationMetaDataBuilder = delegate.getFunctionPackageLocation(functionDetails,
+                packageLocationMetaDataBuilder = delegate.getFunctionPackageLocation(functionMetaDataBuilder.build(),
                         functionPkgUrl, fileDetail, functionPackageFile);
             } catch (Exception e) {
                 throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
@@ -348,7 +348,7 @@ public class FunctionsImplV2 {
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(functionPkgUrl) || functionPackageFile != null) {
                 try {
-                    packageLocationMetaDataBuilder = delegate.getFunctionPackageLocation(functionDetails,
+                    packageLocationMetaDataBuilder = delegate.getFunctionPackageLocation(functionMetaDataBuilder.build(),
                             functionPkgUrl, fileDetail, functionPackageFile);
                 } catch (Exception e) {
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
