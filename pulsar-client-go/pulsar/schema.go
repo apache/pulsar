@@ -32,20 +32,27 @@ type SchemaType int
 const (
 	NONE         SchemaType = iota //No schema defined
 	STRING                         //Simple String encoding with UTF-8
+	JSON                           //JSON object encoding and validation
+	PROTOBUF                       //Protobuf message encoding and decoding
+	AVRO                           //Serialize and deserialize via Avro
+	BOOLEAN                        //
 	INT8                           //A 8-byte integer.
 	INT16                          //A 16-byte integer.
 	INT32                          //A 32-byte integer.
 	INT64                          //A 64-byte integer.
-	FLOAT32                        //A float number.
-	FLOAT64                        //A double number
-	BYTES                          //A bytes array.
-	JSON                           //JSON object encoding and validation
-	PROTOBUF                       //Protobuf message encoding and decoding
-	AVRO                           //Serialize and deserialize via Avro
-	AUTO_CONSUME                   //Auto Consume Type.
-	AUTO_PUBLISH                   // Auto Publish Type.
+	FLOAT                          //A float number.
+	DOUBLE                         //A double number
+	_                              //
+	_                              //
+	_                              //
 	KEY_VALUE                      //A Schema that contains Key Schema and Value Schema.
+	BYTES        = -1              //A bytes array.
+	AUTO         = -2              //
+	AUTO_CONSUME = -3              //Auto Consume Type.
+	AUTO_PUBLISH = -4              // Auto Publish Type.
 )
+
+const ()
 
 // Encapsulates data around the schema definition
 type SchemaInfo struct {
@@ -262,7 +269,7 @@ type Float32Schema struct {
 }
 
 func NewFloat32Schema() *Float32Schema {
-	schemaInfo := NewSchemaInfo("Float32", "", FLOAT32)
+	schemaInfo := NewSchemaInfo("FLOAT", "", FLOAT)
 	float32Schema := &Float32Schema{
 		*schemaInfo,
 	}
@@ -282,7 +289,7 @@ type Float64Schema struct {
 }
 
 func NewFloat64Schema() *Float64Schema {
-	schemaInfo := NewSchemaInfo("Float64", "", FLOAT64)
+	schemaInfo := NewSchemaInfo("DOUBLE", "", DOUBLE)
 	float64Schema := &Float64Schema{
 		*schemaInfo,
 	}

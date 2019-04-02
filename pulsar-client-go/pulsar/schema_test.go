@@ -20,7 +20,6 @@ package pulsar
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	log "github.com/apache/pulsar/pulsar-client-go/logutil"
@@ -470,7 +469,6 @@ func TestFloat64Schema(t *testing.T) {
 
 	f64sProducer := NewFloat64Schema()
 	schema, err := f64sProducer.Serialize(in)
-	fmt.Println("double:", schema)
 	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic:      "float64Topic",
