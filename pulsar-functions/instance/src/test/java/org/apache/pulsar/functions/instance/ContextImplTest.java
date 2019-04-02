@@ -27,14 +27,13 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.ComponentType;
 import org.mockito.Matchers;
 import org.slf4j.Logger;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -77,9 +76,8 @@ public class ContextImplTest {
             config,
             logger,
             client,
-            new ArrayList<>(),
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                Utils.ComponentType.FUNCTION);
+                ComponentType.FUNCTION, null);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)

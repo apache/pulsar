@@ -49,6 +49,7 @@ public class SourceConfigUtilsTest {
         sourceConfig.setTopicName("test-output");
         sourceConfig.setSerdeClassName("test-serde");
         sourceConfig.setParallelism(1);
+        sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sourceConfig.setConfigs(new HashMap<>());
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
@@ -117,7 +118,7 @@ public class SourceConfigUtilsTest {
         SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be alterted")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("processingGuarantees", EFFECTIVELY_ONCE);

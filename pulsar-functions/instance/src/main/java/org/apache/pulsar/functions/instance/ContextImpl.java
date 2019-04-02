@@ -44,8 +44,8 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -54,7 +54,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -66,7 +65,6 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
-
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -76,8 +74,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
-
-    private final List<String> inputTopics;
 
     private final TopicSchema topicSchema;
 
@@ -89,6 +85,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
+    private ComponentStatsManager statsManager;
+
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
@@ -99,16 +97,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
-    private final Utils.ComponentType componentType;
+    private final ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType) {
+                       ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
-        this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
+        this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
@@ -167,7 +165,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputTopics;
+        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
     }
 
     @Override
@@ -212,7 +210,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId().toString();
+        return config.getFunctionId();
     }
 
     @Override
@@ -336,7 +334,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                         .sendTimeout(0, TimeUnit.SECONDS)
                         .topic(topicName)
                         .properties(InstanceUtils.getProperties(componentType,
-                                FunctionDetailsUtils.getFullyQualifiedName(
+                                FunctionCommon.getFullyQualifiedName(
                                         this.config.getFunctionDetails().getTenant(),
                                         this.config.getFunctionDetails().getNamespace(),
                                         this.config.getFunctionDetails().getName()),
@@ -359,7 +357,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        return producer.sendAsync(object).thenApply(msgId -> null);
+        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        future.exceptionally(e -> {
+            this.statsManager.incrSysExceptions(e);
+            logger.error("Failed to publish to topic {} with error {}", topicName, e);
+            return null;
+        });
+        return future;
     }
 
     @Override

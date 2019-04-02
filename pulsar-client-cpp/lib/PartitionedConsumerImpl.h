@@ -71,6 +71,8 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
                                 size_t, BrokerConsumerStatsCallback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
+    virtual void negativeAcknowledge(const MessageId& msgId);
+
    private:
     const ClientImplPtr client_;
     const std::string subscriptionName_;

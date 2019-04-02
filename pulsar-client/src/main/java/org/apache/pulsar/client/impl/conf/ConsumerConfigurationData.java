@@ -63,6 +63,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
+    private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
+
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
     private String consumerName = null;

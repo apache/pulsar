@@ -44,11 +44,13 @@ public class CanalSourceConfig implements Serializable{
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Username to connect to mysql database")
     private String username;
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Password to connect to mysql database")
     private String password;
     @FieldDoc(

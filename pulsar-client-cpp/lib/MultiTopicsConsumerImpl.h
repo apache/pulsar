@@ -80,6 +80,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     // not supported
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
+    virtual void negativeAcknowledge(const MessageId& msgId);
+
    protected:
     const ClientImplPtr client_;
     const std::string subscriptionName_;

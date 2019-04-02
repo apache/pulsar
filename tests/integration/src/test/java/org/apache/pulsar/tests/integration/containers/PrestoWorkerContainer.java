@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
+
 /**
  * A pulsar container that runs the presto worker
  */
@@ -35,5 +37,17 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
                 -1,
                 PRESTO_HTTP_PORT,
                 "/v1/node");
+    }
+
+    @Override
+    protected void beforeStop() {
+        super.beforeStop();
+        if (null != containerId) {
+            DockerUtils.dumpContainerDirToTargetCompressed(
+                    getDockerClient(),
+                    containerId,
+                    "/pulsar/lib/presto/var/log"
+            );
+        }
     }
 }

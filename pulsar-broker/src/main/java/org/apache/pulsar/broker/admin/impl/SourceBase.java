@@ -79,7 +79,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, sourceConfigJson, clientAppId());
+            functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -100,7 +100,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                              final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, sourceConfigJson, clientAppId());
+            functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
 
@@ -117,7 +117,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public void deregisterSource(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("sourceName") String sourceName) {
-        source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+        source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -156,7 +156,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
             final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) throws IOException {
         return source.getSourceInstanceStatus(
-            tenant, namespace, sourceName, instanceId, uri.getRequestUri());
+            tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -174,7 +174,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public SourceStatus getSourceStatus(final @PathParam("tenant") String tenant,
                                         final @PathParam("namespace") String namespace,
                                         final @PathParam("sourceName") String sourceName) throws IOException {
-        return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri());
+        return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -190,7 +190,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @Path("/{tenant}/{namespace}")
     public List<String> listSources(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace) {
-        return source.listFunctions(tenant, namespace);
+        return source.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -205,7 +205,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName,
                               final @PathParam("instanceId") String instanceId) {
-        source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri());
+        source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -219,7 +219,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public void restartSource(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName) {
-        source.restartFunctionInstances(tenant, namespace, sourceName);
+        source.restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -234,7 +234,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName,
                            final @PathParam("instanceId") String instanceId) {
-        source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri());
+        source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -248,7 +248,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public void stopSource(final @PathParam("tenant") String tenant,
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName) {
-        source.stopFunctionInstances(tenant, namespace, sourceName);
+        source.stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -263,7 +263,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName,
                             final @PathParam("instanceId") String instanceId) {
-        source.startFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri());
+        source.startFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -277,7 +277,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public void startSource(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName) {
-        source.startFunctionInstances(tenant, namespace, sourceName);
+        source.startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @GET

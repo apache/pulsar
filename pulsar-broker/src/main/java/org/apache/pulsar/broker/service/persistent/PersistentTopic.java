@@ -350,7 +350,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         lock.readLock().lock();
         try {
             brokerService.checkTopicNsOwnership(getName());
-            
+
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -485,14 +485,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-        
+
         try {
             brokerService.checkTopicNsOwnership(getName());
         } catch (Exception e) {
             future.completeExceptionally(e);
             return future;
         }
-        
+
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             future.completeExceptionally(
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
@@ -1007,9 +1007,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
-            if (policies.message_ttl_in_seconds != 0) {
-                subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
-                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(policies.message_ttl_in_seconds));
+            int defaultTTL = brokerService.pulsar().getConfiguration().getTtlDurationDefaultInSeconds();
+            int message_ttl_in_seconds = (policies.message_ttl_in_seconds <= 0 && defaultTTL > 0) ? defaultTTL
+                    : policies.message_ttl_in_seconds;
+            if (message_ttl_in_seconds != 0) {
+                subscriptions.forEach((subName, sub) -> sub.expireMessages(message_ttl_in_seconds));
+                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(message_ttl_in_seconds));
             }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
@@ -1611,7 +1614,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 data.schema_auto_update_compatibility_strategy);
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
-        
+
         producers.forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
@@ -1633,7 +1636,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-    
+
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -1826,18 +1829,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public synchronized void triggerOffload(MessageIdImpl messageId) throws AlreadyRunningException {
         if (currentOffload.isDone()) {
             CompletableFuture<MessageIdImpl> promise = currentOffload = new CompletableFuture<>();
+            log.info("[{}] Starting offload operation at messageId {}", topic, messageId);
             getManagedLedger().asyncOffloadPrefix(
                     PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
                     new OffloadCallback() {
                         @Override
                         public void offloadComplete(Position pos, Object ctx) {
                             PositionImpl impl = (PositionImpl)pos;
-
+                            log.info("[{}] Completed successfully offload operation at messageId {}", topic, messageId);
                             promise.complete(new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1));
                         }
 
                         @Override
                         public void offloadFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Failed offload operation at messageId {}", topic, messageId, exception);
                             promise.completeExceptionally(exception);
                         }
                     }, null);
@@ -1857,6 +1862,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     return OffloadProcessStatus.forSuccess(currentOffload.join());
                 }
             } catch (CancellationException | CompletionException e) {
+                log.warn("Failed to offload: {}", e.getCause());
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }

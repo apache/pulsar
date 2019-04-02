@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.functions.source;
 
+import io.netty.buffer.ByteBuf;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -37,6 +41,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 
+@Slf4j
 public class TopicSchema {
 
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
@@ -47,7 +52,7 @@ public class TopicSchema {
     }
 
     /**
-     * If there is no other information available, use JSON as default schema type
+     * If there is no other information available, use JSON as default schema type.
      */
     private static final SchemaType DEFAULT_SCHEMA_TYPE = SchemaType.JSON;
 
@@ -79,13 +84,19 @@ public class TopicSchema {
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericRecord.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
-        } else if (byte[].class.equals(clazz)) {
+        } else if (byte[].class.equals(clazz)
+                || ByteBuf.class.equals(clazz)
+                || ByteBuffer.class.equals(clazz)) {
             // if function uses bytes, we should ignore
             return SchemaType.NONE;
         } else {
             Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
             if (schema.isPresent()) {
-                return schema.get().getType();
+                if (schema.get().getType() == SchemaType.NONE) {
+                    return getDefaultSchemaType(clazz);
+                } else {
+                    return schema.get().getType();
+                }
             } else {
                 return getDefaultSchemaType(clazz);
             }
@@ -93,7 +104,9 @@ public class TopicSchema {
     }
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
-        if (byte[].class.equals(clazz)) {
+        if (byte[].class.equals(clazz)
+            || ByteBuf.class.equals(clazz)
+            || ByteBuffer.class.equals(clazz)) {
             return SchemaType.NONE;
         } else if (GenericRecord.class.isAssignableFrom(clazz)) {
             // the function is taking generic record, so we do auto schema detection
@@ -124,13 +137,13 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(clazz);
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case JSON:
-            return JSONSchema.of(clazz);
+            return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES;
+            return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());

@@ -240,6 +240,17 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     }
 
     @Test
+    public void testS3DriverConfiguredWell() throws Exception {
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        conf.setManagedLedgerOffloadDriver("s3");
+        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
+        conf.setS3ManagedLedgerOffloadServiceEndpoint("http://fake.s3.end.point");
+
+        // should success and no exception thrown.
+        BlobStoreManagedLedgerOffloader.create(conf, scheduler);
+    }
+
+    @Test
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
