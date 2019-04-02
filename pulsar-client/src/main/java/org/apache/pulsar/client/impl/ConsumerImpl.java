@@ -138,6 +138,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
+    private final long backoffIntervalNanos;
+    private final long maxBackoffIntervalNanos;
+
     protected volatile boolean paused;
 
     enum SubscriptionMode {
@@ -152,18 +155,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        if (conf.getReceiverQueueSize() == 0) {
-            return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors);
-        } else {
-            return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors);
-        }
+        return ConsumerImpl.newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode, 
+                                            startMessageId, schema, interceptors, Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
     }
 
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+            long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+    	if (conf.getReceiverQueueSize() == 0) {
+            return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
+                    subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+        } else {
+            return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
+                    subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+        }
+    }
+    
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+                 long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
@@ -208,8 +220,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
-            this);
+        		        new BackoffBuilder()
+        	               .setInitialTime(100, TimeUnit.MILLISECONDS)
+        	               .setMandatoryStop(60, TimeUnit.SECONDS)
+        	               .setMax(0, TimeUnit.MILLISECONDS)
+        	               .useUserConfiguredIntervals(backoffIntervalNanos, 
+        	                                           maxBackoffIntervalNanos)
+        	               .create(),
+                        this);
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {
@@ -237,6 +255,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
         }
+
+        this.backoffIntervalNanos = backoffIntervalNanos;
+        this.maxBackoffIntervalNanos = maxBackoffIntervalNanos;
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
@@ -1448,9 +1469,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
-            0 , TimeUnit.MILLISECONDS);
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(0, TimeUnit.MILLISECONDS)
+                .useUserConfiguredIntervals(backoffIntervalNanos, 
+                                            maxBackoffIntervalNanos)
+                .create();
+        
         CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
 
         internalGetLastMessageIdAsync(backoff, opTimeoutMs, getLastMessageIdFuture);

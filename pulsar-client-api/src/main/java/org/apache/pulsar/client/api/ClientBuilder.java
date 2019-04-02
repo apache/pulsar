@@ -354,4 +354,26 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder connectionTimeout(int duration, TimeUnit unit);
+    
+    /**
+     * Set the duration of time for a backoff interval.
+     * 
+     * @param duration 
+     * 			 the duration of the interval
+     * @param unit
+     * 			 the time unit in which the duration is defined
+     * @return the client builder instance
+     */
+    ClientBuilder startingBackoffInterval(long duration, TimeUnit unit);
+    
+    /**
+     * Set the maximum duration of time for a backoff interval.
+     * 
+     * @param duration 
+     * 			 the duration of the interval
+     * @param unit
+     * 			 the time unit in which the duration is defined
+     * @return the client builder instance
+     */
+    ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
 }
