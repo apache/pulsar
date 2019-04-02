@@ -28,9 +28,20 @@
 <tr><th>Name</th><th>Required</th><th>默认值</th><th>说明：</th></tr>
 </thead>
 <tbody>
-<tr><td><code>connectionName</code></td><td><code>true</code></td><td><code>null</code></td><td>A new broker connection name.</td></tr>
-<tr><td><code>amqUri</code></td><td><code>true</code></td><td><code>null</code></td><td>An AMQP URI: host, port, username, password and virtual host.</td></tr>
-<tr><td><code>queueName</code></td><td><code>true</code></td><td><code>null</code></td><td>RabbitMQ queue name.</td></tr>
+<tr><td><code>connectionName</code></td><td><code>true</code></td><td><code>null</code></td><td>The connection name used for connecting to RabbitMQ.</td></tr>
+<tr><td><code>host</code></td><td><code>true</code></td><td><code>null</code></td><td>The RabbitMQ host to connect to.</td></tr>
+<tr><td><code>port</code></td><td><code>true</code></td><td><code>5672</code></td><td>The RabbitMQ port to connect to.</td></tr>
+<tr><td><code>virtualHost</code></td><td><code>true</code></td><td><code>/</code></td><td>The virtual host used for connecting to RabbitMQ.</td></tr>
+<tr><td><code>username</code></td><td><code>false</code></td><td><code>guest</code></td><td>The username used to authenticate to RabbitMQ.</td></tr>
+<tr><td><code>password</code></td><td><code>false</code></td><td><code>guest</code></td><td>The password used to authenticate to RabbitMQ.</td></tr>
+<tr><td><code>queueName</code></td><td><code>true</code></td><td><code>null</code></td><td>The RabbitMQ queue name from which messages should be read from or written to.</td></tr>
+<tr><td><code>requestedChannelMax</code></td><td><code>false</code></td><td><code>0</code></td><td>Initially requested maximum channel number. 0 for unlimited.</td></tr>
+<tr><td><code>requestedFrameMax</code></td><td><code>false</code></td><td><code>0</code></td><td>Initially requested maximum frame size, in octets. 0 for unlimited.</td></tr>
+<tr><td><code>connectionTimeout</code></td><td><code>false</code></td><td><code>60000</code></td><td>Connection TCP establishment timeout in milliseconds. 0 for infinite.</td></tr>
+<tr><td><code>handshakeTimeout</code></td><td><code>false</code></td><td><code>10000</code></td><td>The AMQP0-9-1 protocol handshake timeout in milliseconds.</td></tr>
+<tr><td><code>requestedHeartbeat</code></td><td><code>false</code></td><td><code>60</code></td><td>The requested heartbeat timeout in seconds.</td></tr>
+<tr><td><code>prefetchCount</code></td><td><code>false</code></td><td><code>0</code></td><td>Maximum number of messages that the server will deliver, 0 for unlimited.</td></tr>
+<tr><td><code>prefetchGlobal</code></td><td><code>false</code></td><td><code>false</code></td><td>Set true if the settings should be applied to the entire channel rather than each consumer.</td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
