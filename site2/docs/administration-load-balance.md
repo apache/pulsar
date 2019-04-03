@@ -1,10 +1,10 @@
 ---
-id: administration-load-distribution
-title: Pulsar load distribution
-sidebar_label: Load distribution
+id: administration-load-balance
+title: Pulsar load balance
+sidebar_label: Load balance
 ---
 
-## Load distribution across Pulsar brokers
+## Load balance across Pulsar brokers
 
 Pulsar is an horizontally scalable messaging system, so it is a core requirement that the traffic
 in a logical cluster must be spread across all the available Pulsar brokers, as evenly as possible.

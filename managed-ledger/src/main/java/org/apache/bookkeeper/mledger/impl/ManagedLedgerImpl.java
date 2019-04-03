@@ -2259,8 +2259,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
         PositionImpl requestOffloadTo = (PositionImpl) pos;
-        if (!isValidPosition(requestOffloadTo)) {
-            callback.offloadFailed(new InvalidCursorPositionException("Invalid position for offload"), ctx);
+        if (!isValidPosition(requestOffloadTo) &&
+                // Also consider the case where the last ledger is currently
+                // empty. In this the passed position is not technically
+                // "valid", per the above check, given that it's not written
+                // yes, but it will be valid for the logic here
+                !(requestOffloadTo.getLedgerId() == currentLedger.getId()
+                        && requestOffloadTo.getEntryId() == 0)) {
+            log.warn("[{}] Cannot start offload at position {} - LastConfirmedEntry: {}", name, pos, lastConfirmedEntry);
+            callback.offloadFailed(new InvalidCursorPositionException("Invalid position for offload: " + pos), ctx);
             return;
         }
 
@@ -2369,7 +2376,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     })
                 .whenComplete((ignore, exception) -> {
                         if (exception != null) {
-                            log.info("[{}] Exception occurred during offload", name, exception);
+                            log.warn("[{}] Exception occurred during offload", name, exception);
 
                             PositionImpl newFirstUnoffloaded = PositionImpl.get(ledgerId, 0);
                             if (newFirstUnoffloaded.compareTo(firstUnoffloaded) > 0) {

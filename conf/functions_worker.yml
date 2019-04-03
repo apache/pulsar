@@ -26,6 +26,13 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
+# Configuration Store connection string
+configurationStoreServers: localhost:2181
+# ZooKeeper session timeout in milliseconds
+zooKeeperSessionTimeoutMillis: 30000
+# ZooKeeper operation timeout in seconds
+zooKeeperOperationTimeoutSeconds: 30
+
 ################################
 # Function package management
 ################################
@@ -129,8 +136,10 @@ processContainerFactory:
 authenticationEnabled: false
 # Enforce authorization on accessing functions api
 authorizationEnabled: false
-# Set of autentication provider name list, which is a list of class names
-authenticationProviders: 
+# Set of authentication provider name list, which is a list of class names
+authenticationProviders:
+# Authorization provider fully qualified class-name
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles: 
 

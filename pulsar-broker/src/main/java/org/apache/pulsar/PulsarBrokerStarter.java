@@ -166,6 +166,12 @@ public class PulsarBrokerStarter {
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname
                         + "-" + workerConfig.getWorkerPort());
+                // inherit broker authorization setting
+                workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
+                workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
+                workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
+                workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
+                workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
                 functionsWorkerService = new WorkerService(workerConfig);
             } else {
                 functionsWorkerService = null;
