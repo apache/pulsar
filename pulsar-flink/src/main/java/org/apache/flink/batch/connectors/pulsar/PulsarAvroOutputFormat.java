@@ -20,6 +20,7 @@ package org.apache.flink.batch.connectors.pulsar;
 
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.batch.connectors.pulsar.serialization.AvroSerializationSchema;
+import org.apache.pulsar.client.api.Authentication;
 
 /**
  * Pulsar Avro Output Format to write Flink DataSets into a Pulsar topic in Avro format.
@@ -28,8 +29,8 @@ public class PulsarAvroOutputFormat<T extends SpecificRecord> extends BasePulsar
 
     private static final long serialVersionUID = -6794070714728773530L;
 
-    public PulsarAvroOutputFormat(String serviceUrl, String topicName) {
-        super(serviceUrl, topicName);
+    public PulsarAvroOutputFormat(String serviceUrl, String topicName, Authentication authentication) {
+        super(serviceUrl, topicName, authentication);
         this.serializationSchema = new AvroSerializationSchema();
     }
 

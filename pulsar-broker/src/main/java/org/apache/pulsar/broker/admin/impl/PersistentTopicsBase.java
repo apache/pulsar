@@ -463,7 +463,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
-                    pulsar().getAdminClient().persistentTopics().deleteAsync(topicNamePartition.toString(), force)
+                    pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force)
                             .whenComplete((r, ex) -> {
                                 if (ex != null) {
                                     if (ex instanceof NotFoundException) {
@@ -937,7 +937,7 @@ public class PersistentTopicsBase extends AdminResource {
                 AtomicInteger failureCount = new AtomicInteger(0);
 
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    admin.persistentTopics()
+                    admin.topics()
                             .createSubscriptionAsync(topicName.getPartition(i).toString(), subscriptionName, messageId)
                             .handle((result, ex) -> {
                                 if (ex != null) {
@@ -1309,24 +1309,25 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private Topic getTopicReference(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> {
-                    if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
-                        TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                        PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
-                        if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
-                        	final String errSrc;
-                        	if (partitionedTopicMetadata != null) {
-                        		errSrc = " has zero partitions";
-                        	} else {
-                        		errSrc = " has no metadata";
-                        	}
-                            return new RestException(Status.NOT_FOUND, "Partitioned Topic not found: " + topicName.toString() + errSrc);
-                        } else if (!internalGetList().contains(topicName.toString())) {
-                            return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
-                        }
-                    }
-                    return new RestException(Status.NOT_FOUND, "Topic not found");
-                });
+                .orElseThrow(() -> topicNotFoundReason(topicName));
+    }
+
+    private RestException topicNotFoundReason(TopicName topicName) {
+        if (!topicName.isPartitioned()) {
+            return new RestException(Status.NOT_FOUND, "Topic not found");
+        }
+
+        PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(
+                TopicName.get(topicName.getPartitionedTopicName()), false);
+        if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
+            final String topicErrorType = partitionedTopicMetadata == null ?
+                    "has no metadata" : "has zero partitions";
+            return new RestException(Status.NOT_FOUND, String.format(
+                    "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
+        } else if (!internalGetList().contains(topicName.toString())) {
+            return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+        }
+        return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
@@ -1463,8 +1464,8 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] topic {} not found", clientAppId(), topicName);
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getCause().getMessage(), e);
-            throw new RestException(e.getCause());
+            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
+            throw new RestException(e);
         }
     }
 

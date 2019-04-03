@@ -18,6 +18,7 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertNotNull;
@@ -29,28 +30,28 @@ public class PulsarJsonOutputFormatTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenServiceUrlIsNull() {
-        new PulsarJsonOutputFormat(null, "testTopic");
+        new PulsarJsonOutputFormat(null, "testTopic", new AuthenticationDisabled());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenTopicNameIsNull() {
-        new PulsarJsonOutputFormat("testServiceUrl", null);
+        new PulsarJsonOutputFormat("testServiceUrl", null, new AuthenticationDisabled());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenTopicNameIsBlank() {
-        new PulsarJsonOutputFormat("testServiceUrl", " ");
+        new PulsarJsonOutputFormat("testServiceUrl", " ", new AuthenticationDisabled());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarJsonOutputFormatConstructorWhenServiceUrlIsBlank() {
-        new PulsarJsonOutputFormat(" ", "testTopic");
+        new PulsarJsonOutputFormat(" ", "testTopic", new AuthenticationDisabled());
     }
 
     @Test
     public void testPulsarJsonOutputFormatConstructor() {
         PulsarJsonOutputFormat pulsarJsonOutputFormat =
-                new PulsarJsonOutputFormat("testServiceUrl", "testTopic");
+                new PulsarJsonOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled());
         assertNotNull(pulsarJsonOutputFormat);
     }
 }

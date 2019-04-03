@@ -18,18 +18,15 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -49,7 +46,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -256,7 +253,7 @@ public class SchedulerManager implements AutoCloseable {
 
     private void publishNewAssignment(Assignment assignment, boolean deleted) {
         try {
-            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
             producer.newMessage().key(fullyQualifiedInstanceId)
@@ -272,7 +269,7 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
             for (Function.Instance instance : computeInstances(functionMetaData, externallyManagedRuntime)) {
-                functionInstances.put(Utils.getFullyQualifiedInstanceId(instance), instance);
+                functionInstances.put(FunctionCommon.getFullyQualifiedInstanceId(instance), instance);
             }
         }
         return functionInstances;

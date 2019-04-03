@@ -334,7 +334,8 @@ public class PulsarClientImpl implements PulsarClient {
                     listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
                 consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, -1,
-                        consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors);
+                        consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors, 
+                        this.conf.getDefaultBackoffIntervalNanos(), this.conf.getMaxBackoffIntervalNanos());
             }
 
             synchronized (consumers) {

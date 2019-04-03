@@ -16,28 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.io.debezium.postgres;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.UUID;
+import java.util.Map;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.pulsar.io.debezium.DebeziumSource;
+
 
 /**
- * Unit test of {@link Utils}.
+ * A pulsar source that runs debezium postgres source
  */
-public class UtilsTest {
+public class DebeziumPostgresSource extends DebeziumSource {
+    static private final String DEFAULT_TASK = "io.debezium.connector.postgresql.PostgresConnectorTask";
 
-    @Test
-    public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = UtilsTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        Utils.downloadFromHttpUrl(jarHttpUrl, new FileOutputStream(pkgFile));
-        Assert.assertTrue(pkgFile.exists());
-        pkgFile.delete();
+    @Override
+    public void setDbConnectorTask(Map<String, Object> config) throws Exception {
+        throwExceptionIfConfigNotMatch(config, TaskConfig.TASK_CLASS_CONFIG, DEFAULT_TASK);
     }
-
 }

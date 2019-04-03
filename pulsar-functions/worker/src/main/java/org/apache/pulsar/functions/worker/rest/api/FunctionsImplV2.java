@@ -25,6 +25,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -61,7 +62,7 @@ public class FunctionsImplV2 {
 
         Function.FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace,
                 functionName);
-        String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionDetails());
+        String functionDetailsJson = FunctionCommon.printJson(functionMetaData.getFunctionDetails());
         return Response.status(Response.Status.OK).entity(functionDetailsJson).build();
     }
 
@@ -71,7 +72,7 @@ public class FunctionsImplV2 {
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
                 functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, null, null);
 
-        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(toProto(functionInstanceStatus, instanceId));
+        String jsonResponse = FunctionCommon.printJson(toProto(functionInstanceStatus, instanceId));
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
@@ -82,7 +83,7 @@ public class FunctionsImplV2 {
         functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
                 toProto(functionInstanceStatus.getStatus(),
                         String.valueOf(functionInstanceStatus.getInstanceId()))));
-        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusList);
+        String jsonResponse = FunctionCommon.printJson(functionStatusList);
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 

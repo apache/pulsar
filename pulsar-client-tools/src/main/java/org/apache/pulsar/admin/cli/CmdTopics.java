@@ -270,10 +270,17 @@ public class CmdTopics extends CmdBase {
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
+        @Parameter(names = { "-d",
+                "--deleteSchema" }, description = "Delete schema while deleting topic")
+        private boolean deleteSchema = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
             topics.deletePartitionedTopic(topic, force);
+            if (deleteSchema) {
+                admin.schemas().deleteSchema(topic);
+            }
         }
     }
 
@@ -287,10 +294,17 @@ public class CmdTopics extends CmdBase {
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
+        @Parameter(names = { "-d",
+                "--deleteSchema" }, description = "Delete schema while deleting topic")
+        private boolean deleteSchema = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             topics.delete(topic, force);
+            if (deleteSchema) {
+                admin.schemas().deleteSchema(topic);
+            }
         }
     }
 

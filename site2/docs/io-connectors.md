@@ -15,6 +15,7 @@ Pulsar Functions cluster.
 - [Kafka Source Connector](io-kafka.md#source)
 - [Kinesis Sink Connector](io-kinesis.md#sink)
 - [RabbitMQ Source Connector](io-rabbitmq.md#source)
+- [RabbitMQ Sink Connector](io-rabbitmq.md#sink)
 - [Twitter Firehose Source Connector](io-twitter.md)
 - [CDC Source Connector based on Debezium](io-cdc.md)
 - [Netty Source Connector](io-netty.md#source)
@@ -23,3 +24,4 @@ Pulsar Functions cluster.
 - [File Source Connector](io-file.md#source)
 - [Hdfs Sink Connector](io-hdfs.md#sink)
 - [MongoDB Sink Connector](io-mongo.md#sink)
+- [Solr Sink Connector](io-solr.md#sink)

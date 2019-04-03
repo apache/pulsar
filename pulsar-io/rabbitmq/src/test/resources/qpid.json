@@ -1,0 +1,37 @@
+{
+  "name": "EmbeddedBroker",
+  "modelVersion": "2.0",
+  "storeVersion": 1,
+  "authenticationproviders": [
+    {
+      "name": "noPassword",
+      "type": "Anonymous",
+      "secureOnlyMechanisms": []
+    },
+    {
+      "name": "passwordFile",
+      "type": "PlainPasswordFile",
+      "path": "${qpid.home_dir}${file.separator}etc${file.separator}passwd",
+      "secureOnlyMechanisms": []
+    }
+  ],
+  "ports": [
+    {
+      "name": "AMQP",
+      "port": "${qpid.amqp_port}",
+      "authenticationProvider": "passwordFile",
+      "protocols": [
+        "AMQP_0_9_1"
+      ]
+    }
+  ],
+  "virtualhostnodes": [
+    {
+      "name": "default",
+      "type": "JSON",
+      "defaultVirtualHostNode": "true",
+      "virtualHostInitialConfiguration": "${qpid.initial_config_virtualhost_config}",
+      "storeType": "DERBY"
+    }
+  ]
+}

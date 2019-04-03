@@ -16,7 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.functions.utils;
 
-@Deprecated
-public interface PersistentTopics extends Topics {}
+public enum ComponentType {
+    FUNCTION("Function"),
+    SOURCE("Source"),
+    SINK("Sink");
+
+    private final String componentName;
+
+    ComponentType(String componentName) {
+        this.componentName = componentName;
+    }
+
+    @Override
+    public String toString() {
+        return componentName;
+    }
+}
