@@ -19,11 +19,12 @@
 package org.apache.pulsar.functions.instance.state;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.bookkeeper.api.kv.Table;
 
 /**
@@ -40,35 +41,38 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public void incr(String key, long amount) throws Exception {
+    public CompletableFuture<Void> incrCounter(String key, long amount) {
         // TODO: this can be optimized with a batch operation.
-        result(table.increment(
+        return table.increment(
             Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            amount));
+            amount);
     }
 
     @Override
-    public void put(String key, ByteBuffer value) throws Exception {
-        result(table.put(
+    public CompletableFuture<Void> put(String key, ByteBuffer value) {
+        return table.put(
             Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            Unpooled.wrappedBuffer(value)));
+            Unpooled.wrappedBuffer(value));
     }
 
     @Override
-    public ByteBuffer getValue(String key) throws Exception {
-        ByteBuf data = result(table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
-        try {
-            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
-            data.readBytes(result);
-            return result;
-        } finally {
-            data.release();
-        }
+    public CompletableFuture<ByteBuffer> get(String key) {
+        return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
+                data -> {
+                    try {
+                        ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
+                        data.readBytes(result);
+                        return result;
+                    } finally {
+                        data.release();
+                    }
+                }
+        );
     }
 
     @Override
-    public long getAmount(String key) throws Exception {
-        return result(table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
+    public CompletableFuture<Long> getCounter(String key) {
+        return table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8)));
     }
 
 }

@@ -61,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -263,40 +264,64 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        ensureStateEnabled();
+        return stateContext.incrCounter(key, amount);
+    }
+
+    @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
         try {
-            stateContext.incr(key, amount);
+            result(stateContext.incrCounter(key, amount));
         } catch (Exception e) {
             throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
         }
     }
 
     @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.getCounter(key);
+    }
+
+    @Override
     public long getCounter(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getAmount(key);
+            return result(stateContext.getCounter(key));
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
         }
     }
 
     @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        return stateContext.put(key, value);
+    }
+
+    @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
         try {
-            stateContext.put(key, value);
+            result(stateContext.put(key, value));
         } catch (Exception e) {
             throw new RuntimeException("Failed to update the state value for key '" + key + "'");
         }
     }
 
     @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.get(key);
+    }
+
+    @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getValue(key);
+            return result(stateContext.get(key));
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
         }
