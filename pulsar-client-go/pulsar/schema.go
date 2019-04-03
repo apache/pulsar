@@ -265,42 +265,42 @@ func (bs *Int64Schema) UnSerialize(data []byte, value int64) error {
 	return ReadElements(buf, value)
 }
 
-type Float32Schema struct {
+type FloatSchema struct {
 	SchemaInfo
 }
 
-func NewFloat32Schema() *Float32Schema {
+func NewFloatSchema() *FloatSchema {
 	schemaInfo := NewSchemaInfo("FLOAT", "", FLOAT)
-	float32Schema := &Float32Schema{
+	floatSchema := &FloatSchema{
 		*schemaInfo,
 	}
-	return float32Schema
+	return floatSchema
 }
 
-func (bs *Float32Schema) Serialize(value interface{}) ([]byte, error) {
-	return BinarySerializer.PutFloat32(value)
+func (bs *FloatSchema) Serialize(value interface{}) ([]byte, error) {
+	return BinarySerializer.PutFloat(value)
 }
 
-func (bs *Float32Schema) UnSerialize(data []byte) (float32, error) {
+func (bs *FloatSchema) UnSerialize(data []byte) (float32, error) {
 	return BinarySerializer.Float32(data)
 }
 
-type Float64Schema struct {
+type DoubleSchema struct {
 	SchemaInfo
 }
 
-func NewFloat64Schema() *Float64Schema {
+func NewDoubleSchema() *DoubleSchema {
 	schemaInfo := NewSchemaInfo("DOUBLE", "", DOUBLE)
-	float64Schema := &Float64Schema{
+	doubleSchema := &DoubleSchema{
 		*schemaInfo,
 	}
-	return float64Schema
+	return doubleSchema
 }
 
-func (bs *Float64Schema) Serialize(value interface{}) ([]byte, error) {
-	return BinarySerializer.PutFloat64(value)
+func (bs *DoubleSchema) Serialize(value interface{}) ([]byte, error) {
+	return BinarySerializer.PutDouble(value)
 }
 
-func (bs *Float64Schema) UnSerialize(data []byte) (float64, error) {
+func (bs *DoubleSchema) UnSerialize(data []byte) (float64, error) {
 	return BinarySerializer.Float64(data)
 }

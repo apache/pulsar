@@ -147,7 +147,7 @@ func (b BinaryFreeList) PutUint64(w io.Writer, byteOrder binary.ByteOrder, val u
 	return err
 }
 
-func (b BinaryFreeList) PutFloat64(datum interface{}) ([]byte, error) {
+func (b BinaryFreeList) PutDouble(datum interface{}) ([]byte, error) {
 	var value float64
 	switch v := datum.(type) {
 	case float64:
@@ -175,7 +175,7 @@ func (b BinaryFreeList) PutFloat64(datum interface{}) ([]byte, error) {
 	return buf, nil
 }
 
-func (b BinaryFreeList) PutFloat32(datum interface{}) ([]byte, error) {
+func (b BinaryFreeList) PutFloat(datum interface{}) ([]byte, error) {
 	var value float32
 	switch v := datum.(type) {
 	case float32:

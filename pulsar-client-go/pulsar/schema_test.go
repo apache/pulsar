@@ -413,7 +413,7 @@ func TestInt64Schema(t *testing.T) {
 	defer consumer.Close()
 }
 
-func TestFloat32Schema(t *testing.T) {
+func TestFloatSchema(t *testing.T) {
 	// create client
 	lookupUrl := "pulsar://localhost:6650"
 	client, err := NewClient(ClientOptions{
@@ -424,11 +424,11 @@ func TestFloat32Schema(t *testing.T) {
 
 	in := int64(1)
 
-	f32sProducer := NewFloat32Schema()
+	f32sProducer := NewFloatSchema()
 	schema, err := f32sProducer.Serialize(in)
 	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "float32Topic",
+		Topic:      "floatTopic",
 		SchemaInfo: f32sProducer.SchemaInfo,
 	})
 	assert.Nil(t, err)
@@ -440,9 +440,9 @@ func TestFloat32Schema(t *testing.T) {
 	}
 	producer.Close()
 
-	f32sConsumer := NewFloat32Schema()
+	f32sConsumer := NewFloatSchema()
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:            "float32Topic",
+		Topic:            "floatTopic",
 		SubscriptionName: "sub-2",
 		Schema:           f32sConsumer.SchemaInfo,
 	})
@@ -457,7 +457,7 @@ func TestFloat32Schema(t *testing.T) {
 	defer consumer.Close()
 }
 
-func TestFloat64Schema(t *testing.T) {
+func TestDoubleSchema(t *testing.T) {
 	// create client
 	lookupUrl := "pulsar://localhost:6650"
 	client, err := NewClient(ClientOptions{
@@ -468,11 +468,11 @@ func TestFloat64Schema(t *testing.T) {
 
 	in := int64(1)
 
-	f64sProducer := NewFloat64Schema()
+	f64sProducer := NewDoubleSchema()
 	schema, err := f64sProducer.Serialize(in)
 	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "float64Topic",
+		Topic:      "doubleTopic",
 		SchemaInfo: f64sProducer.SchemaInfo,
 	})
 	assert.Nil(t, err)
@@ -484,9 +484,9 @@ func TestFloat64Schema(t *testing.T) {
 	}
 	producer.Close()
 
-	f64sConsumer := NewFloat64Schema()
+	f64sConsumer := NewDoubleSchema()
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:            "float64Topic",
+		Topic:            "doubleTopic",
 		SubscriptionName: "sub-2",
 		Schema:           f64sConsumer.SchemaInfo,
 	})
