@@ -37,7 +37,7 @@ public interface SchemaProvider<T> {
      *
      * @return the latest schema
      */
-    Schema<T> getLatestSchema() throws InterruptedException;
+    Schema<T> getLatestSchema() ;
 
     String getTopicName();
 

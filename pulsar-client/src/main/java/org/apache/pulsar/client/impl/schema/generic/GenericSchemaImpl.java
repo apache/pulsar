@@ -34,7 +34,8 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
 
     protected final List<Field> fields;
     protected final SchemaInfo schemaInfo;
-    public enum ConsumeType{
+
+    public enum ConsumeType {
         AUTO,
         COMP
     }
@@ -57,17 +58,15 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
                 .collect(Collectors.toList());
     }
 
-    public List<Field> getFields() {
-        return fields;
-    }
-
-    public byte[] encode(GenericRecord message) {
-        return new byte[0];
-    }
-
     @Override
     public SchemaInfo getSchemaInfo() {
         return schemaInfo;
+    }
+
+
+    @Override
+    public List<Field> getFields() {
+        return fields;
     }
 
     /**
@@ -84,7 +83,7 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
                 return new GenericJsonSchema(schemaInfo);
             default:
                 throw new UnsupportedOperationException("Generic schema is not supported on schema type '"
-                    + schemaInfo.getType() + "'");
+                        + schemaInfo.getType() + "'");
         }
     }
 

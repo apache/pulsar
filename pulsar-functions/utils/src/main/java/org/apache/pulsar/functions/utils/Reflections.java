@@ -165,7 +165,7 @@ public class Reflections {
 
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
-            return createInstance(userClassName, Utils.loadJar(jar));
+            return createInstance(userClassName, FunctionCommon.loadJar(jar));
         } catch (Exception ex) {
             return null;
         }
@@ -180,7 +180,7 @@ public class Reflections {
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
@@ -214,7 +214,7 @@ public class Reflections {
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }

@@ -39,11 +39,22 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.parent.version}</version>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
       <artifactId>athenz-zts-java-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
     </dependency>
 
   </dependencies>

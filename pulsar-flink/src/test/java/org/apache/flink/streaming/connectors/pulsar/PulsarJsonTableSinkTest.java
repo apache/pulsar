@@ -24,6 +24,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.api.mockito.PowerMockito;
@@ -39,6 +41,7 @@ public class PulsarJsonTableSinkTest {
 
     private static final String SERVICE_URL = "pulsar://localhost:6650";
     private static final String TOPIC_NAME = "test_topic";
+    private static final Authentication AUTHENTICATION = new AuthenticationDisabled();
     private static final String ROUTING_KEY = "key";
     private final String[] fieldNames = {"key", "value"};
     private final TypeInformation[] typeInformations = {
@@ -80,13 +83,14 @@ public class PulsarJsonTableSinkTest {
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
-        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, ROUTING_KEY);
+        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, AUTHENTICATION, ROUTING_KEY);
         FlinkPulsarProducer producer = Mockito.mock(FlinkPulsarProducer.class);
         PowerMockito.whenNew(
                 FlinkPulsarProducer.class
         ).withArguments(
                 Mockito.anyString(),
                 Mockito.anyString(),
+                Mockito.any(Authentication.class),
                 Mockito.any(SerializationSchema.class),
                 Mockito.any(PulsarKeyExtractor.class)
         ).thenReturn(producer);

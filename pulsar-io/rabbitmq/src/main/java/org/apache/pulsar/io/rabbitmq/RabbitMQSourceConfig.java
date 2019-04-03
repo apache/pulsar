@@ -16,56 +16,59 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.rabbitmq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
+import com.google.common.base.Preconditions;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-/**
- * RabbitMQ source connector config.
- */
 @Data
 @Setter
 @Getter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 @ToString
 @Accessors(chain = true)
-public class RabbitMQConfig implements Serializable {
+public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The connection name used for connecting to RabbitMQ")
-    private String connectionName;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The AMQ uri used for connecting to RabbitMQ")
-    private String amqUri;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The RabbitMQ queue name")
-    private String queueName;
+        required = false,
+        defaultValue = "0",
+        help = "Maximum number of messages that the server will deliver, 0 for unlimited")
+    private int prefetchCount = 0;
 
-    public static RabbitMQConfig load(String yamlFile) throws IOException {
+    @FieldDoc(
+        required = false,
+        defaultValue = "false",
+        help = "Set true if the settings should be applied to the entire channel rather than each consumer")
+    private boolean prefetchGlobal = false;
+
+    public static RabbitMQSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), RabbitMQConfig.class);
+        return mapper.readValue(new File(yamlFile), RabbitMQSourceConfig.class);
     }
 
-    public static RabbitMQConfig load(Map<String, Object> map) throws IOException {
+    public static RabbitMQSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), RabbitMQConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), RabbitMQSourceConfig.class);
+    }
+
+    @Override
+    public void validate() {
+        super.validate();
+        Preconditions.checkArgument(prefetchCount >= 0, "prefetchCount must be non-negative.");
     }
 }

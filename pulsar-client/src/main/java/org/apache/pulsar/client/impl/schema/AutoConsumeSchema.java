@@ -49,6 +49,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    @Override
     public byte[] encode(GenericRecord message) {
         ensureSchemaInitialized();
 
@@ -60,6 +65,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         ensureSchemaInitialized();
 
         return schema.decode(bytes, schemaVersion);
+    }
+
+    @Override
+    public GenericRecord decode(byte[] bytes) {
+        ensureSchemaInitialized();
+
+        return schema.decode(bytes);
     }
 
     @Override

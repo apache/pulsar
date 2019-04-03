@@ -51,13 +51,13 @@ public class JSONSchema<T> extends StructSchema<T> {
     private final Class<T> pojo;
 
     private JSONSchema(org.apache.avro.Schema schema,
-                        SchemaDefinition<T> schemaDefinition) {
+                       SchemaDefinition<T> schemaDefinition) {
         super(
             SchemaType.JSON,
             schema,
             schemaDefinition,
-                new JsonWriter<>(JSON_MAPPER.get()),
-                new JsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
+            new JsonWriter<>(JSON_MAPPER.get()),
+            new JsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
         this.pojo = schemaDefinition.getPojo();
     }
 
@@ -92,8 +92,8 @@ public class JSONSchema<T> extends StructSchema<T> {
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         String jsonDef = schemaDefinition.getJsonDef();
-            return jsonDef == null ? new JSONSchema<>(createAvroSchema(schemaDefinition), schemaDefinition) :
-                    new JSONSchema<>(parseAvroSchema(jsonDef), schemaDefinition);
+        return jsonDef == null ? new JSONSchema<>(createAvroSchema(schemaDefinition), schemaDefinition) :
+                new JSONSchema<>(parseAvroSchema(jsonDef), schemaDefinition);
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {

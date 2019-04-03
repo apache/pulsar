@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
@@ -183,8 +184,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS),
+        	new BackoffBuilder()
+        	    .setInitialTime(100, TimeUnit.MILLISECONDS)
+			    .setMandatoryStop(60, TimeUnit.SECONDS)
+			    .setMax(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
+			    .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(), 
+			                                client.getConfiguration().getMaxBackoffIntervalNanos())
+			    .create(),
             this);
+     
         grabCnx();
     }
 

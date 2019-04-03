@@ -16,28 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.functions.utils;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.UUID;
+public enum ComponentType {
+    FUNCTION("Function"),
+    SOURCE("Source"),
+    SINK("Sink");
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+    private final String componentName;
 
-/**
- * Unit test of {@link Utils}.
- */
-public class UtilsTest {
-
-    @Test
-    public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = UtilsTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        Utils.downloadFromHttpUrl(jarHttpUrl, new FileOutputStream(pkgFile));
-        Assert.assertTrue(pkgFile.exists());
-        pkgFile.delete();
+    ComponentType(String componentName) {
+        this.componentName = componentName;
     }
 
+    @Override
+    public String toString() {
+        return componentName;
+    }
 }

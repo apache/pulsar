@@ -74,17 +74,20 @@ public class MultiVersionGenericSchemaProvider implements SchemaProvider<Generic
     }
 
     @Override
-    public GenericSchema getLatestSchema() throws InterruptedException {
+    public GenericSchema getLatestSchema() {
         try {
             Optional<SchemaInfo> schemaInfo = pulsarClient.getLookup()
                     .getSchema(topicName).get();
             return schemaInfo.map(GenericSchemaImpl::of).orElse(null);
-        }catch (ExecutionException e) {
+        } catch (ExecutionException e) {
+            LOG.error("Can't get current schema for topic {}",
+                    topicName.toString(), e);
+            return null;
+        } catch (InterruptedException e) {
             LOG.error("Can't get current schema for topic {}",
                     topicName.toString(), e);
             return null;
         }
-
     }
 
     @Override

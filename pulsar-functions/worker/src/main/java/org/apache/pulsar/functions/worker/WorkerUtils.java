@@ -18,19 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.*;
-import java.net.URI;
-import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -49,25 +37,23 @@ import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 @Slf4j
-public final class Utils {
+public final class WorkerUtils {
 
-    private Utils(){}
-
-    public static byte[] toByteArray(Object obj) throws IOException {
-        byte[] bytes = null;
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-            oos.writeObject(obj);
-            oos.flush();
-            bytes = bos.toByteArray();
-        }
-        return bytes;
-    }
-
-    public static String getUniquePackageName(String packageName) {
-        return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
-    }
+    private WorkerUtils(){}
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
         FileInputStream uploadedInputStream = new FileInputStream(sourceFile);
@@ -103,12 +89,6 @@ public final class Utils {
                 }
             }
         }
-    }
-    
-    public static void downloadFromHttpUrl(String destPkgUrl, FileOutputStream outputStream) throws IOException {
-        URL website = new URL(destPkgUrl);
-        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-        outputStream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
     }
 
     public static void downloadFromBookkeeper(Namespace namespace,

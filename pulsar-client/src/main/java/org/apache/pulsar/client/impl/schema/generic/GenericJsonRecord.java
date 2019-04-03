@@ -20,9 +20,11 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.schema.Field;
 
 /**
@@ -49,9 +51,9 @@ class GenericJsonRecord extends VersionedGenericRecord {
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
             List<Field> fields = Lists.newArrayList(fn.fieldNames())
-                .stream()
-                .map(f -> new Field(f, idx.getAndIncrement()))
-                .collect(Collectors.toList());
+                    .stream()
+                    .map(f -> new Field(f, idx.getAndIncrement()))
+                    .collect(Collectors.toList());
             return new GenericJsonRecord(schemaVersion, fields, fn);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();

@@ -46,7 +46,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
@@ -69,8 +69,8 @@ import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Data
 @Setter
@@ -96,6 +96,7 @@ public class FunctionActioner {
         this.connectorsManager = connectorsManager;
         this.pulsarAdmin = pulsarAdmin;
     }
+
 
     public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         try {
@@ -127,7 +128,7 @@ public class FunctionActioner {
                     pkgDir.mkdirs();
                     File pkgFile = new File(
                             pkgDir,
-                            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
+                            new File(getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
                     downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
                     packageFile = pkgFile.getAbsolutePath();
                 }
@@ -175,7 +176,7 @@ public class FunctionActioner {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        instanceConfig.setPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         return instanceConfig;
@@ -208,9 +209,9 @@ public class FunctionActioner {
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
 
         if(downloadFromHttp) {
-            Utils.downloadFromHttpUrl(pkgLocationPath, new FileOutputStream(tempPkgFile));
+            FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
         } else {
-            Utils.downloadFromBookkeeper(
+            WorkerUtils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
                     pkgLocationPath);
@@ -249,7 +250,7 @@ public class FunctionActioner {
                         Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
             } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
-                        FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
+                        FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
             }
         }
     }
@@ -270,7 +271,7 @@ public class FunctionActioner {
 
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
+        String fqfn = FunctionCommon.getFullyQualifiedName(details);
         log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
@@ -460,4 +461,27 @@ public class FunctionActioner {
         }
     }
 
+    private static String getDownloadFileName(FunctionDetails FunctionDetails,
+                                             Function.PackageLocationMetaData packageLocation) {
+        if (!org.apache.commons.lang.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
+            return packageLocation.getOriginalFileName();
+        }
+        String[] hierarchy = FunctionDetails.getClassName().split("\\.");
+        String fileName;
+        if (hierarchy.length <= 0) {
+            fileName = FunctionDetails.getClassName();
+        } else if (hierarchy.length == 1) {
+            fileName =  hierarchy[0];
+        } else {
+            fileName = hierarchy[hierarchy.length - 2];
+        }
+        switch (FunctionDetails.getRuntime()) {
+            case JAVA:
+                return fileName + ".jar";
+            case PYTHON:
+                return fileName + ".py";
+            default:
+                throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
+        }
+    }
 }

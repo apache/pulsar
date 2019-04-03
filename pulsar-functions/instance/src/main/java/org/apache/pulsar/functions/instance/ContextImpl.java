@@ -44,8 +44,8 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -54,7 +54,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -98,11 +97,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
-    private final Utils.ComponentType componentType;
+    private final ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType, ComponentStatsManager statsManager) {
+                       ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
@@ -335,7 +334,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                         .sendTimeout(0, TimeUnit.SECONDS)
                         .topic(topicName)
                         .properties(InstanceUtils.getProperties(componentType,
-                                FunctionDetailsUtils.getFullyQualifiedName(
+                                FunctionCommon.getFullyQualifiedName(
                                         this.config.getFunctionDetails().getTenant(),
                                         this.config.getFunctionDetails().getNamespace(),
                                         this.config.getFunctionDetails().getName()),
