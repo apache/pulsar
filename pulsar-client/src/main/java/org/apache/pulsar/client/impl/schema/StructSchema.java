@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -29,11 +28,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.apache.avro.Schema.Parser;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -54,11 +50,11 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
  * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
  */
-abstract class StructSchema<T> implements Schema<T> {
+public abstract class StructSchema<T> implements Schema<T> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
 
-    protected final org.apache.avro.Schema schema;
+    public final org.apache.avro.Schema schema;
     protected final SchemaInfo schemaInfo;
     protected final SchemaReader<T> reader;
     protected final SchemaWriter<T> writer;
@@ -101,13 +97,14 @@ abstract class StructSchema<T> implements Schema<T> {
     public T decode(byte[] bytes) {
         return reader.read(bytes);
     }
+
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         try {
             return readerCache.get(schemaVersion).read(bytes);
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
-                    ((MultiVersionGenericSchemaProvider)schemaProvider).getTopic().toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+                    ((MultiVersionGenericSchemaProvider) schemaProvider).getTopic().toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
             return null;
         }
     }

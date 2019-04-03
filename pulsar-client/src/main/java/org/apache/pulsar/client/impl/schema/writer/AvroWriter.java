@@ -39,8 +39,7 @@ public class AvroWriter<T> implements SchemaWriter<T> {
     }
 
     @Override
-    public byte[] write(T pojo) {
-        synchronized (writer) {
+    public synchronized byte[] write(T pojo) {
             try {
                 writer.write(pojo, this.encoder);
                 this.encoder.flush();
@@ -50,8 +49,5 @@ public class AvroWriter<T> implements SchemaWriter<T> {
             } finally {
                 this.byteArrayOutputStream.reset();
             }
-
-
-        }
     }
 }

@@ -18,19 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static com.google.common.base.Preconditions.checkArgument;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -38,49 +29,36 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  */
 public class GenericAvroSchema extends GenericSchemaImpl {
 
-    private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> datumWriter;
-    private BinaryEncoder encoder;
-    private final ByteArrayOutputStream byteArrayOutputStream;
-    private final GenericDatumReader<org.apache.avro.generic.GenericRecord> datumReader;
+    private ConsumeType type = ConsumeType.AUTO;
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
-        this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
-        this.datumWriter = new GenericDatumWriter(schema);
-        this.datumReader = new GenericDatumReader(schema);
-    }
-
-    @Override
-    public synchronized byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericAvroRecord gar = (GenericAvroRecord) message;
-        try {
-            datumWriter.write(gar.getAvroRecord(), this.encoder);
-            this.encoder.flush();
-            return this.byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
-            throw new SchemaSerializationException(e);
-        } finally {
-            this.byteArrayOutputStream.reset();
-        }
-    }
-
-    @Override
-    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        try {
-            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-            org.apache.avro.generic.GenericRecord avroRecord = datumReader.read(
-                null,
-                decoder);
-            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException e) {
-            throw new SchemaSerializationException(e);
-        }
+        super(schemaInfo,
+                new GenericAvroWriter(schemaInfo),
+                new GenericAvroReader(schemaInfo, new byte[10]),
+                SchemaDefinition.builder()
+                        .withSupportSchemaVersioning(true)
+                        .build());
     }
 
     @Override
     public GenericRecordBuilder newRecordBuilder() {
         return new AvroRecordBuilderImpl(this);
+    }
+
+    @Override
+    protected SchemaReader loadReader(byte[] schemaVersion) {
+        return type == ConsumeType.AUTO ?
+         new GenericAvroReader(new SchemaInfo().setSchema(((GenericAvroSchema) schemaProvider
+                .getSchemaByVersion(schemaVersion)).getAvroSchema().toString().getBytes()),
+                schemaVersion) :
+         new GenericAvroReader(((GenericAvroSchema) schemaProvider
+                .getSchemaByVersion(schemaVersion)).getAvroSchema(),
+                schema,
+                schemaVersion);
+    }
+
+    public GenericAvroSchema setConsumerType(ConsumeType type) {
+        this.type = type;
+        return this;
     }
 }

@@ -27,7 +27,7 @@ public class JsonWriter<T> implements SchemaWriter<T> {
 
     private final ObjectMapper objectMapper;
 
-    public JsonWriter(ObjectMapper objectMapper){
+    public JsonWriter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

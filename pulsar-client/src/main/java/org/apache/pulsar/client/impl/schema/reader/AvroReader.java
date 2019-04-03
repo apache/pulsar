@@ -37,14 +37,15 @@ public class AvroReader<T> implements SchemaReader<T> {
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
 
-    public AvroReader(Schema schema){
+    public AvroReader(Schema schema) {
 
         this.reader = new ReflectDatumReader<>(schema);
     }
 
-    public AvroReader(Schema writerSchema, Schema readerSchema){
+    public AvroReader(Schema writerSchema, Schema readerSchema) {
         this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
     }
+
     @Override
     public T read(byte[] bytes) {
         try {

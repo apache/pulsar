@@ -20,10 +20,9 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
+
+import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -31,30 +30,39 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * A generic schema representation.
  */
-public abstract class GenericSchemaImpl implements GenericSchema {
+public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema {
 
-    protected final org.apache.avro.Schema schema;
     protected final List<Field> fields;
     protected final SchemaInfo schemaInfo;
+    public enum ConsumeType{
+        AUTO,
+        COMP
+    }
 
-    protected GenericSchemaImpl(SchemaInfo schemaInfo) {
-        this.schemaInfo = schemaInfo;
-        this.schema = new org.apache.avro.Schema.Parser().parse(
-            new String(schemaInfo.getSchema(), UTF_8)
+    protected GenericSchemaImpl(SchemaInfo schemaInfo, SchemaWriter writer, SchemaReader reader,
+                                SchemaDefinition schemaDefinition) {
+        super(
+                schemaInfo.getType(),
+                new org.apache.avro.Schema.Parser().parse(
+                        new String(schemaInfo.getSchema(), UTF_8)),
+                schemaDefinition,
+                writer,
+                reader
         );
+
+        this.schemaInfo = schemaInfo;
         this.fields = schema.getFields()
-            .stream()
-            .map(f -> new Field(f.name(), f.pos()))
-            .collect(Collectors.toList());
+                .stream()
+                .map(f -> new Field(f.name(), f.pos()))
+                .collect(Collectors.toList());
     }
 
-    public org.apache.avro.Schema getAvroSchema() {
-        return schema;
-    }
-
-    @Override
     public List<Field> getFields() {
         return fields;
+    }
+
+    public byte[] encode(GenericRecord message) {
+        return new byte[0];
     }
 
     @Override
@@ -80,4 +88,21 @@ public abstract class GenericSchemaImpl implements GenericSchema {
         }
     }
 
+    /**
+     * Create a generic schema out of a <tt>SchemaInfo</tt>.
+     *
+     * @param schemaInfo schema info
+     * @return a generic schema instance
+     */
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo, ConsumeType type) {
+        switch (schemaInfo.getType()) {
+            case AVRO:
+                return new GenericAvroSchema(schemaInfo).setConsumerType(type);
+            case JSON:
+                return new GenericJsonSchema(schemaInfo);
+            default:
+                throw new UnsupportedOperationException("Generic schema is not supported on schema type '"
+                        + schemaInfo.getType() + "'");
+        }
+    }
 }

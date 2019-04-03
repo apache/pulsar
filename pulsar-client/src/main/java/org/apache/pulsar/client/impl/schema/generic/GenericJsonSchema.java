@@ -24,9 +24,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.stream.Collectors;
+
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -34,32 +36,25 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  */
 class GenericJsonSchema extends GenericSchemaImpl {
 
-    private final ObjectMapper objectMapper;
-
     public GenericJsonSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
-        this.objectMapper = new ObjectMapper();
+        super(schemaInfo,
+                new GenericJsonWriter(),
+                new GenericJsonReader(),
+                SchemaDefinition.builder()
+                        .withSupportSchemaVersioning(true)
+                        .build()
+        );
     }
 
     @Override
-    public byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericJsonRecord gjr = (GenericJsonRecord) message;
-        try {
-            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
-    }
-
-    @Override
-    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(schemaVersion, fields, jn);
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
+    protected SchemaReader loadReader(byte[] schemaVersion) {
+        return new GenericJsonReader(schemaVersion,
+                ((GenericAvroSchema) schemaProvider.
+                        getSchemaByVersion(schemaVersion)).
+                        getAvroSchema().getFields()
+                        .stream()
+                        .map(f -> new Field(f.name(), f.pos()))
+                        .collect(Collectors.toList()));
     }
 
     @Override

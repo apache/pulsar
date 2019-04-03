@@ -28,10 +28,11 @@ public class JsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectMapper objectMapper;
 
-    public JsonReader(ObjectMapper objectMapper, Class<T> pojo){
+    public JsonReader(ObjectMapper objectMapper, Class<T> pojo) {
         this.pojo = pojo;
         this.objectMapper = objectMapper;
     }
+
     @Override
     public T read(byte[] bytes) {
         try {

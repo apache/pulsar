@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 
 public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
     private Parser<T> tParser;
+
     public ProtobufReader(T protoMessageInstance) {
         tParser = (Parser<T>) (protoMessageInstance).getParserForType();
     }
