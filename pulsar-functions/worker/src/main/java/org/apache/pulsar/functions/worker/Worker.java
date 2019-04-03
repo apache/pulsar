@@ -74,7 +74,7 @@ public class Worker {
     private static URI initialize(WorkerConfig workerConfig)
             throws InterruptedException, PulsarAdminException, IOException {
         // initializing pulsar functions namespace
-        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+        PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         InternalConfigurationData internalConf;
@@ -141,7 +141,7 @@ public class Worker {
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         try {
-            return Utils.initializeDlogNamespace(
+            return WorkerUtils.initializeDlogNamespace(
                     internalConf.getZookeeperServers(),
                     internalConf.getLedgersRootPath());
         } catch (IOException ioe) {

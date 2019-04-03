@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -36,11 +37,11 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -558,11 +559,14 @@ public class PulsarAdminToolTest {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
         when(admin.topics()).thenReturn(mockTopics);
+        Schemas mockSchemas = mock(Schemas.class);
+        when(admin.schemas()).thenReturn(mockSchemas);
 
         CmdTopics cmdTopics = new CmdTopics(admin);
 
-        cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1 -d"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockSchemas).deleteSchema("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("unload persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
@@ -615,8 +619,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-partitioned-topic-metadata persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1 -d"));
         verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockSchemas, times(2)).deleteSchema("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
@@ -642,8 +647,8 @@ public class PulsarAdminToolTest {
     @Test
     void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        PersistentTopics mockTopics = mock(PersistentTopics.class);
-        when(admin.persistentTopics()).thenReturn(mockTopics);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
 
         CmdPersistentTopics topics = new CmdPersistentTopics(admin);
 

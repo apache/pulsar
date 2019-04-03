@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,24 +36,16 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -101,14 +92,14 @@ public class WorkerService {
                       AuthorizationService authorizationService) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
 
-        this.brokerAdmin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+        this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         
         final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
                 ? workerConfig.getFunctionWebServiceUrl()
                 : workerConfig.getWorkerWebAddress(); 
-        this.functionAdmin = Utils.getPulsarAdminClient(functionWebServiceUrl,
+        this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
                 workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
 
@@ -121,7 +112,7 @@ public class WorkerService {
 
         // create the dlog namespace for storing function packages
         this.dlogUri = dlogUri;
-        DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
+        DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
                     .conf(dlogConf)

@@ -112,4 +112,25 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertTrue(keys.isEmpty());
     }
+
+
+    @Test
+    public void testReadFromPartition() throws Exception {
+        String topic = "persistent://my-property/my-ns/testReadFromPartition";
+        String partition0 = topic + "-partition-0";
+        admin.topics().createPartitionedTopic(topic, 4);
+        int numKeys = 10;
+
+        Set<String> keys = publishMessages(partition0, numKeys, false);
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(partition0)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        while (reader.hasMessageAvailable()) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertTrue(keys.remove(message.getKey()));
+        }
+        Assert.assertTrue(keys.isEmpty());
+    }
 }

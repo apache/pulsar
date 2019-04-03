@@ -94,7 +94,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
@@ -1036,7 +1036,7 @@ public class PulsarService implements AutoCloseable {
             URI dlogURI;
             try {
                 // initializing dlog namespace for function worker
-                dlogURI = Utils.initializeDlogNamespace(
+                dlogURI = WorkerUtils.initializeDlogNamespace(
                         internalConf.getZookeeperServers(),
                         internalConf.getLedgersRootPath());
             } catch (IOException ioe) {
