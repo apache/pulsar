@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
     configClass = RedisSinkConfig.class
 )
 @Slf4j
-public class RedisSink<T> implements Sink<T> {
+public class RedisSink<T> implements Sink<byte[]> {
 
     private RedisSinkConfig redisSinkConfig;
 
@@ -61,7 +61,7 @@ public class RedisSink<T> implements Sink<T> {
 
     private int batchSize;
 
-    private List<Record<T>> incomingList;
+    private List<Record<byte[]>> incomingList;
 
     private ScheduledExecutorService flushExecutor;
 
@@ -84,7 +84,7 @@ public class RedisSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(Record<T> record) throws Exception {
+    public void write(Record<byte[]> record) throws Exception {
         int currentSize;
         synchronized (this) {
             incomingList.add(record);
@@ -108,7 +108,7 @@ public class RedisSink<T> implements Sink<T> {
 
     private void flush() {
         final Map<byte[], byte[]> recordsToSet = new ConcurrentHashMap<>();
-        final List<Record<T>> recordsToFlush;
+        final List<Record<byte[]>> recordsToFlush;
 
         synchronized (this) {
             if (incomingList.isEmpty()) {
@@ -119,7 +119,7 @@ public class RedisSink<T> implements Sink<T> {
         }
 
         if (CollectionUtils.isNotEmpty(recordsToFlush)) {
-            for (Record<T> record: recordsToFlush) {
+            for (Record<byte[]> record: recordsToFlush) {
                 try {
                     // records with null keys or values will be ignored
                     byte[] key = toBytes("key", record.getKey().orElse(null));
