@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.AbstractBaseTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -782,21 +783,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats ReplicatorStats = replicator.getStats();
+            NonPersistentReplicatorStats replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
             PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                ReplicatorStats.msgRateIn = pubStats.msgRateIn;
-                ReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                ReplicatorStats.inboundConnection = pubStats.getAddress();
-                ReplicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
+                replicatorStats.msgRateIn = pubStats.msgRateIn;
+                replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
+                replicatorStats.inboundConnection = pubStats.getAddress();
+                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
-            stats.msgRateOut += ReplicatorStats.msgRateOut;
-            stats.msgThroughputOut += ReplicatorStats.msgThroughputOut;
+            stats.msgRateOut += replicatorStats.msgRateOut;
+            stats.msgThroughputOut += replicatorStats.msgThroughputOut;
 
-            stats.getReplication().put(replicator.getRemoteCluster(), ReplicatorStats);
+            stats.getReplication().put(replicator.getRemoteCluster(), replicatorStats);
         });
 
         return stats;

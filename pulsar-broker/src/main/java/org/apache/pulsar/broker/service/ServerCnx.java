@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
@@ -61,6 +62,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -1062,7 +1064,9 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation();
+        startSendOperation(producer);
+
+        // Persist the message
         producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
     }
 
@@ -1446,8 +1450,8 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation() {
-        if (++pendingSendRequest == MaxPendingSendRequests) {
+    public void startSendOperation(Producer producer) {
+        if (++pendingSendRequest == MaxPendingSendRequests || producer.getTopic().isPublishRateExceeded()) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
@@ -1458,12 +1462,26 @@ public class ServerCnx extends PulsarHandler {
         if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
+            // triggers channel read if autoRead couldn't trigger it
+            ctx.read();
         }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
         }
     }
 
+    public void enableCnxAutoRead() {
+        // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
+        // pendingSendRequest to be volatile and it can be expensive while writting. also this will be called on if
+        // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine. 
+        if (!ctx.channel().config().isAutoRead()) {
+            // Resume reading from socket if pending-request is not reached to threshold
+            ctx.channel().config().setAutoRead(true);
+            // triggers channel read
+            ctx.read();
+        }
+    }
+    
     private <T> ServerError getErrorCode(CompletableFuture<T> future) {
         ServerError error = ServerError.UnknownError;
         try {
