@@ -338,15 +338,6 @@ public class PulsarAdmin implements Closeable {
      * @deprecated Since 2.0. See {@link #topics()}
      */
     @Deprecated
-    public PersistentTopics persistentTopics() {
-        return topics;
-    }
-
-    /**
-     * @return the persistentTopics management object
-     * @deprecated Since 2.0. See {@link #topics()}
-     */
-    @Deprecated
     public NonPersistentTopics nonPersistentTopics() {
         return nonPersistentTopics;
     }
