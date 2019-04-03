@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,8 +36,8 @@ public class GenericJsonReader implements SchemaReader {
     private final ObjectMapper objectMapper;
     private final byte[] schemaVersion;
     private final List<Field> fields;
-    public GenericJsonReader(){
-        this.fields = null;
+    public GenericJsonReader(List<Field> fields){
+        this.fields = fields;
         this.schemaVersion = new byte[10];
         this.objectMapper = new ObjectMapper();
     }

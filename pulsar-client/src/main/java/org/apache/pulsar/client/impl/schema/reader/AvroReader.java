@@ -24,14 +24,10 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class AvroReader<T> implements SchemaReader<T> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AvroReader.class);
 
     private ReflectDatumReader<T> reader;
     private static final ThreadLocal<BinaryDecoder> decoders =

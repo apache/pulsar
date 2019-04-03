@@ -29,7 +29,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  */
 public class GenericAvroSchema extends GenericSchemaImpl {
 
-    private ConsumeType type = ConsumeType.AUTO;
+    private DecodeType decodeType = DecodeType.COMP;
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo,
@@ -47,7 +47,7 @@ public class GenericAvroSchema extends GenericSchemaImpl {
 
     @Override
     protected SchemaReader loadReader(byte[] schemaVersion) {
-        return type == ConsumeType.AUTO ?
+        return decodeType == DecodeType.AUTO ?
          new GenericAvroReader(new SchemaInfo().setSchema(((GenericAvroSchema) schemaProvider
                 .getSchemaByVersion(schemaVersion)).getAvroSchema().toString().getBytes()),
                 schemaVersion) :
@@ -57,8 +57,8 @@ public class GenericAvroSchema extends GenericSchemaImpl {
                 schemaVersion);
     }
 
-    public GenericAvroSchema setConsumerType(ConsumeType type) {
-        this.type = type;
+    public GenericAvroSchema setConsumerType(DecodeType decodeType) {
+        this.decodeType = decodeType;
         return this;
     }
 }

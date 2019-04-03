@@ -109,7 +109,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return KeyValueSchema.kvBytes();
             case JSON:
             case AVRO:
-                return GenericSchemaImpl.of(schemaInfo, GenericSchemaImpl.ConsumeType.AUTO);
+                return GenericSchemaImpl.of(schemaInfo, GenericSchemaImpl.DecodeType.AUTO);
             default:
                 throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
                     + schemaInfo.getType() + "' is not supported yet");

@@ -26,6 +26,8 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A generic json schema.
  */
@@ -34,7 +36,11 @@ class GenericJsonSchema extends GenericSchemaImpl {
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         super(schemaInfo,
                 new GenericJsonWriter(),
-                new GenericJsonReader(),
+                new GenericJsonReader(new org.apache.avro.Schema.Parser().parse(
+                        new String(schemaInfo.getSchema(), UTF_8)).getFields()
+                        .stream()
+                        .map(f -> new Field(f.name(), f.pos()))
+                        .collect(Collectors.toList())),
                 SchemaDefinition.builder()
                         .withSupportSchemaVersioning(true)
                         .build()

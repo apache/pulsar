@@ -33,9 +33,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema {
 
     protected final List<Field> fields;
-    protected final SchemaInfo schemaInfo;
 
-    public enum ConsumeType {
+    /**
+     * AUTO : decode by message's schema
+     * COMP : decode by consumer-defined schema
+     */
+    public enum DecodeType {
         AUTO,
         COMP
     }
@@ -51,18 +54,11 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
                 reader
         );
 
-        this.schemaInfo = schemaInfo;
         this.fields = schema.getFields()
                 .stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
     }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return schemaInfo;
-    }
-
 
     @Override
     public List<Field> getFields() {
@@ -76,31 +72,24 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * @return a generic schema instance
      */
     public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
-        switch (schemaInfo.getType()) {
-            case AVRO:
-                return new GenericAvroSchema(schemaInfo);
-            case JSON:
-                return new GenericJsonSchema(schemaInfo);
-            default:
-                throw new UnsupportedOperationException("Generic schema is not supported on schema type '"
-                        + schemaInfo.getType() + "'");
-        }
+        return of(schemaInfo, DecodeType.COMP);
     }
 
     /**
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
      *
      * @param schemaInfo schema info
+     *        decodeType decode type
      * @return a generic schema instance
      */
-    public static GenericSchemaImpl of(SchemaInfo schemaInfo, ConsumeType type) {
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo, DecodeType decodeType) {
         switch (schemaInfo.getType()) {
             case AVRO:
-                return new GenericAvroSchema(schemaInfo).setConsumerType(type);
+                return new GenericAvroSchema(schemaInfo).setConsumerType(decodeType);
             case JSON:
                 return new GenericJsonSchema(schemaInfo);
             default:
-                throw new UnsupportedOperationException("Generic schema is not supported on schema type '"
+                throw new UnsupportedOperationException("Generic schema is not supported on schema type "
                         + schemaInfo.getType() + "'");
         }
     }
