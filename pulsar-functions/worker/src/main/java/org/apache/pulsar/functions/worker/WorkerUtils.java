@@ -105,6 +105,7 @@ public final class WorkerUtils {
     public static void downloadFromBookkeeper(Namespace namespace,
                                               OutputStream outputStream,
                                               String packagePath) throws IOException {
+        log.info("Downloading {} from BK...", packagePath);
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;

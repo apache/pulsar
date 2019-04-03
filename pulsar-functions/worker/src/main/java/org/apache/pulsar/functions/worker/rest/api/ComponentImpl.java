@@ -642,8 +642,10 @@ public abstract class ComponentImpl {
                         throw new IllegalArgumentException(componentType + " Package is not provided");
                     }
                 } else {
+
                     componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
+                    log.info("componentPackageFile: {}", componentPackageFile);
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
                     functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
@@ -667,7 +669,7 @@ public abstract class ComponentImpl {
                     .setFunctionDetails(functionDetails);
 
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
-            if (isNotBlank(functionPkgUrl) || componentPackageFile != null) {
+            if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {
                 try {
                     packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
                             functionPkgUrl, fileDetail, componentPackageFile);
