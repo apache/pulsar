@@ -153,7 +153,9 @@ public class FunctionActioner {
         int instanceId = instance.getInstanceId();
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
-        
+
+        // check to make sure functionAuthenticationSpec has any data. If not set to null, since for protobuf,
+        // even if the field is not set its not going to be null. Have to use the "has" method to check
         Function.FunctionAuthenticationSpec functionAuthenticationSpec
                 = instance.getFunctionMetaData().hasFunctionAuthSpec()
                 ? instance.getFunctionMetaData().getFunctionAuthSpec() : null;
