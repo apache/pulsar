@@ -202,7 +202,7 @@ public class SourceConfigUtils {
             throw new IllegalArgumentException("Topic name is invalid");
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Source parallelism should positive number");
+            throw new IllegalArgumentException("Source parallelism must be a positive number");
         }
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());

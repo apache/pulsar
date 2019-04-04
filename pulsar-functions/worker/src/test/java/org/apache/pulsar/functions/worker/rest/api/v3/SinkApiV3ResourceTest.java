@@ -325,7 +325,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism must be a positive number")
     public void testRegisterSinkNegativeParallelism() {
         try {
             testRegisterSinkMissingArguments(
@@ -345,7 +345,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism must be a positive number")
     public void testRegisterSinkZeroParallelism() {
         try {
             testRegisterSinkMissingArguments(

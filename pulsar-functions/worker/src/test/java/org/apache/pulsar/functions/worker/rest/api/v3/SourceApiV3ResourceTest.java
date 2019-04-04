@@ -670,7 +670,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a positive number")
     public void testUpdateSourceNegativeParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -689,7 +689,7 @@ public class SourceApiV3ResourceTest {
                     outputSerdeClassName,
                     className,
                     -2,
-                    "Source parallelism should positive number");
+                    "Source parallelism must be a positive number");
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -746,7 +746,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a positive number")
     public void testUpdateSourceZeroParallelism() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -765,7 +765,7 @@ public class SourceApiV3ResourceTest {
                     outputSerdeClassName,
                     className,
                     0,
-                    "Source parallelism should positive number");
+                    "Source parallelism must be a positive number");
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;

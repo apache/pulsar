@@ -480,7 +480,7 @@ public class FunctionConfigUtils {
         }
 
         if (functionConfig.getParallelism() != null && functionConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Function parallelism should positive number");
+            throw new IllegalArgumentException("Function parallelism must be a positive number");
         }
         // Ensure that topics aren't being used as both input and output
         verifyNoTopicClash(allInputTopics, functionConfig.getOutput());

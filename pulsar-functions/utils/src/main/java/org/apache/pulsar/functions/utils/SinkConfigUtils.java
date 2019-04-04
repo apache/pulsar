@@ -286,7 +286,7 @@ public class SinkConfigUtils {
         }
 
         if (sinkConfig.getParallelism() != null && sinkConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Sink parallelism should positive number");
+            throw new IllegalArgumentException("Sink parallelism must be a positive number");
         }
 
         if (sinkConfig.getResources() != null) {
