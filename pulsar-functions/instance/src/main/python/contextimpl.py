@@ -23,6 +23,7 @@
 """contextimpl.py: ContextImpl class that implements the Context interface
 """
 
+import re
 import time
 import os
 import json
@@ -54,7 +55,6 @@ class ContextImpl(pulsar.Context):
     self.publish_producers = {}
     self.publish_serializers = {}
     self.message = None
-    self.current_input_topic_name = None
     self.current_start_time = None
     self.user_config = json.loads(instance_config.function_details.userConfig) \
       if instance_config.function_details.userConfig \
@@ -73,7 +73,6 @@ class ContextImpl(pulsar.Context):
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, message, topic):
     self.message = message
-    self.current_input_topic_name = topic
     self.current_start_time = time.time()
 
   def get_message_id(self):
@@ -89,7 +88,7 @@ class ContextImpl(pulsar.Context):
     return self.message.properties()
 
   def get_current_message_topic_name(self):
-    return self.current_input_topic_name
+    return self.message.topic_name()
 
   def get_function_name(self):
     return self.instance_config.function_details.name
@@ -176,9 +175,19 @@ class ContextImpl(pulsar.Context):
     self.publish_producers[topic_name].send_async(output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()), properties=properties)
 
   def ack(self, msgid, topic):
-    if topic not in self.consumers:
-      raise ValueError('Invalid topicname %s' % topic)
-    self.consumers[topic].acknowledge(msgid)
+    topic_consumer = None
+    if topic in self.consumers:
+      topic_consumer = self.consumers[topic]
+    else:
+      # if this topic is a partitioned topic
+      m = re.search('(.+)-partition-(\d+)', topic)
+      if not m:
+        raise ValueError('Invalid topicname %s' % topic)
+      elif m.group(1) in self.consumers:
+        topic_consumer = self.consumers[m.group(1)]
+      else:
+        raise ValueError('Invalid topicname %s' % topic)
+    topic_consumer.acknowledge(msgid)
 
   def get_and_reset_metrics(self):
     metrics = self.get_metrics()
@@ -205,6 +214,9 @@ class ContextImpl(pulsar.Context):
 
   def get_counter(self, key):
     return self.state_context.get_amount(key)
+
+  def del_counter(self, key):
+    return self.state_context.delete(key)
 
   def put_state(self, key, value):
     return self.state_context.put(key, value)

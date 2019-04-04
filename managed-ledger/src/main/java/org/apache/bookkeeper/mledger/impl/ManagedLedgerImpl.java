@@ -169,7 +169,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final Map<String, CompletableFuture<ManagedCursor>> uninitializedCursors;
 
     final EntryCache entryCache;
-    
+
     private ScheduledFuture<?> timeoutTask;
 
     /**
@@ -334,7 +334,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         });
-        
+
         scheduleTimeoutTask();
     }
 
@@ -643,8 +643,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return openCursor(cursorName, InitialPosition.Latest);
     }
 
+
     @Override
     public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition)
+            throws InterruptedException, ManagedLedgerException {
+        return openCursor(cursorName, initialPosition, Collections.emptyMap());
+    }
+
+    @Override
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition, Map<String, Long> properties)
             throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
@@ -653,7 +660,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, initialPosition, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, properties, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -681,13 +688,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx) {
+    public void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx) {
         this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
+    public void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
             final OpenCursorCallback callback, final Object ctx) {
+        this.asyncOpenCursor(cursorName, initialPosition, Collections.emptyMap(), callback, ctx);
+    }
+
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
+            Map<String, Long> properties, final OpenCursorCallback callback, final Object ctx) {
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -721,7 +734,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, config, this, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
-        cursor.initialize(getLastPosition(), new VoidCallback() {
+        cursor.initialize(getLastPosition(), properties, new VoidCallback() {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
@@ -1174,7 +1187,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             closeAllCursors(callback, ctx);
         }, null);
-        
+
         if (this.timeoutTask != null) {
             this.timeoutTask.cancel(false);
         }
@@ -1698,7 +1711,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // if the ctx-readOpCount is different than object's readOpCount means Object is already recycled and
             // assigned to different request
             boolean isRecycled = (ctx != null && ctx instanceof Integer) && (Integer) ctx != readOpCount;
-            // consider callback is completed if: Callback is already recycled or read-complete flag is true  
+            // consider callback is completed if: Callback is already recycled or read-complete flag is true
             return isRecycled || !READ_COMPLETED_UPDATER.compareAndSet(ReadEntryCallbackWrapper.this, FALSE, TRUE);
         }
 
@@ -2246,8 +2259,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
         PositionImpl requestOffloadTo = (PositionImpl) pos;
-        if (!isValidPosition(requestOffloadTo)) {
-            callback.offloadFailed(new InvalidCursorPositionException("Invalid position for offload"), ctx);
+        if (!isValidPosition(requestOffloadTo) &&
+                // Also consider the case where the last ledger is currently
+                // empty. In this the passed position is not technically
+                // "valid", per the above check, given that it's not written
+                // yes, but it will be valid for the logic here
+                !(requestOffloadTo.getLedgerId() == currentLedger.getId()
+                        && requestOffloadTo.getEntryId() == 0)) {
+            log.warn("[{}] Cannot start offload at position {} - LastConfirmedEntry: {}", name, pos, lastConfirmedEntry);
+            callback.offloadFailed(new InvalidCursorPositionException("Invalid position for offload: " + pos), ctx);
             return;
         }
 
@@ -2356,7 +2376,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     })
                 .whenComplete((ignore, exception) -> {
                         if (exception != null) {
-                            log.info("[{}] Exception occurred during offload", name, exception);
+                            log.warn("[{}] Exception occurred during offload", name, exception);
 
                             PositionImpl newFirstUnoffloaded = PositionImpl.get(ledgerId, 0);
                             if (newFirstUnoffloaded.compareTo(firstUnoffloaded) > 0) {
@@ -3010,7 +3030,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     /**
      * Create ledger async and schedule a timeout task to check ledger-creation is complete else it fails the callback
      * with TimeoutException.
-     * 
+     *
      * @param bookKeeper
      * @param config
      * @param digestType
@@ -3038,7 +3058,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * check if ledger-op task is already completed by timeout-task. If completed then delete the created ledger
-     * 
+     *
      * @param rc
      * @param lh
      * @param ctx

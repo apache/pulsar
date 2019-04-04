@@ -25,6 +25,9 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 
@@ -42,7 +45,7 @@ public class JavaInstanceRunnableTest {
         }
     }
 
-    private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde) {
+    private static InstanceConfig createInstanceConfig(String outputSerde) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (outputSerde != null) {
             functionDetailsBuilder.setSink(SinkSpec.newBuilder().setSerDeClassName(outputSerde).build());
@@ -53,8 +56,8 @@ public class JavaInstanceRunnableTest {
         return instanceConfig;
     }
 
-    private JavaInstanceRunnable createRunnable(boolean addCustom, String outputSerde) throws Exception {
-        InstanceConfig config = createInstanceConfig(addCustom, outputSerde);
+    private JavaInstanceRunnable createRunnable(String outputSerde) throws Exception {
+        InstanceConfig config = createInstanceConfig(outputSerde);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
                 config, null, null, null, null, null, null);
         return javaInstanceRunnable;
@@ -104,5 +107,14 @@ public class JavaInstanceRunnableTest {
         public Void process(String input, Context context) throws Exception {
             return null;
         }
+    }
+
+    @Test
+    public void testStatsManagerNull() throws Exception {
+        JavaInstanceRunnable javaInstanceRunnable = createRunnable(null);
+
+        Assert.assertEquals(javaInstanceRunnable.getFunctionStatus().build(), InstanceCommunication.FunctionStatus.newBuilder().build());
+
+        Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
     }
 }

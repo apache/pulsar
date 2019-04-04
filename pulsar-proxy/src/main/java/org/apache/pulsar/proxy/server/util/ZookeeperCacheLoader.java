@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -65,7 +66,8 @@ public class ZookeeperCacheLoader implements Closeable {
      */
     public ZookeeperCacheLoader(ZooKeeperClientFactory factory, String zookeeperServers, int zookeeperSessionTimeoutMs) throws Exception {
         this.zkClient = factory.create(zookeeperServers, SessionType.AllowReadOnly, zookeeperSessionTimeoutMs).get();
-        this.localZkCache = new LocalZooKeeperCache(zkClient, this.orderedExecutor);
+        this.localZkCache = new LocalZooKeeperCache(zkClient,
+                (int) TimeUnit.MILLISECONDS.toSeconds(zookeeperSessionTimeoutMs), this.orderedExecutor);
 
         this.brokerInfo = new ZooKeeperDataCache<LoadManagerReport>(localZkCache) {
             @Override

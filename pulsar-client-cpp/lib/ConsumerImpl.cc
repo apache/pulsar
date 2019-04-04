@@ -57,6 +57,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
+      negativeAcksTracker_(client, *this, conf),
       msgCrypto_(),
       readCompacted_(conf.isReadCompacted()),
       lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
@@ -108,6 +109,10 @@ uint64_t ConsumerImpl::getConsumerId() { return consumerId_; }
 Future<Result, ConsumerImplBaseWeakPtr> ConsumerImpl::getConsumerCreatedFuture() {
     return consumerCreatedPromise_.getFuture();
 }
+
+void ConsumerImpl::incrRefCount() { ++refCount_; }
+
+unsigned int ConsumerImpl::safeDecrRefCount() { return refCount_ > 0 ? refCount_-- : refCount_; }
 
 const std::string& ConsumerImpl::getSubscriptionName() const { return originalSubscriptionName_; }
 
@@ -503,6 +508,7 @@ void ConsumerImpl::internalListener() {
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
+        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -724,10 +730,10 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
     InitialPosition initialPosition = config_.getSubscriptionInitialPosition();
     switch (initialPosition) {
         case InitialPositionLatest:
-            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Latest;
+            return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Latest;
 
         case InitialPositionEarliest:
-            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Earliest;
+            return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Earliest;
     }
 }
 
@@ -792,6 +798,11 @@ void ConsumerImpl::doAcknowledge(const MessageId& messageId, proto::CommandAck_A
     }
 }
 
+void ConsumerImpl::negativeAcknowledge(const MessageId& messageId) {
+    unAckedMessageTrackerPtr_->remove(messageId);
+    negativeAcksTracker_.add(messageId);
+}
+
 void ConsumerImpl::disconnectConsumer() {
     LOG_INFO("Broker notification of Closed consumer: " << consumerId_);
     Lock lock(mutex_);
@@ -806,6 +817,14 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+
+    if (safeDecrRefCount() != 0) {
+        lock.unlock();
+        if (callback) {
+            callback(ResultOk);
         }
         return;
     }
@@ -917,14 +936,16 @@ Result ConsumerImpl::resumeMessageListener() {
 }
 
 void ConsumerImpl::redeliverUnacknowledgedMessages() {
+    static std::set<MessageId> emptySet;
+    redeliverMessages(emptySet);
+}
+
+void ConsumerImpl::redeliverMessages(const std::set<MessageId>& messageIds) {
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
         if (cnx->getServerProtocolVersion() >= proto::v2) {
-            cnx->sendCommand(Commands::newRedeliverUnacknowledgedMessages(consumerId_));
+            cnx->sendCommand(Commands::newRedeliverUnacknowledgedMessages(consumerId_, messageIds));
             LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for Consumer - " << getConsumerId());
-        } else {
-            LOG_DEBUG("Reconnecting the client to redeliver the messages for Consumer - " << getName());
-            cnx->close();
         }
     } else {
         LOG_DEBUG("Connection not ready for Consumer - " << getConsumerId());
@@ -1039,8 +1060,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
-                                                                            MessageId messageId) {
+    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1050,9 +1070,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         } else {
             callback(result, false);
         }
-    };
-
-    getLastMessageIdAsync(callback1);
+    });
 }
 
 void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,

@@ -41,11 +41,13 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -87,7 +89,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV3Resource}.
  */
-@PrepareForTest({Utils.class, ConnectorUtils.class, org.apache.pulsar.functions.utils.Utils.class})
+@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV3ResourceTest {
@@ -169,7 +171,7 @@ public class SourceApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SourceImpl(() -> mockedWorkerService));
-        Mockito.doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
+        Mockito.doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -325,7 +327,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Jar")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Source Package")
     public void testRegisterSourceHttpUrl() {
         try {
             testRegisterSourceMissingArguments(
@@ -389,7 +391,7 @@ public class SourceApiV3ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -404,7 +406,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already exists")
@@ -424,9 +426,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSourceUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -441,9 +443,9 @@ public class SourceApiV3ResourceTest {
     }
 
     public void testRegisterSourceSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -461,9 +463,9 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testRegisterSourceConflictingFields() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -498,15 +500,15 @@ public class SourceApiV3ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testRegisterSourceFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -529,9 +531,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -616,9 +618,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingPackage() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                 tenant,
@@ -640,9 +642,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingTopicName() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -664,9 +666,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceNegativeParallelism() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -688,9 +690,9 @@ public class SourceApiV3ResourceTest {
     @Test
     public void testUpdateSourceChangedParallelism() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                 tenant,
@@ -712,9 +714,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
     public void testUpdateSourceChangedTopic() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -736,9 +738,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testUpdateSourceZeroParallelism() throws IOException {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -773,12 +775,12 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -825,7 +827,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
@@ -843,12 +845,12 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -862,7 +864,7 @@ public class SourceApiV3ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
@@ -879,9 +881,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSourceUploadFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doThrow(new IOException("upload failure")).when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -896,9 +898,9 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testUpdateSourceSuccess() throws Exception {
-        mockStatic(Utils.class);
-        doNothing().when(Utils.class);
-        Utils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
@@ -933,12 +935,12 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
-        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
-        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
-        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
-        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -960,16 +962,16 @@ public class SourceApiV3ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sourceConfig),
-                null);
+                null, null);
 
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testUpdateSourceFailure() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -992,9 +994,9 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         try {
-            mockStatic(Utils.class);
-            doNothing().when(Utils.class);
-            Utils.uploadFileToBookkeeper(
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
@@ -1067,7 +1069,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null);
+                null, null);
 
     }
 
@@ -1076,7 +1078,7 @@ public class SourceApiV3ResourceTest {
             tenant,
             namespace,
                 source,
-                null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp= "Source test-source doesn't exist")
@@ -1191,7 +1193,7 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            source
+            source, null, null
         );
     }
 
@@ -1281,14 +1283,14 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace
+            namespace, null, null
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace, null, null);
     }
 
     @Test
@@ -1321,9 +1323,9 @@ public class SourceApiV3ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
-        doReturn(org.apache.pulsar.functions.utils.Utils.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
+        doReturn(ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         List<String> sourceList = listDefaultSources();
         assertEquals(functions, sourceList);

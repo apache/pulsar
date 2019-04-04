@@ -41,8 +41,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 public class SourceConfigUtils {
 
@@ -133,6 +133,10 @@ public class SourceConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -142,7 +146,7 @@ public class SourceConfigUtils {
         sourceConfig.setNamespace(functionDetails.getNamespace());
         sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
-        sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sourceConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
@@ -174,6 +178,10 @@ public class SourceConfigUtils {
             resources.setDisk(functionDetails.getResources().getDisk());
             sourceConfig.setResources(resources);
         }
+
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getRuntimeFlags())) {
+            sourceConfig .setRuntimeFlags(functionDetails.getRuntimeFlags());
+        }
         return sourceConfig;
     }
 
@@ -201,18 +209,41 @@ public class SourceConfigUtils {
         }
 
         String sourceClassName;
-        ClassLoader classLoader;
+        final Class<?> typeArg;
+        final ClassLoader classLoader;
         if (!isEmpty(sourceConfig.getClassName())) {
             sourceClassName = sourceConfig.getClassName();
+            // We really don't know if we should use nar class loader or regular classloader
+            ClassLoader jarClassLoader = null;
+            ClassLoader narClassLoader = null;
             try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid Source Jar");
             }
+            try {
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+            }
+            if (jarClassLoader == null && narClassLoader == null) {
+                throw new IllegalArgumentException("Invalid Source Package");
+            }
+            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
+            // Thus we use these tmp vars
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
+            try {
+                tmptypeArg = getSourceType(sourceClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
+            } catch (Exception e) {
+                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
+            }
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
         } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Source Package is not provided");
             }
@@ -221,9 +252,8 @@ public class SourceConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
+            typeArg = getSourceType(sourceClassName, classLoader);
         }
-
-        Class<?> typeArg = getSourceType(sourceClassName, classLoader);
 
         // Only one of serdeClassName or schemaType should be set
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
@@ -270,7 +300,7 @@ public class SourceConfigUtils {
             mergedConfig.setSecrets(newConfig.getSecrets());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
         }
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());

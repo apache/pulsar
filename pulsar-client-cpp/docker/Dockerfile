@@ -150,6 +150,9 @@ RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.
     rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
 RUN pip install twine
+RUN pip install fastavro
+RUN pip install six
+RUN pip install enum34
 
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include

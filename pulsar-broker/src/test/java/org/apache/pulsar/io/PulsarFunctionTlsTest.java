@@ -45,7 +45,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -226,7 +226,7 @@ public class PulsarFunctionTlsTest {
 
         File file = new File(jarFile);
         try {
-            Utils.loadJar(file);
+            FunctionCommon.loadJar(file);
         } catch (MalformedURLException e) {
             throw new RuntimeException("Failed to load user jar " + file, e);
         }

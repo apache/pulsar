@@ -82,9 +82,8 @@ public class PulsarSinkTest {
     }
 
     /**
-     * Verify that JavaInstance does not support functions that take Void type as input
+     * Verify that JavaInstance does not support functions that take Void type as input.
      */
-
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
@@ -160,7 +159,7 @@ public class PulsarSinkTest {
     }
 
     /**
-     * Verify that JavaInstance does support functions that output Void type
+     * Verify that JavaInstance does support functions that output Void type.
      */
     @Test
     public void testVoidOutputClasses() throws Exception {
@@ -283,11 +282,7 @@ public class PulsarSinkTest {
 
                 @Override
                 public Optional<String> getDestinationTopic() {
-                    if (topic != null) {
-                        return Optional.of(topic);
-                    } else {
-                        return Optional.empty();
-                    }
+                    return getTopicOptional(topic);
                 }
             }, "out1");
 
@@ -307,11 +302,7 @@ public class PulsarSinkTest {
                 @Override
                 public boolean matches(Object o) {
                     if (o instanceof String) {
-                        if (topic != null) {
-                            return topic.equals(o);
-                        } else {
-                            return defaultTopic.equals(o);
-                        }
+                        return getTopicEquals(o, topic, defaultTopic);
                     }
                     return false;
                 }
@@ -340,11 +331,7 @@ public class PulsarSinkTest {
 
                 @Override
                 public Optional<String> getDestinationTopic() {
-                    if (topic != null) {
-                        return Optional.of(topic);
-                    } else {
-                        return Optional.empty();
-                    }
+                    return getTopicOptional(topic);
                 }
             }, "out1");
 
@@ -364,11 +351,7 @@ public class PulsarSinkTest {
                 @Override
                 public boolean matches(Object o) {
                     if (o instanceof String) {
-                        if (topic != null) {
-                            return topic.equals(o);
-                        } else {
-                            return defaultTopic.equals(o);
-                        }
+                        return getTopicEquals(o, topic, defaultTopic);
                     }
                     return false;
                 }
@@ -397,11 +380,7 @@ public class PulsarSinkTest {
 
                 @Override
                 public Optional<String> getDestinationTopic() {
-                    if (topic != null) {
-                        return Optional.of(topic);
-                    } else {
-                        return Optional.empty();
-                    }
+                    return getTopicOptional(topic);
                 }
                 @Override
                 public Optional<String> getPartitionId() {
@@ -434,11 +413,7 @@ public class PulsarSinkTest {
                 @Override
                 public boolean matches(Object o) {
                     if (o instanceof String) {
-                        if (topic != null) {
-                            return topic.equals(o);
-                        } else {
-                            return defaultTopic.equals(o);
-                        }
+                        return getTopicEquals(o, topic, defaultTopic);
                     }
                     return false;
                 }
@@ -457,6 +432,22 @@ public class PulsarSinkTest {
                     return false;
                 }
             }));
+        }
+    }
+
+    private Optional<String> getTopicOptional(String topic) {
+        if (topic != null) {
+            return Optional.of(topic);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private boolean getTopicEquals(Object o, String topic, String defaultTopic) {
+        if (topic != null) {
+            return topic.equals(o);
+        } else {
+            return defaultTopic.equals(o);
         }
     }
 

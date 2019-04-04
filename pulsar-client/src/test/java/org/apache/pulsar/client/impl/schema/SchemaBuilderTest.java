@@ -21,7 +21,10 @@ package org.apache.pulsar.client.impl.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
+import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -34,11 +37,17 @@ import org.testng.annotations.Test;
 public class SchemaBuilderTest {
 
     private static class AllOptionalFields {
+        @Nullable
         private Integer intField;
+        @Nullable
         private Long longField;
+        @Nullable
         private String stringField;
+        @Nullable
         private Boolean boolField;
+        @Nullable
         private Float floatField;
+        @Nullable
         private Double doubleField;
     }
 
@@ -114,4 +123,81 @@ public class SchemaBuilderTest {
         assertEquals(avroPojoSchema, avroSchema);
     }
 
+    @Test
+    public void testGenericRecordBuilderByFieldName() {
+        RecordSchemaBuilder recordSchemaBuilder =
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+        recordSchemaBuilder.field("intField")
+            .type(SchemaType.INT32);
+        recordSchemaBuilder.field("longField")
+            .type(SchemaType.INT64);
+        recordSchemaBuilder.field("boolField")
+            .type(SchemaType.BOOLEAN);
+        recordSchemaBuilder.field("floatField")
+            .type(SchemaType.FLOAT);
+        recordSchemaBuilder.field("doubleField")
+            .type(SchemaType.DOUBLE);
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(
+            SchemaType.AVRO
+        );
+        GenericSchema schema = Schema.generic(schemaInfo);
+        GenericRecord record = schema.newRecordBuilder()
+            .set("intField", 32)
+            .set("longField", 1234L)
+            .set("boolField", true)
+            .set("floatField", 0.7f)
+            .set("doubleField", 1.34d)
+            .build();
+
+        byte[] serializedData = schema.encode(record);
+
+        // create a POJO schema to deserialize the serialized data
+        Schema<AllPrimitiveFields> pojoSchema = Schema.AVRO(AllPrimitiveFields.class);
+        AllPrimitiveFields fields = pojoSchema.decode(serializedData);
+
+        assertEquals(32, fields.intField);
+        assertEquals(1234L, fields.longField);
+        assertEquals(true, fields.boolField);
+        assertEquals(0.7f, fields.floatField);
+        assertEquals(1.34d, fields.doubleField);
+    }
+
+    @Test
+    public void testGenericRecordBuilderByIndex() {
+        RecordSchemaBuilder recordSchemaBuilder =
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+        recordSchemaBuilder.field("intField")
+            .type(SchemaType.INT32);
+        recordSchemaBuilder.field("longField")
+            .type(SchemaType.INT64);
+        recordSchemaBuilder.field("boolField")
+            .type(SchemaType.BOOLEAN);
+        recordSchemaBuilder.field("floatField")
+            .type(SchemaType.FLOAT);
+        recordSchemaBuilder.field("doubleField")
+            .type(SchemaType.DOUBLE);
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(
+            SchemaType.AVRO
+        );
+        GenericSchema schema = Schema.generic(schemaInfo);
+        GenericRecord record = schema.newRecordBuilder()
+            .set(schema.getFields().get(0), 32)
+            .set(schema.getFields().get(1), 1234L)
+            .set(schema.getFields().get(2), true)
+            .set(schema.getFields().get(3), 0.7f)
+            .set(schema.getFields().get(4), 1.34d)
+            .build();
+
+        byte[] serializedData = schema.encode(record);
+
+        // create a POJO schema to deserialize the serialized data
+        Schema<AllPrimitiveFields> pojoSchema = Schema.AVRO(AllPrimitiveFields.class);
+        AllPrimitiveFields fields = pojoSchema.decode(serializedData);
+
+        assertEquals(32, fields.intField);
+        assertEquals(1234L, fields.longField);
+        assertEquals(true, fields.boolField);
+        assertEquals(0.7f, fields.floatField);
+        assertEquals(1.34d, fields.doubleField);
+    }
 }

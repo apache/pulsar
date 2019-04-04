@@ -59,6 +59,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app consumer key. See "
                 + "https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -67,6 +68,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app consumer secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -75,6 +77,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app token. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -83,6 +86,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app token secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )

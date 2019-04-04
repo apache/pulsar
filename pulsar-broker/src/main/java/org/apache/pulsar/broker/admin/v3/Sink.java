@@ -27,7 +27,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 @Path("/sink")
-@Api(value = "/sink", description = "Sink admin apis", tags = "sink", hidden = true)
+@Api(value = "/sink", description = "Sink admin apis", tags = "sink")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class Sink extends SinkBase {

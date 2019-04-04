@@ -406,6 +406,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void negativeAcknowledge(MessageId messageId) {
+        checkArgument(messageId instanceof TopicMessageIdImpl);
+        TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+
+        ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
+        consumer.negativeAcknowledge(topicMessageId.getInnerMessageId());
+    }
+
+    @Override
     public CompletableFuture<Void> unsubscribeAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -526,6 +535,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+
         checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
@@ -736,7 +749,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                 configurationData, client.externalExecutorProvider().getExecutor(),
                                 partitionIndex, subFuture,
-                                SubscriptionMode.Durable, null, schema, interceptors);
+                                SubscriptionMode.Durable, null, schema, interceptors,
+                                client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                                client.getConfiguration().getMaxBackoffIntervalNanos());
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -748,7 +763,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
             ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                     client.externalExecutorProvider().getExecutor(), 0, subFuture, SubscriptionMode.Durable, null,
-                    schema, interceptors);
+                    schema, interceptors, client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                    client.getConfiguration().getMaxBackoffIntervalNanos());
             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
 
             futureList = Collections.singletonList(subFuture);
@@ -964,7 +980,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                             client, partitionName, configurationData,
                             client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, subFuture, SubscriptionMode.Durable, null, schema, interceptors);
+                            partitionIndex, subFuture, SubscriptionMode.Durable, null, schema, interceptors,
+                            client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                            client.getConfiguration().getMaxBackoffIntervalNanos());
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",

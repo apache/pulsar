@@ -35,6 +35,10 @@ public interface Runtime {
 
     void stop() throws Exception;
 
+    default void terminate() throws Exception {
+        stop();
+    }
+
     boolean isAlive();
 
     Throwable getDeathException();

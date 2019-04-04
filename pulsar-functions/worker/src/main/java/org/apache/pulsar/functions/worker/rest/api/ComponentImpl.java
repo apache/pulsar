@@ -21,11 +21,13 @@ package org.apache.pulsar.functions.worker.rest.api;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 
 import com.google.gson.Gson;
 
+import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -43,6 +45,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +53,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
@@ -71,17 +73,18 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
-import static org.apache.pulsar.functions.utils.Utils.*;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.utils.FunctionCommon.*;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -90,11 +93,12 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -104,14 +108,15 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
@@ -165,7 +170,7 @@ public abstract class ComponentImpl {
             // If I am running worker
             if (assignedWorkerId.equals(workerId)) {
                 FunctionRuntimeInfo functionRuntimeInfo = worker().getFunctionRuntimeManager().getFunctionRuntimeInfo(
-                        org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+                        FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()));
                 if (functionRuntimeInfo == null) {
                     return notRunning(assignedWorkerId, "");
                 }
@@ -294,7 +299,8 @@ public abstract class ComponentImpl {
                                  final String functionPkgUrl,
                                  final String functionDetailsJson,
                                  final String componentConfigJson,
-                                 final String clientRole) {
+                                 final String clientRole,
+                                 AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -308,6 +314,17 @@ public abstract class ComponentImpl {
         }
         if (componentName == null) {
             throw new RestException(Status.BAD_REQUEST, componentType + " Name is not provided");
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to register {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         try {
@@ -329,17 +346,6 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, "Tenant does not exist");
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Issues getting tenant data", tenant, namespace, componentName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-
-        try {
-            if (!isAuthorizedRole(tenant, clientRole)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to register {}", tenant, namespace,
-                        componentName, clientRole, componentType);
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
@@ -379,8 +385,30 @@ public abstract class ComponentImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
 
+        // cache auth if need
+        if (clientAuthenticationDataHttps != null) {
+            try {
+                Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
+                        .getRuntimeFactory()
+                        .getAuthProvider()
+                        .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+
+                if (functionAuthData.isPresent()) {
+                    functionMetaDataBuilder.setFunctionAuthSpec(
+                            Function.FunctionAuthenticationSpec.newBuilder()
+                                    .setData(ByteString.copyFrom(functionAuthData.get().getData()))
+                                    .build());
+                }
+            } catch (Exception e) {
+                log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+            }
+        }
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         try {
@@ -419,20 +447,20 @@ public abstract class ComponentImpl {
                         sinkOrSource.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
                 File file = extractFileFromPkg(functionPkgUrl);
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         file.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(file.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         } else {
             // For pulsar managed schedulers, the pkgUrl/builtin stuff should be copied to bk
@@ -444,7 +472,7 @@ public abstract class ComponentImpl {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         }
         return packageLocationMetaDataBuilder;
@@ -459,7 +487,8 @@ public abstract class ComponentImpl {
                                final String functionPkgUrl,
                                final String functionDetailsJson,
                                final String componentConfigJson,
-                               final String clientRole) {
+                               final String clientRole,
+                               AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -476,7 +505,7 @@ public abstract class ComponentImpl {
         }
 
         try {
-            if (!isAuthorizedRole(tenant, clientRole)) {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
                         componentName, clientRole, componentType);
                 throw new RestException(Status.UNAUTHORIZED, componentType + "client is not authorize to perform operation");
@@ -496,6 +525,7 @@ public abstract class ComponentImpl {
         String existingComponentConfigJson;
 
         FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+
         if (componentType.equals(FUNCTION)) {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
@@ -559,6 +589,9 @@ public abstract class ComponentImpl {
             } else if (uploadedInputStream != null) {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, uploadedInputStreamAsFile,
                         fileDetail, functionDetailsJson, mergedComponentConfigJson, componentType);
+            } else if (existingComponent.getPackageLocation().getPackagePath().startsWith("builtin://")) {
+                functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, null,
+                        null, functionDetailsJson, mergedComponentConfigJson, componentType);
             } else {
                 functionDetails = validateUpdateRequestParamsWithExistingMetadata(
                         tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfigJson, componentType);
@@ -575,9 +608,9 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", componentType, componentName, e.getMessage()));
         }
 
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+        // merge from existing metadata
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
+                .setFunctionDetails(functionDetails);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
         if (isNotBlank(functionPkgUrl) || uploadedInputStreamAsFile != null) {
@@ -592,20 +625,22 @@ public abstract class ComponentImpl {
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
         updateRequest(functionMetaDataBuilder.build());
     }
 
     public void deregisterFunction(final String tenant,
                                    final String namespace,
                                    final String componentName,
-                                   final String clientRole) {
+                                   final String clientRole,
+                                   AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         try {
-            if (!isAuthorizedRole(tenant, clientRole)) {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to deregister {}", tenant, namespace,
                         componentName, clientRole, componentType);
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
@@ -617,7 +652,7 @@ public abstract class ComponentImpl {
 
         // delete state table
         if (null != worker().getStateStoreAdminClient()) {
-            final String tableNs = StateUtils.getStateNamespace(tenant, namespace);
+            final String tableNs = getStateNamespace(tenant, namespace);
             final String tableName = componentName;
             try {
                 FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
@@ -670,10 +705,23 @@ public abstract class ComponentImpl {
 
     public FunctionConfig getFunctionInfo(final String tenant,
                                           final String namespace,
-                                          final String componentName) {
+                                          final String componentName,
+                                          final String clientRole,
+                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to get {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -702,16 +750,20 @@ public abstract class ComponentImpl {
                                      final String namespace,
                                      final String componentName,
                                      final String instanceId,
-                                     final URI uri) {
-        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri);
+                                     final URI uri,
+                                     final String clientRole,
+                                     final AuthenticationDataSource clientAuthenticationDataHttps) {
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri, clientRole, clientAuthenticationDataHttps);
     }
 
     public void startFunctionInstance(final String tenant,
                                       final String namespace,
                                       final String componentName,
                                       final String instanceId,
-                                      final URI uri) {
-        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, true, uri);
+                                      final URI uri,
+                                      final String clientRole,
+                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, true, uri, clientRole, clientAuthenticationDataHttps);
     }
 
     public void changeFunctionInstanceStatus(final String tenant,
@@ -719,10 +771,23 @@ public abstract class ComponentImpl {
                                              final String componentName,
                                              final String instanceId,
                                              final boolean start,
-                                             final URI uri) {
+                                             final URI uri,
+                                             final String clientRole,
+                                             final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to start/stop {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -765,9 +830,22 @@ public abstract class ComponentImpl {
                                         final String namespace,
                                         final String componentName,
                                         final String instanceId,
-                                        final URI uri) {
+                                        final URI uri,
+                                        final String clientRole,
+                                        final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to restart {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -804,23 +882,40 @@ public abstract class ComponentImpl {
 
     public void stopFunctionInstances(final String tenant,
                                       final String namespace,
-                                      final String componentName) {
-        changeFunctionStatusAllInstances(tenant, namespace, componentName, false);
+                                      final String componentName,
+                                      final String clientRole,
+                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, false, clientRole, clientAuthenticationDataHttps);
     }
 
     public void startFunctionInstances(final String tenant,
                                        final String namespace,
-                                       final String componentName) {
-        changeFunctionStatusAllInstances(tenant, namespace, componentName, true);
+                                       final String componentName,
+                                       final String clientRole,
+                                       final AuthenticationDataSource clientAuthenticationDataHttps) {
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, true, clientRole, clientAuthenticationDataHttps);
     }
 
     public void changeFunctionStatusAllInstances(final String tenant,
                                                  final String namespace,
                                                  final String componentName,
-                                                 final boolean start) {
+                                                 final boolean start,
+                                                 final String clientRole,
+                                                 final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to start/stop {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -860,9 +955,22 @@ public abstract class ComponentImpl {
 
     public void restartFunctionInstances(final String tenant,
                                          final String namespace,
-                                         final String componentName) {
+                                         final String componentName,
+                                         final String clientRole,
+                                         final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to restart {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -899,9 +1007,22 @@ public abstract class ComponentImpl {
     public FunctionStats getFunctionStats(final String tenant,
                                           final String namespace,
                                           final String componentName,
-                                          final URI uri) {
+                                          final URI uri,
+                                          final String clientRole,
+                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to get stats for {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -942,9 +1063,22 @@ public abstract class ComponentImpl {
                                                                                                    final String namespace,
                                                                                                    final String componentName,
                                                                                                    final String instanceId,
-                                                                                                   final URI uri) {
+                                                                                                   final URI uri,
+                                                                                                   final String clientRole,
+                                                                                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to get stats for {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -988,10 +1122,23 @@ public abstract class ComponentImpl {
         return functionInstanceStatsData;
     }
 
-    public List<String> listFunctions(final String tenant, final String namespace) {
+    public List<String> listFunctions(final String tenant,
+                                      final String namespace,
+                                      final String clientRole,
+                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{} Client [{}] is not admin and authorized to list {}", tenant, namespace, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{} Failed to authorize [{}]", tenant, namespace, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -1048,10 +1195,23 @@ public abstract class ComponentImpl {
                                   final String functionName,
                                   final String input,
                                   final InputStream uploadedInputStream,
-                                  final String topic) {
+                                  final String topic,
+                                  final String clientRole,
+                                  final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to trigger {}", tenant, namespace,
+                        functionName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -1148,10 +1308,23 @@ public abstract class ComponentImpl {
     public FunctionState getFunctionState(final String tenant,
                                           final String namespace,
                                           final String functionName,
-                                          final String key) {
+                                          final String key,
+                                          final String clientRole,
+                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to get state for {}", tenant, namespace,
+                        functionName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         if (null == worker().getStateStoreAdminClient()) {
@@ -1167,7 +1340,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
-        String tableNs = StateUtils.getStateNamespace(tenant, namespace);
+        String tableNs = getStateNamespace(tenant, namespace);
         String tableName = functionName;
 
         String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
@@ -1217,7 +1390,7 @@ public abstract class ComponentImpl {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            WorkerUtils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
@@ -1242,7 +1415,7 @@ public abstract class ComponentImpl {
                         throw new IllegalArgumentException("invalid file url path: " + path);
                     }
                 } else {
-                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
+                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
                 }
             }
         };
@@ -1342,7 +1515,7 @@ public abstract class ComponentImpl {
                                                                             final ComponentType componentType) throws Exception {
         File tmpFile = File.createTempFile("functions", null);
         tmpFile.deleteOnExit();
-        Utils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
+        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
         return validateUpdateRequestParams(tenant, namespace, componentName,
                 null, componentConfigJson, componentType, null, tmpFile);
     }
@@ -1487,7 +1660,7 @@ public abstract class ComponentImpl {
             return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+        FunctionCommon.mergeJson(functionDetailsJson, functionDetailsBuilder);
         if (isNotBlank(functionPkgUrl)) {
             // set package-url if present
             functionDetailsBuilder.setPackageUrl(functionPkgUrl);
@@ -1556,7 +1729,7 @@ public abstract class ComponentImpl {
 
         // validate function class-type
         Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
-        Class<?>[] typeArgs = org.apache.pulsar.functions.utils.Utils.getFunctionTypes(functionObject, false);
+        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionObject, false);
 
         if (!(functionObject instanceof org.apache.pulsar.functions.api.Function)
                 && !(functionObject instanceof java.util.function.Function)) {
@@ -1660,24 +1833,36 @@ public abstract class ComponentImpl {
 
     public static String createPackagePath(String tenant, String namespace, String functionName, String fileName) {
         return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
-                Utils.getUniquePackageName(Codec.encode(fileName)));
+                getUniquePackageName(Codec.encode(fileName)));
     }
 
-    public boolean isAuthorizedRole(String tenant, String clientRole) throws PulsarAdminException {
+    public boolean isAuthorizedRole(String tenant, String namespace, String clientRole,
+                                    AuthenticationDataSource authenticationData) throws PulsarAdminException {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // skip authorization if client role is super-user
             if (isSuperUser(clientRole)) {
                 return true;
             }
             TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-            return clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
-                    || tenantInfo.getAdminRoles().contains(clientRole));
+            if (clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
+                    || tenantInfo.getAdminRoles().contains(clientRole))) {
+                return true;
+            }
+
+            // check if role has permissions granted
+            if (clientRole != null && authenticationData != null) {
+                return allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData);
+            } else {
+                return false;
+            }
         }
         return true;
     }
 
     public boolean isSuperUser(String clientRole) {
-        return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+        return clientRole != null
+                && worker().getWorkerConfig().getSuperUserRoles() != null
+                && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
     }
 
     public ComponentType calculateSubjectType(FunctionMetaData functionMetaData) {
@@ -1699,9 +1884,22 @@ public abstract class ComponentImpl {
         return SINK;
     }
 
-    protected void componentStatusRequestValidate (final String tenant, final String namespace, final String componentName) {
+    protected void componentStatusRequestValidate (final String tenant, final String namespace, final String componentName,
+                                                   final String clientRole,
+                                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized get status for {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         // validate parameters
@@ -1728,8 +1926,10 @@ public abstract class ComponentImpl {
     protected void componentInstanceStatusRequestValidate (final String tenant,
                                                            final String namespace,
                                                            final String componentName,
-                                                           final int instanceId) {
-        componentStatusRequestValidate(tenant, namespace, componentName);
+                                                           final int instanceId,
+                                                           final String clientRole,
+                                                           final AuthenticationDataSource clientAuthenticationDataHttps) {
+        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
@@ -1738,6 +1938,21 @@ public abstract class ComponentImpl {
             log.error("instanceId in get {} Status out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
             throw new RestException(Status.BAD_REQUEST,
                     String.format("%s %s doesn't have instance with id %s", componentType, componentName, instanceId));
+        }
+    }
+
+    public boolean allowFunctionOps(NamespaceName namespaceName, String role,
+                                    AuthenticationDataSource authenticationData) {
+        try {
+            return worker().getAuthorizationService().allowFunctionOpsAsync(
+                    namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking function authorization on {} ", worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), namespaceName);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Admin-client with Role - {} failed to get function permissions for namespace - {}. {}", role, namespaceName,
+                    e.getMessage(), e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 }

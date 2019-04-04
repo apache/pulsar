@@ -51,7 +51,6 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
-import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.Topics;
@@ -78,8 +77,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("deprecation")
-public class TopicsImpl extends BaseResource implements Topics, PersistentTopics {
+public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
@@ -206,6 +204,25 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         }
     }
 
+    @Override
+    public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
+    	try {
+    		createNonPartitionedTopicAsync(topic).get();
+    	} catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+    
+    @Override
+    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
+    	TopicName tn = validateTopic(topic);
+    	WebTarget path = topicPath(tn);
+    	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+    
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");

@@ -37,6 +37,7 @@ import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
  * Pulsar service configuration object.
@@ -75,6 +76,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_AUTHORIZATION = "Authorization";
     @Category
     private static final String CATEGORY_TOKEN_AUTH = "Token Authentication Provider";
+    @Category
+    private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
 
@@ -146,7 +149,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
         )
-    private int numHttpServerThreads = 2 * Runtime.getRuntime().availableProcessors();
+    // Use at least 8 threads to avoid having Jetty go into threads starving and
+    // having the possibility of getting into a deadlock where a Jetty thread is
+    // waiting for another HTTP call to complete in same thread.
+    private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -177,6 +183,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "ZooKeeper session timeout in milliseconds"
     )
     private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "ZooKeeper operation timeout in seconds"
+        )
+    private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -209,7 +220,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.producer_request_hold;
-
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "
+                    + "(disable default-ttl with value 0)"
+        )
+    private int ttlDurationDefaultInSeconds = 0;
+    
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable the deletion of inactive topics"
@@ -374,6 +391,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+    )
+    private int dispatcherMaxReadBatchSize = 100;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Min number of entries to read from bookkeeper. By default it is 1 entries."
+            + "When there is an error occurred on reading entries from bookkeeper, the broker"
+            + " will backoff the batch size to this minimum number."
+    )
+    private int dispatcherMinReadBatchSize = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
+    )
+    private int dispatcherMaxRoundRobinBatchSize = 20;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -561,6 +603,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
     private String anonymousUserRole = null;
+
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "Whether Use SASL Authentication or not"
+    )
+    // TODO: isSaslAuthentication used to bypass web resource check.
+    //  will remove it after implementation the support.
+    //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+    private boolean isSaslAuthentication = false;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
+            + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
+    )
+    private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "Service Principal, for login context name. Default value is \"Broker\"."
+    )
+    private String saslJaasBrokerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "kerberos kinit command."
+    )
+    private String kinitCommand = "/usr/bin/kinit";
 
     /**** --- BookKeeper Client --- ****/
     @FieldContext(

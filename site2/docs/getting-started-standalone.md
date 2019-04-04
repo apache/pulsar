@@ -49,7 +49,7 @@ Directory | Contains
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `examples` | A Java JAR file containing example [Pulsar Functions](functions-overview.md)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar
-`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](developing-codebase.md)
+`licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar)
 
 These directories will be created once you begin running Pulsar:
 
@@ -74,27 +74,18 @@ If you would like to enable those `builtin` connectors, you can download the con
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget pulsar:connector_release_url
+  $ wget pulsar:connector_release_url/{connector}-{{pulsar:version}}.nar
   ```
 
-Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
-in the pulsar directory:
+Once the nar file is downloaded, copy the file to directory `connectors` in the pulsar directory, 
+for example, if the connector file `pulsar-io-aerospike-{{pulsar:version}}.nar` is downloaded:
 
 ```bash
-$ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
-
-// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
-// then copy the connectors
-
-$ cp -r apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+$ mkdir connectors
+$ mv pulsar-io-aerospike-{{pulsar:version}}.nar connectors
 
 $ ls connectors
 pulsar-io-aerospike-{{pulsar:version}}.nar
-pulsar-io-cassandra-{{pulsar:version}}.nar
-pulsar-io-kafka-{{pulsar:version}}.nar
-pulsar-io-kinesis-{{pulsar:version}}.nar
-pulsar-io-rabbitmq-{{pulsar:version}}.nar
-pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 
@@ -217,7 +208,7 @@ Here's an example producer for a Pulsar topic using the [Java](client-libraries-
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 
