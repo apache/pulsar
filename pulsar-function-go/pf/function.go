@@ -36,13 +36,13 @@ import (
 	"github.com/apache/pulsar/pulsar-function-go/log"
 )
 
-type Function interface {
-	Process(ctx context.Context, input []byte) ([]byte, error)
+type function interface {
+	process(ctx context.Context, input []byte) ([]byte, error)
 }
 
 type pulsarFunction func(ctx context.Context, input []byte) ([]byte, error)
 
-func (function pulsarFunction) Process(ctx context.Context, input []byte) ([]byte, error) {
+func (function pulsarFunction) process(ctx context.Context, input []byte) ([]byte, error) {
 	output, err := function(ctx, input)
 	if err != nil {
 		log.Errorf("process function error:[%s]\n", err.Error())
@@ -90,7 +90,7 @@ func validateReturns(handler reflect.Type) error {
 	return nil
 }
 
-func NewFunction(inputFunc interface{}) Function {
+func newFunction(inputFunc interface{}) function {
 	if inputFunc == nil {
 		return errorHandler(fmt.Errorf("function is nil"))
 	}
@@ -162,7 +162,11 @@ func NewFunction(inputFunc interface{}) Function {
 // Where "input" and "output" are types compatible with the "encoding/json" standard library.
 // See https://golang.org/pkg/encoding/json/#Unmarshal for how deserialization behaves
 func Start(funcName interface{}) {
-	function := NewFunction(funcName)
-	goInstance := NewGoInstance()
-	goInstance.StartFunction(function)
+	function := newFunction(funcName)
+	goInstance := newGoInstance()
+	err := goInstance.startFunction(function)
+	if err != nil {
+		log.Fatal(err)
+		panic("start function failed, please check.")
+	}
 }

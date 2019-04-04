@@ -29,36 +29,39 @@ import (
 	"github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
-type GoInstance struct {
-	function  Function
+type goInstance struct {
+	function  function
 	context   *FunctionContext
 	producer  pulsar.Producer
 	consumers map[string]pulsar.Consumer
 	client    pulsar.Client
 }
 
-// NewGoInstance init GoInstance and init function context
-func NewGoInstance() *GoInstance {
-	goInstance := &GoInstance{
+// newGoInstance init goInstance and init function context
+func newGoInstance() *goInstance {
+	goInstance := &goInstance{
 		context:   NewFuncContext(),
 		consumers: make(map[string]pulsar.Consumer),
 	}
 	return goInstance
 }
 
-func (gi *GoInstance) StartFunction(function Function) {
+func (gi *goInstance) startFunction(function function) error {
 	gi.function = function
 	err := gi.setupClient()
 	if err != nil {
-		panic("setup client failed, please check.")
+		log.Errorf("setup client failed, error is:%v", err)
+		return err
 	}
 	err = gi.setupProducer()
 	if err != nil {
-		panic("setup producer failed, please check.")
+		log.Errorf("setup producer failed, error is:%v", err)
+		return err
 	}
 	channel, err := gi.setupConsumer()
 	if err != nil {
-		panic("setup consumer failed, please check.")
+		log.Errorf("setup consumer failed, error is:%v", err)
+		return err
 	}
 
 CLOSE:
@@ -66,8 +69,8 @@ CLOSE:
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
-			atMostOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-			autoAck := gi.context.InstanceConf.FuncDetails.AutoAck
+			atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
+			autoAck := gi.context.instanceConf.funcDetails.AutoAck
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
@@ -75,22 +78,23 @@ CLOSE:
 			if err != nil {
 				log.Errorf("handler message error:%v", err)
 				gi.nackInputMessage(msgInput)
-			} else {
-				gi.processResult(msgInput, output)
+				return err
 			}
+			gi.processResult(msgInput, output)
 
-		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.InstanceConf.KillAfterIdleMs)):
+		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)):
 			close(channel)
 			break CLOSE
 		}
 	}
 
 	gi.close()
+	return nil
 }
 
-func (gi *GoInstance) setupClient() error {
+func (gi *goInstance) setupClient() error {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL: gi.context.InstanceConf.PulsarServiceURL,
+		URL: gi.context.instanceConf.pulsarServiceURL,
 	})
 	if err != nil {
 		log.Errorf("create client error:%v", err)
@@ -100,15 +104,15 @@ func (gi *GoInstance) setupClient() error {
 	return nil
 }
 
-func (gi *GoInstance) setupProducer() (err error) {
-	if gi.context.InstanceConf.FuncDetails.Sink.Topic != "" && len(gi.context.InstanceConf.FuncDetails.Sink.Topic) > 0 {
-		log.Debugf("Setting up producer for topic %s", gi.context.InstanceConf.FuncDetails.Sink.Topic)
+func (gi *goInstance) setupProducer() (err error) {
+	if gi.context.instanceConf.funcDetails.Sink.Topic != "" && len(gi.context.instanceConf.funcDetails.Sink.Topic) > 0 {
+		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
 		properties := getProperties(getDefaultSubscriptionName(
-			gi.context.InstanceConf.FuncDetails.Tenant,
-			gi.context.InstanceConf.FuncDetails.Namespace,
-			gi.context.InstanceConf.FuncDetails.Name), gi.context.InstanceConf.InstanceID)
+			gi.context.instanceConf.funcDetails.Tenant,
+			gi.context.instanceConf.funcDetails.Namespace,
+			gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 		gi.producer, err = gi.client.CreateProducer(pulsar.ProducerOptions{
-			Topic:                   gi.context.InstanceConf.FuncDetails.Sink.Topic,
+			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
 			BlockIfQueueFull:        true,
@@ -126,19 +130,19 @@ func (gi *GoInstance) setupProducer() (err error) {
 	return nil
 }
 
-func (gi *GoInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	subscriptionType := pulsar.Shared
-	if int32(gi.context.InstanceConf.FuncDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
+	if int32(gi.context.instanceConf.funcDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
 		subscriptionType = pulsar.Failover
 	}
 
-	funcDetails := gi.context.InstanceConf.FuncDetails
+	funcDetails := gi.context.instanceConf.funcDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
 
 	properties := getProperties(getDefaultSubscriptionName(
 		funcDetails.Tenant,
 		funcDetails.Namespace,
-		funcDetails.Name), gi.context.InstanceConf.InstanceID)
+		funcDetails.Name), gi.context.instanceConf.instanceID)
 
 	channel := make(chan pulsar.ConsumerMessage)
 
@@ -195,26 +199,26 @@ func (gi *GoInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 			return nil, err
 		}
 		gi.consumers[topic] = consumer
-		gi.context.InputTopics = append(gi.context.InputTopics, topic)
+		gi.context.inputTopics = append(gi.context.inputTopics, topic)
 	}
 	return channel, nil
 }
 
-func (gi *GoInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
+func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ctx = NewContext(ctx, gi.context)
 	msgInput := input.Payload()
-	return gi.function.Process(ctx, msgInput)
+	return gi.function.process(ctx, msgInput)
 }
 
-func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) {
-	atLeastOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-	atMostOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-	effectivelyOnce := gi.context.InstanceConf.FuncDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE
-	autoAck := gi.context.InstanceConf.FuncDetails.AutoAck
+func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte)  {
+	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
+	atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
+	effectivelyOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE
+	autoAck := gi.context.instanceConf.funcDetails.AutoAck
 
-	if output != nil && gi.context.InstanceConf.FuncDetails.Sink.Topic != "" {
+	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
 		asyncMsg := pulsar.ProducerMessage{
 			Payload: output,
 		}
@@ -227,6 +231,7 @@ func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) {
 					} else if effectivelyOnce {
 						panic("in effectively-once case, this is error.")
 					}
+					log.Fatal(e)
 				} else if !atMostOnce {
 					gi.ackInputMessage(msgInput)
 				}
@@ -240,12 +245,12 @@ func (gi *GoInstance) processResult(msgInput pulsar.Message, output []byte) {
 }
 
 // ackInputMessage doesn't produce any result or the user doesn't want the result.
-func (gi *GoInstance) ackInputMessage(inputMessage pulsar.Message) {
+func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
 
-func (gi *GoInstance) nackInputMessage(inputMessage pulsar.Message) {
-	//todo:please fix me
+func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
+	//todo: in the current version of pulsar-client-go, we do not support this operation
 	//gi.consumers[inputMessage.Topic()].Nack(inputMessage)
 }
 
@@ -256,7 +261,7 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 	return timeoutMilliSecond
 }
 
-func (gi *GoInstance) close() {
+func (gi *goInstance) close() {
 	log.Info("closing go instance...")
 	if gi.producer != nil {
 		gi.producer.Close()

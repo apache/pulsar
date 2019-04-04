@@ -29,31 +29,34 @@ import (
 
 // This is the config passed to the Golang Instance. Contains all the information
 // passed to run functions
-type InstanceConf struct {
-	InstanceID       int
-	FuncID           string
-	FuncVersion      string
-	FuncDetails      pb.FunctionDetails
-	MaxBufTuples     int
-	Port             int
-	ClusterName      string
-	PulsarServiceURL string
-	KillAfterIdleMs  time.Duration
+type instanceConf struct {
+	instanceID       int
+	funcID           string
+	funcVersion      string
+	funcDetails      pb.FunctionDetails
+	maxBufTuples     int
+	port             int
+	clusterName      string
+	pulsarServiceURL string
+	killAfterIdleMs  time.Duration
 }
 
-func NewInstanceConf() *InstanceConf {
+func newInstanceConf() *instanceConf {
 	config := &conf.Conf{}
 	cfg := config.GetConf()
-	instanceConf := &InstanceConf{
-		InstanceID:       cfg.InstanceID,
-		FuncID:           cfg.FuncID,
-		FuncVersion:      cfg.FuncVersion,
-		MaxBufTuples:     cfg.MaxBufTuples,
-		Port:             cfg.Port,
-		ClusterName:      cfg.ClusterName,
-		PulsarServiceURL: cfg.PulsarServiceURL,
-		KillAfterIdleMs:  cfg.KillAfterIdleMs,
-		FuncDetails: pb.FunctionDetails{
+	if cfg == nil {
+		panic("config file is nil.")
+	}
+	instanceConf := &instanceConf{
+		instanceID:       cfg.InstanceID,
+		funcID:           cfg.FuncID,
+		funcVersion:      cfg.FuncVersion,
+		maxBufTuples:     cfg.MaxBufTuples,
+		port:             cfg.Port,
+		clusterName:      cfg.ClusterName,
+		pulsarServiceURL: cfg.PulsarServiceURL,
+		killAfterIdleMs:  cfg.KillAfterIdleMs,
+		funcDetails: pb.FunctionDetails{
 			Tenant:               cfg.Tenant,
 			Namespace:            cfg.NameSpace,
 			Name:                 cfg.Name,
@@ -96,6 +99,6 @@ func NewInstanceConf() *InstanceConf {
 	return instanceConf
 }
 
-func (ic *InstanceConf) GetInstanceName() string {
-	return "" + fmt.Sprintf("%d", ic.InstanceID)
+func (ic *instanceConf) getInstanceName() string {
+	return "" + fmt.Sprintf("%d", ic.instanceID)
 }

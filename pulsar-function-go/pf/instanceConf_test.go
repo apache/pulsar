@@ -26,7 +26,7 @@ import (
 )
 
 func TestInstanceConf_GetInstanceName(t *testing.T) {
-	instanceConf := NewInstanceConf()
-	str := instanceConf.GetInstanceName()
+	instanceConf := newInstanceConf()
+	str := instanceConf.getInstanceName()
 	assert.Equal(t, "101", str)
 }

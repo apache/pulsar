@@ -20,7 +20,6 @@
 package conf
 
 import (
-	"errors"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -82,19 +81,14 @@ func (c *Conf) GetConf() *Conf {
 	yamlFile, err := ioutil.ReadFile(opts)
 	if err != nil {
 		log.Errorf("not found conf file, err:%s", err.Error())
+		return nil
 	}
 	err = yaml.Unmarshal(yamlFile, c)
 	if err != nil {
 		log.Errorf("unmarshal yaml file error:%s", err.Error())
+		return nil
 	}
 	return c
-}
-
-func (c *Conf) Verify() error {
-	if c == nil {
-		return errors.New("config file is nil")
-	}
-	return nil
 }
 
 func init() {

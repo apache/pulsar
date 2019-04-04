@@ -94,8 +94,8 @@ func TestInvalidFunctions(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("testCase[%d] %s", i, testCase.name), func(t *testing.T) {
-			pulsarfunction := NewFunction(testCase.function)
-			_, err := pulsarfunction.Process(context.TODO(), make([]byte, 0))
+			pulsarFunction := newFunction(testCase.function)
+			_, err := pulsarFunction.process(context.TODO(), make([]byte, 0))
 			assert.Equal(t, testCase.expected, err)
 		})
 	}
@@ -169,8 +169,8 @@ func TestInvokes(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("testCase[%d] %s", i, testCase.name), func(t *testing.T) {
-			lambdafunction := NewFunction(testCase.function)
-			response, err := lambdafunction.Process(context.TODO(), testCase.input)
+			pulsarFunction := newFunction(testCase.function)
+			response, err := pulsarFunction.process(context.TODO(), testCase.input)
 			if testCase.expected.err != nil {
 				assert.Equal(t, testCase.expected.err, err)
 			} else {

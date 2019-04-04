@@ -24,57 +24,57 @@ import (
 )
 
 type FunctionContext struct {
-	InstanceConf *InstanceConf
-	UserConfigs  map[string]interface{}
-	InputTopics  []string
+	instanceConf *instanceConf
+	userConfigs  map[string]interface{}
+	inputTopics  []string
 }
 
 func NewFuncContext() *FunctionContext {
 	fc := &FunctionContext{
-		InstanceConf: NewInstanceConf(),
-		UserConfigs:  make(map[string]interface{}),
+		instanceConf: newInstanceConf(),
+		userConfigs:  make(map[string]interface{}),
 	}
 	return fc
 }
 
 func (c *FunctionContext) GetInstanceID() int {
-	return c.InstanceConf.InstanceID
+	return c.instanceConf.instanceID
 }
 
 func (c *FunctionContext) GetInputTopics() []string {
-	return c.InputTopics
+	return c.inputTopics
 }
 
 func (c *FunctionContext) GetOutputTopic() string {
-	return c.InstanceConf.FuncDetails.GetSink().Topic
+	return c.instanceConf.funcDetails.GetSink().Topic
 }
 
 func (c *FunctionContext) GetFuncTenant() string {
-	return c.InstanceConf.FuncDetails.Tenant
+	return c.instanceConf.funcDetails.Tenant
 }
 
 func (c *FunctionContext) GetFuncName() string {
-	return c.InstanceConf.FuncDetails.Name
+	return c.instanceConf.funcDetails.Name
 }
 
 func (c *FunctionContext) GetFuncNamespace() string {
-	return c.InstanceConf.FuncDetails.Namespace
+	return c.instanceConf.funcDetails.Namespace
 }
 
 func (c *FunctionContext) GetFuncID() string {
-	return c.InstanceConf.FuncID
+	return c.instanceConf.funcID
 }
 
 func (c *FunctionContext) GetFuncVersion() string {
-	return c.InstanceConf.FuncVersion
+	return c.instanceConf.funcVersion
 }
 
 func (c *FunctionContext) GetUserConfValue(key string) interface{} {
-	return c.UserConfigs[key]
+	return c.userConfigs[key]
 }
 
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
-	return c.UserConfigs
+	return c.userConfigs
 }
 
 // An unexported type to be used as the key for types in this package.
