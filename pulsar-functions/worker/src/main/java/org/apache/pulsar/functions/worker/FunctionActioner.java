@@ -153,9 +153,13 @@ public class FunctionActioner {
         int instanceId = instance.getInstanceId();
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
+        
+        Function.FunctionAuthenticationSpec functionAuthenticationSpec
+                = instance.getFunctionMetaData().hasFunctionAuthSpec()
+                ? instance.getFunctionMetaData().getFunctionAuthSpec() : null;
 
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
-                instance.getFunctionMetaData().getFunctionAuthSpec(),
+                functionAuthenticationSpec,
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
