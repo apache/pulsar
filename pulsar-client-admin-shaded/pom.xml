@@ -104,6 +104,12 @@
                     <include>**</include>
                   </includes>
                 </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-admin-original</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
               </filters>
               <relocations>
                <relocation>
