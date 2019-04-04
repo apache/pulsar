@@ -17,10 +17,13 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk
+FROM openjdk:11-jdk-slim
 
 # Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3 python3-pip python3-yaml python3-pip
+RUN apt-get update && apt-get install -y netcat dnsutils python3 python3-pip python3-yaml python3-pip python3-kazoo
+
+# Set python3 as default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 ARG PULSAR_TARBALL
 
@@ -33,13 +36,11 @@ COPY scripts/generate-zookeeper-config.sh /pulsar/bin
 COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/set_python_version.sh /pulsar/bin
-COPY scripts/install-pulsar-client-27.sh /pulsar/bin
 COPY scripts/install-pulsar-client-35.sh /pulsar/bin
 
 ADD target/python-client/ /pulsar/pulsar-client
-RUN /pulsar/bin/install-pulsar-client-27.sh
 RUN /pulsar/bin/install-pulsar-client-35.sh
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 
