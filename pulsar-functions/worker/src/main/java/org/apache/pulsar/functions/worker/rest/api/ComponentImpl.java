@@ -435,7 +435,7 @@ public abstract class ComponentImpl {
         }
     }
 
-    PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
+    private PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
                                                                        final String functionPkgUrl,
                                                                        final FormDataContentDisposition fileDetail,
                                                                        final File uploadedInputStreamAsFile) throws Exception {
@@ -1225,7 +1225,7 @@ public abstract class ComponentImpl {
         return retVals;
     }
 
-    void updateRequest(final FunctionMetaData functionMetaData) {
+    private void updateRequest(final FunctionMetaData functionMetaData) {
 
         // Submit to FMT
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
