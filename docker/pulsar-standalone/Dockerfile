@@ -23,7 +23,7 @@ RUN apt-get update
 RUN apt-get -y install postgresql-9.6 sudo nginx supervisor
 
 # Python dependencies
-RUN pip install uwsgi 'Django<2.0' psycopg2 pytz requests
+RUN pip -qq install uwsgi 'Django<2.0' psycopg2 pytz requests
 
 # Postgres configuration
 COPY conf/postgresql.conf /etc/postgresql/9.6/main/
