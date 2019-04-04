@@ -284,14 +284,12 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
-        if (instanceId < 0 || instanceId >= stub.length) {
-            if (stub == null) {
-                retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
-                return retval;
-            }
-        }
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        if (instanceId < 0 || instanceId >= stub.length) {
+            retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
             return retval;
         }
         ListenableFuture<FunctionStatus> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getFunctionStatus(Empty.newBuilder().build());
