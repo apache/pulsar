@@ -104,16 +104,16 @@ public class ContextImplTest {
     public void testIncrCounterStateEnabled() throws Exception {
         StateContextImpl stateContext = mock(StateContextImpl.class);
         context.setStateContext(stateContext);
-        context.incrCounter("test-key", 10L);
-        verify(stateContext, times(1)).incr(eq("test-key"), eq(10L));
+        context.incrCounterAsync("test-key", 10L);
+        verify(stateContext, times(1)).incrCounter(eq("test-key"), eq(10L));
     }
 
     @Test
     public void testGetCounterStateEnabled() throws Exception {
         StateContextImpl stateContext = mock(StateContextImpl.class);
         context.setStateContext(stateContext);
-        context.getCounter("test-key");
-        verify(stateContext, times(1)).getAmount(eq("test-key"));
+        context.getCounterAsync("test-key");
+        verify(stateContext, times(1)).getCounter(eq("test-key"));
     }
 
     @Test
@@ -121,7 +121,7 @@ public class ContextImplTest {
         StateContextImpl stateContext = mock(StateContextImpl.class);
         context.setStateContext(stateContext);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
-        context.putState("test-key", buffer);
+        context.putStateAsync("test-key", buffer);
         verify(stateContext, times(1)).put(eq("test-key"), same(buffer));
     }
 
@@ -129,8 +129,8 @@ public class ContextImplTest {
     public void testGetStateStateEnabled() throws Exception {
         StateContextImpl stateContext = mock(StateContextImpl.class);
         context.setStateContext(stateContext);
-        context.getState("test-key");
-        verify(stateContext, times(1)).getValue(eq("test-key"));
+        context.getStateAsync("test-key");
+        verify(stateContext, times(1)).get(eq("test-key"));
     }
 
     @Test
