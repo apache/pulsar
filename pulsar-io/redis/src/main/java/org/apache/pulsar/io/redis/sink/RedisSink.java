@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
     configClass = RedisSinkConfig.class
 )
 @Slf4j
-public class RedisSink<T> implements Sink<byte[]> {
+public class RedisSink implements Sink<byte[]> {
 
     private RedisSinkConfig redisSinkConfig;
 
@@ -122,8 +122,8 @@ public class RedisSink<T> implements Sink<byte[]> {
             for (Record<byte[]> record: recordsToFlush) {
                 try {
                     // records with null keys or values will be ignored
-                    byte[] key = toBytes("key", record.getKey().orElse(null));
-                    byte[] value = toBytes("value", record.getValue());
+                    byte[] key = record.getKey().isPresent() ? record.getKey().get().getBytes(StandardCharsets.UTF_8) : null;
+                    byte[] value = record.getValue();
                     recordsToSet.put(key, value);
                 } catch (Exception e) {
                     record.fail();
@@ -154,20 +154,5 @@ public class RedisSink<T> implements Sink<byte[]> {
             recordsToFlush.forEach(tRecord -> tRecord.fail());
             log.error("Redis mset data interrupted exception ", e);
         }
-    }
-
-    private byte[] toBytes(String src, Object obj) {
-        final byte[] result;
-        if (obj instanceof String) {
-            String s = (String) obj;
-            result = s.getBytes(StandardCharsets.UTF_8);
-        } else if (obj instanceof byte[]) {
-            result = (byte[]) obj;
-        } else if (null == obj) {
-            result = null;
-        } else {
-            throw new IllegalArgumentException(String.format("The %s for the record must be String or Bytes.", src));
-        }
-        return result;
     }
 }
