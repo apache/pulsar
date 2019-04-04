@@ -60,7 +60,7 @@ public class SinkApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -75,7 +75,7 @@ public class SinkApiV3Resource extends FunctionApiResource {
                            final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
     }
 
     @DELETE

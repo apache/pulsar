@@ -82,7 +82,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                  final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, functionConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -103,7 +103,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, functionConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
     }
 
 
