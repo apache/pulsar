@@ -40,6 +40,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.shade.org.eclipse.jetty.util.log.Log;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -227,6 +228,10 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
             // messageRetries is null because messageRetries is already acked and removed from pendingMessageRetries
             // then remove it from failed message queue as well.
+            if(LOG.isDebugEnabled()) {
+                LOG.debug("[{}]-{} removing {} from failedMessage because it's already acked",
+                        pulsarSpoutConf.getTopic(), spoutId, msg.getMessageId());
+            }
             failedMessages.remove();
             // try to find out next failed message
             continue;
