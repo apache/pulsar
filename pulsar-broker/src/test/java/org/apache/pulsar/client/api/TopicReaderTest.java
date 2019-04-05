@@ -87,6 +87,32 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testReaderAtSelectedTimestamp() throws Exception {
+    	Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
+    			.startMessageId(MessageId.earliest).startMessageId(3000).create();
+    	Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
+                .create();
+    	for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            Thread.sleep(1000);
+        }
+    	
+    	Message<byte[]> msg = null;
+    	Set<String> messageSet = Sets.newHashSet();
+    	for (int i = 3; i < 10; i++) {
+    		msg = reader.readNext(1, TimeUnit.SECONDS);
+
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+    	}
+    	reader.close();
+    	producer.close();
+    }
+
+    @Test
     public void testReaderAfterMessagesWerePublished() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
                 .create();
