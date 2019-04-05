@@ -302,7 +302,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             log.info("Started Pulsar Broker service on port {}", port.get());
         }
-        
+
         Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
         if (tlsPort.isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
@@ -464,8 +464,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return getTopic(topic, false /* createIfMissing */);
     }
 
-    public CompletableFuture<Topic> getOrCreateTopic(final String topic) { 
-        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get); 
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
+        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get);
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -493,7 +493,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (cause instanceof ServiceUnitNotReadyException) {
                 log.warn("[{}] Service unit is not ready when loading the topic", topic);
             } else {
-                log.warn("[{}] Unexpected exception when loading topic: {}", topic, cause);
+                log.warn("[{}] Unexpected exception when loading topic: {}", topic, e.getMessage(), e);
             }
 
             return failedFuture(cause);
@@ -620,7 +620,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return topicFuture;
     }
 
-    private void createPersistentTopic(final String topic, boolean createIfMissing, 
+    private void createPersistentTopic(final String topic, boolean createIfMissing,
     		CompletableFuture<Optional<Topic>> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
@@ -1057,7 +1057,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 });
             }
         });
-        
+
         // sometimes, some brokers don't receive policies-update watch and miss to remove replication-cluster and still
         // own the bundle. That can cause data-loss for TODO: git-issue
         unloadDeletedReplNamespace(data, namespace);
