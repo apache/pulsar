@@ -24,6 +24,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 import java.sql.Time;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A schema for `java.sql.Time`.
  */
@@ -31,12 +33,13 @@ public class TimeSchema implements Schema<Time> {
    public static TimeSchema of() {
       return INSTANCE;
    }
+   private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
    private static final TimeSchema INSTANCE = new TimeSchema();
    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
          .setName("Time")
          .setType(SchemaType.TIME)
-         .setSchema(new byte[0]);
+         .setSchema(schema.toString().getBytes(UTF_8));
 
    @Override
    public byte[] encode(Time message) {
