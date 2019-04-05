@@ -73,6 +73,7 @@ import static com.facebook.presto.spi.type.DateType.DATE;
 import static com.facebook.presto.spi.type.TimeType.TIME;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
 
@@ -335,6 +336,9 @@ public class PulsarMetadata implements ConnectorMetadata {
         List<PulsarColumnMetadata> columnMetadataList = new LinkedList<>();
 
         if (isPrimitiveType(fieldSchema.getType())) {
+            if (isEmpty(fieldName)) {
+                fieldName = fieldSchema.toString();
+            }
             columnMetadataList.add(new PulsarColumnMetadata(fieldName,
                     convertType(fieldSchema.getType(), fieldSchema.getLogicalType()),
                     null, null, false, false,

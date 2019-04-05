@@ -161,6 +161,9 @@ public class PulsarRecordCursor implements RecordCursor {
             case AVRO:
                 schemaHandler = new AvroSchemaHandler(schema, columnHandles);
                 break;
+            case STRING:
+                schemaHandler = new StringSchemaHandler();
+                break;
             default:
                 throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaType);
         }
