@@ -37,8 +37,12 @@ import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ReaderImpl<T> implements Reader<T> {
+
+    private static final Logger log = LoggerFactory.getLogger(ReaderImpl.class);
 
     private final ConsumerImpl<T> consumer;
 
@@ -87,7 +91,11 @@ public class ReaderImpl<T> implements Reader<T> {
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
                 partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
                 client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
-        
+        try {
+            consumer.seek(readerConfiguration.getTimestamp());
+        } catch (PulsarClientException exc) {
+            log.warn(exc.getMessage());
+        }
     }
 
     @Override

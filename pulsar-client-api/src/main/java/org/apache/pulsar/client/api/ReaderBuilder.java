@@ -122,6 +122,13 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
 
     /**
+     * The initial reader positioning is done by specifying a specific timestamp.
+     * @param timestamp the timestamp where the reader will be initially positioned on
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> startMessageId(long timestamp);
+
+    /**
      * Sets a {@link ReaderListener} for the reader
      * <p>
      * When a {@link ReaderListener} is set, application will receive messages through it. Calls to

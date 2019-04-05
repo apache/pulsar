@@ -113,6 +113,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> startMessageId(long timestamp) {
+        conf.setTimestamp(timestamp);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> readerListener(ReaderListener<T> readerListener) {
         conf.setReaderListener(readerListener);
         return this;
