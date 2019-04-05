@@ -155,7 +155,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        return ConsumerImpl.newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode, 
+        return ConsumerImpl.newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode,
                                             startMessageId, schema, interceptors, Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
     }
 
@@ -171,7 +171,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
         }
     }
-    
+
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
@@ -221,10 +221,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         this.connectionHandler = new ConnectionHandler(this,
         		        new BackoffBuilder()
-        	               .setInitialTime(100, TimeUnit.MILLISECONDS)
-        	               .setMandatoryStop(60, TimeUnit.SECONDS)
-        	               .setMax(0, TimeUnit.MILLISECONDS)
-        	               .useUserConfiguredIntervals(backoffIntervalNanos, 
+                           .setInitialTime(100, TimeUnit.MILLISECONDS)
+                           .setMax(60, TimeUnit.SECONDS)
+                           .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                           .useUserConfiguredIntervals(backoffIntervalNanos,
         	                                           maxBackoffIntervalNanos)
         	               .create(),
                         this);
@@ -1471,12 +1471,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(0, TimeUnit.MILLISECONDS)
-                .useUserConfiguredIntervals(backoffIntervalNanos, 
+                .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .useUserConfiguredIntervals(backoffIntervalNanos,
                                             maxBackoffIntervalNanos)
                 .create();
-        
+
         CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
 
         internalGetLastMessageIdAsync(backoff, opTimeoutMs, getLastMessageIdFuture);
