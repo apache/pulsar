@@ -19,15 +19,18 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.runtime.Runtime;
@@ -149,7 +152,7 @@ public class FunctionActionerTest {
     }
 
     @Test
-    public void testGetRuntimeSpawner() throws Exception {
+    public void testFunctionAuthDisabled() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
@@ -182,9 +185,25 @@ public class FunctionActionerTest {
         Function.Instance instance = Function.Instance.newBuilder()
                 .setFunctionMetaData(functionMeta).build();
 
-        RuntimeSpawner runtimeSpawner = actioner.getRuntimeSpawner(instance, "foo");
+        RuntimeSpawner runtimeSpawner = spy(actioner.getRuntimeSpawner(instance, "foo"));
 
         assertTrue(runtimeSpawner.getInstanceConfig().getFunctionAuthenticationSpec() == null);
+
+        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+
+        RuntimeFactory runtimeFactory = mock(RuntimeFactory.class);
+
+        FunctionAuthProvider functionAuthProvider = mock(FunctionAuthProvider.class);
+        doReturn(functionAuthProvider).when(runtimeFactory).getAuthProvider();
+
+        doReturn(runtimeFactory).when(runtimeSpawner).getRuntimeFactory();
+        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doReturn(runtimeSpawner).when(functionRuntimeInfo).getRuntimeSpawner();
+
+        actioner.terminateFunction(functionRuntimeInfo);
+
+        // make sure cache
+        verify(functionAuthProvider, times(0)).cleanUpAuthData(any(), any(), any(), any());
     }
 
 }
