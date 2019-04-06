@@ -281,15 +281,20 @@ public class FunctionActioner {
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
+
             // cleanup any auth data cached
-            try {
-                functionRuntimeInfo.getRuntimeSpawner()
-                        .getRuntimeFactory().getAuthProvider()
-                        .cleanUpAuthData(
-                                details.getTenant(), details.getNamespace(), details.getName(),
-                                getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
-            } catch (Exception e) {
-                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+            if (functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
+                try {
+                    log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                    functionRuntimeInfo.getRuntimeSpawner()
+                            .getRuntimeFactory().getAuthProvider()
+                            .cleanUpAuthData(
+                                    details.getTenant(), details.getNamespace(), details.getName(),
+                                    getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
+
+                } catch (Exception e) {
+                    log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                }
             }
             functionRuntimeInfo.setRuntimeSpawner(null);
         }
