@@ -27,7 +27,11 @@
 
 namespace pulsar {
 
+#if defined _WIN32 || defined _WIN64
+#define PULSAR_UNLIKELY(expr) (expr)
+#else
 #define PULSAR_UNLIKELY(expr) __builtin_expect(expr, 0)
+#endif
 
 #define DECLARE_LOG_OBJECT()                                                                     \
     static pulsar::Logger* logger() {                                                            \
