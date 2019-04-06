@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.proxy.server;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -47,7 +49,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-import io.prometheus.client.Counter;
 
 public class DirectProxyHandler {
 
@@ -67,7 +68,7 @@ public class DirectProxyHandler {
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
         this.originalPrincipal = proxyConnection.clientAuthRole;
-        this.clientAuthData = proxyConnection.clientAuthData;
+        this.clientAuthData = proxyConnection.clientAuthData != null ? new String(proxyConnection.clientAuthData.getBytes(), UTF_8) : null;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.protocolVersion = protocolVersion;
         this.sslCtx = sslCtx;
