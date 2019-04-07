@@ -33,8 +33,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
+    private static final Logger log = LoggerFactory.getLogger(ReaderBuilderImpl.class);
 
     private final PulsarClientImpl client;
 
@@ -87,8 +90,13 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         }
 
         if (conf.getStartMessageId() == null) {
-            return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
+            if (conf.getTimestamp() != -1) {
+                log.warn("Setting messageId value since timestamp value is {}", conf.getTimestamp());
+                conf.setStartMessageId(MessageId.earliest);
+            } else {
+                return FutureUtil
+                        .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
+            }
         }
 
         return client.createReaderAsync(conf, schema);

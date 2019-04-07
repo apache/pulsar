@@ -220,13 +220,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-        		        new BackoffBuilder()
-        	               .setInitialTime(100, TimeUnit.MILLISECONDS)
-        	               .setMandatoryStop(60, TimeUnit.SECONDS)
-        	               .setMax(0, TimeUnit.MILLISECONDS)
-        	               .useUserConfiguredIntervals(backoffIntervalNanos, 
-        	                                           maxBackoffIntervalNanos)
-        	               .create(),
+                      new BackoffBuilder()
+                           .setInitialTime(100, TimeUnit.MILLISECONDS)
+                           .setMandatoryStop(60, TimeUnit.SECONDS)
+                           .setMax(0, TimeUnit.MILLISECONDS)
+                           .useUserConfiguredIntervals(backoffIntervalNanos, 
+                                                       maxBackoffIntervalNanos)
+                           .create(),
                         this);
 
         this.topicName = TopicName.get(topic);
