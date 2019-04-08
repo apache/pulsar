@@ -1,5 +1,4 @@
 /**
-
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,7 +93,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
          final long timeMs = System.currentTimeMillis();
          for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.send(message.getBytes("UTF-8"));
             Thread.sleep(1000);
         }
 
@@ -106,7 +105,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         for (int i = 3; i < 10; i++) {
             msg = reader.readNext();
 
-            String receivedMessage = new String(msg.getData());
+            String receivedMessage = new String(msg.getData(), "UTF-8");
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
