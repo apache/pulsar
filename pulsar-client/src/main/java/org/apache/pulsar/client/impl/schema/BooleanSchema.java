@@ -36,15 +36,15 @@ public class BooleanSchema implements Schema<Boolean> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN);
 
     private static final BooleanSchema INSTANCE = new BooleanSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
             .setName("Boolean")
             .setType(SchemaType.BOOLEAN)
             .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 1) {
-            throw new SchemaSerializationException("Size of data received by BooleanSchema is not 1");
+        if (message.length < 1) {
+            throw new SchemaSerializationException("Size of data received by BooleanSchema is less than 1");
         }
     }
 

@@ -36,15 +36,15 @@ public class IntSchema implements Schema<Integer> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT);
 
     private static final IntSchema INSTANCE = new IntSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT32")
         .setType(SchemaType.INT32)
         .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 4) {
-            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
+        if (message.length < 4) {
+            throw new SchemaSerializationException("Size of data received by IntSchema is less than 4");
         }
     }
 
@@ -69,9 +69,9 @@ public class IntSchema implements Schema<Integer> {
         }
         validate(bytes);
         int value = 0;
-        for (byte b : bytes) {
+        for (int i = 0; i < 4; ++i) {
             value <<= 8;
-            value |= b & 0xFF;
+            value |= bytes[i] & 0xFF;
         }
         return value;
     }

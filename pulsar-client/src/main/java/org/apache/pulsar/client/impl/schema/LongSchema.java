@@ -36,15 +36,15 @@ public class LongSchema implements Schema<Long> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
     private static final LongSchema INSTANCE = new LongSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT64")
         .setType(SchemaType.INT64)
         .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 8) {
-            throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
+        if (message.length < 8) {
+            throw new SchemaSerializationException("Size of data received by LongSchema is less than 8");
         }
     }
 
@@ -73,9 +73,9 @@ public class LongSchema implements Schema<Long> {
         }
         validate(bytes);
         long value = 0L;
-        for (byte b : bytes) {
+        for (int i = 0; i < 8; i++) {
             value <<= 8;
-            value |= b & 0xFF;
+            value |= (bytes[i] & 0xFF);
         }
         return value;
     }

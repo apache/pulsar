@@ -36,15 +36,15 @@ public class FloatSchema implements Schema<Float> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT);
 
     private static final FloatSchema INSTANCE = new FloatSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("Float")
         .setType(SchemaType.FLOAT)
         .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 4) {
-            throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
+        if (message.length < 4) {
+            throw new SchemaSerializationException("Size of data received by FloatSchema is less than 4");
         }
     }
 
@@ -70,9 +70,9 @@ public class FloatSchema implements Schema<Float> {
         }
         validate(bytes);
         int value = 0;
-        for (byte b : bytes) {
+        for (int i = 0; i < 4; ++i) {
             value <<= 8;
-            value |= b & 0xFF;
+            value |= bytes[i] & 0xFF;
         }
         return Float.intBitsToFloat(value);
     }

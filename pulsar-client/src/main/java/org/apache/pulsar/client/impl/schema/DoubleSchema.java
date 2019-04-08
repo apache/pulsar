@@ -36,15 +36,15 @@ public class DoubleSchema implements Schema<Double> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE);
 
     private static final DoubleSchema INSTANCE = new DoubleSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("Double")
         .setType(SchemaType.DOUBLE)
         .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 8) {
-            throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
+        if (message.length < 8) {
+            throw new SchemaSerializationException("Size of data received by DoubleSchema is less than 8");
         }
     }
 
@@ -74,9 +74,9 @@ public class DoubleSchema implements Schema<Double> {
         }
         validate(bytes);
         long value = 0;
-        for (byte b : bytes) {
+        for (int i = 0; i < 8; i++) {
             value <<= 8;
-            value |= b & 0xFF;
+            value |= bytes[i] & 0xFF;
         }
         return Double.longBitsToDouble(value);
     }

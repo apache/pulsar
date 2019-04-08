@@ -33,15 +33,15 @@ public class ShortSchema implements Schema<Short> {
     }
 
     private static final ShortSchema INSTANCE = new ShortSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT16")
         .setType(SchemaType.INT16)
         .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
-        if (message.length != 2) {
-            throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
+        if (message.length < 2) {
+            throw new SchemaSerializationException("Size of data received by ShortSchema is less than 2");
         }
     }
 
@@ -64,9 +64,9 @@ public class ShortSchema implements Schema<Short> {
         }
         validate(bytes);
         short value = 0;
-        for (byte b : bytes) {
+        for (int i = 0; i < 2; ++i) {
             value <<= 8;
-            value |= b & 0xFF;
+            value |= bytes[i] & 0xFF;
         }
         return value;
     }

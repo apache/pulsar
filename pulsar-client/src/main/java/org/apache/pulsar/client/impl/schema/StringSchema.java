@@ -39,7 +39,7 @@ public class StringSchema implements Schema<String> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING);
 
     private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("String")
         .setType(SchemaType.STRING)
         .setSchema(schema.toString().getBytes(UTF_8));

@@ -36,7 +36,7 @@ public class TimestampSchema implements Schema<Timestamp> {
    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
    private static final TimestampSchema INSTANCE = new TimestampSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+   public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
          .setName("Timestamp")
          .setType(SchemaType.TIMESTAMP)
          .setSchema(schema.toString().getBytes(UTF_8));

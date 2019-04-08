@@ -36,7 +36,7 @@ public class TimeSchema implements Schema<Time> {
    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
    private static final TimeSchema INSTANCE = new TimeSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+   public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
          .setName("Time")
          .setType(SchemaType.TIME)
          .setSchema(schema.toString().getBytes(UTF_8));

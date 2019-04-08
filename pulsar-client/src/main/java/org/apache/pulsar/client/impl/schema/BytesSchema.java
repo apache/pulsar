@@ -35,7 +35,7 @@ public class BytesSchema implements Schema<byte[]> {
     private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
 
     private static final BytesSchema INSTANCE = new BytesSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("Bytes")
         .setType(SchemaType.BYTES)
         .setSchema(schema.toString().getBytes(UTF_8));
