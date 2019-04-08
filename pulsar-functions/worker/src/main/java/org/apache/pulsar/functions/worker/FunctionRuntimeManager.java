@@ -120,12 +120,18 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
-        AuthenticationConfig authConfig = AuthenticationConfig.builder()
-                .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
-                .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
-                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
-                .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
-                .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
+
+        AuthenticationConfig authConfig = null;
+        if (workerConfig.isAuthenticationEnabled()) {
+            authConfig = AuthenticationConfig.builder()
+                    .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+                    .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                    .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                    .useTls(workerConfig.isUseTls())
+                    .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                    .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable())
+                    .build();
+        }
 
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
