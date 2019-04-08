@@ -29,6 +29,8 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
@@ -154,7 +156,13 @@ public final class WorkerUtils {
         return dlogUri;
     }
 
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams, String tlsTrustCertsFilePath, boolean allowTlsInsecureConnection) {
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
+        return getPulsarAdminClient(pulsarWebServiceUrl, null, null, null, null, null);
+    }
+
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
+                                                   String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
+                                                   Boolean enableTlsHostnameVerificationEnable) {
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
@@ -163,10 +171,52 @@ public final class WorkerUtils {
             if (isNotBlank(tlsTrustCertsFilePath)) {
                 adminBuilder.tlsTrustCertsFilePath(tlsTrustCertsFilePath);
             }
-            adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            if (allowTlsInsecureConnection != null) {
+                adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            }
+            if (enableTlsHostnameVerificationEnable != null) {
+                adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
+            }
             return adminBuilder.build();
         } catch (PulsarClientException e) {
             log.error("Error creating pulsar admin client", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static PulsarClient getPulsarClient(String pulsarServiceUrl) {
+        return getPulsarClient(pulsarServiceUrl, null, null, null,
+                null, null, null);
+    }
+
+    public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
+                                               Boolean useTls, String tlsTrustCertsFilePath,
+                                               Boolean allowTlsInsecureConnection,
+                                               Boolean enableTlsHostnameVerificationEnable) {
+
+        try {
+            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+
+            if (isNotBlank(authPlugin)
+                    && isNotBlank(authParams)) {
+                clientBuilder.authentication(authPlugin, authParams);
+            }
+            if (useTls != null) {
+                clientBuilder.enableTls(useTls);
+            }
+            if (allowTlsInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            }
+            if (isNotBlank(tlsTrustCertsFilePath)) {
+                clientBuilder.tlsTrustCertsFilePath(tlsTrustCertsFilePath);
+            }
+            if (enableTlsHostnameVerificationEnable != null) {
+                clientBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
+            }
+
+            return clientBuilder.build();
+        } catch (PulsarClientException e) {
+            log.error("Error creating pulsar client", e);
             throw new RuntimeException(e);
         }
     }
