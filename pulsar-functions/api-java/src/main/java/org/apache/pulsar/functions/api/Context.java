@@ -224,6 +224,7 @@ public interface Context {
 
     /**
      * Publish an object using serDe for serializing to the topic.
+     * If input message has a key associated with it, the same key will be set by default for outgoing message
      *
      * @param topicName
      *            The name of the topic for publishing
@@ -237,6 +238,7 @@ public interface Context {
 
     /**
      * Publish an object to the topic using default schemas.
+     * If input message has a key associated with it, the same key will be set by default for outgoing message
      *
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published

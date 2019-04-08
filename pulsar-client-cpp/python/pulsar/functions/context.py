@@ -126,7 +126,8 @@ class Context(object):
   @abstractmethod
   def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
-    The message will have properties specified if any"""
+    The message will have properties specified if any
+    If input message has a key associated with it, the same key will be set by default for outgoing message """
     pass
 
   @abstractmethod

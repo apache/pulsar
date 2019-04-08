@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -382,7 +383,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        TypedMessageBuilder<O> messageBuilder = producer.newMessage();
+        if (record.getKey().isPresent()) {
+            messageBuilder.key(record.getKey().get());
+        }
+        CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         future.exceptionally(e -> {
             this.statsManager.incrSysExceptions(e);
             logger.error("Failed to publish to topic {} with error {}", topicName, e);
