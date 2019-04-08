@@ -154,8 +154,14 @@ public class FunctionActioner {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
+        // check to make sure functionAuthenticationSpec has any data. If not set to null, since for protobuf,
+        // even if the field is not set its not going to be null. Have to use the "has" method to check
+        Function.FunctionAuthenticationSpec functionAuthenticationSpec
+                = instance.getFunctionMetaData().hasFunctionAuthSpec()
+                ? instance.getFunctionMetaData().getFunctionAuthSpec() : null;
+
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
-                instance.getFunctionMetaData().getFunctionAuthSpec(),
+                functionAuthenticationSpec,
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
@@ -275,15 +281,20 @@ public class FunctionActioner {
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
+
             // cleanup any auth data cached
-            try {
-                functionRuntimeInfo.getRuntimeSpawner()
-                        .getRuntimeFactory().getAuthProvider()
-                        .cleanUpAuthData(
-                                details.getTenant(), details.getNamespace(), details.getName(),
-                                getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
-            } catch (Exception e) {
-                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+            if (functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
+                try {
+                    log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                    functionRuntimeInfo.getRuntimeSpawner()
+                            .getRuntimeFactory().getAuthProvider()
+                            .cleanUpAuthData(
+                                    details.getTenant(), details.getNamespace(), details.getName(),
+                                    getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
+
+                } catch (Exception e) {
+                    log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                }
             }
             functionRuntimeInfo.setRuntimeSpawner(null);
         }
