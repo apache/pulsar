@@ -212,10 +212,9 @@ func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 	return gi.function.process(ctx, msgInput)
 }
 
-func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte)  {
+func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
 	atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-	effectivelyOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE
 	autoAck := gi.context.instanceConf.funcDetails.AutoAck
 
 	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
@@ -224,21 +223,17 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte)  {
 		}
 		// Attempt to send the message asynchronously and handle the response
 		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
-			if autoAck {
-				if e != nil {
-					if atLeastOnce {
-						gi.nackInputMessage(msgInput)
-					} else if effectivelyOnce {
-						panic("in effectively-once case, this is error.")
-					}
-					log.Fatal(e)
-				} else if !atMostOnce {
-					gi.ackInputMessage(msgInput)
+			if e != nil {
+				if autoAck && atLeastOnce {
+					gi.nackInputMessage(msgInput)
 				}
+				log.Fatal(e)
+			} else if autoAck && !atMostOnce {
+				gi.ackInputMessage(msgInput)
 			}
 		})
 	} else {
-		if autoAck {
+		if autoAck && atLeastOnce {
 			gi.ackInputMessage(msgInput)
 		}
 	}
