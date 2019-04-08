@@ -465,9 +465,13 @@ public class NonPersistentTopic implements Topic {
                             isFenced = false;
                             deleteFuture.completeExceptionally(ex);
                         } else {
-                            brokerService.removeTopicFromCache(topic);
-                            log.info("[{}] Topic deleted", topic);
-                            deleteFuture.complete(null);
+                            // topic GC iterates over topics map and removing from the map with the same thread creates
+                            // deadlock. so, execute it in different thread
+                            brokerService.executor().execute(() -> {
+                                brokerService.removeTopicFromCache(topic);
+                                log.info("[{}] Topic deleted", topic);
+                                deleteFuture.complete(null);
+                            });
                         }
                     });
                 } else {
