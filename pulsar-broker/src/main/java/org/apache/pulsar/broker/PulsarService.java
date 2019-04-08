@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -97,7 +98,6 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
@@ -194,7 +194,7 @@ public class PulsarService implements AutoCloseable {
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
         this.brokerServiceUrlTls = brokerUrlTls(config);
-        this.brokerVersion = PulsarBrokerVersionStringUtils.getNormalizedVersionString();
+        this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
         this.loadManagerExecutor = Executors
@@ -330,11 +330,11 @@ public class PulsarService implements AutoCloseable {
         mutex.lock();
 
         LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
-        LOG.info("Git Revision {}", PulsarBrokerVersionStringUtils.getGitSha());
+        LOG.info("Git Revision {}", PulsarVersion.getGitSha());
         LOG.info("Built by {} on {} at {}",
-                 PulsarBrokerVersionStringUtils.getBuildUser(),
-                 PulsarBrokerVersionStringUtils.getBuildHost(),
-                 PulsarBrokerVersionStringUtils.getBuildTime());
+                 PulsarVersion.getBuildUser(),
+                 PulsarVersion.getBuildHost(),
+                 PulsarVersion.getBuildTime());
 
         try {
             if (state != State.Init) {
@@ -711,8 +711,8 @@ public class PulsarService implements AutoCloseable {
                     return offloaderFactory.create(
                         conf.getProperties(),
                         ImmutableMap.of(
-                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
+                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
                         getOffloaderScheduler(conf));
                 } catch (IOException ioe) {
