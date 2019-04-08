@@ -167,6 +167,41 @@ public class PulsarRecordCursor implements RecordCursor {
             case BOOLEAN:
                 schemaHandler = new BooleanSchemaHandler();
                 break;
+            case INT8:
+                schemaHandler = new ByteSchemaHandler();
+                break;
+            case INT16:
+                schemaHandler = new ShortSchemaHandler();
+                break;
+            case INT32:
+                schemaHandler = new IntSchemaHandler();
+                break;
+            case INT64:
+                schemaHandler = new LongSchemaHandler();
+                break;
+            case FLOAT:
+                schemaHandler = new FloatSchemaHandler();
+                break;
+            case DOUBLE:
+                schemaHandler = new DoubleSchemaHandler();
+                break;
+            case DATE:
+                schemaHandler = new DateSchemaHandler();
+                break;
+            case TIME:
+                schemaHandler = new TimeSchemaHandler();
+                break;
+            case TIMESTAMP:
+                schemaHandler = new TimestampSchemaHandler();
+                break;
+            case NONE:
+            case BYTES:
+                schemaHandler = new BytesSchemaHandler();
+                break;
+            case AUTO:
+            case AUTO_CONSUME:
+            case AUTO_PUBLISH:
+            case KEY_VALUE:
             default:
                 throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaType);
         }

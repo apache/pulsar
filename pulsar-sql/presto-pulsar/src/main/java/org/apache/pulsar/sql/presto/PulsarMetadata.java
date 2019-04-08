@@ -424,14 +424,13 @@ public class PulsarMetadata implements ConnectorMetadata {
             case BOOLEAN:
                 return BooleanType.BOOLEAN;
             case INT:
+                return IntegerType.INTEGER;
+            case LONG:
                 if (logicalType == LogicalTypes.timeMillis()) {
                     return TIME;
                 } else if (logicalType == LogicalTypes.date()) {
                     return DATE;
-                }
-                return IntegerType.INTEGER;
-            case LONG:
-                if (logicalType == LogicalTypes.timestampMillis()) {
+                } else if (logicalType == LogicalTypes.timestampMillis()) {
                     return TIMESTAMP;
                 }
                 return BigintType.BIGINT;
