@@ -122,7 +122,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         AuthenticationConfig authConfig = null;
         if (workerConfig.isAuthenticationEnabled()) {
-            AuthenticationConfig.builder()
+            authConfig = AuthenticationConfig.builder()
                     .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
                     .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
                     .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
