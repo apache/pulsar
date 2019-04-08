@@ -103,6 +103,26 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
             functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
+    @PUT
+    @ApiOperation(value = "Upserts a Pulsar Source currently running in cluster mode")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+    })
+    @Path("/{tenant}/{namespace}/{sourceName}/upsert")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void upsertSource(final @PathParam("tenant") String tenant,
+                             final @PathParam("namespace") String namespace,
+                             final @PathParam("sourceName") String sourceName,
+                             final @FormDataParam("data") InputStream uploadedInputStream,
+                             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             final @FormDataParam("url") String functionPkgUrl,
+                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
+
+        source.upsertFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+                functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
+    }
 
     @DELETE
     @ApiOperation(value = "Deletes a Pulsar Source currently running in cluster mode")

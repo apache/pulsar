@@ -106,6 +106,26 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                 functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
     }
 
+    @PUT
+    @ApiOperation(value = "Upserts a Pulsar Function currently running in cluster mode")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/upsert")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void upsertFunction(final @PathParam("tenant") String tenant,
+                               final @PathParam("namespace") String namespace,
+                               final @PathParam("functionName") String functionName,
+                               final @FormDataParam("data") InputStream uploadedInputStream,
+                               final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                               final @FormDataParam("url") String functionPkgUrl,
+                               final @FormDataParam("functionConfig") String functionConfigJson) {
+
+        functions.upsertFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, null, functionConfigJson, clientAppId(), clientAuthData());
+    }
 
     @DELETE
     @ApiOperation(value = "Deletes a Pulsar Function currently running in cluster mode")

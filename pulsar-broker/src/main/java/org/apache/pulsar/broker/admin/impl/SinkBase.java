@@ -104,6 +104,28 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
 
     }
 
+    @PUT
+    @ApiOperation(value = "Upserts a Pulsar Sink currently running in cluster mode")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+    })
+    @Path("/{tenant}/{namespace}/{sinkName}/upsert")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void upsertSink(final @PathParam("tenant") String tenant,
+                           final @PathParam("namespace") String namespace,
+                           final @PathParam("sinkName") String sinkName,
+                           final @FormDataParam("data") InputStream uploadedInputStream,
+                           final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                           final @FormDataParam("url") String functionPkgUrl,
+                           final @FormDataParam("sinkConfig") String sinkConfigJson) {
+
+        sink.upsertFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                functionPkgUrl, null, sinkConfigJson, clientAppId(), clientAuthData());
+
+    }
+
 
     @DELETE
     @ApiOperation(value = "Deletes a Pulsar Sink currently running in cluster mode")

@@ -503,6 +503,51 @@ public abstract class ComponentImpl {
         return packageLocationMetaDataBuilder;
     }
 
+    public void upsertFunction(final String tenant,
+                               final String namespace,
+                               final String componentName,
+                               final InputStream uploadedInputStream,
+                               final FormDataContentDisposition fileDetail,
+                               final String functionPkgUrl,
+                               final String functionDetailsJson,
+                               final String componentConfigJson,
+                               final String clientRole,
+                               AuthenticationDataHttps clientAuthenticationDataHttps) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (tenant == null) {
+            throw new RestException(Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (componentName == null) {
+            throw new RestException(Status.BAD_REQUEST, componentType + " Name is not provided");
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to upsert {}", tenant, namespace,
+                        componentName, clientRole, componentType);
+                throw new RestException(Status.UNAUTHORIZED, componentType + "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.info("{} {}/{}/{} doesn't exist yet. Will attempt to create it.", componentType, tenant, namespace,
+                    componentName);
+            registerFunction(tenant, namespace, componentName, uploadedInputStream, fileDetail, functionPkgUrl,
+                    componentConfigJson, clientRole, clientAuthenticationDataHttps);
+        }
+    }
 
     public void updateFunction(final String tenant,
                                final String namespace,

@@ -210,6 +210,41 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
+    public void upsertFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            if (fileName != null && !fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+
+            mp.bodyPart(new FormDataBodyPart("functionConfig",
+                    new Gson().toJson(functionConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).path("upsert"))
+                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    @Override
+    public void upsertFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
+                    .path(functionConfig.getName()).path("upsert")).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    @Override
     public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();

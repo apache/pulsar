@@ -66,6 +66,7 @@ public class CmdSources extends CmdBase {
     private final GetSourceStatus getSourceStatus;
     private final ListSources listSources;
     private final UpdateSource updateSource;
+    private final UpsertSource upsertSource;
     private final RestartSource restartSource;
     private final StopSource stopSource;
     private final StartSource startSource;
@@ -75,6 +76,7 @@ public class CmdSources extends CmdBase {
         super("source", admin);
         createSource = new CreateSource();
         updateSource = new UpdateSource();
+        upsertSource = new UpsertSource();
         deleteSource = new DeleteSource();
         listSources = new ListSources();
         getSource = new GetSource();
@@ -86,6 +88,7 @@ public class CmdSources extends CmdBase {
 
         jcommander.addCommand("create", createSource);
         jcommander.addCommand("update", updateSource);
+        jcommander.addCommand("upsert", upsertSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
         // TODO depecreate getstatus
@@ -223,6 +226,23 @@ public class CmdSources extends CmdBase {
                 admin.source().updateSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Updated successfully");
+        }
+
+        protected void validateSourceConfigs(SourceConfig sourceConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+        }
+    }
+
+    @Parameters(commandDescription = "Upsert a Pulsar IO source connector")
+    protected class UpsertSource extends SourceDetailsCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
+                admin.source().upsertSourceWithUrl(sourceConfig, sourceConfig.getArchive());
+            } else {
+                admin.source().upsertSource(sourceConfig, sourceConfig.getArchive());
+            }
+            print("Upserted successfully");
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {

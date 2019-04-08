@@ -60,6 +60,7 @@ public class CmdFunctions extends CmdBase {
     private final CreateFunction creater;
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
+    private final UpsertFunction upserter;
     private final GetFunction getter;
     private final GetFunctionStatus functionStatus;
     @Getter
@@ -758,6 +759,37 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Upsert a Pulsar Function that's been deployed to a Pulsar cluster")
+    class UpsertFunction extends FunctionDetailsCommand {
+
+        @Override
+        protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                if (StringUtils.isEmpty(functionConfig.getName())) {
+                    throw new IllegalArgumentException("Function Name not provided");
+                }
+            } else if (StringUtils.isEmpty(functionConfig.getName())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
+        }
+
+        @Override
+        void runCmd() throws Exception {
+            if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
+                admin.functions().upsertFunctionWithUrl(functionConfig, functionConfig.getJar());
+            } else {
+                admin.functions().upsertFunction(functionConfig, userCodeFile);
+            }
+            print("Upserted successfully");
+        }
+    }
+
     @Parameters(commandDescription = "List all of the Pulsar Functions running under a specific tenant and namespace")
     class ListFunctions extends NamespaceCommand {
         @Override
@@ -896,6 +928,7 @@ public class CmdFunctions extends CmdBase {
         creater = new CreateFunction();
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
+        upserter = new UpsertFunction();
         getter = new GetFunction();
         functionStatus = new GetFunctionStatus();
         functionStats = new GetFunctionStats();
@@ -911,6 +944,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
+        jcommander.addCommand("upsert", getUpserter());
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
@@ -943,6 +977,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     UpdateFunction getUpdater() {
         return updater;
+    }
+
+    @VisibleForTesting
+    UpsertFunction getUpserter() {
+        return upserter;
     }
 
     @VisibleForTesting

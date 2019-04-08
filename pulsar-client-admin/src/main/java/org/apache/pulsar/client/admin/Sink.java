@@ -139,12 +139,36 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+
+    void upsertSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException;
+
+    /**
+     * Upserts the configuration for a sink. (Updates if sink exists. Else, create sink.)
+     * <pre>
+     * Upsert a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param sinkConfig
+     *            the sink configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
     void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
-     * Delete an existing sink
+     * Update an existing sink
      * <p>
-     * Delete a sink
+     * Update a sink
      *
      * @param tenant
      *            Tenant name
@@ -162,6 +186,30 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+
+    void upsertSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Upsert an existing sink. (Updates if sink exists. Else, create sink.)
+     * <p>
+     * Upsert a sink
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param sink
+     *            Sink name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Cluster does not exist
+     * @throws PreconditionFailedException
+     *             Cluster is not empty
+     * @throws PulsarAdminException
+     *
+     * */
     void deleteSink(String tenant, String namespace, String sink) throws PulsarAdminException;
 
     /**

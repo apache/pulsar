@@ -139,12 +139,61 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+
+
+    void upsertSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException;
+
+    /**
+     * Upsert the configuration for a source. (Updates if source exists. Else, create source.)
+     * <pre>
+     * Upsert a source by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
     void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
-     * Delete an existing source
+     * Update an existing source
      * <p>
-     * Delete a source
+     * Update a source
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Cluster does not exist
+     * @throws PreconditionFailedException
+     *             Cluster is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    void upsertSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Upsert an existing source. (Updates if source exists. Else, create source.)
+     * <p>
+     * Upsert a source
      *
      * @param tenant
      *            Tenant name

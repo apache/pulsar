@@ -142,12 +142,36 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+
+    void upsertFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
+
+    /**
+     * Upsert the configuration for a function. (Updates if function exists. Else, create function.)
+     * <pre>
+     * Upsert a function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param functionConfig
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
     void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
-     * Delete an existing function
+     * Update the configuration for a function.
      * <p>
-     * Delete a function
+     * Update a function
      *
      * @param tenant
      *            Tenant name
@@ -165,6 +189,32 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+
+
+    void upsertFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Upsert the configuration for a function.
+     * <p>
+     * Upsert a function
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Cluster does not exist
+     * @throws PreconditionFailedException
+     *             Cluster is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
     void deleteFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**

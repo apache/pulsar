@@ -191,6 +191,43 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
+    public void upsertSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            if (fileName != null && !fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+
+            mp.bodyPart(new FormDataBodyPart("sinkConfig",
+                    new Gson().toJson(sinkConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).path("upsert"))
+                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void upsertSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
+                    .path(sinkConfig.getName()).path("upsert")).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void restartSink(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
         try {

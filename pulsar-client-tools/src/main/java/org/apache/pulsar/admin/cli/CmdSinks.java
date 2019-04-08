@@ -59,6 +59,7 @@ public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
     private final UpdateSink updateSink;
+    private final UpsertSink upsertSink;
     private final DeleteSink deleteSink;
     private final ListSinks listSinks;
     private final GetSink getSink;
@@ -72,6 +73,7 @@ public class CmdSinks extends CmdBase {
         super("sink", admin);
         createSink = new CreateSink();
         updateSink = new UpdateSink();
+        upsertSink = new UpsertSink();
         deleteSink = new DeleteSink();
         listSinks = new ListSinks();
         getSink = new GetSink();
@@ -83,6 +85,7 @@ public class CmdSinks extends CmdBase {
 
         jcommander.addCommand("create", createSink);
         jcommander.addCommand("update", updateSink);
+        jcommander.addCommand("upsert", upsertSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("list", listSinks);
         jcommander.addCommand("get", getSink);
@@ -219,6 +222,23 @@ public class CmdSinks extends CmdBase {
                 admin.sink().updateSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Updated successfully");
+        }
+
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        }
+    }
+
+    @Parameters(commandDescription = "Upsert a Pulsar IO sink connector")
+    protected class UpsertSink extends SinkDetailsCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (Utils.isFunctionPackageUrlSupported(archive)) {
+                admin.sink().upsertSinkWithUrl(sinkConfig, sinkConfig.getArchive());
+            } else {
+                admin.sink().upsertSink(sinkConfig, sinkConfig.getArchive());
+            }
+            print("Upserted successfully");
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {

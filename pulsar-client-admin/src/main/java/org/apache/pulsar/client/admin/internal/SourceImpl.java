@@ -191,6 +191,43 @@ public class SourceImpl extends BaseResource implements Source {
     }
 
     @Override
+    public void upsertSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            if (fileName != null && !fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+
+            mp.bodyPart(new FormDataBodyPart("sourceConfig",
+                    new Gson().toJson(sourceConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).path("upsert"))
+                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void upsertSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart("sourceConfig", new Gson().toJson(sourceConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
+                    .path(sourceConfig.getName()).path("upsert")).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void restartSource(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
         try {
