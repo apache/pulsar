@@ -57,6 +57,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -90,9 +91,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;
-    
+
     private final PulsarAdmin functionAdmin;
-    
+
     @Getter
     private WorkerService workerService;
 
@@ -423,7 +424,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         final String workerId = this.workerConfig.getWorkerId();
         Map<String, Assignment> assignments = workerIdToAssignments.get(workerId);
         if (assignments != null) {
-            assignments.values().forEach(assignment -> {
+            // Take a copy of the map since the stopFunction will modify the same map
+            // and invalidate the iterator
+            Map<String, Assignment> copiedAssignments = new TreeMap<>(assignments);
+            copiedAssignments.values().forEach(assignment -> {
                 String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
                 try {
                     stopFunction(fullyQualifiedInstanceId, false);
@@ -680,7 +684,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             this.setAssignment(assignment);
         }
     }
-   
+
     public synchronized void deleteAssignment(String fullyQualifiedInstanceId) {
         FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
@@ -712,7 +716,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
             this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
         }
-        
+
         String workerId = null;
         for(Entry<String, Map<String, Assignment>> workerAssignments : workerIdToAssignments.entrySet()) {
             if(workerAssignments.getValue().remove(fullyQualifiedInstanceId)!=null) {
