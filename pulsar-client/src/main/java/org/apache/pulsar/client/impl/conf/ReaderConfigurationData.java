@@ -32,7 +32,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private String topicName;
     private MessageId startMessageId;
-    private Long timestamp = -1L;
+    private Long startPublishTime = null;
 
     private int receiverQueueSize = 1000;
 

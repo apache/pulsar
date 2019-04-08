@@ -90,8 +90,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         }
 
         if (conf.getStartMessageId() == null) {
-            if (conf.getTimestamp() != -1) {
-                log.warn("Setting messageId value since timestamp value is {}", conf.getTimestamp());
+            if (conf.getStartPublishTime() != null) {
+                log.info("Setting messageId value since timestamp value is {}", conf.getStartPublishTime());
                 conf.setStartMessageId(MessageId.earliest);
             } else {
                 return FutureUtil
@@ -121,8 +121,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> startMessageId(long timestamp) {
-        conf.setTimestamp(timestamp);
+    public ReaderBuilder<T> startMessageId(long startPublishTime) {
+        conf.setStartPublishTime(startPublishTime);
         return this;
     }
 

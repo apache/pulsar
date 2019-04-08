@@ -92,8 +92,8 @@ public class ReaderImpl<T> implements Reader<T> {
                 partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
                 client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
         try {
-            if (readerConfiguration.getTimestamp() != -1) {
-                consumer.seek(readerConfiguration.getTimestamp());
+            if (readerConfiguration.getStartPublishTime() != null) {
+                consumer.seek(readerConfiguration.getStartPublishTime());
             }
         } catch (PulsarClientException exc) {
             log.warn(exc.getMessage());

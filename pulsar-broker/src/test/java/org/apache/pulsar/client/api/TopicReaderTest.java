@@ -91,6 +91,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public void testReaderAtSelectedTimestamp() throws Exception {
          Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
                 .create();
+         final long timeMs = System.currentTimeMillis();
          for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -98,12 +99,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
-                .startMessageId(3000).create();
+                .startMessageId(timeMs + 3000).create();
 
         Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 3; i < 10; i++) {
-            msg = reader.readNext(1, TimeUnit.SECONDS);
+            msg = reader.readNext();
 
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
