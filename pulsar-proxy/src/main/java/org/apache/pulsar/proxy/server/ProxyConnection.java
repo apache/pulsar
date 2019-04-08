@@ -329,7 +329,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
             doAuthentication(clientData);
         } catch (Exception e) {
-            e.printStackTrace();
             LOG.warn("[{}] Unable to authenticate: ", remoteAddress, e);
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"));
             close();
