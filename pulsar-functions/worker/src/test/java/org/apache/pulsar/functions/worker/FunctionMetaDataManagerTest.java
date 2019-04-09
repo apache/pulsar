@@ -200,7 +200,7 @@ public class FunctionMetaDataManagerTest {
                         return false;
                     }
                     if (!serviceRequest.getServiceRequestType().equals(Request.ServiceRequest.ServiceRequestType
-                            .UPDATE)) {
+                            .UPSERT)) {
                         return false;
                     }
                     if (!serviceRequest.getFunctionMetaData().equals(m1)) {
@@ -239,7 +239,7 @@ public class FunctionMetaDataManagerTest {
                     Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
                     if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) return false;
                     if (!serviceRequest.getServiceRequestType().equals(
-                            Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                            Request.ServiceRequest.ServiceRequestType.UPSERT)) {
                         return false;
                     }
                     if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m2.getFunctionDetails())) {
@@ -528,7 +528,7 @@ public class FunctionMetaDataManagerTest {
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
 
         Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPSERT)
                 .setFunctionMetaData(m1)
                 .setWorkerId("worker-1")
                 .build();
@@ -559,7 +559,7 @@ public class FunctionMetaDataManagerTest {
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version - 1).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
-                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPSERT)
                 .setFunctionMetaData(outdated)
                 .setWorkerId("worker-1")
                 .build();
@@ -576,7 +576,7 @@ public class FunctionMetaDataManagerTest {
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
-                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPSERT)
                 .setFunctionMetaData(outdated2)
                 .setWorkerId("worker-2")
                 .build();
@@ -608,7 +608,7 @@ public class FunctionMetaDataManagerTest {
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version + 1).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
-                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPSERT)
                 .setFunctionMetaData(m5)
                 .setWorkerId("worker-2")
                 .build();
