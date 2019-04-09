@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 import logging
 from django.shortcuts import render, get_object_or_404
 from django.template import loader
