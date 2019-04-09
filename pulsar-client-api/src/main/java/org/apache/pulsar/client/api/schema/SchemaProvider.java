@@ -37,8 +37,13 @@ public interface SchemaProvider<T> {
      *
      * @return the latest schema
      */
-    Schema<T> getLatestSchema() ;
+    Schema<T> getLatestSchema();
 
+    /**
+     * Retrieve the topic name.
+     *
+     * @return the topic name
+     */
     String getTopicName();
 
 }

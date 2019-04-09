@@ -157,9 +157,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                                               ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                                               SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-                                               long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+                                    ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+                                    SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+                                    long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         if (schema != null && schema.supportSchemaVersioning()) {
             SchemaProvider schemaProvider = new MultiVersionGenericSchemaProvider(TopicName.get(topic), client);
             if (schema instanceof AutoConsumeSchema) {
