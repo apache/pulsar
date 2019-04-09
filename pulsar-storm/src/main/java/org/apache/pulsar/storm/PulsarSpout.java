@@ -40,6 +40,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.shade.org.eclipse.jetty.util.log.Log;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -124,6 +125,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
             }
             consumer.acknowledgeAsync(msg);
             pendingMessageRetries.remove(msg.getMessageId());
+            // we should also remove message from failedMessages but it will be eventually removed while emitting next
+            // tuple
             --pendingAcks;
         }
     }
@@ -172,25 +175,12 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
      * emit.
      */
     public void emitNextAvailableTuple() {
-        Message<byte[]> msg;
-
         // check if there are any failed messages to re-emit in the topology
-        msg = failedMessages.peek();
-        if (msg != null) {
-            MessageRetries messageRetries = pendingMessageRetries.get(msg.getMessageId());
-            if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
-                    messageRetries.getNumRetries(), clientConf.getDefaultBackoffIntervalNanos(), 
-                    clientConf.getMaxBackoffIntervalNanos())) {
-                Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getDefaultBackoffIntervalNanos()));
-            } else {
-                // remove the message from the queue and emit to the topology, only if it should not be backedoff
-                LOG.info("[{}] Retrying failed message {}", spoutId, msg.getMessageId());
-                failedMessages.remove();
-                mapToValueAndEmit(msg);
-            }
+        if(emitFailedMessage()) {
             return;
         }
 
+        Message<byte[]> msg;
         // receive from consumer if no failed messages
         if (consumer != null) {
             if (LOG.isDebugEnabled()) {
@@ -213,6 +203,40 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 LOG.error("[{}] Error receiving message from pulsar consumer", spoutId, e);
             }
         }
+    }
+
+    private boolean emitFailedMessage() {
+        Message<byte[]> msg;
+
+        while ((msg = failedMessages.peek()) != null) {
+            MessageRetries messageRetries = pendingMessageRetries.get(msg.getMessageId());
+            if (messageRetries != null) {
+                // emit the tuple if retry doesn't need backoff else sleep with backoff time and return without doing
+                // anything
+                if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
+                        messageRetries.getNumRetries(), clientConf.getDefaultBackoffIntervalNanos(),
+                        clientConf.getMaxBackoffIntervalNanos())) {
+                    Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getDefaultBackoffIntervalNanos()));
+                } else {
+                    // remove the message from the queue and emit to the topology, only if it should not be backedoff
+                    LOG.info("[{}] Retrying failed message {}", spoutId, msg.getMessageId());
+                    failedMessages.remove();
+                    mapToValueAndEmit(msg);
+                }
+                return true;
+            }
+
+            // messageRetries is null because messageRetries is already acked and removed from pendingMessageRetries
+            // then remove it from failed message queue as well.
+            if(LOG.isDebugEnabled()) {
+                LOG.debug("[{}]-{} removing {} from failedMessage because it's already acked",
+                        pulsarSpoutConf.getTopic(), spoutId, msg.getMessageId());
+            }
+            failedMessages.remove();
+            // try to find out next failed message
+            continue;
+        }
+        return false;
     }
 
     @Override
