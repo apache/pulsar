@@ -70,6 +70,7 @@ CLOSE:
 		case cm := <-channel:
 			msgInput := cm.Message
 			atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
+			atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
 			autoAck := gi.context.instanceConf.funcDetails.AutoAck
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
@@ -77,7 +78,9 @@ CLOSE:
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
 				log.Errorf("handler message error:%v", err)
-				gi.nackInputMessage(msgInput)
+				if autoAck && atLeastOnce {
+					gi.nackInputMessage(msgInput)
+				}
 				return err
 			}
 			gi.processResult(msgInput, output)
