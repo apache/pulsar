@@ -1,4 +1,3 @@
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -53,6 +52,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
     private Map<String, String> configuration;
     private String loginContextName;
+    private String serverType = null;
 
     public AuthenticationSasl() {
     }
@@ -63,10 +63,10 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     @Override
-    public AuthenticationDataProvider getAuthData(String brokerHostName) throws PulsarClientException {
+    public AuthenticationDataProvider getAuthData(String serverHostname) throws PulsarClientException {
         // reuse this to return a DataProvider which contains a SASL client
         try {
-            PulsarSaslClient saslClient = new PulsarSaslClient(brokerHostName, jaasCredentialsContainer.getSubject());
+            PulsarSaslClient saslClient = new PulsarSaslClient(serverHostname, serverType, jaasCredentialsContainer.getSubject());
             return new SaslAuthenticationDataProvider(saslClient);
         } catch (Throwable t) {
             log.error("Failed create sasl client: {}", t);
@@ -105,6 +105,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
         // read section from config files of kerberos
         this.loginContextName = authParams
             .getOrDefault(SaslConstants.JAAS_CLIENT_SECTION_NAME, SaslConstants.JAAS_DEFAULT_CLIENT_SECTION_NAME);
+        this.serverType = authParams
+            .getOrDefault(SaslConstants.SASL_SERVER_TYPE, SaslConstants.SASL_BROKER_PROTOCOL);
 
         // init the static jaasCredentialsContainer that shares amongst client.
         if (!initializedJAAS) {
