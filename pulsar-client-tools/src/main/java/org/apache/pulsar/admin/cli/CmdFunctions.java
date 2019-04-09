@@ -239,7 +239,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
-        protected boolean retainOrdering;
+        protected Boolean retainOrdering;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
@@ -370,7 +370,9 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            functionConfig.setRetainOrdering(retainOrdering);
+            if (retainOrdering != null) {
+                functionConfig.setRetainOrdering(retainOrdering);
+            }
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);

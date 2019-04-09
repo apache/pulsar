@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
 
 @Slf4j
@@ -112,9 +113,15 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
+        String fqfn = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
 
         String secretName = new String(functionAuthData.getData());
+        // Make sure secretName is empty.  Defensive programing
+        if (isBlank(secretName)) {
+            log.warn("Secret name for function {} is empty.", fqfn);
+            return;
+        }
+
         Actions.Action deleteSecrets = Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))
                 .numRetries(NUM_RETRIES)
@@ -125,6 +132,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         v1DeleteOptions.setGracePeriodSeconds(0L);
                         v1DeleteOptions.setPropagationPolicy("Foreground");
 
+                        // make sure secretName is not null or empty string.
+                        // If deleteNamespacedSecret is called and secret name is null or empty string
+                        // it will delete all the secrets in the namespace
                         coreClient.deleteNamespacedSecret(secretName,
                                 kubeNamespace, v1DeleteOptions, "true",
                                 null, null, null);

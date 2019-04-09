@@ -154,7 +154,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
             policies.replication_clusters = ImmutableSet.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
-                admin.persistentTopics().getList("tenant/ns");
+                admin.topics().getList("tenant/ns");
             } catch (PulsarAdminException ex) {
                 ex.printStackTrace();
                 fail("Should not have thrown an exception");

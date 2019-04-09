@@ -79,7 +79,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -100,7 +100,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                              final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, null, sourceConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
     }
 
 

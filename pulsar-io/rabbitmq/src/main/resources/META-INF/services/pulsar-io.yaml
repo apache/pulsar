@@ -18,5 +18,6 @@
 #
 
 name: rabbitmq
-description: RabbitMQ source connector
+description: RabbitMQ source and sink connector
 sourceClass: org.apache.pulsar.io.rabbitmq.RabbitMQSource
+sinkClass: org.apache.pulsar.io.rabbitmq.RabbitMQSink

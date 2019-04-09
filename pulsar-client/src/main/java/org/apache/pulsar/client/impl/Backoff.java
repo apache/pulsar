@@ -25,8 +25,10 @@ import java.util.concurrent.TimeUnit;
 
 // All variables are in TimeUnit millis by default
 public class Backoff {
-    private static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
-    private static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
+    public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
+    public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
+    private final long backoffIntervalNanos;
+    private final long maxBackoffIntervalNanos;
     private final long initial;
     private final long max;
     private final Clock clock;
@@ -40,19 +42,33 @@ public class Backoff {
 
     @VisibleForTesting
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock) {
+            TimeUnit unitMandatoryStop, Clock clock, long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
         this.clock = clock;
+        this.backoffIntervalNanos = backoffIntervalNanos;
+        this.maxBackoffIntervalNanos = maxBackoffIntervalNanos;
     }
 
+    @VisibleForTesting
+    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
+            TimeUnit unitMandatoryStop, Clock clock) {
+    	this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock, 
+    		 Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
+    }
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop) {
+                   TimeUnit unitMandatoryStop) {
         this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
     }
 
+    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
+                   TimeUnit unitMandatoryStop, long backoffIntervalMs, long maxBackoffIntervalMs) {
+    	this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone(), 
+    	     backoffIntervalMs, maxBackoffIntervalMs);
+    }
+    
     public long next() {
         long current = this.next;
         if (current < max) {
@@ -99,19 +115,39 @@ public class Backoff {
         return firstBackoffTimeInMillis;
     }
 
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-        long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
+    @VisibleForTesting
+    long backoffIntervalNanos() {
+    	return backoffIntervalNanos;
+    }
+    
+    @VisibleForTesting
+    long maxBackoffIntervalNanos() {
+    	return maxBackoffIntervalNanos;
+    }
+    
+    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts, 
+    									long defaultInterval, long maxBackoffInterval) {
+    	long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
         long currentTime = System.nanoTime();
-        long interval = DEFAULT_INTERVAL_IN_NANOSECONDS;
+        long interval = defaultInterval;
         for (int i = 1; i < failedAttempts; i++) {
             interval = interval * 2;
-            if (interval > MAX_BACKOFF_INTERVAL_NANOSECONDS) {
-                interval = MAX_BACKOFF_INTERVAL_NANOSECONDS;
+            if (interval > maxBackoffInterval) {
+                interval = maxBackoffInterval;
                 break;
             }
         }
 
         // if the current time is less than the time at which next retry should occur, we should backoff
         return currentTime < (initialTimestampInNano + interval);
+    }
+    
+    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
+        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts, 
+        							 DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
+    }
+    
+    public boolean instanceShouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
+    	return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts, backoffIntervalNanos, maxBackoffIntervalNanos);
     }
 }

@@ -41,8 +41,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 public class SourceConfigUtils {
 
@@ -146,7 +146,7 @@ public class SourceConfigUtils {
         sourceConfig.setNamespace(functionDetails.getNamespace());
         sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
-        sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sourceConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
@@ -185,7 +185,7 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -202,7 +202,7 @@ public class SourceConfigUtils {
             throw new IllegalArgumentException("Topic name is invalid");
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Source parallelism should positive number");
+            throw new IllegalArgumentException("Source parallelism must be a positive number");
         }
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());
@@ -217,11 +217,11 @@ public class SourceConfigUtils {
             ClassLoader jarClassLoader = null;
             ClassLoader narClassLoader = null;
             try {
-                jarClassLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
             } catch (Exception e) {
             }
             try {
-                narClassLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
             } catch (Exception e) {
             }
             if (jarClassLoader == null && narClassLoader == null) {
@@ -243,7 +243,7 @@ public class SourceConfigUtils {
         } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Source Package is not provided");
             }

@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
     configClass = RedisSinkConfig.class
 )
 @Slf4j
-public class RedisSink<T> implements Sink<T> {
+public class RedisSink implements Sink<byte[]> {
 
     private RedisSinkConfig redisSinkConfig;
 
@@ -61,7 +61,7 @@ public class RedisSink<T> implements Sink<T> {
 
     private int batchSize;
 
-    private List<Record<T>> incomingList;
+    private List<Record<byte[]>> incomingList;
 
     private ScheduledExecutorService flushExecutor;
 
@@ -84,7 +84,7 @@ public class RedisSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(Record<T> record) throws Exception {
+    public void write(Record<byte[]> record) throws Exception {
         int currentSize;
         synchronized (this) {
             incomingList.add(record);
@@ -108,7 +108,7 @@ public class RedisSink<T> implements Sink<T> {
 
     private void flush() {
         final Map<byte[], byte[]> recordsToSet = new ConcurrentHashMap<>();
-        final List<Record<T>> recordsToFlush;
+        final List<Record<byte[]>> recordsToFlush;
 
         synchronized (this) {
             if (incomingList.isEmpty()) {
@@ -119,11 +119,11 @@ public class RedisSink<T> implements Sink<T> {
         }
 
         if (CollectionUtils.isNotEmpty(recordsToFlush)) {
-            for (Record<T> record: recordsToFlush) {
+            for (Record<byte[]> record: recordsToFlush) {
                 try {
                     // records with null keys or values will be ignored
-                    byte[] key = toBytes("key", record.getKey().orElse(null));
-                    byte[] value = toBytes("value", record.getValue());
+                    byte[] key = record.getKey().isPresent() ? record.getKey().get().getBytes(StandardCharsets.UTF_8) : null;
+                    byte[] value = record.getValue();
                     recordsToSet.put(key, value);
                 } catch (Exception e) {
                     record.fail();
@@ -154,20 +154,5 @@ public class RedisSink<T> implements Sink<T> {
             recordsToFlush.forEach(tRecord -> tRecord.fail());
             log.error("Redis mset data interrupted exception ", e);
         }
-    }
-
-    private byte[] toBytes(String src, Object obj) {
-        final byte[] result;
-        if (obj instanceof String) {
-            String s = (String) obj;
-            result = s.getBytes(StandardCharsets.UTF_8);
-        } else if (obj instanceof byte[]) {
-            result = (byte[]) obj;
-        } else if (null == obj) {
-            result = null;
-        } else {
-            throw new IllegalArgumentException(String.format("The %s for the record must be String or Bytes.", src));
-        }
-        return result;
     }
 }
