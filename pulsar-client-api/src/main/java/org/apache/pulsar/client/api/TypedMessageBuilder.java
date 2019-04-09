@@ -174,4 +174,39 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * @return the message builder instance
      */
     TypedMessageBuilder<T> disableReplication();
+
+    /**
+     * Configure the {@link TypedMessageBuilder} from a config map, as an alternative compared
+     * to call the individual builder methods.
+     * <p>
+     * The "value" of the message itself cannot be set on the config map.
+     * <p>
+     * Example:
+     *
+     * <pre>{@code
+     * Map<String, Object> conf = new HashMap<>();
+     * conf.put("key", "my-key");
+     * conf.put("eventTime", System.currentTimeMillis());
+     *
+     * producer.newMessage()
+     *             .value("my-message")
+     *             .loadConf(conf)
+     *             .send();
+     * }</pre>
+     *
+     * The available options are:
+     * <table border="1">
+     *  <tr><th>Name</th><th>Type</th><th>Doc</th></tr>
+     *  <tr><td>{@code key}</td><td>{@code String}</td><td>{@link #key(String)}</td></tr>
+     *  <tr><td>{@code properties}</td><td>{@code Map<String,String>}</td><td>{@link #properties(Map)}</td></tr>
+     *  <tr><td>{@code eventTime}</td><td>{@code long}</td><td>{@link #eventTime(long)}</td></tr>
+     *  <tr><td>{@code sequenceId}</td><td>{@code long}</td><td>{@link #sequenceId(long)}</td></tr>
+     *  <tr><td>{@code replicationClusters}</td><td>{@code List<String>}</td><td>{@link #replicationClusters(List)}</td></tr>
+     *  <tr><td>{@code disableReplication}</td><td>{@code boolean}</td><td>{@link #disableReplication()}</td></tr>
+     * </table>
+     *
+     * @param config a map with the configuration options for the message
+     * @return the message builder instance
+     */
+    TypedMessageBuilder<T> loadConf(Map<String, Object> config);
 }
