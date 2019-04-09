@@ -202,6 +202,39 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return submit(updateRequest);
     }
 
+    /**
+     * Sends an upsert request to the FMT (Function Metadata Topic)
+     * @param functionMetaData The function metadata that needs to be upsertd
+     * @return a completable future of when the upsert has been applied
+     */
+    public synchronized CompletableFuture<RequestResult> upsertFunction(FunctionMetaData functionMetaData) {
+
+        long version = 0;
+
+        String tenant = functionMetaData.getFunctionDetails().getTenant();
+        if (!this.functionMetaDataMap.containsKey(tenant)) {
+            this.functionMetaDataMap.put(tenant, new ConcurrentHashMap<>());
+        }
+
+        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionMetaDataMap.get(tenant);
+        String namespace = functionMetaData.getFunctionDetails().getNamespace();
+        if (!namespaces.containsKey(namespace)) {
+            namespaces.put(namespace, new ConcurrentHashMap<>());
+        }
+
+        Map<String, FunctionMetaData> functionMetaDatas = namespaces.get(namespace);
+        String functionName = functionMetaData.getFunctionDetails().getName();
+        if (functionMetaDatas.containsKey(functionName)) {
+            version = functionMetaDatas.get(functionName).getVersion() + 1;
+        }
+
+        FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder().setVersion(version).build();
+
+        Request.ServiceRequest upsertRequest = ServiceRequestUtils.getUpsertRequest(
+                this.workerConfig.getWorkerId(), newFunctionMetaData);
+
+        return submit(upsertRequest);
+    }
 
     /**
      * Sends a deregister request to the FMT (Function Metadata Topic) for a function
@@ -368,6 +401,41 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 completeRequest(updateRequest, true);
             } else {
                 completeRequest(updateRequest, false,
+                        "Request ignored because it is out of date. Please try again.");
+            }
+        }
+
+        if (!this.isInitializePhase() && needsScheduling) {
+            this.schedulerManager.schedule();
+        }
+    }
+
+    @VisibleForTesting
+    synchronized void processUpsert(Request.ServiceRequest upsertRequest) {
+
+        log.debug("Process upsert request: {}", upsertRequest);
+
+        FunctionMetaData upsertRequestFs = upsertRequest.getFunctionMetaData();
+
+        boolean needsScheduling = false;
+
+        // Worker doesn't know about the function so far
+        if (!this.containsFunctionMetaData(upsertRequestFs)) {
+            // Since this is the first time worker has seen function, just put it into internal function metadata store
+            setFunctionMetaData(upsertRequestFs);
+            needsScheduling = true;
+            completeRequest(upsertRequest, true);
+        } else {
+            // The request is an upsert to an existing function since this worker already has a record of this function
+            // in its function metadata store
+            // Check if request is outdated
+            if (!isRequestOutdated(upsertRequest)) {
+                // upsert the function metadata
+                setFunctionMetaData(upsertRequestFs);
+                needsScheduling = true;
+                completeRequest(upsertRequest, true);
+            } else {
+                completeRequest(upsertRequest, false,
                         "Request ignored because it is out of date. Please try again.");
             }
         }

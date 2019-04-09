@@ -45,6 +45,13 @@ public class ServiceRequestUtils {
                 ServiceRequest.ServiceRequestType.UPDATE, functionMetaData);
     }
 
+    public static ServiceRequest getUpsertRequest(String workerId, FunctionMetaData functionMetaData) {
+        return getServiceRequest(
+                UUID.randomUUID().toString(),
+                workerId,
+                ServiceRequest.ServiceRequestType.UPSERT, functionMetaData);
+    }
+
     public static ServiceRequest getDeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
         return getServiceRequest(
                 UUID.randomUUID().toString(),

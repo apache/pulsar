@@ -1089,6 +1089,451 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
+    // Upsert Functions
+    //
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
+    public void testUpsertFunctionMissingTenant() {
+        try {
+            testUpsertFunctionMissingArguments(
+                    null,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Tenant is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
+    public void testUpsertFunctionMissingNamespace() {
+        try {
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    null,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Namespace is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    public void testUpsertFunctionMissingFunctionName() {
+        try {
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    null,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Function Name is not provided");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertFunctionMissingPackage() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertFunctionMissingInputTopic() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertFunctionMissingClassName() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertFunctionChangedParallelism() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism + 1,
+                    null);
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
+    public void testUpsertFunctionChangedInputs() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    "DifferentOutput",
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Output topics differ");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
+    public void testUpsertFunctionChangedOutput() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            Map<String, String> someOtherInput = new HashMap<>();
+            someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
+            testUpsertFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    null,
+                    someOtherInput,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Input Topics cannot be altered");
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    private void testUpsertFunctionMissingArguments(
+            String tenant,
+            String namespace,
+            String function,
+            InputStream inputStream,
+            Map<String, String> topicsToSerDeClassName,
+            FormDataContentDisposition details,
+            String outputTopic,
+            String outputSerdeClassName,
+            String className,
+            Integer parallelism,
+            String expectedError) {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        if (tenant != null) {
+            functionConfig.setTenant(tenant);
+        }
+        if (namespace != null) {
+            functionConfig.setNamespace(namespace);
+        }
+        if (function != null) {
+            functionConfig.setName(function);
+        }
+        if (topicsToSerDeClassName != null) {
+            functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        }
+        if (outputTopic != null) {
+            functionConfig.setOutput(outputTopic);
+        }
+        if (outputSerdeClassName != null) {
+            functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        }
+        if (className != null) {
+            functionConfig.setClassName(className);
+        }
+        if (parallelism != null) {
+            functionConfig.setParallelism(parallelism);
+        }
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("function registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                function,
+                inputStream,
+                details,
+                null,
+                new Gson().toJson(functionConfig),
+                null, null, null);
+
+    }
+
+    private void UpsertDefaultFunction() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                new Gson().toJson(functionConfig),
+                null, null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
+    public void testUpsertNotExistedFunction() {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            UpsertDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
+    public void testUpsertFunctionUploadFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+            UpsertDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertFunctionSuccess() throws Exception {
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadToBookeeper(
+                any(Namespace.class),
+                any(InputStream.class),
+                anyString());
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("function registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        UpsertDefaultFunction();
+    }
+
+    @Test
+    public void testUpsertFunctionWithUrl() {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("function registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                function,
+                null,
+                null,
+                filePackageUrl,
+                new Gson().toJson(functionConfig),
+                null, null, null);
+
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
+    public void testUpsertFunctionFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
+                    any(Namespace.class),
+                    any(InputStream.class),
+                    anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+            RequestResult rr = new RequestResult()
+                    .setSuccess(false)
+                    .setMessage("function failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            UpsertDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    public void testUpsertFunctionInterrupted() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadToBookeeper(
+                    any(Namespace.class),
+                    any(InputStream.class),
+                    anyString());
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                    new IOException("Function registeration interrupted"));
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            UpsertDefaultFunction();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
     //
     // deregister function
     //

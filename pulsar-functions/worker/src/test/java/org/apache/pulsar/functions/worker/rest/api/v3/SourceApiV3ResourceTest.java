@@ -1035,6 +1035,482 @@ public class SourceApiV3ResourceTest {
     }
 
     //
+    // Upsert Functions
+    //
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
+    public void testUpsertSourceMissingTenant() throws Exception {
+        try {
+            testUpsertSourceMissingArguments(
+                    null,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Tenant is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
+    public void testUpsertSourceMissingNamespace() throws Exception {
+        try {
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    null,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Namespace is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    public void testUpsertSourceMissingFunctionName() throws Exception {
+        try {
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    null,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Source Name is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertSourceMissingPackage() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertSourceMissingTopicName() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    null,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a positive number")
+    public void testUpsertSourceNegativeParallelism() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    -2,
+                    "Source parallelism must be a positive number");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertSourceChangedParallelism() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    parallelism + 1,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
+    public void testUpsertSourceChangedTopic() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    null,
+                    mockedFormData,
+                    "DifferentTopic",
+                    outputSerdeClassName,
+                    className,
+                    parallelism,
+                    "Destination topics differ");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a positive number")
+    public void testUpsertSourceZeroParallelism() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    className,
+                    0,
+                    "Source parallelism must be a positive number");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    private void testUpsertSourceMissingArguments(
+            String tenant,
+            String namespace,
+            String function,
+            InputStream inputStream,
+            FormDataContentDisposition details,
+            String outputTopic,
+            String outputSerdeClassName,
+            String className,
+            Integer parallelism,
+            String expectedError) throws Exception {
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        SourceConfig sourceConfig = new SourceConfig();
+        if (tenant != null) {
+            sourceConfig.setTenant(tenant);
+        }
+        if (namespace != null) {
+            sourceConfig.setNamespace(namespace);
+        }
+        if (function != null) {
+            sourceConfig.setName(function);
+        }
+        if (outputTopic != null) {
+            sourceConfig.setTopicName(outputTopic);
+        }
+        if (outputSerdeClassName != null) {
+            sourceConfig.setSerdeClassName(outputSerdeClassName);
+        }
+        if (className != null) {
+            sourceConfig.setClassName(className);
+        }
+        if (parallelism != null) {
+            sourceConfig.setParallelism(parallelism);
+        }
+
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("source registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                function,
+                inputStream,
+                details,
+                null,
+                new Gson().toJson(sourceConfig),
+                null, null, null);
+
+    }
+
+    private void upsertDefaultSource() throws Exception {
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                source,
+                new FileInputStream(JAR_FILE_PATH),
+                mockedFormData,
+                null,
+                new Gson().toJson(sourceConfig),
+                null, null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
+    public void testUpsertNotExistedSource() throws Exception {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+            upsertDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
+    public void testUpsertSourceUploadFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+            upsertDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertSourceSuccess() throws Exception {
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        upsertDefaultSource();
+    }
+
+    @Test
+    public void testUpsertSourceWithUrl() throws IOException {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
+
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                source,
+                null,
+                null,
+                filePackageUrl,
+                new Gson().toJson(sourceConfig),
+                null, null, null);
+
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
+    public void testUpsertSourceFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+            RequestResult rr = new RequestResult()
+                    .setSuccess(false)
+                    .setMessage("source failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            upsertDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
+    public void testUpsertSourceInterrupted() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                    new IOException("Function registration interrupted"));
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            upsertDefaultSource();
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
+
+    //
     // deregister source
     //
 

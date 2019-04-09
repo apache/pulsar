@@ -1013,6 +1013,426 @@ public class SinkApiV3ResourceTest {
     }
 
     //
+    // Upsert Functions
+    //
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
+    public void testUpsertSinkMissingTenant() throws Exception {
+        try {
+            testUpsertSinkMissingArguments(
+                    null,
+                    namespace,
+                    sink,
+                    mockedInputStream,
+                    mockedFormData,
+                    topicsToSerDeClassName,
+                    className,
+                    parallelism,
+                    "Tenant is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
+    public void testUpsertSinkMissingNamespace() throws Exception {
+        try {
+            testUpsertSinkMissingArguments(
+                    tenant,
+                    null,
+                    sink,
+                    mockedInputStream,
+                    mockedFormData,
+                    topicsToSerDeClassName,
+                    className,
+                    parallelism,
+                    "Namespace is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
+    public void testUpsertSinkMissingFunctionName() throws Exception {
+        try {
+            testUpsertSinkMissingArguments(
+                    tenant,
+                    namespace,
+                    null,
+                    mockedInputStream,
+                    mockedFormData,
+                    topicsToSerDeClassName,
+                    className,
+                    parallelism,
+                    "Sink Name is not provided");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertSinkMissingPackage() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertSinkMissingArguments(
+                    tenant,
+                    namespace,
+                    sink,
+                    null,
+                    mockedFormData,
+                    topicsToSerDeClassName,
+                    null,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Upsert contains no change")
+    public void testUpsertSinkMissingInputs() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            testUpsertSinkMissingArguments(
+                    tenant,
+                    namespace,
+                    sink,
+                    null,
+                    mockedFormData,
+                    null,
+                    null,
+                    parallelism,
+                    "Upsert contains no change");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
+    public void testUpsertSinkDifferentInputs() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            Map<String, String> inputTopics = new HashMap<>();
+            inputTopics.put("DifferntTopic", DEFAULT_SERDE);
+            testUpsertSinkMissingArguments(
+                    tenant,
+                    namespace,
+                    sink,
+                    null,
+                    mockedFormData,
+                    inputTopics,
+                    className,
+                    parallelism,
+                    "Input Topics cannot be altered");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertSinkDifferentParallelism() throws Exception {
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+        testUpsertSinkMissingArguments(
+                tenant,
+                namespace,
+                sink,
+                null,
+                mockedFormData,
+                topicsToSerDeClassName,
+                className,
+                parallelism + 1,
+                null);
+    }
+
+    private void testUpsertSinkMissingArguments(
+            String tenant,
+            String namespace,
+            String sink,
+            InputStream inputStream,
+            FormDataContentDisposition details,
+            Map<String, String> inputTopicsMap,
+            String className,
+            Integer parallelism,
+            String expectedError) throws Exception {
+        mockStatic(ConnectorUtils.class);
+        doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+        SinkConfig sinkConfig = new SinkConfig();
+        if (tenant != null) {
+            sinkConfig.setTenant(tenant);
+        }
+        if (namespace != null) {
+            sinkConfig.setNamespace(namespace);
+        }
+        if (sink != null) {
+            sinkConfig.setName(sink);
+        }
+        if (inputTopicsMap != null) {
+            sinkConfig.setTopicToSerdeClassName(inputTopicsMap);
+        }
+        if (className != null) {
+            sinkConfig.setClassName(className);
+        }
+        if (parallelism != null) {
+            sinkConfig.setParallelism(parallelism);
+        }
+
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("source registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                sink,
+                inputStream,
+                details,
+                null,
+                new Gson().toJson(sinkConfig),
+                null, null, null);
+
+    }
+
+    private void upsertDefaultSink() throws Exception {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                sink,
+                new FileInputStream(JAR_FILE_PATH),
+                mockedFormData,
+                null,
+                new Gson().toJson(sinkConfig),
+                null, null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
+    public void testUpsertNotExistedSink() throws Exception {
+        try {
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+            upsertDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
+    public void testUpsertSinkUploadFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+            upsertDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
+
+    @Test
+    public void testUpsertSinkSuccess() throws Exception {
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        upsertDefaultSink();
+    }
+
+    @Test
+    public void testUpsertSinkWithUrl() throws IOException {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
+
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+        mockStatic(ConnectorUtils.class);
+        doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
+
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+
+        doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
+        FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        resource.upsertFunction(
+                tenant,
+                namespace,
+                sink,
+                null,
+                null,
+                filePackageUrl,
+                new Gson().toJson(sinkConfig),
+                null, null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
+    public void testUpsertSinkFailure() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+            RequestResult rr = new RequestResult()
+                    .setSuccess(false)
+                    .setMessage("sink failed to register");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            upsertDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registeration interrupted")
+    public void testUpsertSinkInterrupted() throws Exception {
+        try {
+            mockStatic(WorkerUtils.class);
+            doNothing().when(WorkerUtils.class);
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+
+            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+
+            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
+                    new IOException("Function registeration interrupted"));
+            when(mockedManager.upsertFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+            upsertDefaultSink();
+        } catch (RestException re) {
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
+            throw re;
+        }
+    }
+
+    //
     // deregister sink
     //
 

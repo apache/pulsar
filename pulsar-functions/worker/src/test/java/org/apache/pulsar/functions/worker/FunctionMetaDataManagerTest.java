@@ -177,6 +177,86 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
+    public void upsertFunction() throws PulsarClientException {
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        FunctionMetaDataManager functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        mock(SchedulerManager.class),
+                        mockPulsarClient()));
+        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
+
+        Mockito.doReturn(null).when(functionMetaDataManager).submit(any(Request.ServiceRequest.class));
+        functionMetaDataManager.upsertFunction(m1);
+        verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
+        verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof Request.ServiceRequest) {
+                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
+                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) {
+                        return false;
+                    }
+                    if (!serviceRequest.getServiceRequestType().equals(Request.ServiceRequest.ServiceRequestType
+                            .UPDATE)) {
+                        return false;
+                    }
+                    if (!serviceRequest.getFunctionMetaData().equals(m1)) {
+                        return false;
+                    }
+                    if (serviceRequest.getFunctionMetaData().getVersion() != 0) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+        // already have record
+        long version = 5;
+        functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        mock(SchedulerManager.class),
+                        mockPulsarClient()));
+        Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
+        Function.FunctionMetaData m2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
+        functionMetaDataMap.put("func-1", m2);
+        functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
+        functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-1", functionMetaDataMap);
+        Mockito.doReturn(null).when(functionMetaDataManager).submit(any(Request.ServiceRequest.class));
+
+        functionMetaDataManager.upsertFunction(m2);
+        verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
+        verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof Request.ServiceRequest) {
+                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
+                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) return false;
+                    if (!serviceRequest.getServiceRequestType().equals(
+                            Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                        return false;
+                    }
+                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m2.getFunctionDetails())) {
+                        return false;
+                    }
+                    if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+    }
+
+    @Test
     public void testStopFunction() throws PulsarClientException {
 
         long version = 5;
@@ -427,6 +507,120 @@ public class FunctionMetaDataManagerTest {
         Assert.assertEquals(m1.toBuilder().setVersion(version + 1).build(),
                 functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
+        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+                "tenant-1").get("namespace-1").size());
+    }
+
+    @Test
+    public void processUpsertTest() throws PulsarClientException {
+        long version = 5;
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        SchedulerManager schedulerManager = mock(SchedulerManager.class);
+        FunctionMetaDataManager functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        schedulerManager,
+                        mockPulsarClient()));
+
+        // worker has no record of function
+        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
+
+        Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setFunctionMetaData(m1)
+                .setWorkerId("worker-1")
+                .build();
+        functionMetaDataManager.processUpsert(serviceRequest);
+        verify(functionMetaDataManager, times(1))
+                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+        verify(schedulerManager, times(1)).schedule();
+        Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
+                "tenant-1").get("namespace-1").get("func-1"));
+        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+                "tenant-1").get("namespace-1").size());
+
+        // worker has record of function
+
+        // request is oudated
+        schedulerManager = mock(SchedulerManager.class);
+        functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        schedulerManager,
+                        mockPulsarClient()));
+
+        Function.FunctionMetaData m3 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
+        functionMetaDataManager.setFunctionMetaData(m3);
+        Function.FunctionMetaData outdated = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version - 1).build();
+
+        serviceRequest = Request.ServiceRequest.newBuilder()
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setFunctionMetaData(outdated)
+                .setWorkerId("worker-1")
+                .build();
+        functionMetaDataManager.processUpsert(serviceRequest);
+
+        Assert.assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
+                "tenant-1", "namespace-1", "func-1"));
+        verify(functionMetaDataManager, times(1))
+                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+        verify(schedulerManager, times(0)).schedule();
+
+        Function.FunctionMetaData outdated2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
+
+        serviceRequest = Request.ServiceRequest.newBuilder()
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setFunctionMetaData(outdated2)
+                .setWorkerId("worker-2")
+                .build();
+        functionMetaDataManager.processUpsert(serviceRequest);
+        Assert.assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
+                "tenant-1", "namespace-1", "func-1"));
+        verify(functionMetaDataManager, times(1))
+                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+        verify(schedulerManager, times(0)).schedule();
+
+        Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
+                "tenant-1").get("namespace-1").get("func-1"));
+        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+                "tenant-1").get("namespace-1").size());
+
+        // schedule
+        schedulerManager = mock(SchedulerManager.class);
+        functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        schedulerManager,
+                        mockPulsarClient()));
+
+        Function.FunctionMetaData m4 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
+        functionMetaDataManager.setFunctionMetaData(m4);
+        Function.FunctionMetaData m5 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
+                        .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version + 1).build();
+
+        serviceRequest = Request.ServiceRequest.newBuilder()
+                .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
+                .setFunctionMetaData(m5)
+                .setWorkerId("worker-2")
+                .build();
+        functionMetaDataManager.processUpsert(serviceRequest);
+
+        verify(functionMetaDataManager, times(2))
+                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+        verify(schedulerManager, times(1)).schedule();
+
+        Assert.assertEquals(m1.toBuilder().setVersion(version + 1).build(),
+                functionMetaDataManager.functionMetaDataMap.get(
+                        "tenant-1").get("namespace-1").get("func-1"));
         Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
     }
