@@ -77,6 +77,7 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The username used by the connector to connect to the elastic search cluster. If username is set, a password should also be provided."
     )
     private String username;
@@ -84,6 +85,7 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The password used by the connector to connect to the elastic search cluster. If password is set, a username should also be provided"
     )
     private String password;

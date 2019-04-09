@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -34,6 +35,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -129,5 +131,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     	final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
     	persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true);
     	Assert.assertEquals(persistentTopics.getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true).partitions, 0);
+    }
+
+    @Test
+    public void testCreateNonPartitionedTopic() {
+        final String topicName = "standard-topic";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+        PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName, true);
+        Assert.assertEquals(pMetadata.partitions, 0);
+    }
+
+    @Test
+    public void testUnloadTopic() {
+        final String topicName = "standard-topic-to-be-unload";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+        persistentTopics.unloadTopic(testTenant, testNamespace, topicName, true);
+    }
+
+    @Test(expectedExceptions = RestException.class)
+    public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
+        try {
+            persistentTopics.unloadTopic(testTenant, testNamespace,"non-existent-topic", true);
+        } catch (RestException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+            throw e;
+        }
     }
 }

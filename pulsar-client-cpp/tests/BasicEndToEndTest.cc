@@ -35,8 +35,9 @@
 #include <lib/PatternMultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
-
 #include <functional>
+#include <thread>
+#include <chrono>
 
 DECLARE_LOG_OBJECT()
 
@@ -2817,6 +2818,8 @@ TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
     // Since this is a shared consumer over same client cnx
     // closing consumerA should result in consumerB also being closed.
     ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
     ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
 }
 
@@ -2935,8 +2938,57 @@ TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
     ASSERT_EQ(ResultOk, resultB);
     ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
     ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
     ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
 
     // consumer C should be a different instance from A and B and should be with open state.
     ASSERT_EQ(ResultOk, consumerC.close());
+}
+
+static long regexTestMessagesReceived = 0;
+
+static void regexMessageListenerFunction(Consumer consumer, const Message &msg) {
+    regexTestMessagesReceived++;
+}
+
+TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    long unAckedMessagesTimeoutMs = 10000;
+    std::string subsName = "testRegexTopicsWithMessageListener-sub";
+    std::string pattern = "persistent://public/default/testRegexTopicsWithMessageListenerTopic-.*";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    consumerConf.setMessageListener(
+        std::bind(regexMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
+    consumerConf.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+
+    Producer producer;
+    ProducerConfiguration producerConf;
+    Result result = client.createProducer(
+        "persistent://public/default/testRegexTopicsWithMessageListenerTopic-1", producerConf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribeWithRegex(pattern, subsName, consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subsName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
+
+    producer.flush();
+    long timeWaited = 0;
+    while (true) {
+        // maximum wait time
+        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
+        if (regexTestMessagesReceived >= 10 * 2) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timeWaited += 500;
+    }
 }

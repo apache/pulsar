@@ -101,8 +101,9 @@ public class WebSocketService implements Closeable {
 
         if (isNotBlank(config.getConfigurationStoreServers())) {
             this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
-                    this.orderedExecutor, this.executor);
+                    (int) config.getZooKeeperSessionTimeoutMillis(),
+                    (int) TimeUnit.MILLISECONDS.toSeconds(config.getZooKeeperSessionTimeoutMillis()),
+                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor);
             try {
                 this.globalZkCache.start();
             } catch (IOException e) {
@@ -245,7 +246,10 @@ public class WebSocketService implements Closeable {
     public boolean isAuthenticationEnabled() {
         if (this.config == null)
             return false;
-        return this.config.isAuthenticationEnabled();
+        // TODO: isSaslAuthentication used to bypass web resource check.
+        //  will remove it after implementation the support.
+        //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
+        return this.config.isAuthenticationEnabled() && !this.config.isSaslAuthentication();
     }
 
     public boolean isAuthorizationEnabled() {

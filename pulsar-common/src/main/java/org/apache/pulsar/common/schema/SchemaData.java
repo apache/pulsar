@@ -22,9 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 
 @Builder
 @Data
+@ToString
 public class SchemaData {
     private final SchemaType type;
     private final boolean isDeleted;

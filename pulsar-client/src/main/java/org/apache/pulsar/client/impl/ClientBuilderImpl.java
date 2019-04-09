@@ -208,6 +208,18 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @Override
+    public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
+    	conf.setDefaultBackoffIntervalNanos(unit.toNanos(duration));
+    	return this;
+    }
+    
+    @Override
+    public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
+    	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
+    	return this;
+    }
+    
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
     }

@@ -19,18 +19,22 @@
 package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Conversions;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -46,14 +50,39 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
+//      the aim to fix avro's bug
+//      https://issues.apache.org/jira/browse/AVRO-1891  bug address explain
+//      fix the avro logical type read and write
+    static {
+        ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
+
+        reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+
+        ReflectData reflectDataNotAllowNull = ReflectData.get();
+
+        reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+    }
 
     private AvroSchema(org.apache.avro.Schema schema,
-                       Map<String, String> properties) {
+                       SchemaDefinition schemaDefinition) {
         super(
             SchemaType.AVRO,
             schema,
-            properties);
-
+            schemaDefinition.getProperties());
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
         this.datumWriter = new ReflectDatumWriter<>(this.schema);
@@ -87,23 +116,23 @@ public class AvroSchema<T> extends StructSchema<T> {
         }
     }
 
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return this.schemaInfo;
+    }
+
+    public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        return schemaDefinition.getJsonDef() == null ?
+                new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition) : new AvroSchema<>(parseAvroSchema(schemaDefinition.getJsonDef()), schemaDefinition);
+    }
+
     public static <T> AvroSchema<T> of(Class<T> pojo) {
-        return new AvroSchema<>(createAvroSchema(pojo), Collections.emptyMap());
+        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).build());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo), properties);
-    }
-
-    /**
-     * Create an Avro schema based on provided schema definition.
-     *
-     * @param schemaDefinition avro schema definition
-     * @param properties schema properties
-     * @return avro schema instance
-     */
-    public static <T> AvroSchema<T> of(String schemaDefinition, Map<String, String> properties) {
-        return new AvroSchema<>(parseAvroSchema(schemaDefinition), properties);
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
+        return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
     }
 
 }

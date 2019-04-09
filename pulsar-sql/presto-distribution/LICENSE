@@ -209,7 +209,7 @@ The Apache Software License, Version 2.0
 
   * Jackson
     - jackson-annotations-2.8.11.jar
-    - jackson-databind-2.8.11.1.jar
+    - jackson-databind-2.8.11.3.jar
     - jackson-dataformat-smile-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar
@@ -229,7 +229,6 @@ The Apache Software License, Version 2.0
     - guice-multibindings-4.2.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
-    - commons-beanutils-core-1.8.0.jar
     - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.15.jar
     - commons-lang3-3.3.2.jar

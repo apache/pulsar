@@ -19,14 +19,16 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
@@ -203,17 +205,19 @@ public class SinkImpl extends ComponentImpl {
     }
 
     public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, Utils.ComponentType.SINK);
+        super(workerServiceSupplier, ComponentType.SINK);
     }
 
     public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
                                                                                       final String namespace,
                                                                                       final String sinkName,
                                                                                       final String instanceId,
-                                                                                      final URI uri) {
+                                                                                      final URI uri,
+                                                                                      final String clientRole,
+                                                                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId), clientRole, clientAuthenticationDataHttps);
 
 
         SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
@@ -232,10 +236,12 @@ public class SinkImpl extends ComponentImpl {
     public SinkStatus getSinkStatus(final String tenant,
                                     final String namespace,
                                     final String componentName,
-                                    final URI uri) {
+                                    final URI uri,
+                                    final String clientRole,
+                                    final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName);
+        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
 
         SinkStatus sinkStatus;
         try {
@@ -272,7 +278,7 @@ public class SinkImpl extends ComponentImpl {
             throw new RestException(Response.Status.NOT_FOUND, String.format(componentType + " %s doesn't exist", componentName));
         }
         Function.FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+        if (!InstanceUtils.calculateSubjectType(functionMetaData.getFunctionDetails()).equals(componentType)) {
             log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
             throw new RestException(Response.Status.NOT_FOUND, String.format(componentType + " %s doesn't exist", componentName));
         }

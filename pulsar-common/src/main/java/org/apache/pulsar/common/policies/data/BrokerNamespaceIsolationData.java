@@ -28,6 +28,11 @@ public class BrokerNamespaceIsolationData {
     public List<String> namespaceRegex; //isolated namespace regex
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(brokerName, namespaceRegex);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof BrokerNamespaceIsolationData) {
             BrokerNamespaceIsolationData other = (BrokerNamespaceIsolationData) obj;

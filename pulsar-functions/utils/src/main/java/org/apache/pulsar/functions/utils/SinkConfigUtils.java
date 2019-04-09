@@ -24,6 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -43,9 +44,10 @@ import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
+@Slf4j
 public class SinkConfigUtils {
 
     @Getter
@@ -189,6 +191,10 @@ public class SinkConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (isNotBlank(sinkConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(sinkConfig.getRuntimeFlags());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -198,7 +204,7 @@ public class SinkConfigUtils {
         sinkConfig.setNamespace(functionDetails.getNamespace());
         sinkConfig.setName(functionDetails.getName());
         sinkConfig.setParallelism(functionDetails.getParallelism());
-        sinkConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sinkConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
@@ -248,10 +254,14 @@ public class SinkConfigUtils {
             resources.setDisk(functionDetails.getResources().getDisk());
         }
 
+        if (isNotBlank(functionDetails.getRuntimeFlags())) {
+            sinkConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
+        }
+
         return sinkConfig;
     }
 
-    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
                                           File uploadedInputStreamAsFile) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
@@ -276,7 +286,7 @@ public class SinkConfigUtils {
         }
 
         if (sinkConfig.getParallelism() != null && sinkConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Sink parallelism should positive number");
+            throw new IllegalArgumentException("Sink parallelism must be a positive number");
         }
 
         if (sinkConfig.getResources() != null) {
@@ -288,18 +298,41 @@ public class SinkConfigUtils {
         }
 
         String sinkClassName;
-        ClassLoader classLoader;
+        final Class<?> typeArg;
+        final ClassLoader classLoader;
         if (!isEmpty(sinkConfig.getClassName())) {
             sinkClassName = sinkConfig.getClassName();
+            // We really don't know if we should use nar class loader or regular classloader
+            ClassLoader jarClassLoader = null;
+            ClassLoader narClassLoader = null;
             try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, uploadedInputStreamAsFile);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid Sink Jar");
             }
+            try {
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+            }
+            if (jarClassLoader == null && narClassLoader == null) {
+                throw new IllegalArgumentException("Invalid Sink Package");
+            }
+            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
+            // Thus we use these tmp vars
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
+            try {
+                tmptypeArg = getSinkType(sinkClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
+            } catch (Exception e) {
+                tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
+            }
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
         } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
-            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
             if (classLoader == null) {
                 throw new IllegalArgumentException("Sink Package is not provided");
             }
@@ -308,9 +341,8 @@ public class SinkConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
             }
+            typeArg = getSinkType(sinkClassName, classLoader);
         }
-
-        Class<?> typeArg = getSinkType(sinkClassName, classLoader);
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
             sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
