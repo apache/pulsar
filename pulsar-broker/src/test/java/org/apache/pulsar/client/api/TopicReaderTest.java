@@ -34,7 +34,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -479,7 +481,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());
-            assertTrue(readOut.equals(content));
+            assertEquals(content, readOut);
             assertFalse(reader.hasMessageAvailable());
         }
 
