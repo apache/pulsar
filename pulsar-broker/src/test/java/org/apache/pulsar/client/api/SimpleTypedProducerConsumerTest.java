@@ -634,7 +634,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
     @Test
     public void testMessageBuilderLoadConf() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic-" + System.nanoTime();
+        String topic = "my-topic-" + System.nanoTime();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

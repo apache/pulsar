@@ -135,17 +135,17 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
         config.forEach((key, value) -> {
-            if (key.equals("key")) {
+            if (key.equals(CONF_KEY)) {
                 this.key(checkType(value, String.class));
-            } else if (key.equals("properties")) {
+            } else if (key.equals(CONF_PROPERTIES)) {
                 this.properties(checkType(value, Map.class));
-            } else if (key.equals("eventTime")) {
+            } else if (key.equals(CONF_EVENT_TIME)) {
                 this.eventTime(checkType(value, Number.class).longValue());
-            } else if (key.equals("sequenceId")) {
+            } else if (key.equals(CONF_SEQUENCE_ID)) {
                 this.sequenceId(checkType(value, Number.class).longValue());
-            } else if (key.equals("replicationClusters")) {
+            } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
                 this.replicationClusters(checkType(value, List.class));
-            } else if (key.equals("disableReplication")) {
+            } else if (key.equals(CONF_DISABLE_REPLICATION)) {
                 boolean disableReplication = checkType(value, Boolean.class);
                 if (disableReplication) {
                     this.disableReplication();

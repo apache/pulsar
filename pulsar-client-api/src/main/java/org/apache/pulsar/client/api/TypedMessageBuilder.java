@@ -196,17 +196,24 @@ public interface TypedMessageBuilder<T> extends Serializable {
      *
      * The available options are:
      * <table border="1">
-     *  <tr><th>Name</th><th>Type</th><th>Doc</th></tr>
-     *  <tr><td>{@code key}</td><td>{@code String}</td><td>{@link #key(String)}</td></tr>
-     *  <tr><td>{@code properties}</td><td>{@code Map<String,String>}</td><td>{@link #properties(Map)}</td></tr>
-     *  <tr><td>{@code eventTime}</td><td>{@code long}</td><td>{@link #eventTime(long)}</td></tr>
-     *  <tr><td>{@code sequenceId}</td><td>{@code long}</td><td>{@link #sequenceId(long)}</td></tr>
-     *  <tr><td>{@code replicationClusters}</td><td>{@code List<String>}</td><td>{@link #replicationClusters(List)}</td></tr>
-     *  <tr><td>{@code disableReplication}</td><td>{@code boolean}</td><td>{@link #disableReplication()}</td></tr>
+     *  <tr><th>Constant</th><th>Name</th><th>Type</th><th>Doc</th></tr>
+     *  <tr><td>{@link #CONF_KEY}</td><td>{@code key}</td><td>{@code String}</td><td>{@link #key(String)}</td></tr>
+     *  <tr><td>{@link #CONF_PROPERTIES}</td><td>{@code properties}</td><td>{@code Map<String,String>}</td><td>{@link #properties(Map)}</td></tr>
+     *  <tr><td>{@link #CONF_EVENT_TIME}</td><td>{@code eventTime}</td><td>{@code long}</td><td>{@link #eventTime(long)}</td></tr>
+     *  <tr><td>{@link #CONF_SEQUENCE_ID}</td><td>{@code sequenceId}</td><td>{@code long}</td><td>{@link #sequenceId(long)}</td></tr>
+     *  <tr><td>{@link #CONF_REPLICATION_CLUSTERS}</td><td>{@code replicationClusters}</td><td>{@code List<String>}</td><td>{@link #replicationClusters(List)}</td></tr>
+     *  <tr><td>{@link #CONF_DISABLE_REPLICATION}</td><td>{@code disableReplication}</td><td>{@code boolean}</td><td>{@link #disableReplication()}</td></tr>
      * </table>
      *
      * @param config a map with the configuration options for the message
      * @return the message builder instance
      */
     TypedMessageBuilder<T> loadConf(Map<String, Object> config);
+
+    static final String CONF_KEY = "key";
+    static final String CONF_PROPERTIES = "properties";
+    static final String CONF_EVENT_TIME = "eventTime";
+    static final String CONF_SEQUENCE_ID = "sequenceId";
+    static final String CONF_REPLICATION_CLUSTERS = "replicationClusters";
+    static final String CONF_DISABLE_REPLICATION = "disableReplication";
 }
