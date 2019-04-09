@@ -1435,6 +1435,8 @@ public abstract class ComponentImpl {
                     }
                 }
             }
+        } catch (RestException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
