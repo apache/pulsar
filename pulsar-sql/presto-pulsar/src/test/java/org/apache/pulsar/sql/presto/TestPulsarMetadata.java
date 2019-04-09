@@ -32,8 +32,8 @@ import org.apache.avro.Schema;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
-import org.apache.pulsar.shade.javax.ws.rs.core.Response;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

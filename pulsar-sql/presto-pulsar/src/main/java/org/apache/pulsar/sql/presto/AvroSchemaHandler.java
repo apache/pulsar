@@ -20,10 +20,10 @@ package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
 
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBufAllocator;
-import org.apache.pulsar.shade.io.netty.util.ReferenceCountUtil;
-import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
