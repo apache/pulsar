@@ -260,6 +260,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
+    @Override
+    public Optional<String> getPartitionKey() {
+        return record.getKey();
+    }
+
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
     }
@@ -337,11 +342,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+        return publish(topicName, object, schemaOrSerdeClassName, null);
     }
 
     @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
+    @Override
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, String partitionKey) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), Optional.ofNullable(partitionKey));
+    }
+
+    @SuppressWarnings("unchecked")
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Optional<String> partitionKey) {
         Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
 
         if (producer == null) {
@@ -384,8 +395,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
 
         TypedMessageBuilder<O> messageBuilder = producer.newMessage();
-        if (record.getKey().isPresent()) {
-            messageBuilder.key(record.getKey().get());
+        if (partitionKey.isPresent()) {
+            messageBuilder.key(partitionKey.get());
         }
         CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         future.exceptionally(e -> {

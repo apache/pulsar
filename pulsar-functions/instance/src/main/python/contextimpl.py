@@ -90,6 +90,9 @@ class ContextImpl(pulsar.Context):
   def get_current_message_topic_name(self):
     return self.message.topic_name()
 
+  def get_partition_key(self):
+    return self.message.partition_key()
+
   def get_function_name(self):
     return self.instance_config.function_details.name
 
@@ -146,7 +149,7 @@ class ContextImpl(pulsar.Context):
     if callback:
       callback(result, msg)
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, partition_key=None):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
@@ -172,9 +175,10 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
+
     self.publish_producers[topic_name].send_async(
       output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()),
-      properties=properties, partition_key=self.message.partition_key())
+      properties=properties, partition_key=partition_key)
 
   def ack(self, msgid, topic):
     topic_consumer = None
