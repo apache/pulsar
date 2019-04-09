@@ -58,6 +58,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -67,6 +68,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -141,6 +143,18 @@ public class PulsarFunctionE2ETest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
+
+        // delete all function temp files
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        for (File file : foundFiles) {
+            file.delete();
+        }
 
         log.info("--- Setting up method {} ---", method.getName());
 
@@ -401,6 +415,7 @@ public class PulsarFunctionE2ETest {
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
+        functionConfig.setParallelism(2);
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
@@ -450,6 +465,15 @@ public class PulsarFunctionE2ETest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
+        // make sure all temp files are deleted
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
     @Test(timeOut = 20000)
@@ -660,6 +684,16 @@ public class PulsarFunctionE2ETest {
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+
+        // make sure all temp files are deleted
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
     @Test(timeOut = 20000)
@@ -772,6 +806,16 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
+
+        // make sure all temp files are deleted
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
     @Test(timeOut = 20000)
@@ -1114,6 +1158,16 @@ public class PulsarFunctionE2ETest {
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+
+        // make sure all temp files are deleted
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles(new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                return name.startsWith("function");
+            }
+        });
+
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
     @Test(timeOut = 20000)

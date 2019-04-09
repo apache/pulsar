@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -28,11 +29,15 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -44,10 +49,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Slf4j
@@ -100,6 +107,7 @@ public final class WorkerUtils {
     public static void downloadFromBookkeeper(Namespace namespace,
                                               OutputStream outputStream,
                                               String packagePath) throws IOException {
+        log.info("Downloading {} from BK...", packagePath);
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;
@@ -148,7 +156,13 @@ public final class WorkerUtils {
         return dlogUri;
     }
 
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams, String tlsTrustCertsFilePath, boolean allowTlsInsecureConnection) {
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
+        return getPulsarAdminClient(pulsarWebServiceUrl, null, null, null, null, null);
+    }
+
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
+                                                   String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
+                                                   Boolean enableTlsHostnameVerificationEnable) {
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
@@ -157,10 +171,52 @@ public final class WorkerUtils {
             if (isNotBlank(tlsTrustCertsFilePath)) {
                 adminBuilder.tlsTrustCertsFilePath(tlsTrustCertsFilePath);
             }
-            adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            if (allowTlsInsecureConnection != null) {
+                adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            }
+            if (enableTlsHostnameVerificationEnable != null) {
+                adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
+            }
             return adminBuilder.build();
         } catch (PulsarClientException e) {
             log.error("Error creating pulsar admin client", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static PulsarClient getPulsarClient(String pulsarServiceUrl) {
+        return getPulsarClient(pulsarServiceUrl, null, null, null,
+                null, null, null);
+    }
+
+    public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
+                                               Boolean useTls, String tlsTrustCertsFilePath,
+                                               Boolean allowTlsInsecureConnection,
+                                               Boolean enableTlsHostnameVerificationEnable) {
+
+        try {
+            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+
+            if (isNotBlank(authPlugin)
+                    && isNotBlank(authParams)) {
+                clientBuilder.authentication(authPlugin, authParams);
+            }
+            if (useTls != null) {
+                clientBuilder.enableTls(useTls);
+            }
+            if (allowTlsInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            }
+            if (isNotBlank(tlsTrustCertsFilePath)) {
+                clientBuilder.tlsTrustCertsFilePath(tlsTrustCertsFilePath);
+            }
+            if (enableTlsHostnameVerificationEnable != null) {
+                clientBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
+            }
+
+            return clientBuilder.build();
+        } catch (PulsarClientException e) {
+            log.error("Error creating pulsar client", e);
             throw new RuntimeException(e);
         }
     }
@@ -209,5 +265,34 @@ public final class WorkerUtils {
             }
         }
         return functionInstanceStats;
+    }
+
+    public static File dumpToTmpFile(final InputStream uploadedInputStream) {
+        try {
+            File tmpFile = FunctionCommon.createPkgTempFile();
+            tmpFile.deleteOnExit();
+            Files.copy(uploadedInputStream, tmpFile.toPath(), REPLACE_EXISTING);
+            return tmpFile;
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot create a temporary file", e);
+        }
+    }
+
+    public static boolean isFunctionCodeBuiltin(Function.FunctionDetailsOrBuilder functionDetails) {
+        if (functionDetails.hasSource()) {
+            Function.SourceSpec sourceSpec = functionDetails.getSource();
+            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            Function.SinkSpec sinkSpec = functionDetails.getSink();
+            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

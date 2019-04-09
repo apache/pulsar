@@ -261,9 +261,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
-        doc = "Whether to enable TLS when clients connect to broker"
+        doc = "Whether to enable TLS when clients connect to broker",
+        deprecated = true
     )
     // TLS for Functions -> Broker
+    // @deprecated use "pulsar+ssl://" in serviceUrl to enable
+    @Deprecated
     private boolean useTls = false;
     @FieldContext(
         category = CATEGORY_SECURITY,
