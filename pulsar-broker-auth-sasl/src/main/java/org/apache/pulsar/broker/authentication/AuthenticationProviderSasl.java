@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import static org.apache.pulsar.common.sasl.SaslConstants.JAAS_BROKER_SECTION_NAME;
+import static org.apache.pulsar.common.sasl.SaslConstants.JAAS_SERVER_SECTION_NAME;
 import static org.apache.pulsar.common.sasl.SaslConstants.JAAS_CLIENT_ALLOWED_IDS;
 import static org.apache.pulsar.common.sasl.SaslConstants.KINIT_COMMAND;
 
@@ -53,7 +53,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         this.configuration = Maps.newHashMap();
         final String allowedIdsPatternRegExp = config.getSaslJaasClientAllowedIds();
         configuration.put(JAAS_CLIENT_ALLOWED_IDS, allowedIdsPatternRegExp);
-        configuration.put(JAAS_BROKER_SECTION_NAME, config.getSaslJaasBrokerSectionName());
+        configuration.put(JAAS_SERVER_SECTION_NAME, config.getSaslJaasServerSectionName());
         configuration.put(KINIT_COMMAND, config.getKinitCommand());
 
         try {
@@ -63,7 +63,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             throw new IOException(error);
         }
 
-        loginContextName = config.getSaslJaasBrokerSectionName();
+        loginContextName = config.getSaslJaasServerSectionName();
         if (jaasCredentialsContainer == null) {
             log.info("JAAS loginContext is: {}." , loginContextName);
             try {
@@ -101,7 +101,6 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                                             SocketAddress remoteAddress,
                                             SSLSession sslSession) throws AuthenticationException {
         try {
-            new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
             return new SaslAuthenticationState(
                 new SaslAuthenticationDataSource(
                     new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern)));

@@ -55,7 +55,7 @@ public class Backoff {
     @VisibleForTesting
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
             TimeUnit unitMandatoryStop, Clock clock) {
-    	this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock, 
+        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock,
     		 Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
     }
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
@@ -65,16 +65,16 @@ public class Backoff {
 
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
                    TimeUnit unitMandatoryStop, long backoffIntervalMs, long maxBackoffIntervalMs) {
-    	this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone(), 
+        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone(),
     	     backoffIntervalMs, maxBackoffIntervalMs);
     }
-    
+
     public long next() {
         long current = this.next;
         if (current < max) {
             this.next = Math.min(this.next * 2, this.max);
         }
-        
+
         // Check for mandatory stop
         if (!mandatoryStopMade) {
             long now = clock.millis();
@@ -84,14 +84,14 @@ public class Backoff {
             } else {
                 timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
             }
-    
+
             if (timeElapsedSinceFirstBackoff + current > mandatoryStop) {
                 current = Math.max(initial, mandatoryStop - timeElapsedSinceFirstBackoff);
                 mandatoryStopMade = true;
             }
         }
-        
-        // Randomly decrease the timeout up to 10% to avoid simultaneous retries        
+
+        // Randomly decrease the timeout up to 10% to avoid simultaneous retries
         // If current < 10 then current/10 < 1 and we get an exception from Random saying "Bound must be positive"
         if (current > 10) {
             current -= random.nextInt((int) current / 10);
@@ -119,13 +119,13 @@ public class Backoff {
     long backoffIntervalNanos() {
     	return backoffIntervalNanos;
     }
-    
+
     @VisibleForTesting
     long maxBackoffIntervalNanos() {
     	return maxBackoffIntervalNanos;
     }
-    
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts, 
+
+    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
     									long defaultInterval, long maxBackoffInterval) {
     	long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
         long currentTime = System.nanoTime();
@@ -141,13 +141,9 @@ public class Backoff {
         // if the current time is less than the time at which next retry should occur, we should backoff
         return currentTime < (initialTimestampInNano + interval);
     }
-    
+
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts, 
+        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts,
         							 DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
-    
-    public boolean instanceShouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-    	return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts, backoffIntervalNanos, maxBackoffIntervalNanos);
     }
 }

@@ -226,7 +226,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(disable default-ttl with value 0)"
         )
     private int ttlDurationDefaultInSeconds = 0;
-    
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable the deletion of inactive topics"
@@ -625,7 +625,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SASL_AUTH,
         doc = "Service Principal, for login context name. Default value is \"Broker\"."
     )
-    private String saslJaasBrokerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+    private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,

@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar;
 
-import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -26,18 +26,18 @@ public class AddMissingPatchVersionTest {
     @Test
     public void testVersionStrings() throws Exception {
         // Fixable versions (those lacking a patch release) get normalized with a patch release of 0
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2"), "1.2.0");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2-SNAPSHOT"), "1.2.0-SNAPSHOT");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2-SNAPSHOT+BUILD"), "1.2.0-SNAPSHOT+BUILD");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2+BUILD"), "1.2.0+BUILD");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2"), "1.2.0");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2-SNAPSHOT"), "1.2.0-SNAPSHOT");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2-SNAPSHOT+BUILD"), "1.2.0-SNAPSHOT+BUILD");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2+BUILD"), "1.2.0+BUILD");
 
         // Already valid versions get returned unchanged
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2.3"), "1.2.3");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2.3-SNAPSHOT"), "1.2.3-SNAPSHOT");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2.3-SNAPSHOT+BUILD"), "1.2.3-SNAPSHOT+BUILD");
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1.2.3+BUILD"), "1.2.3+BUILD");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2.3"), "1.2.3");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2.3-SNAPSHOT"), "1.2.3-SNAPSHOT");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2.3-SNAPSHOT+BUILD"), "1.2.3-SNAPSHOT+BUILD");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1.2.3+BUILD"), "1.2.3+BUILD");
 
         // Non-fixable versions get returned as-is
-        Assert.assertEquals(PulsarBrokerVersionStringUtils.fixVersionString("1"), "1");
+        Assert.assertEquals(PulsarVersion.fixVersionString("1"), "1");
     }
 }

@@ -123,14 +123,14 @@ public class ClientCnx extends PulsarHandler {
 
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
-    private String remoteHostName = null;
+    protected String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
     private DefaultHostnameVerifier hostnameVerifier;
 
     private final ScheduledFuture<?> timeoutTask;
 
     // Added for mutual authentication.
-    private AuthenticationDataProvider authenticationDataProvider;
+    protected AuthenticationDataProvider authenticationDataProvider;
 
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
