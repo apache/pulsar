@@ -30,7 +30,6 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -44,7 +43,7 @@ import java.util.Map;
     configClass = RabbitMQSinkConfig.class
 )
 @Slf4j
-public class RabbitMQSink<T> implements Sink<T> {
+public class RabbitMQSink implements Sink<byte[]> {
 
     private Connection rabbitMQConnection;
     private Channel rabbitMQChannel;
@@ -76,8 +75,8 @@ public class RabbitMQSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(Record<T> record) {
-        byte[] value = toBytes(record.getValue());
+    public void write(Record<byte[]> record) {
+        byte[] value = record.getValue();
         try {
             rabbitMQChannel.basicPublish(exchangeName, routingKey, null, value);
             record.ack();
@@ -95,18 +94,5 @@ public class RabbitMQSink<T> implements Sink<T> {
         if (rabbitMQConnection != null) {
             rabbitMQConnection.close();
         }
-    }
-
-    private byte[] toBytes(Object obj) {
-        final byte[] result;
-        if (obj instanceof String) {
-            String s = (String) obj;
-            result = s.getBytes(StandardCharsets.UTF_8);
-        } else if (obj instanceof byte[]) {
-            result = (byte[]) obj;
-        } else {
-            throw new IllegalArgumentException("The value of the record must be String or Bytes.");
-        }
-        return result;
     }
 }
