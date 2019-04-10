@@ -91,12 +91,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
          Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
                 .create();
          final long timeMs = System.currentTimeMillis();
+         System.out.println("Current system time is: " + timeMs);
          for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes("UTF-8"));
             Thread.sleep(1000);
         }
 
+        System.out.println("Seeking to time: " + (timeMs + 3000));
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
                 .startMessageId(timeMs + 3000).create();
 

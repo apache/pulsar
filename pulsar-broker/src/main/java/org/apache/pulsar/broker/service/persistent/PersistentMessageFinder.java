@@ -51,6 +51,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
         this.topicName = topicName;
         this.cursor = cursor;
+        log.debug("The cursor's name is: " + (cursor.getName()));
         this.subName = Codec.decode(cursor.getName());
     }
 
@@ -65,6 +66,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 MessageImpl msg = null;
                 try {
                     msg = MessageImpl.deserialize(entry.getDataBuffer());
+                    log.info("Message publish time is: " + msg.getPublishTime());
                     return msg.getPublishTime() <= timestamp;
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);

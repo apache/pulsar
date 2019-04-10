@@ -645,6 +645,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             } catch (ManagedLedgerException e) {
                 subscriptionFuture.completeExceptionally(e);
             }
+            log.info("Cursor's name is: " + cursor.getName());
 
             return new PersistentSubscription(this, subscriptionName, cursor);
         });
