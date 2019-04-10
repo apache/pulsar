@@ -376,7 +376,8 @@ public class LocalBookkeeperEnsemble {
 
         if (enableStreamStorage) {
             runStreamStorage(new CompositeConfiguration());
-        }    }
+        }
+    }
 
     public void start() throws Exception {
         start(false);
