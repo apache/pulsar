@@ -641,7 +641,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Position startPosition = new PositionImpl(ledgerId, entryId);
             ManagedCursor cursor = null;
             try {
-                cursor = ledger.newNonDurableCursor(startPosition);
+                cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
             } catch (ManagedLedgerException e) {
                 subscriptionFuture.completeExceptionally(e);
             }

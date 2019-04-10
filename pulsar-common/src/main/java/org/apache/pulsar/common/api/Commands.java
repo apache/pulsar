@@ -20,6 +20,7 @@ package org.apache.pulsar.common.api;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
@@ -154,7 +155,7 @@ public class Commands {
     }
 
     public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
-                                     String targetBroker, String originalPrincipal, String originalAuthData,
+                                     String targetBroker, String originalPrincipal, AuthData originalAuthData,
                                      String originalAuthMethod) {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
@@ -174,7 +175,7 @@ public class Commands {
         }
 
         if (originalAuthData != null) {
-            connectBuilder.setOriginalAuthData(originalAuthData);
+            connectBuilder.setOriginalAuthData(new String(originalAuthData.getBytes(), UTF_8));
         }
 
         if (originalAuthMethod != null) {
