@@ -49,6 +49,7 @@ message FunctionDetails {
     enum Runtime {
         JAVA = 0;
         PYTHON = 1;
+        GO = 3;
     }
     string tenant = 1;
     string namespace = 2;
@@ -70,9 +71,9 @@ message FunctionDetails {
 }
 
 message ConsumerSpec {
-	string schemaType   = 1;
+    string schemaType = 1;
     string serdeClassName = 2;
-	bool isRegexPattern = 3;
+    bool isRegexPattern = 3;
     message ReceiverQueueSize {
         int32 value = 1;
     }
@@ -88,12 +89,12 @@ message SourceSpec {
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
 
-	// @deprecated -- use topicsToSchema
-    map<string,string> topicsToSerDeClassName = 4 [deprecated = true];
+    // @deprecated -- use topicsToSchema
+    map<string, string> topicsToSerDeClassName = 4 [deprecated = true];
 
-	/**
-	 *
-	 */
+    /**
+     *
+     */
     map<string, ConsumerSpec> inputSpecs = 10;
 
     uint64 timeoutMs = 6;
@@ -121,9 +122,9 @@ message SinkSpec {
      * already present in the server */
     string builtin = 6;
 
-	/**
-	 * Builtin schema type or custom schema class name
-	 */
+    /**
+     * Builtin schema type or custom schema class name
+     */
     string schemaType = 7;
 }
 

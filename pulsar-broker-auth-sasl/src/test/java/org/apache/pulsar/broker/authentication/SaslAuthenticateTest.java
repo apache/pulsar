@@ -156,7 +156,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setSaslAuthentication(true);
         conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
-        conf.setSaslJaasBrokerSectionName("PulsarBroker");
+        conf.setSaslJaasServerSectionName("PulsarBroker");
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);
