@@ -60,15 +60,13 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         private final Map <String, Object> definition;
     }
 
-    private final T protoMessageInstance;
-
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
         return ProtobufData.get().getSchema(pojo);
     }
 
     private ProtobufSchema(SchemaInfo schemaInfo, T protoMessageInstance) {
         super(schemaInfo);
-        this.protoMessageInstance = protoMessageInstance;
+        ((ProtobufReader<T>)getReader()).settParser(protoMessageInstance);
         // update properties with protobuf related properties
         Map<String, String> allProperties = new HashMap<>();
         allProperties.putAll(schemaInfo.getProperties());
@@ -106,7 +104,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
 
     @Override
     protected SchemaReader<T> initReader() {
-        return new ProtobufReader<>(protoMessageInstance);
+        return new ProtobufReader<>();
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
@@ -125,12 +123,15 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
             throw new IllegalArgumentException(com.google.protobuf.GeneratedMessageV3.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
+
         try{
             SchemaInfo schemaInfo = SchemaInfo.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
-                    .type(SchemaType.PROTOBUF).build();
-            schemaInfo.getProperties().putAll(schemaDefinition.getProperties());
-        return new ProtobufSchema(schemaInfo,(GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+                    .type(SchemaType.PROTOBUF)
+                    .properties(schemaDefinition.getProperties())
+                    .build();
+        return new ProtobufSchema(schemaInfo,
+                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
     }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
     }

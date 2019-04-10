@@ -55,7 +55,7 @@ public abstract class GenericSchemaImpl<T extends GenericRecord> extends StructS
      *        decodeType decode type
      * @return a generic schema instance
      */
-    public static GenericSchemaImpl<? extends GenericRecord> of(SchemaInfo schemaInfo) {
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
         switch (schemaInfo.getType()) {
             case AVRO:
                 return new GenericAvroSchema(schemaInfo);

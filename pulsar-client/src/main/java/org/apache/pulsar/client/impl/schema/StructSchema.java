@@ -137,4 +137,8 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     protected abstract SchemaReader<T> initReader();
 
+    protected SchemaReader<T> getReader() {
+        return  reader;
+    }
+
 }

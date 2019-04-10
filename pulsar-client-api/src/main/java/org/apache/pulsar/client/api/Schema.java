@@ -81,7 +81,7 @@ public interface Schema<T> {
         return false;
     }
 
-    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider){
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
 
     }
 

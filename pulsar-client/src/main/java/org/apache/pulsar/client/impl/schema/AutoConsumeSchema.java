@@ -29,11 +29,11 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * Auto detect schema.
  */
-public class AutoConsumeSchema implements Schema<GenericRecord> {
+public class AutoConsumeSchema<T extends GenericRecord> implements Schema<T> {
 
-    private Schema<GenericRecord> schema;
+    private Schema<T> schema;
 
-    public void setSchema(Schema<GenericRecord> schema) {
+    public void setSchema(Schema<T> schema) {
         this.schema = schema;
     }
 
@@ -54,21 +54,21 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public byte[] encode(GenericRecord message) {
+    public byte[] encode(T message) {
         ensureSchemaInitialized();
 
         return schema.encode(message);
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
+    public T decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
         return schema.decode(bytes, schemaVersion);
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public T decode(byte[] bytes) {
         ensureSchemaInitialized();
 
         return schema.decode(bytes);
