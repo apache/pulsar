@@ -140,9 +140,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             } else if (key.equals(CONF_PROPERTIES)) {
                 this.properties(checkType(value, Map.class));
             } else if (key.equals(CONF_EVENT_TIME)) {
-                this.eventTime(checkType(value, Number.class).longValue());
+                this.eventTime(checkType(value, Long.class));
             } else if (key.equals(CONF_SEQUENCE_ID)) {
-                this.sequenceId(checkType(value, Number.class).longValue());
+                this.sequenceId(checkType(value, Long.class));
             } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
                 this.replicationClusters(checkType(value, List.class));
             } else if (key.equals(CONF_DISABLE_REPLICATION)) {

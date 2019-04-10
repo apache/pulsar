@@ -654,8 +654,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         Map<String, Object> msgConf = new HashMap<>();
         msgConf.put("key", "key-1");
         msgConf.put("properties", properties);
-        msgConf.put("eventTime", 1234);
-        msgConf.put("sequenceId", 5);
+        msgConf.put("eventTime", 1234L);
+        msgConf.put("sequenceId", 5L);
         msgConf.put("replicationClusters", Lists.newArrayList("a", "b", "c"));
         msgConf.put("disableReplication", false);
 
