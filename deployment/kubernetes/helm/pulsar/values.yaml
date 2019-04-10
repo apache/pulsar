@@ -323,6 +323,14 @@ dashboard:
     ports:
     - name: server
       port: 80
+  ingress:
+    enabled: false
+    annotations: {}
+    tls: {}
+    hostname: ""
+    path: "/"
+    port: server
+
 
 ## Pulsar Extra: Bastion
 ## templates/bastion-deployment.yaml

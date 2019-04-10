@@ -16,29 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+package org.apache.pulsar;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class PulsarBrokerVersionStringUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarBrokerVersionStringUtils.class);
-
-    private static final String RESOURCE_NAME = "pulsar-broker-version.properties";
-    private static final String GIT_RESOURCE_NAME = "pulsar-broker-git.properties";
+public class PulsarVersion {
 
     private static final Pattern majorMinorPatchPattern = Pattern.compile("([1-9]+[0-9]*)\\.([1-9]+[0-9]*)\\.([1-9]+[0-9]*)(.*)");
 
     // If the version string does not contain a patch version, add one so the
     // version becomes valid according to the SemVer library (see https://github.com/zafarkhaja/jsemver).
     // This method (and it's only call above in the ctor) may be removed when SemVer accepts null patch versions
-    public static String fixVersionString(String version) {
+    static String fixVersionString(String version) {
         if ( null == version ) {
             return null;
         }
@@ -71,42 +61,13 @@ public class PulsarBrokerVersionStringUtils {
         }
     }
 
-    /**
-     * Looks for a resource in the jar which is expected to be a java.util.PropertiesBase, then
-     * extract a specific property value.
-     *
-     * @return the property value, or null if the resource does not exist or the resource
-     *         is not a valid java.util.PropertiesBase or the resource does not contain the
-     *         named property
-     */
-    private static String getPropertyFromResource(String resource, String propertyName) {
-        try {
-            InputStream stream = PulsarBrokerVersionStringUtils.class.getClassLoader().getResourceAsStream(resource);
-            if (stream == null) {
-                return null;
-            }
-            Properties properties = new Properties();
-            try {
-                properties.load(stream);
-                String propertyValue = (String) properties.get(propertyName);
-                return propertyValue;
-            } catch (IOException e) {
-                return null;
-            } finally {
-                stream.close();
-            }
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
-    public static String getNormalizedVersionString() {
-        return fixVersionString(getPropertyFromResource(RESOURCE_NAME, "version"));
+    public static String getVersion() {
+        return fixVersionString("${project.version}");
     }
 
     public static String getGitSha() {
-        String commit = getPropertyFromResource(GIT_RESOURCE_NAME, "git.commit.id");
-        String dirtyString = getPropertyFromResource(GIT_RESOURCE_NAME, "git.dirty");
+        String commit = "${git.commit.id}";
+        String dirtyString = "${git.dirty}";
         if (dirtyString == null || Boolean.valueOf(dirtyString)) {
             return commit + "(dirty)";
         } else {
@@ -115,16 +76,16 @@ public class PulsarBrokerVersionStringUtils {
     }
 
     public static String getBuildUser() {
-        String email = getPropertyFromResource(GIT_RESOURCE_NAME, "git.build.user.email");
-        String name = getPropertyFromResource(GIT_RESOURCE_NAME, "git.build.user.name");
+        String email = "${git.build.user.email}";
+        String name = "${git.build.user.name}";
         return String.format("%s <%s>", name, email);
     }
 
     public static String getBuildHost() {
-        return getPropertyFromResource(GIT_RESOURCE_NAME, "git.build.host");
+        return "${git.build.host}";
     }
 
     public static String getBuildTime() {
-        return getPropertyFromResource(GIT_RESOURCE_NAME, "git.build.time");
+        return "${git.build.time}";
     }
 }

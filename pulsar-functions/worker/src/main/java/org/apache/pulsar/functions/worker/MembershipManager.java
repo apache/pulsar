@@ -59,7 +59,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     private final String consumerName;
     private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
-    private PulsarAdmin pulsarAdminClient;
+    private PulsarAdmin pulsarAdmin;
     private final CompletableFuture<Void> firstConsumerEventFuture;
     private final AtomicBoolean isLeader = new AtomicBoolean();
 
@@ -72,9 +72,10 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerService service, PulsarClient client)
+    MembershipManager(WorkerService service, PulsarClient client, PulsarAdmin pulsarAdmin)
             throws PulsarClientException {
         this.workerConfig = service.getWorkerConfig();
+        this.pulsarAdmin = pulsarAdmin;
         consumerName = String.format(
             "%s:%s:%d",
             workerConfig.getWorkerId(),
@@ -121,9 +122,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
         List<WorkerInfo> workerIds = new LinkedList<>();
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -140,9 +140,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     public WorkerInfo getLeader() {
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -166,9 +165,6 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @Override
     public void close() throws PulsarClientException {
         consumer.close();
-        if (this.pulsarAdminClient != null) {
-            this.pulsarAdminClient.close();
-        }
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
@@ -282,15 +278,6 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     /**
      * Private methods
      */
-
-    private PulsarAdmin getPulsarAdminClient() {
-        if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = WorkerUtils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
-        }
-        return this.pulsarAdminClient;
-    }
 
     private boolean checkLeader(WorkerService service, String consumerName) {
         try {

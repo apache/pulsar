@@ -16,7 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.client.admin.internal.http;
 
-@Deprecated
-public interface PersistentTopics extends Topics {}
+import javax.ws.rs.client.Client;
+import javax.ws.rs.core.Configuration;
+
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.glassfish.jersey.client.spi.Connector;
+import org.glassfish.jersey.client.spi.ConnectorProvider;
+
+public class AsyncHttpConnectorProvider implements ConnectorProvider {
+
+    private final ClientConfigurationData conf;
+
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf) {
+        this.conf = conf;
+    }
+
+    @Override
+    public Connector getConnector(Client client, Configuration runtimeConfig) {
+        return new AsyncHttpConnector(client, conf);
+    }
+}

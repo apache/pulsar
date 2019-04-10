@@ -115,7 +115,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
                 .enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         producer1.close();
 
-        admin1.persistentTopics().delete(topicName, true);
+        admin1.topics().delete(topicName, true);
 
         MockedPulsarServiceBaseTest
                 .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
