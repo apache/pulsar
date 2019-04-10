@@ -21,38 +21,21 @@ package org.apache.pulsar.client.impl.schema.generic;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A generic schema representation.
  */
-public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema {
+public abstract class GenericSchemaImpl<T extends GenericRecord> extends StructSchema<T> implements GenericSchema<T> {
 
     protected final List<Field> fields;
 
-    /**
-     * AUTO : decode by message's schema
-     * COMP : decode by consumer-defined schema
-     */
-    public enum DecodeType {
-        AUTO,
-        COMP
-    }
-
-    protected GenericSchemaImpl(SchemaInfo schemaInfo, SchemaWriter writer, SchemaReader reader,
-                                SchemaDefinition schemaDefinition) {
-        super(
-                schemaInfo.getType(),
-                new org.apache.avro.Schema.Parser().parse(
-                        new String(schemaInfo.getSchema(), UTF_8)),
-                schemaDefinition,
-                writer,
-                reader
-        );
+    protected GenericSchemaImpl(SchemaInfo schemaInfo) {
+        super(schemaInfo);
 
         this.fields = schema.getFields()
                 .stream()
@@ -69,23 +52,13 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
      *
      * @param schemaInfo schema info
-     * @return a generic schema instance
-     */
-    public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
-        return of(schemaInfo, DecodeType.COMP);
-    }
-
-    /**
-     * Create a generic schema out of a <tt>SchemaInfo</tt>.
-     *
-     * @param schemaInfo schema info
      *        decodeType decode type
      * @return a generic schema instance
      */
-    public static GenericSchemaImpl of(SchemaInfo schemaInfo, DecodeType decodeType) {
+    public static GenericSchemaImpl<? extends GenericRecord> of(SchemaInfo schemaInfo) {
         switch (schemaInfo.getType()) {
             case AVRO:
-                return new GenericAvroSchema(schemaInfo).setConsumerType(decodeType);
+                return new GenericAvroSchema(schemaInfo);
             case JSON:
                 return new GenericJsonSchema(schemaInfo);
             default:

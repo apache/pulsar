@@ -24,12 +24,13 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.GeneratedMessageV3;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.avro.Schema;
 import org.apache.avro.protobuf.ProtobufData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.lang.reflect.InvocationTargetException;
@@ -38,6 +39,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A schema implementation to deal with protobuf generated messages.
@@ -57,24 +60,21 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         private final Map <String, Object> definition;
     }
 
+    private final T protoMessageInstance;
+
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
         return ProtobufData.get().getSchema(pojo);
     }
 
-    private ProtobufSchema(Schema schema, SchemaDefinition<T> schemaDefinition, T protoMessageInstance) {
-        super(
-            SchemaType.PROTOBUF,
-            schema,
-            schemaDefinition,
-            new ProtobufWriter<>(),
-            new ProtobufReader<>(protoMessageInstance)
-        );
-            // update properties with protobuf related properties
-            Map<String, String> allProperties = new HashMap<>();
-            allProperties.putAll(schemaInfo.getProperties());
-            // set protobuf parsing info
-            allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-            schemaInfo.setProperties(allProperties);
+    private ProtobufSchema(SchemaInfo schemaInfo, T protoMessageInstance) {
+        super(schemaInfo);
+        this.protoMessageInstance = protoMessageInstance;
+        // update properties with protobuf related properties
+        Map<String, String> allProperties = new HashMap<>();
+        allProperties.putAll(schemaInfo.getProperties());
+        // set protobuf parsing info
+        allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
+        schemaInfo.setProperties(allProperties);
     }
 
     private String getParsingInfo(T protoMessageInstance) {
@@ -96,8 +96,17 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     @Override
-    protected SchemaReader loadReader(byte[] schemaVersion) {
-        return null;
+    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
+        throw new RuntimeException("ProtobufSchema don't support schema versioning");    }
+
+    @Override
+    protected SchemaWriter<T> initWriter() {
+        return new ProtobufWriter<>();
+    }
+
+    @Override
+    protected SchemaReader<T> initReader() {
+        return new ProtobufReader<>(protoMessageInstance);
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
@@ -117,7 +126,11 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
         try{
-        return new ProtobufSchema(createProtobufAvroSchema(schemaDefinition.getPojo()), schemaDefinition, (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+            SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
+                    .type(SchemaType.PROTOBUF).build();
+            schemaInfo.getProperties().putAll(schemaDefinition.getProperties());
+        return new ProtobufSchema(schemaInfo,(GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
     }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
     }

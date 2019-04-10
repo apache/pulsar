@@ -24,9 +24,10 @@ import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,20 +68,17 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
     }
 
-    private AvroSchema(org.apache.avro.Schema schema,
-                       SchemaDefinition schemaDefinition) {
-        super(
-                SchemaType.AVRO,
-                schema,
-                schemaDefinition,
-                new AvroWriter<>(schema),
-                new AvroReader<>(schema)
-        );
+    private AvroSchema(SchemaInfo schemaInfo) {
+        super(schemaInfo);
+    }
+
+    @Override
+    public boolean supportSchemaVersioning() {
+        return true;
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        return schemaDefinition.getJsonDef() == null ?
-                new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition) : new AvroSchema<>(parseAvroSchema(schemaDefinition.getJsonDef()), schemaDefinition);
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
@@ -89,12 +87,27 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
-        return new AvroSchema<>(createAvroSchema(schemaDefinition), schemaDefinition);
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
     @Override
-    protected SchemaReader loadReader(byte[] schemaVersion) {
-        return new AvroReader(((GenericAvroSchema) schemaProvider.getSchemaByVersion(schemaVersion)).getAvroSchema(), schema);
+    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
+        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        if (schemaInfo != null) {
+            return new AvroReader<>(parseAvroSchema(new String(schemaInfo.getSchema())), schema);
+        } else {
+            return reader;
+        }
+    }
+
+    @Override
+    protected SchemaWriter<T> initWriter() {
+        return new AvroWriter<>(schema);
+    }
+
+    @Override
+    protected SchemaReader<T> initReader() {
+        return new AvroReader<>(schema);
     }
 
 }

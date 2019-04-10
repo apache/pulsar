@@ -26,7 +26,7 @@ import java.util.Date;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaProvider;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -81,7 +81,7 @@ public interface Schema<T> {
         return false;
     }
 
-    default void setSchemaProvider(SchemaProvider schemaProvider){
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider){
 
     }
 
@@ -315,7 +315,7 @@ public interface Schema<T> {
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
-    static GenericSchema generic(SchemaInfo schemaInfo) {
+    static GenericSchema<GenericRecord> generic(SchemaInfo schemaInfo) {
         return DefaultImplementation.getGenericSchema(schemaInfo);
     }
 }

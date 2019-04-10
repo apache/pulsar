@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -31,31 +31,34 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * A generic json schema.
  */
-class GenericJsonSchema extends GenericSchemaImpl {
+class GenericJsonSchema extends GenericSchemaImpl<GenericJsonRecord> {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo,
-                new GenericJsonWriter(),
-                new GenericJsonReader(new org.apache.avro.Schema.Parser().parse(
-                        new String(schemaInfo.getSchema(), UTF_8)).getFields()
-                        .stream()
-                        .map(f -> new Field(f.name(), f.pos()))
-                        .collect(Collectors.toList())),
-                SchemaDefinition.builder()
-                        .withSupportSchemaVersioning(true)
-                        .build()
-        );
+        super(schemaInfo);
     }
 
     @Override
-    protected SchemaReader loadReader(byte[] schemaVersion) {
-        return new GenericJsonReader(schemaVersion,
-                ((GenericAvroSchema) schemaProvider.
-                        getSchemaByVersion(schemaVersion)).
-                        getAvroSchema().getFields()
-                        .stream()
-                        .map(f -> new Field(f.name(), f.pos()))
-                        .collect(Collectors.toList()));
+    protected SchemaReader<GenericJsonRecord> loadReader(byte[] schemaVersion) {
+        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        if (schemaInfo != null) {
+            return new GenericJsonReader(schemaVersion,
+                    (parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)).getFields()
+                            .stream()
+                            .map(f -> new Field(f.name(), f.pos()))
+                            .collect(Collectors.toList())));
+        } else {
+            return reader;
+        }
+    }
+
+    @Override
+    protected SchemaWriter<GenericJsonRecord> initWriter() {
+        return new GenericJsonWriter();
+    }
+
+    @Override
+    protected SchemaReader<GenericJsonRecord> initReader() {
+        return new GenericJsonReader(fields);
     }
 
     @Override

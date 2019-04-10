@@ -18,37 +18,31 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.io.ByteArrayOutputStream;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.nio.charset.StandardCharsets.UTF_8;
+public class GenericAvroWriter implements SchemaWriter<GenericAvroRecord> {
 
-public class GenericAvroWriter<T> implements SchemaWriter<T> {
-
-    private final GenericDatumWriter writer;
+    private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> writer;
     private BinaryEncoder encoder;
     private final ByteArrayOutputStream byteArrayOutputStream;
 
-    public GenericAvroWriter(SchemaInfo schemaInfo) {
-        this.writer = new GenericDatumWriter<>(new org.apache.avro.Schema.Parser().parse(
-                new String(schemaInfo.getSchema(), UTF_8)));
+    public GenericAvroWriter(Schema schema) {
+        this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
     }
 
     @Override
-    public synchronized byte[] write(T message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericAvroRecord gar = (GenericAvroRecord) message;
+    public synchronized byte[] write(GenericAvroRecord message) {
         try {
-            writer.write(gar.getAvroRecord(), this.encoder);
+            writer.write(message.getAvroRecord(), this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {

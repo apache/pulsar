@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -29,12 +28,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaProvider;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -58,30 +58,20 @@ public abstract class StructSchema<T> implements Schema<T> {
     protected final SchemaInfo schemaInfo;
     protected final SchemaReader<T> reader;
     protected final SchemaWriter<T> writer;
-    private boolean supportSchemaVersioning;
-    protected SchemaProvider schemaProvider;
+    protected SchemaInfoProvider schemaInfoProvider;
     private final LoadingCache<byte[], SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaReader<T>>() {
                 @Override
-                public SchemaReader<T> load(byte[] schemaVersion) throws Exception {
+                public SchemaReader<T> load(byte[] schemaVersion) {
                     return loadReader(schemaVersion);
                 }
             });
 
-    protected StructSchema(SchemaType schemaType,
-                           org.apache.avro.Schema schema,
-                           SchemaDefinition schemaDefinition,
-                           SchemaWriter<T> writer,
-                           SchemaReader<T> reader) {
-        this.schema = schema;
-        this.schemaInfo = new SchemaInfo();
-        this.schemaInfo.setName("");
-        this.schemaInfo.setType(schemaType);
-        this.schemaInfo.setSchema(this.schema.toString().getBytes(UTF_8));
-        this.schemaInfo.setProperties(schemaDefinition.getProperties());
-        this.supportSchemaVersioning = schemaDefinition.getSupportSchemaVersioning();
-        this.writer = writer;
-        this.reader = reader;
+    protected StructSchema(SchemaInfo schemaInfo) {
+        this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
+        this.schemaInfo = schemaInfo;
+        this.writer = initWriter();
+        this.reader = initReader();
     }
 
     public org.apache.avro.Schema getAvroSchema() {
@@ -104,7 +94,7 @@ public abstract class StructSchema<T> implements Schema<T> {
             return readerCache.get(schemaVersion).read(bytes);
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
-                    ((MultiVersionGenericSchemaProvider) schemaProvider).getTopic().toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
             return null;
         }
     }
@@ -116,22 +106,35 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     protected static org.apache.avro.Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
-        return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
+        if (pojo != null) {
+            return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
+        } else if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
+            return parseAvroSchema(schemaDefinition.getJsonDef());
+        } else {
+            throw new RuntimeException("Schema definition must specify pojo class or schema json definition");
+        }
     }
 
-    protected static org.apache.avro.Schema parseAvroSchema(String jsonDef) {
-        Parser parser = new Parser();
-        return parser.parse(jsonDef);
+    public static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+        final Parser parser = new Parser();
+        return parser.parse(schemaJson);
     }
 
-    public boolean supportSchemaVersioning() {
-        return supportSchemaVersioning;
+    protected static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
+        return SchemaInfo.builder()
+                .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
+                .properties(schemaDefinition.getProperties())
+                .type(schemaType).build();
     }
 
-    public void setSchemaProvider(SchemaProvider schemaProvider) {
-        this.schemaProvider = schemaProvider;
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        this.schemaInfoProvider = schemaInfoProvider;
     }
 
-    protected abstract SchemaReader loadReader(byte[] schemaVersion);
+    protected abstract SchemaReader<T> loadReader(byte[] schemaVersion);
+
+    protected abstract SchemaWriter<T> initWriter();
+
+    protected abstract SchemaReader<T> initReader();
 
 }

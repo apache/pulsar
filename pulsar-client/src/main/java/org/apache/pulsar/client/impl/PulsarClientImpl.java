@@ -22,6 +22,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -53,6 +56,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -61,6 +65,7 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
@@ -98,6 +103,15 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+
+    private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
+
+                @Override
+                public SchemaInfoProvider load(String topicName) {
+                    return loadSchemaProvider(topicName);
+                }
+            });
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
         this(conf, getEventLoopGroup(conf));
@@ -720,6 +734,14 @@ public class PulsarClientImpl implements PulsarClient {
         default:
             return null;
         }
+    }
+
+    private SchemaInfoProvider loadSchemaProvider(String topicName) {
+        return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
+    }
+
+    public LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
+        return schemaProviderLoadingCache;
     }
 
 }

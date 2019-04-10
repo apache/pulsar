@@ -27,6 +27,7 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.JsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -50,20 +51,24 @@ public class JSONSchema<T> extends StructSchema<T> {
 
     private final Class<T> pojo;
 
-    private JSONSchema(org.apache.avro.Schema schema,
-                       SchemaDefinition<T> schemaDefinition) {
-        super(
-            SchemaType.JSON,
-            schema,
-            schemaDefinition,
-            new JsonWriter<>(JSON_MAPPER.get()),
-            new JsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
-        this.pojo = schemaDefinition.getPojo();
+    private JSONSchema(SchemaInfo schemaInfo, Class<T> pojo) {
+        super(schemaInfo);
+        this.pojo = pojo;
     }
 
     @Override
-    protected SchemaReader loadReader(byte[] schemaVersion) {
-        return null;
+    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
+        throw new RuntimeException("JSONSchema don't support schema versioning");
+    }
+
+    @Override
+    protected SchemaWriter<T> initWriter() {
+        return new JsonWriter<>(JSON_MAPPER.get());
+    }
+
+    @Override
+    protected SchemaReader<T> initReader() {
+        return new JsonReader<>(JSON_MAPPER.get(), pojo);
     }
 
     /**
@@ -91,9 +96,7 @@ public class JSONSchema<T> extends StructSchema<T> {
     }
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        String jsonDef = schemaDefinition.getJsonDef();
-        return jsonDef == null ? new JSONSchema<>(createAvroSchema(schemaDefinition), schemaDefinition) :
-                new JSONSchema<>(parseAvroSchema(jsonDef), schemaDefinition);
+        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo());
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {

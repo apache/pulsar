@@ -18,26 +18,18 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic avro schema.
  */
-public class GenericAvroSchema extends GenericSchemaImpl {
-
-    private DecodeType decodeType = DecodeType.COMP;
+public class GenericAvroSchema extends GenericSchemaImpl<GenericAvroRecord> {
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo,
-                new GenericAvroWriter(schemaInfo),
-                new GenericAvroReader(schemaInfo, new byte[10]),
-                SchemaDefinition.builder()
-                        .withSupportSchemaVersioning(true)
-                        .build());
+        super(schemaInfo);
     }
 
     @Override
@@ -45,20 +37,27 @@ public class GenericAvroSchema extends GenericSchemaImpl {
         return new AvroRecordBuilderImpl(this);
     }
 
+
     @Override
-    protected SchemaReader loadReader(byte[] schemaVersion) {
-        return decodeType == DecodeType.AUTO ?
-         new GenericAvroReader(new SchemaInfo().setSchema(((GenericAvroSchema) schemaProvider
-                .getSchemaByVersion(schemaVersion)).getAvroSchema().toString().getBytes()),
-                schemaVersion) :
-         new GenericAvroReader(((GenericAvroSchema) schemaProvider
-                .getSchemaByVersion(schemaVersion)).getAvroSchema(),
-                schema,
-                schemaVersion);
+    protected SchemaReader<GenericAvroRecord> loadReader(byte[] schemaVersion) {
+         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+         if (schemaInfo != null) {
+             return new GenericAvroReader(
+                     parseAvroSchema(new String(schemaInfo.getSchema())),
+                     schema,
+                     schemaVersion);
+         } else {
+             return reader;
+         }
     }
 
-    public GenericAvroSchema setConsumerType(DecodeType decodeType) {
-        this.decodeType = decodeType;
-        return this;
+    @Override
+    protected SchemaWriter<GenericAvroRecord> initWriter() {
+        return new GenericAvroWriter(schema);
+    }
+
+    @Override
+    protected SchemaReader<GenericAvroRecord> initReader() {
+        return new GenericAvroReader(schema);
     }
 }

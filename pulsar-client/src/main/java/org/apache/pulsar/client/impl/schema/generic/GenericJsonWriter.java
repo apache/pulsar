@@ -26,7 +26,7 @@ import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-public class GenericJsonWriter implements SchemaWriter {
+public class GenericJsonWriter implements SchemaWriter<GenericJsonRecord> {
 
     private final ObjectMapper objectMapper;
 
@@ -35,11 +35,9 @@ public class GenericJsonWriter implements SchemaWriter {
     }
 
     @Override
-    public byte[] write(Object pojo) {
-        checkArgument(pojo instanceof GenericAvroRecord);
-        GenericJsonRecord gjr = (GenericJsonRecord) pojo;
+    public byte[] write(GenericJsonRecord pojo) {
         try {
-            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
+            return objectMapper.writeValueAsBytes(pojo.getJsonNode().toString());
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }

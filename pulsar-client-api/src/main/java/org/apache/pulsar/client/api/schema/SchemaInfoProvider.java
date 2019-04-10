@@ -18,32 +18,33 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Schema Provider.
  */
-public interface SchemaProvider<T> {
+public interface SchemaInfoProvider {
 
     /**
-     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
+     * Retrieve the schema info of a given <tt>schemaVersion</tt>.
      *
      * @param schemaVersion schema version
-     * @return schema instance of the provided <tt>schemaVersion</tt>
+     * @return schema info of the provided <tt>schemaVersion</tt>
      */
-    Schema<T> getSchemaByVersion(byte[] schemaVersion);
+    SchemaInfo getSchemaByVersion(byte[] schemaVersion);
+
     /**
-     * Retrieve the latest schema.
+     * Retrieve the latest schema info.
      *
      * @return the latest schema
      */
-    Schema<T> getLatestSchema();
+    SchemaInfo getLatestSchema();
 
     /**
      * Retrieve the topic name.
      *
      * @return the topic name
      */
-    String getTopicName();
+    public String getTopicName();
 
 }

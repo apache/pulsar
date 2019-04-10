@@ -30,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +50,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -65,10 +63,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.SchemaProvider;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -170,21 +168,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
                                     long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         if (schema != null && schema.supportSchemaVersioning()) {
-            SchemaProvider schemaProvider = null;
+            SchemaInfoProvider schemaInfoProvider = null;
 
             try {
-                schemaProvider = client.getSchemaProviderLoadingCache().get(topic);
+                schemaInfoProvider = client.getSchemaProviderLoadingCache().get(topic);
             } catch (ExecutionException e) {
                 throw new RuntimeException("Can't get generic schema provider for topic:" + topic);
             }
 
             if (schema instanceof AutoConsumeSchema) {
                 AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
-                GenericSchema genericSchema = (GenericSchema)schemaProvider.getLatestSchema();
-                genericSchema.setSchemaProvider(schemaProvider);
+                GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoProvider.getLatestSchema());
+                genericSchema.setSchemaInfoProvider(schemaInfoProvider);
                 autoConsumeSchema.setSchema(genericSchema);
             }else {
-                schema.setSchemaProvider(schemaProvider);
+                schema.setSchemaInfoProvider(schemaInfoProvider);
             }
         }
 

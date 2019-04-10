@@ -29,10 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.testng.annotations.Test;
@@ -59,29 +56,29 @@ public class GenericSchemaImplTest {
 
     @Test
     public void testAutoAvroSchema() {
-        MultiVersionGenericSchemaProvider multiVersionGenericSchemaProvider = mock(MultiVersionGenericSchemaProvider.class);
+        MultiVersionSchemaInfoProvider multiVersionGenericSchemaProvider = mock(MultiVersionSchemaInfoProvider.class);
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         GenericSchema genericSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
-        genericSchema.setSchemaProvider(multiVersionGenericSchemaProvider);
+        genericSchema.setSchemaInfoProvider(multiVersionGenericSchemaProvider);
         decodeSchema.setSchema(genericSchema);
         when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(genericSchema);
+                .thenReturn(genericSchema.getSchemaInfo());
 
         testAUTOEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
     @Test
     public void testAutoJsonSchema() {
-        MultiVersionGenericSchemaProvider multiVersionGenericSchemaProvider = mock(MultiVersionGenericSchemaProvider.class);
+        MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema genericSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
-        genericSchema.setSchemaProvider(multiVersionGenericSchemaProvider);
+        genericSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         decodeSchema.setSchema(genericSchema);
         GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
-        when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(genericAvroSchema);
+        when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
+                .thenReturn(genericAvroSchema.getSchemaInfo());
         testAUTOEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 

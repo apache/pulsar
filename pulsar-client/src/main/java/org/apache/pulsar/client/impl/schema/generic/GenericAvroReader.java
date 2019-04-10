@@ -27,34 +27,23 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class GenericAvroReader<T extends GenericAvroRecord> implements SchemaReader<T> {
+public class GenericAvroReader implements SchemaReader<GenericAvroRecord> {
 
-    private final GenericDatumReader<org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord> reader;
+    private final GenericDatumReader<GenericAvroRecord> reader;
     private BinaryEncoder encoder;
     private final ByteArrayOutputStream byteArrayOutputStream;
     private final List<Field> fields;
     private final Schema schema;
     private final byte[] schemaVersion;
-    public GenericAvroReader(SchemaInfo schemaInfo, byte[] schemaVersion) {
-        this.schema = new org.apache.avro.Schema.Parser().parse(
-                new String(schemaInfo.getSchema(), UTF_8));
-        this.fields = schema.getFields()
-                .stream()
-                .map(f -> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
-        this.schemaVersion = schemaVersion;
-        this.reader = new GenericDatumReader<>(schema);
-        this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+    public GenericAvroReader(Schema schema) {
+        this(null, schema, null);
     }
 
     public GenericAvroReader(Schema writerSchema, Schema readerSchema, byte[] schemaVersion) {
@@ -64,20 +53,24 @@ public class GenericAvroReader<T extends GenericAvroRecord> implements SchemaRea
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
         this.schemaVersion = schemaVersion;
-        this.reader = new GenericDatumReader<>(writerSchema, readerSchema);
+        if (writerSchema == null) {
+            this.reader = new GenericDatumReader<>(readerSchema);
+        } else {
+            this.reader = new GenericDatumReader<>(writerSchema, readerSchema);
+        }
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public GenericAvroRecord read(byte[] bytes) {
         try {
             Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
             org.apache.avro.generic.GenericRecord avroRecord =
                     (org.apache.avro.generic.GenericRecord)reader.read(
                     null,
                     decoder);
-            return (T)new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

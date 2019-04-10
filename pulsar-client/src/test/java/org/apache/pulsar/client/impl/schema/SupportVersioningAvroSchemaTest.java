@@ -20,7 +20,8 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericSchemaProvider;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 
 public class SupportVersioningAvroSchemaTest {
-    private MultiVersionGenericSchemaProvider multiVersionGenericSchemaProvider;
+    private MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider;
     private AvroSchema schema;
     private GenericAvroSchema genericAvroSchema;
     private AvroSchema<SchemaTestUtils.FooV2> avroFooV2Schema;
@@ -37,7 +38,7 @@ public class SupportVersioningAvroSchemaTest {
 
     @BeforeMethod
     public void setup() {
-        this.multiVersionGenericSchemaProvider = mock(MultiVersionGenericSchemaProvider.class);
+        this.multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         avroFooV2Schema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.FooV2>builder()
                 .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.FooV2.class).build());
         this.schema = AvroSchema.of(SchemaDefinition.builder()
@@ -45,14 +46,15 @@ public class SupportVersioningAvroSchemaTest {
                 .withAlwaysAllowNull(false)
                 .withSupportSchemaVersioning(true)
                 .build());
-        schema.setSchemaProvider(multiVersionGenericSchemaProvider);
-        genericAvroSchema = new GenericAvroSchema(avroFooV2Schema.getSchemaInfo());
+        schema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
+        SchemaInfo schemaInfo = avroFooV2Schema.schemaInfo;
+        genericAvroSchema = new GenericAvroSchema(schemaInfo);
     }
 
     @Test
     public void testDecode() {
-        when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(genericAvroSchema);
+        when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
+                .thenReturn(genericAvroSchema.getSchemaInfo());
         SchemaTestUtils.FooV2 fooV2 = new SchemaTestUtils.FooV2();
         fooV2.setField1(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING);
         SchemaTestUtils.Foo foo = (SchemaTestUtils.Foo)schema.decode(avroFooV2Schema.encode(fooV2), new byte[10]);

@@ -31,14 +31,14 @@ import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class GenericJsonReader implements SchemaReader {
+public class GenericJsonReader implements SchemaReader<GenericJsonRecord> {
 
     private final ObjectMapper objectMapper;
     private final byte[] schemaVersion;
     private final List<Field> fields;
     public GenericJsonReader(List<Field> fields){
         this.fields = fields;
-        this.schemaVersion = new byte[10];
+        this.schemaVersion = null;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -48,7 +48,7 @@ public class GenericJsonReader implements SchemaReader {
         this.schemaVersion = schemaVersion;
     }
     @Override
-    public GenericRecord read(byte[] bytes) {
+    public GenericJsonRecord read(byte[] bytes) {
         try {
             JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
             return new GenericJsonRecord(schemaVersion, fields, jn);

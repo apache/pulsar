@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -94,7 +95,7 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
      * @return schema class
      */
     public Map<String, String> getProperties() {
-        return properties;
+        return Collections.unmodifiableMap(properties);
     }
 
 }

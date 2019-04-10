@@ -262,7 +262,7 @@ public class DefaultImplementation {
                         "getSchema", SchemaInfo.class).invoke(null, schemaInfo));
     }
 
-    public static GenericSchema getGenericSchema(SchemaInfo schemaInfo) {
+    public static GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
         return catchExceptions(
             () -> (GenericSchema) getStaticMethod("org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
                 "of", SchemaInfo.class).invoke(null, schemaInfo));

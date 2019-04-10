@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
-
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
