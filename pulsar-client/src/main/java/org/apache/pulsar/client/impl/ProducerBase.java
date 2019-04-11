@@ -29,9 +29,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
@@ -44,20 +41,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
         super(client, topic);
-        if(schema instanceof AutoProduceBytesSchema) {
-            AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
-            try {
-                SchemaInfo schemaInfo = client.getSchemaProviderLoadingCache().get(topic).getLatestSchema();
-                if (schemaInfo != null) {
-                    autoProduceBytesSchema.setSchema(GenericSchemaImpl.of(schemaInfo));
-                } else {
-                    throw new RuntimeException("Can't get schema info from schema info provider for topic: " + topic);
-                }
-            } catch (ExecutionException e) {
-                throw new RuntimeException("Can't get generic schema provider for topic:" + topic);
-            }
-            schema = autoProduceBytesSchema;
-        }
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;
