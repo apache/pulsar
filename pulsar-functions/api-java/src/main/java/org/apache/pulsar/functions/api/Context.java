@@ -258,9 +258,18 @@ public interface Context {
      * @param object                 The object that needs to be published
      * @param schemaOrSerdeClassName Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name
      *                               of the custom schema class
-     * @param partitionKey           The message key to use when publishing to topic
+     * @param messageConf      A map of configurations to set for the message that will be published
+     *                         The available options are:
+     *
+     *                         "key" - Parition Key
+     *                         "properties" - Map of properties
+     *                         "eventTime"
+     *                         "sequenceId"
+     *                         "replicationClusters"
+     *                         "disableReplication"
+     *
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, String partitionKey);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf);
 
 }

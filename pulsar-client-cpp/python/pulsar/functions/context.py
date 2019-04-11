@@ -130,10 +130,32 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, partition_key=None):
-    """Publishes message to topic_name by first serializing the message using serde_class_name serde
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
+    """
+
+    DEPRECATED
+
+    Publishes message to topic_name by first serializing the message using serde_class_name serde
     The message will have properties specified if any
     If input message has a key associated with it, the same key will be set by default for outgoing message """
+    pass
+
+  @abstractmethod
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", compression_type=None, callback=None, message_conf=None):
+    """Publishes message to topic_name by first serializing the message using serde_class_name serde
+    The message will have properties specified if any
+    If input message has a key associated with it, the same key will be set by default for outgoing message
+
+    The available options for message_conf:
+
+      properties,
+      partition_key,
+      sequence_id,
+      replication_clusters,
+      disable_replication,
+      event_timestamp
+
+    """
     pass
 
   @abstractmethod

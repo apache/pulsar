@@ -347,12 +347,12 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, String partitionKey) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), Optional.ofNullable(partitionKey));
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageProperties) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), messageProperties);
     }
 
     @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Optional<String> partitionKey) {
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageProperties) {
         Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
 
         if (producer == null) {
@@ -395,8 +395,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
 
         TypedMessageBuilder<O> messageBuilder = producer.newMessage();
-        if (partitionKey.isPresent()) {
-            messageBuilder.key(partitionKey.get());
+        if (messageBuilder != null) {
+            messageBuilder.loadConf(messageProperties);
         }
         CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         future.exceptionally(e -> {
