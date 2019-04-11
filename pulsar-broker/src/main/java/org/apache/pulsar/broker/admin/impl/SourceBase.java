@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -123,7 +122,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @GET
     @ApiOperation(
             value = "Fetches information about a Pulsar Source currently running in cluster mode",
-            response = FunctionMetaData.class
+            response = SourceConfig.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
