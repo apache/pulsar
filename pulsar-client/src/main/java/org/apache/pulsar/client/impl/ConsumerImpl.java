@@ -175,15 +175,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } catch (ExecutionException e) {
                 throw new RuntimeException("Can't get generic schema provider for topic:" + topic);
             }
-
-            if (schema instanceof AutoConsumeSchema) {
-                AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
-                GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoProvider.getLatestSchema());
-                genericSchema.setSchemaInfoProvider(schemaInfoProvider);
-                autoConsumeSchema.setSchema(genericSchema);
-            }else {
                 schema.setSchemaInfoProvider(schemaInfoProvider);
-            }
         }
 
         if (conf.getReceiverQueueSize() == 0) {
