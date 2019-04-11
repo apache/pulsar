@@ -44,6 +44,13 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     @Override
+    public void validate(byte[] message) {
+        ensureSchemaInitialized();
+
+        schema.validate(message);
+    }
+
+    @Override
     public byte[] encode(byte[] message) {
         ensureSchemaInitialized();
 
@@ -56,13 +63,14 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     @Override
-    public byte[] decode(byte[] bytes) {
+    public byte[] decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
         if (requireSchemaValidation) {
-            // verify if the message can be decoded by the underlying schema
-            schema.decode(bytes);
+            // verify the message can be detected by the underlying schema
+            schema.decode(bytes, schemaVersion);
         }
+
         return bytes;
     }
 
