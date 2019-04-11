@@ -57,6 +57,7 @@ public class InfluxDBSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The username used to authenticate to InfluxDB"
     )
     private String username;
@@ -64,6 +65,7 @@ public class InfluxDBSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The password used to authenticate to InfluxDB"
     )
     private String password;
