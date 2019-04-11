@@ -179,9 +179,12 @@ class ContextImpl(pulsar.Context):
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
 
-    self.publish_producers[topic_name].send_async(
-      output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()),
-      **message_conf)
+    if message_conf:
+      self.publish_producers[topic_name].send_async(
+        output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()), **message_conf)
+    else:
+      self.publish_producers[topic_name].send_async(
+        output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()))
 
   def ack(self, msgid, topic):
     topic_consumer = None
