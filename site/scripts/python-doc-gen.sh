@@ -26,6 +26,8 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 # so that Pdoc can import the module
 find $ROOT_DIR -name CMakeCache.txt | xargs rm -f
 find $ROOT_DIR -name CMakeFiles | xargs rm -rf
+find $ROOT_DIR -name PulsarApi.pb.h | xargs rm -rf
+find $ROOT_DIR -name PulsarApi.pb.cc | xargs rm -rf
 cd $ROOT_DIR/pulsar-client-cpp
 cmake . 
 make -j8 _pulsar

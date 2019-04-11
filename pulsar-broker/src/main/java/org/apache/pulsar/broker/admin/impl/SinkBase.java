@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -124,7 +123,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches information about a Pulsar Sink currently running in cluster mode",
-            response = FunctionMetaData.class
+            response = SinkConfig.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
