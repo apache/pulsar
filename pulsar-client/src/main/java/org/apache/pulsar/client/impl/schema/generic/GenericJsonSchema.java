@@ -35,6 +35,8 @@ class GenericJsonSchema extends GenericSchemaImpl<GenericJsonRecord> {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
+        setWriter(new GenericJsonWriter());
+        setReader(new GenericJsonReader(fields));
     }
 
     @Override
@@ -49,16 +51,6 @@ class GenericJsonSchema extends GenericSchemaImpl<GenericJsonRecord> {
         } else {
             return reader;
         }
-    }
-
-    @Override
-    protected SchemaWriter<GenericJsonRecord> initWriter() {
-        return new GenericJsonWriter();
-    }
-
-    @Override
-    protected SchemaReader<GenericJsonRecord> initReader() {
-        return new GenericJsonReader(fields);
     }
 
     @Override

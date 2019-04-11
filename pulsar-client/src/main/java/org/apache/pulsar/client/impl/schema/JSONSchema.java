@@ -54,21 +54,13 @@ public class JSONSchema<T> extends StructSchema<T> {
     private JSONSchema(SchemaInfo schemaInfo, Class<T> pojo) {
         super(schemaInfo);
         this.pojo = pojo;
+        setWriter(new JsonWriter<>(JSON_MAPPER.get()));
+        setReader(new JsonReader<>(JSON_MAPPER.get(), pojo));
     }
 
     @Override
     protected SchemaReader<T> loadReader(byte[] schemaVersion) {
         throw new RuntimeException("JSONSchema don't support schema versioning");
-    }
-
-    @Override
-    protected SchemaWriter<T> initWriter() {
-        return new JsonWriter<>(JSON_MAPPER.get());
-    }
-
-    @Override
-    protected SchemaReader<T> initReader() {
-        return new JsonReader<>(JSON_MAPPER.get(), pojo);
     }
 
     /**

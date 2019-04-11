@@ -56,8 +56,8 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     public final org.apache.avro.Schema schema;
     protected final SchemaInfo schemaInfo;
-    protected final SchemaReader<T> reader;
-    protected final SchemaWriter<T> writer;
+    protected SchemaReader<T> reader;
+    protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
     private final LoadingCache<byte[], SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaReader<T>>() {
@@ -70,8 +70,6 @@ public abstract class StructSchema<T> implements Schema<T> {
     protected StructSchema(SchemaInfo schemaInfo) {
         this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
         this.schemaInfo = schemaInfo;
-        this.writer = initWriter();
-        this.reader = initReader();
     }
 
     public org.apache.avro.Schema getAvroSchema() {
@@ -133,9 +131,13 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     protected abstract SchemaReader<T> loadReader(byte[] schemaVersion);
 
-    protected abstract SchemaWriter<T> initWriter();
+    protected void setWriter(SchemaWriter<T> writer) {
+        this.writer = writer;
+    }
 
-    protected abstract SchemaReader<T> initReader();
+    protected void setReader(SchemaReader<T> reader) {
+        this.reader = reader;
+    }
 
     protected SchemaReader<T> getReader() {
         return  reader;

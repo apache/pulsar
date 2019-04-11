@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -30,6 +29,8 @@ public class GenericAvroSchema extends GenericSchemaImpl<GenericAvroRecord> {
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
+        setReader(new GenericAvroReader(schema));
+        setWriter(new GenericAvroWriter(schema));
     }
 
     @Override
@@ -51,13 +52,4 @@ public class GenericAvroSchema extends GenericSchemaImpl<GenericAvroRecord> {
          }
     }
 
-    @Override
-    protected SchemaWriter<GenericAvroRecord> initWriter() {
-        return new GenericAvroWriter(schema);
-    }
-
-    @Override
-    protected SchemaReader<GenericAvroRecord> initReader() {
-        return new GenericAvroReader(schema);
-    }
 }

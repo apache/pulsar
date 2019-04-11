@@ -66,7 +66,8 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
 
     private ProtobufSchema(SchemaInfo schemaInfo, T protoMessageInstance) {
         super(schemaInfo);
-        ((ProtobufReader<T>)getReader()).settParser(protoMessageInstance);
+        setReader(new ProtobufReader<>(protoMessageInstance));
+        setWriter(new ProtobufWriter<>());
         // update properties with protobuf related properties
         Map<String, String> allProperties = new HashMap<>();
         allProperties.putAll(schemaInfo.getProperties());
@@ -96,16 +97,6 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     @Override
     protected SchemaReader<T> loadReader(byte[] schemaVersion) {
         throw new RuntimeException("ProtobufSchema don't support schema versioning");    }
-
-    @Override
-    protected SchemaWriter<T> initWriter() {
-        return new ProtobufWriter<>();
-    }
-
-    @Override
-    protected SchemaReader<T> initReader() {
-        return new ProtobufReader<>();
-    }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());

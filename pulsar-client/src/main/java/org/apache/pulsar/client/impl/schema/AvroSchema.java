@@ -24,7 +24,6 @@ import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -70,6 +69,8 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
+        setReader(new AvroReader<>(schema));
+        setWriter(new AvroWriter<>(schema));
     }
 
     @Override
@@ -100,14 +101,5 @@ public class AvroSchema<T> extends StructSchema<T> {
         }
     }
 
-    @Override
-    protected SchemaWriter<T> initWriter() {
-        return new AvroWriter<>(schema);
-    }
-
-    @Override
-    protected SchemaReader<T> initReader() {
-        return new AvroReader<>(schema);
-    }
 
 }
