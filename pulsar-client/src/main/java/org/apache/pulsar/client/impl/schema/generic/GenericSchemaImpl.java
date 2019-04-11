@@ -63,7 +63,7 @@ public abstract class GenericSchemaImpl<T extends GenericRecord> extends StructS
                 return new GenericJsonSchema(schemaInfo);
             default:
                 throw new UnsupportedOperationException("Generic schema is not supported on schema type "
-                        + schemaInfo.getType() + "'");
+                    + schemaInfo.getType() + "'");
         }
     }
 }

@@ -25,6 +25,5 @@ public class ProtobufWriter<T extends com.google.protobuf.GeneratedMessageV3> im
     @Override
     public byte[] write(T pojo) {
         return pojo.toByteArray();
-
     }
 }

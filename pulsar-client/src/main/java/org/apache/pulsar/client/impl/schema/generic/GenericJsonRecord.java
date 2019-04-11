@@ -50,9 +50,9 @@ class GenericJsonRecord extends VersionedGenericRecord {
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
             List<Field> fields = Lists.newArrayList(fn.fieldNames())
-                    .stream()
-                    .map(f -> new Field(f, idx.getAndIncrement()))
-                    .collect(Collectors.toList());
+                .stream()
+                .map(f -> new Field(f, idx.getAndIncrement()))
+                .collect(Collectors.toList());
             return new GenericJsonRecord(schemaVersion, fields, fn);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();

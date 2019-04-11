@@ -122,6 +122,7 @@ public abstract class StructSchema<T> implements Schema<T> {
         return SchemaInfo.builder()
                 .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
                 .properties(schemaDefinition.getProperties())
+                .name("")
                 .type(schemaType).build();
     }
 
