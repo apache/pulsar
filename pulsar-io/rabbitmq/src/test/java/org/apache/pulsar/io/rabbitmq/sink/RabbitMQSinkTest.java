@@ -26,6 +26,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -68,23 +69,23 @@ public class RabbitMQSinkTest {
         sink.open(configs, null);
 
         // write should success
-        Record<String> record = build("test-topic", "fakeKey", "fakeValue");
+        Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue");
         sink.write(record);
 
         sink.close();
     }
 
-    private Record<String> build(String topic, String key, String value) {
+    private Record<byte[]> build(String topic, String key, String value) {
         // prepare a SinkRecord
-        SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
+        SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
             @Override
             public Optional<String> getKey() {
                 return Optional.empty();
             }
 
             @Override
-            public String getValue() {
-                return key;
+            public byte[] getValue() {
+                return value.getBytes(StandardCharsets.UTF_8);
             }
 
             @Override
@@ -95,7 +96,7 @@ public class RabbitMQSinkTest {
                     return Optional.empty();
                 }
             }
-        }, value);
+        }, value.getBytes(StandardCharsets.UTF_8));
         return record;
     }
 }

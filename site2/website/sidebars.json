@@ -53,7 +53,7 @@
       "administration-geo",
       "administration-dashboard",
       "administration-stats",
-      "administration-load-distribution",
+      "administration-load-balance",
       "administration-proxy"
     ],
     "Security": [
