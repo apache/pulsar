@@ -22,7 +22,7 @@ Geo-replication must be enabled on a per-tenant basis in Pulsar. Geo-replication
 
 Although geo-replication must be enabled between two clusters, it's actually managed at the namespace level. You must complete the following tasks to enable geo-replication for a namespace:
 
-* [Create geo-replication namespaces](#creating-geo-replication-namespaces)
+* [Enable geo-replication namespaces](#enabling-geo-replication-namespaces)
 * Configure that namespace to replicate across two or more provisioned clusters
 
 Any message published on *any* topic in that namespace will be replicated to all clusters in the specified set.
@@ -53,14 +53,14 @@ To replicate to a cluster, the tenant needs permission to use that cluster. You 
 Specify all the intended clusters when creating a tenant:
 
 ```shell
-$ bin/pulsar-admin properties create my-tenant \
+$ bin/pulsar-admin tenants create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east,us-cent
 ```
 
 To update permissions of an existing tenant, use `update` instead of `create`.
 
-### Creating geo-replication namespaces
+### Enabling geo-replication namespaces
 
 You can create a namespace with the following command sample.
 
@@ -77,7 +77,7 @@ $ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
 
 The replication clusters for a namespace can be changed at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
 
-### Using geo-replication topics
+### Using topics with geo-replication
 
 Once you've created a geo-replication namespace, any topics that producers or consumers create within that namespace will be replicated across clusters. Typically, each application will use the `serviceUrl` for the local cluster.
 
