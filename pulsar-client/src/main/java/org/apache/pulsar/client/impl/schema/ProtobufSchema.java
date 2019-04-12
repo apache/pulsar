@@ -119,6 +119,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
             SchemaInfo schemaInfo = SchemaInfo.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
                     .type(SchemaType.PROTOBUF)
+                    .name("")
                     .properties(schemaDefinition.getProperties())
                     .build();
         return new ProtobufSchema(schemaInfo,
