@@ -126,7 +126,8 @@ class BKManagedStateContext(StateContext):
             ns.create(
                 stream_name=table_name,
                 stream_config=table_conf)
-        self.__client__ = kv.Client(namespace=table_ns)
+        self.__client__ = kv.Client(storage_client_settings=client_settings,
+                                    namespace=table_ns)
         self.__table__ = self.__client__.table(table_name=table_name)
 
     def incr(self, key, amount):
