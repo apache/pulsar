@@ -377,7 +377,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -417,6 +417,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         service.metadata(objectMeta);
 
         // create the stateful set spec
@@ -454,7 +455,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -507,7 +508,7 @@ public class KubernetesRuntime implements Runtime {
                                 statefulSetName,
                                 jobNamespace, options, null,
                                 null, null, null,
-                                null, null)
+                                null, null, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -658,7 +659,7 @@ public class KubernetesRuntime implements Runtime {
                                 serviceName,
                                 jobNamespace, options, null,
                                 null, null,
-                                null, null, null).execute();
+                                null, null, null, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -798,6 +799,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec
