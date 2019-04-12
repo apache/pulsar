@@ -62,11 +62,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -164,9 +160,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                                    ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                                    SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-                                    long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+                                               ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+                                               SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+                                               long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
                     subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
@@ -177,9 +173,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                 ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-                 long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+                           ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+                           SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+                           long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
@@ -224,22 +220,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-        		        new BackoffBuilder()
-                           .setInitialTime(100, TimeUnit.MILLISECONDS)
-                           .setMax(60, TimeUnit.SECONDS)
-                           .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                           .useUserConfiguredIntervals(backoffIntervalNanos,
-        	                                           maxBackoffIntervalNanos)
-        	               .create(),
-                        this);
+                new BackoffBuilder()
+                        .setInitialTime(100, TimeUnit.MILLISECONDS)
+                        .setMax(60, TimeUnit.SECONDS)
+                        .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                        .useUserConfiguredIntervals(backoffIntervalNanos,
+                                maxBackoffIntervalNanos)
+                        .create(),
+                this);
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {
             this.acknowledgmentsGroupingTracker =
-                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+                    new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
         } else {
             this.acknowledgmentsGroupingTracker =
-                NonPersistentAcknowledgmentGroupingTracker.of();
+                    NonPersistentAcknowledgmentGroupingTracker.of();
         }
 
         if (conf.getDeadLetterPolicy() != null) {
@@ -401,7 +397,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return true;
         } else {
             if (AckType.Cumulative == ackType
-                && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
+                    && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
                 sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
             } else {
@@ -805,8 +801,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
-                                                             msgMetadata, uncompressedPayload,
-                                                             createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+                    msgMetadata, uncompressedPayload,
+                    createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -925,7 +921,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, ByteBuf uncompressedPayload,
-            MessageIdData messageId, ClientCnx cnx) {
+                                            MessageIdData messageId, ClientCnx cnx) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
@@ -1087,7 +1083,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx) {
+                                           ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return payload.retain();
@@ -1110,7 +1106,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
                     log.error(
                             "[{}][{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not implemented to consume encrypted message",
-                             topic, subscription, consumerName, m);
+                            topic, subscription, consumerName, m);
                     unAckedMessageTracker.add(m);
                     return null;
             }
@@ -1136,7 +1132,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
                 log.error(
                         "[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message",
-                         topic, subscription, consumerName, m);
+                        topic, subscription, consumerName, m);
                 unAckedMessageTracker.add(m);
                 return null;
         }
@@ -1144,7 +1140,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx) {
+                                              ClientCnx currentCnx) {
         CompressionType compressionType = msgMetadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
@@ -1186,7 +1182,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void discardCorruptedMessage(MessageIdData messageId, ClientCnx currentCnx,
-            ValidationError validationError) {
+                                         ValidationError validationError) {
         log.error("[{}][{}] Discarding corrupted message at {}:{}", topic, subscription, messageId.getLedgerId(),
                 messageId.getEntryId());
         discardMessage(messageId, currentCnx, validationError);
@@ -1194,7 +1190,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), AckType.Individual,
-                                      validationError, Collections.emptyMap());
+                validationError, Collections.emptyMap());
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
         increaseAvailablePermits(currentCnx);
         stats.incrementNumReceiveFailed();
@@ -1269,9 +1265,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
             int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
             Iterable<List<MessageIdImpl>> batches = Iterables.partition(
-                messageIds.stream()
-                    .map(messageId -> (MessageIdImpl)messageId)
-                    .collect(Collectors.toSet()), MAX_REDELIVER_UNACKNOWLEDGED);
+                    messageIds.stream()
+                            .map(messageId -> (MessageIdImpl)messageId)
+                            .collect(Collectors.toSet()), MAX_REDELIVER_UNACKNOWLEDGED);
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
@@ -1462,14 +1458,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // Make sure batching message can be read completely.
             return lastMessageIdInBroker.compareTo(lastDequeuedMessage) == 0
-                && incomingMessages.size() > 0;
+                    && incomingMessages.size() > 0;
         }
     }
 
     CompletableFuture<MessageId> getLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
-                .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
         }
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
@@ -1478,7 +1474,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                 .useUserConfiguredIntervals(backoffIntervalNanos,
-                                            maxBackoffIntervalNanos)
+                        maxBackoffIntervalNanos)
                 .create();
 
         CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
@@ -1494,8 +1490,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isConnected() && cnx != null) {
             if (!Commands.peerSupportsGetLastMessageId(cnx.getRemoteEndpointProtocolVersion())) {
                 future.completeExceptionally(new PulsarClientException
-                    .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
-                    cnx.getRemoteEndpointProtocolVersion()));
+                        .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
+                        cnx.getRemoteEndpointProtocolVersion()));
             }
 
             long requestId = client.newRequestId();
@@ -1504,9 +1500,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
                 log.info("[{}][{}] Successfully getLastMessageId {}:{}",
-                    topic, subscription, result.getLedgerId(), result.getEntryId());
+                        topic, subscription, result.getLedgerId(), result.getEntryId());
                 future.complete(new MessageIdImpl(result.getLedgerId(),
-                    result.getEntryId(), result.getPartition()));
+                        result.getEntryId(), result.getPartition()));
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
                 future.completeExceptionally(e.getCause());
@@ -1516,13 +1512,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
                 future.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getLastMessageId within configured timeout."));
+                        .TimeoutException("Could not getLastMessageId within configured timeout."));
                 return;
             }
 
             ((ScheduledExecutorService) listenerExecutor).schedule(() -> {
                 log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                    topic, getHandlerName(), nextDelay);
+                        topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);
@@ -1561,7 +1557,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     e -> new EncryptionKey(e.getValue().toByteArray(),
                                             e.getMetadataList() != null
                                                     ? e.getMetadataList().stream().collect(
-                                                            Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
+                                                    Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
                                                     : null)));
             byte[] encParam = new byte[MessageCrypto.ivLen];
             msgMetadata.getEncryptionParam().copyTo(encParam, 0);
