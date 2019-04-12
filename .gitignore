@@ -60,10 +60,8 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 **/.vagrant
 
 
-pulsar-client-cpp/python/pkg/osx/**/*.bak
-pulsar-client-cpp/python/pkg/osx/**/build.sh
-pulsar-client-cpp/python/pkg/osx/**/*.whl
-pulsar-client-cpp/python/pkg/osx/**/*.template2
+pulsar-client-cpp/python/pkg/osx/*/*.bak
+pulsar-client-cpp/python/pkg/osx/*/*.whl
 pulsar-client-cpp/python/wheelhouse
 
 # CI generated files
