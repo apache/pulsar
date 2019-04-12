@@ -222,8 +222,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler = new ConnectionHandler(this,
                 new BackoffBuilder()
                         .setInitialTime(100, TimeUnit.MILLISECONDS)
-                        .setMax(60, TimeUnit.SECONDS)
-                        .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(60, TimeUnit.SECONDS)
+                        .setMax(0, TimeUnit.MILLISECONDS)
                         .useUserConfiguredIntervals(backoffIntervalNanos,
                                 maxBackoffIntervalNanos)
                         .create(),
@@ -1471,8 +1471,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(0, TimeUnit.MILLISECONDS)
                 .useUserConfiguredIntervals(backoffIntervalNanos,
                         maxBackoffIntervalNanos)
                 .create();
