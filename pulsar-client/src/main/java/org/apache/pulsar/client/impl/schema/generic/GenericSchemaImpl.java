@@ -52,7 +52,6 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
      *
      * @param schemaInfo schema info
-     *        decodeType decode type
      * @return a generic schema instance
      */
     public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
@@ -66,4 +65,5 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
                     + schemaInfo.getType() + "'");
         }
     }
+
 }

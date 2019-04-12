@@ -43,7 +43,6 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     private final TopicName topicName;
     private final PulsarClientImpl pulsarClient;
 
-
     private final LoadingCache<byte[], SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaInfo>() {
                 @Override

@@ -34,7 +34,6 @@ public class AvroReader<T> implements SchemaReader<T> {
             new ThreadLocal<>();
 
     public AvroReader(Schema schema) {
-
         this.reader = new ReflectDatumReader<>(schema);
     }
 
