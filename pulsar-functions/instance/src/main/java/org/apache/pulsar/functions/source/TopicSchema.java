@@ -97,40 +97,40 @@ public class TopicSchema {
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
         if (byte[].class.equals(clazz)) {
-            return BytesSchema.SCHEMA_INFO.getType();
+            return BytesSchema.of().getSchemaInfo().getType();
         } else if (ByteBuf.class.equals(clazz)) {
-            return ByteBufSchema.SCHEMA_INFO.getType();
+            return ByteBufSchema.of().getSchemaInfo().getType();
         } else if (ByteBuffer.class.equals(clazz)) {
-            return ByteBufferSchema.SCHEMA_INFO.getType();
+            return ByteBufferSchema.of().getSchemaInfo().getType();
         } else if (Byte.class.equals(clazz)) {
-            return ByteSchema.SCHEMA_INFO.getType();
+            return ByteSchema.of().getSchemaInfo().getType();
         } else if (GenericRecord.class.isAssignableFrom(clazz)) {
             // the function is taking generic record, so we do auto schema detection
             return SchemaType.AUTO_CONSUME;
         } else if (String.class.equals(clazz)) {
-            return StringSchema.SCHEMA_INFO.getType();
+            return SchemaType.STRING;
         } else if (isProtobufClass(clazz)) {
             return SchemaType.PROTOBUF;
         } else if (KeyValue.class.equals(clazz)) {
             return SchemaType.KEY_VALUE;
         } else if (Date.class.equals(clazz)) {
-            return DateSchema.SCHEMA_INFO.getType();
+            return SchemaType.DATE;
         } else if (Double.class.equals(clazz)) {
-            return DoubleSchema.SCHEMA_INFO.getType();
+            return SchemaType.DOUBLE;
         } else if (Float.class.equals(clazz)) {
-            return FloatSchema.SCHEMA_INFO.getType();
+            return SchemaType.FLOAT;
         } else if (Integer.class.equals(clazz)) {
-            return IntSchema.SCHEMA_INFO.getType();
+            return SchemaType.INT32;
         } else if (Long.class.equals(clazz)) {
-            return LongSchema.SCHEMA_INFO.getType();
+            return SchemaType.INT64;
         } else if (Short.class.equals(clazz)) {
-            return ShortSchema.SCHEMA_INFO.getType();
+            return SchemaType.INT16;
         } else if (Boolean.class.equals(clazz)) {
-            return BooleanSchema.SCHEMA_INFO.getType();
+            return SchemaType.BOOLEAN;
         } else if (Time.class.equals(clazz)) {
-            return TimeSchema.SCHEMA_INFO.getType();
+            return SchemaType.TIME;
         } else if (Timestamp.class.equals(clazz)) {
-            return TimestampSchema.SCHEMA_INFO.getType();
+            return SchemaType.TIMESTAMP;
         } else {
             return DEFAULT_SCHEMA_TYPE;
         }
