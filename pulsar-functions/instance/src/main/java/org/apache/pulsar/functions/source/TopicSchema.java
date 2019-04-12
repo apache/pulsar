@@ -81,6 +81,11 @@ public class TopicSchema {
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericRecord.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
+        } else if (byte[].class.equals(clazz)
+                || ByteBuf.class.equals(clazz)
+                || ByteBuffer.class.equals(clazz)) {
+            // if function explicitly wants to use bytes, we should just resort to bytes
+            return SchemaType.BYTES;
         } else {
             Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
             if (schema.isPresent()) {
