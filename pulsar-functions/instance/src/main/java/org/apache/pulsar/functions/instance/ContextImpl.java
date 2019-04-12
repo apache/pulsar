@@ -259,12 +259,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return null;
         }
     }
-
-    @Override
-    public Optional<String> getPartitionKey() {
-        return record.getKey();
-    }
-
+    
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
     }
