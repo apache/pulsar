@@ -41,8 +41,8 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
 
         Map<String, Object> messageConf = new HashMap<>();
         messageConf.put("properties", properties);
-        if (context.getPartitionKey().isPresent()) {
-            messageConf.put("key", context.getPartitionKey().get());
+        if (context.getCurrentRecord().getKey().isPresent()) {
+            messageConf.put("key", context.getCurrentRecord().getKey().get());
         }
         messageConf.put("eventTime", System.currentTimeMillis());
         context.publish(publishTopic, output, null, messageConf);
