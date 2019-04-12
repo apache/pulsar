@@ -73,7 +73,7 @@ Splits: 19 total, 19 done (100.00%)
 Currently, there is no data in Pulsar that we can query.  Lets start the built-in connector _DataGeneratorSource_ to ingest some mock data for us to query:
 
 ```bash
-./bin/pulsar-admin source create --tenant test-tenant --namespace test-namespace --name generator --destinationTopicName generator_test --source-type data-generator
+./bin/pulsar-admin source create --tenant public --namespace default --name generator --destinationTopicName generator_test --source-type data-generator
 ```
 
 Afterwards, the will be a topic with can query in the namespace "public/default":
