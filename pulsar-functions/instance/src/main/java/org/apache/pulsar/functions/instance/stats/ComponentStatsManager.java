@@ -143,7 +143,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();
 
-        TextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
+        PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
 
         return outputWriter.toString();
     }
