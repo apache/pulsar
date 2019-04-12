@@ -41,7 +41,7 @@ func TestReaderConnectError(t *testing.T) {
 	reader, err := client.CreateReader(ReaderOptions{
 		Topic:          "my-topic",
 		StartMessageID: EarliestMessage,
-	})
+	}, nil)
 
 	// Expect error in creating reader
 	assert.Nil(t, reader)
@@ -62,7 +62,7 @@ func TestReader(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -70,12 +70,12 @@ func TestReader(t *testing.T) {
 	reader, err := client.CreateReader(ReaderOptions{
 		Topic:          topic,
 		StartMessageID: LatestMessage,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer reader.Close()
 
-	assert.Equal(t, reader.Topic(), "persistent://public/default/" + topic )
+	assert.Equal(t, reader.Topic(), "persistent://public/default/"+topic)
 
 	ctx := context.Background()
 
@@ -116,7 +116,7 @@ func TestReaderWithInvalidConf(t *testing.T) {
 
 	reader, err := client.CreateReader(ReaderOptions{
 		Topic: "my-topic",
-	})
+	}, nil)
 
 	// Expect error in creating cosnumer
 	assert.Nil(t, reader)
@@ -126,7 +126,7 @@ func TestReaderWithInvalidConf(t *testing.T) {
 
 	reader, err = client.CreateReader(ReaderOptions{
 		StartMessageID: LatestMessage,
-	})
+	}, nil)
 
 	// Expect error in creating cosnumer
 	assert.Nil(t, reader)
@@ -147,7 +147,7 @@ func TestReaderCompaction(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -184,7 +184,7 @@ func TestReaderCompaction(t *testing.T) {
 	reader1, err := client.CreateReader(ReaderOptions{
 		Topic:          topic,
 		StartMessageID: EarliestMessage,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer reader1.Close()
@@ -193,7 +193,7 @@ func TestReaderCompaction(t *testing.T) {
 		Topic:          topic,
 		StartMessageID: EarliestMessage,
 		ReadCompacted:  true,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer reader2.Close()
@@ -234,7 +234,7 @@ func TestReaderHasNext(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	})
+	}, nil)
 	assert.Nil(t, err)
 	defer producer.Close()
 
@@ -245,7 +245,7 @@ func TestReaderHasNext(t *testing.T) {
 	reader, err := client.CreateReader(ReaderOptions{
 		Topic:          topic,
 		StartMessageID: EarliestMessage,
-	})
+	}, nil)
 	assert.Nil(t, err)
 	defer reader.Close()
 

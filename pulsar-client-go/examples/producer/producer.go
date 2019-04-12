@@ -41,7 +41,7 @@ func main() {
 
 	producer, err := client.CreateProducer(pulsar.ProducerOptions{
 		Topic: "my-topic",
-	})
+	}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

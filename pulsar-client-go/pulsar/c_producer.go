@@ -25,6 +25,7 @@ package pulsar
 import "C"
 import (
 	"context"
+	"errors"
 	"runtime"
 	"time"
 	"unsafe"
@@ -32,6 +33,7 @@ import (
 
 type createProducerCtx struct {
 	client   *client
+	schema   Schema
 	callback func(producer Producer, err error)
 	conf     *C.pulsar_producer_configuration_t
 }
@@ -45,13 +47,13 @@ func pulsarCreateProducerCallbackProxy(res C.pulsar_result, ptr *C.pulsar_produc
 	if res != C.pulsar_result_Ok {
 		producerCtx.callback(nil, newError(res, "Failed to create Producer"))
 	} else {
-		p := &producer{client: producerCtx.client, ptr: ptr}
+		p := &producer{client: producerCtx.client, schema: producerCtx.schema, ptr: ptr}
 		runtime.SetFinalizer(p, producerFinalizer)
 		producerCtx.callback(p, nil)
 	}
 }
 
-func createProducerAsync(client *client, options ProducerOptions, callback func(producer Producer, err error)) {
+func createProducerAsync(client *client, schema Schema, options ProducerOptions, callback func(producer Producer, err error)) {
 	if options.Topic == "" {
 		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required when creating producer"))
 		return
@@ -108,12 +110,22 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 		C.pulsar_producer_configuration_set_compression_type(conf, C.pulsar_compression_type(options.CompressionType))
 	}
 
-	if options.SchemaInfo.Type != NONE {
-		C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(options.SchemaInfo.Type),
-			C.CString(options.Name), C.CString(options.Schema))
-	} else {
-		C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
-			C.CString("BYTES"), C.CString(""))
+	if schema != nil {
+		if schema.GetSchemaInfo().Type != NONE {
+			cName := C.CString(schema.GetSchemaInfo().Name)
+			cSchema := C.CString(schema.GetSchemaInfo().Schema)
+			defer C.free(unsafe.Pointer(cName))
+			defer C.free(unsafe.Pointer(cSchema))
+			C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
+				cName, cSchema)
+		} else {
+			cName := C.CString("BYTES")
+			cSchema := C.CString("")
+			defer C.free(unsafe.Pointer(cName))
+			defer C.free(unsafe.Pointer(cSchema))
+			C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
+				cName, cSchema)
+		}
 	}
 
 	if options.MessageRouter != nil {
@@ -149,7 +161,7 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	defer C.free(unsafe.Pointer(topicName))
 
 	C._pulsar_client_create_producer_async(client.ptr, topicName, conf,
-		savePointer(createProducerCtx{client, callback, conf}))
+		savePointer(createProducerCtx{client, schema, callback, conf}))
 }
 
 type topicMetadata struct {
@@ -163,7 +175,7 @@ func (tm *topicMetadata) NumPartitions() int {
 //export pulsarRouterCallbackProxy
 func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic_metadata_t, ctx unsafe.Pointer) C.int {
 	router := restorePointerNoDelete(ctx).(*func(msg Message, metadata TopicMetadata) int)
-	partitionIdx := (*router)(&message{msg}, &topicMetadata{int(C.pulsar_topic_metadata_get_num_partitions(metadata))})
+	partitionIdx := (*router)(&message{ptr: msg}, &topicMetadata{int(C.pulsar_topic_metadata_get_num_partitions(metadata))})
 	return C.int(partitionIdx)
 }
 
@@ -172,6 +184,7 @@ func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic
 type producer struct {
 	client *client
 	ptr    *C.pulsar_producer_t
+	schema Schema
 }
 
 func producerFinalizer(p *producer) {
@@ -184,6 +197,10 @@ func (p *producer) Topic() string {
 
 func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
+}
+
+func (p *producer) Schema() Schema {
+	return p.schema
 }
 
 func (p *producer) LastSequenceID() int64 {
@@ -220,10 +237,22 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_mess
 }
 
 func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback func(ProducerMessage, error)) {
+	if p.schema != nil {
+		if msg.Value == nil {
+			callback(msg, errors.New("message value is nil, please check"))
+			return
+		}
+		payLoad, err := p.schema.Serialize(msg.Value)
+		if err != nil {
+			callback(msg, errors.New("serialize message value error, please check"))
+			return
+		}
+		msg.Payload = payLoad
+	}
 	cMsg := buildMessage(msg)
 	defer C.pulsar_message_free(cMsg)
 
-	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(sendCallback{msg, callback}))
+	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(sendCallback{message: msg, callback: callback}))
 }
 
 func (p *producer) Close() error {

@@ -37,7 +37,7 @@ func main() {
 	reader, err := client.CreateReader(pulsar.ReaderOptions{
 		Topic:          "my-topic",
 		StartMessageID: pulsar.EarliestMessage,
-	})
+	}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

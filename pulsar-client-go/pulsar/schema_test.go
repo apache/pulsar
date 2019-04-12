@@ -21,6 +21,7 @@ package pulsar
 
 import (
 	"context"
+
 	"testing"
 
 	log "github.com/apache/pulsar/pulsar-client-go/logutil"
@@ -28,63 +29,66 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type testSchema struct {
+type testJson struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-func TestJsonSchema(t *testing.T) {
+type testAvro struct {
+	ID   int
+	Name string
+}
+
+var (
+	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+	protoSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+		"\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"msf\",\"type\":\"string\"}]}"
+)
+
+func createClient() Client {
 	// create client
 	lookupUrl := "pulsar://localhost:6650"
 	client, err := NewClient(ClientOptions{
 		URL: lookupUrl,
 	})
-	assert.Nil(t, err)
-	defer client.Close()
-
-	// create producer
-	js := new(JsonSchema)
-	schema, err := js.Serialize(testSchema{
-		ID:   100,
-		Name: "pulsar",
-	})
-	str := string(schema)
-	schemaJsonInfo := NewSchemaInfo("jsonTopic", str, JSON)
-	js.SchemaInfo = *schemaJsonInfo
-
-	if !js.Validate() {
-		panic("validate schema type error.")
-	}
-	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "jsonTopic",
-		SchemaInfo: *schemaJsonInfo,
-	})
-	assert.Nil(t, err)
-	ctx := context.Background()
-	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
-	}); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
+	return client
+}
+
+func TestJsonSchema(t *testing.T) {
+	client := createClient()
+	defer client.Close()
+
+	jsonSchema := NewJsonSchema(exampleSchemaDef)
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: "jsonTopic",
+	}, jsonSchema)
+	err = producer.Send(context.Background(), ProducerMessage{
+		Value: &testJson{
+			ID:   100,
+			Name: "pulsar",
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer producer.Close()
 
 	//create consumer
-	var s testSchema
+	var s testJson
 
-	schemaInfo := NewSchemaInfo("jsonTopic", "", JSON)
-	js.SchemaInfo = *schemaInfo
-	if !js.Validate() {
-		panic("validate json schema type error")
-	}
+	consumerJS := NewJsonSchema(exampleSchemaDef)
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "jsonTopic",
 		SubscriptionName: "sub-2",
-		Schema:           *schemaInfo,
-	})
+	}, consumerJS)
 	assert.Nil(t, err)
-
-	msg, err := consumer.Receive(ctx)
+	msg, err := consumer.Receive(context.Background())
 	assert.Nil(t, err)
-	err = js.UnSerialize(msg.Payload(), &s)
+	err = msg.GetValue(&s)
 	assert.Nil(t, err)
 	assert.Equal(t, s.ID, 100)
 	assert.Equal(t, s.Name, "pulsar")
@@ -93,410 +97,324 @@ func TestJsonSchema(t *testing.T) {
 }
 
 func TestProtoSchema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
 	// create producer
-	ps := new(ProtoSchema)
-	obj := &pb.Test{Num: 100, Msf: "pulsar"}
-	data, err := ps.Serialize(obj)
-	assert.Nil(t, err)
-
-	str := string(data)
-	schemaJsonInfo := NewSchemaInfo("proto", str, PROTOBUF)
-	ps.SchemaInfo = *schemaJsonInfo
-
-	if !ps.Validate() {
-		panic("validate schema type error.")
-	}
+	psProducer := NewProtoSchema(protoSchemaDef)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "proto",
-		SchemaInfo: *schemaJsonInfo,
-	})
-	ctx := context.Background()
-	if err := producer.Send(ctx, ProducerMessage{
-		Payload: data,
+		Topic: "proto",
+	}, psProducer)
+	if err := producer.Send(context.Background(), ProducerMessage{
+		Value: &pb.Test{
+			Num: 100,
+			Msf: "pulsar",
+		},
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	//create consumer
-	unobj := &pb.Test{}
-
-	schemaInfo := NewSchemaInfo("proto", "", PROTOBUF)
-	ps.SchemaInfo = *schemaInfo
-	if !ps.Validate() {
-		panic("validate json schema type error")
-	}
+	unobj := pb.Test{}
+	psConsumer := NewProtoSchema(protoSchemaDef)
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "proto",
 		SubscriptionName: "sub-1",
-		Schema:           *schemaInfo,
-	})
+	}, psConsumer)
 	assert.Nil(t, err)
 
-	msg, err := consumer.Receive(ctx)
+	msg, err := consumer.Receive(context.Background())
 	assert.Nil(t, err)
-	err = ps.UnSerialize(msg.Payload(), unobj)
+	err = msg.GetValue(&unobj)
 	assert.Nil(t, err)
 	assert.Equal(t, unobj.Num, int32(100))
 	assert.Equal(t, unobj.Msf, "pulsar")
 	defer consumer.Close()
 }
 
-func TestStringSchema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+func TestAvroSchema(t *testing.T) {
+	client := createClient()
 	defer client.Close()
 
-	str := "hello pulsar"
-
-	ssProducer := NewStringSchema()
-	schema := ssProducer.Serialize(str)
+	// create producer
+	asProducer := NewAvroSchema(exampleSchemaDef)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "strTopic",
-		SchemaInfo: ssProducer.SchemaInfo,
-	})
+		Topic: "avro-topic",
+	}, asProducer)
 	assert.Nil(t, err)
-	ctx := context.Background()
-	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+	if err := producer.Send(context.Background(), ProducerMessage{
+		Value: testAvro{
+			ID:   100,
+			Name: "pulsar",
+		},
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
 
-	ssConsumer := NewStringSchema()
+	//create consumer
+	unobj := testAvro{}
+
+	asConsumer := NewAvroSchema(exampleSchemaDef)
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            "avro-topic",
+		SubscriptionName: "sub-1",
+	}, asConsumer)
+	assert.Nil(t, err)
+
+	msg, err := consumer.Receive(context.Background())
+	assert.Nil(t, err)
+	err = msg.GetValue(&unobj)
+	assert.Nil(t, err)
+	assert.Equal(t, unobj.ID, 100)
+	assert.Equal(t, unobj.Name, "pulsar")
+	defer consumer.Close()
+}
+
+func TestStringSchema(t *testing.T) {
+	client := createClient()
+	defer client.Close()
+
+	ssProducer := NewStringSchema()
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: "strTopic",
+	}, ssProducer)
+	assert.Nil(t, err)
+	if err := producer.Send(context.Background(), ProducerMessage{
+		Value: "hello pulsar",
+	}); err != nil {
+		log.Fatal(err)
+	}
+	defer producer.Close()
+
+	var res *string
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "strTopic",
 		SubscriptionName: "sub-2",
-		Schema:           ssConsumer.SchemaInfo,
-	})
+	}, NewStringSchema())
 	assert.Nil(t, err)
 
-	msg, err := consumer.Receive(ctx)
-	res := ssConsumer.UnSerialize(msg.Payload())
+	msg, err := consumer.Receive(context.Background())
 	assert.Nil(t, err)
-	assert.Equal(t, res, str)
+	err = msg.GetValue(&res)
+	assert.Equal(t, *res, "hello pulsar")
 
 	defer consumer.Close()
 }
 
 func TestBytesSchema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
 	bytes := []byte{121, 110, 121, 110}
-
-	bsProducer := NewBytesSchema()
-	schema := bsProducer.Serialize(bytes)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "bytesTopic",
-		SchemaInfo: bsProducer.SchemaInfo,
-	})
+		Topic: "bytesTopic",
+	}, NewBytesSchema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: bytes,
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	bsConsumer := NewBytesSchema()
+	var res []byte
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "bytesTopic",
 		SubscriptionName: "sub-2",
-		Schema:           bsConsumer.SchemaInfo,
-	})
+	}, NewBytesSchema())
 	assert.Nil(t, err)
 
-	msg, err := consumer.Receive(ctx)
-	res := bsConsumer.UnSerialize(msg.Payload())
+	msg, err := consumer.Receive(context.Background())
 	assert.Nil(t, err)
+	err = msg.GetValue(&res)
 	assert.Equal(t, res, bytes)
 
 	defer consumer.Close()
 }
 
 func TestInt8Schema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int8(1)
-
-	i8sProducer := NewInt8Schema()
-	schema, err := i8sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "int8Topic",
-		SchemaInfo: i8sProducer.SchemaInfo,
-	})
+		Topic: "int8Topic1",
+	}, NewInt8Schema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: int8(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	i8sConsumer := NewInt8Schema()
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:            "int8Topic",
+		Topic:            "int8Topic1",
 		SubscriptionName: "sub-2",
-		Schema:           i8sConsumer.SchemaInfo,
-	})
+	}, NewInt8Schema())
 	assert.Nil(t, err)
 
-	buf := []byte{0x01}
+	var res int8
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
-	err = i8sConsumer.UnSerialize(msg.Payload(), int8(0))
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
-	assert.Equal(t, msg.Payload(), buf)
+	assert.Equal(t, res, int8(1))
 
 	defer consumer.Close()
 }
 
 func TestInt16Schema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int16(1)
-
-	i16sProducer := NewInt16Schema()
-	schema, err := i16sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "int16Topic",
-		SchemaInfo: i16sProducer.SchemaInfo,
-	})
+		Topic: "int16Topic",
+	}, NewInt16Schema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: int16(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	i16sConsumer := NewInt16Schema()
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "int16Topic",
 		SubscriptionName: "sub-2",
-		Schema:           i16sConsumer.SchemaInfo,
-	})
+	}, NewInt16Schema())
 	assert.Nil(t, err)
 
-	buf := []byte{0x00, 0x01}
+	var res int16
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
-	err = i16sConsumer.UnSerialize(msg.Payload(), int16(0))
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
-	assert.Equal(t, msg.Payload(), buf)
-
+	assert.Equal(t, res, int16(1))
 	defer consumer.Close()
 }
 
 func TestInt32Schema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int32(1)
-
-	i32sProducer := NewInt32Schema()
-	schema, err := i32sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "int32Topic-1",
-		SchemaInfo: i32sProducer.SchemaInfo,
-	})
+		Topic: "int32Topic1",
+	}, NewInt32Schema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: int32(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	i32sConsumer := NewInt32Schema()
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:            "int32Topic-1",
+		Topic:            "int32Topic1",
 		SubscriptionName: "sub-2",
-		Schema:           i32sConsumer.SchemaInfo,
-	})
+	}, NewInt32Schema())
 	assert.Nil(t, err)
 
-	buf := []byte{0x00, 0x00, 0x00, 0x01}
+	var res int32
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
-	err = i32sConsumer.UnSerialize(msg.Payload(), int32(0))
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
-	assert.Equal(t, msg.Payload(), buf)
-
+	assert.Equal(t, res, int32(1))
 	defer consumer.Close()
 }
 
 func TestInt64Schema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int64(1)
-
-	i64sProducer := NewInt64Schema()
-	schema, err := i64sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "int64Topic",
-		SchemaInfo: i64sProducer.SchemaInfo,
-	})
+		Topic: "int64Topic",
+	}, NewInt64Schema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: int64(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	i64sConsumer := NewInt64Schema()
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "int64Topic",
 		SubscriptionName: "sub-2",
-		Schema:           i64sConsumer.SchemaInfo,
-	})
+	}, NewInt64Schema())
 	assert.Nil(t, err)
 
-	buf := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	var res int64
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
-	err = i64sConsumer.UnSerialize(msg.Payload(), int64(0))
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
-	assert.Equal(t, msg.Payload(), buf)
-
+	assert.Equal(t, res, int64(1))
 	defer consumer.Close()
 }
 
 func TestFloatSchema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int64(1)
-
-	f32sProducer := NewFloatSchema()
-	schema, err := f32sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "floatTopic",
-		SchemaInfo: f32sProducer.SchemaInfo,
-	})
+		Topic: "floatTopic",
+	}, NewFloatSchema())
 	assert.Nil(t, err)
-	ctx := context.Background()
-	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+	if err := producer.Send(context.Background(), ProducerMessage{
+		Value: float32(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	f32sConsumer := NewFloatSchema()
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "floatTopic",
 		SubscriptionName: "sub-2",
-		Schema:           f32sConsumer.SchemaInfo,
-	})
+	}, NewFloatSchema())
 	assert.Nil(t, err)
 
-	msg, err := consumer.Receive(ctx)
+	var res float32
+	msg, err := consumer.Receive(context.Background())
 	assert.Nil(t, err)
-	res, err := f32sConsumer.UnSerialize(msg.Payload())
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
 	assert.Equal(t, res, float32(1))
-
 	defer consumer.Close()
 }
 
 func TestDoubleSchema(t *testing.T) {
-	// create client
-	lookupUrl := "pulsar://localhost:6650"
-	client, err := NewClient(ClientOptions{
-		URL: lookupUrl,
-	})
-	assert.Nil(t, err)
+	client := createClient()
 	defer client.Close()
 
-	in := int64(1)
-
-	f64sProducer := NewDoubleSchema()
-	schema, err := f64sProducer.Serialize(in)
-	assert.Nil(t, err)
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic:      "doubleTopic",
-		SchemaInfo: f64sProducer.SchemaInfo,
-	})
+		Topic: "doubleTopic",
+	}, NewDoubleSchema())
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
-		Payload: schema,
+		Value: float64(1),
 	}); err != nil {
 		log.Fatal(err)
 	}
-	producer.Close()
+	defer producer.Close()
 
-	f64sConsumer := NewDoubleSchema()
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "doubleTopic",
 		SubscriptionName: "sub-2",
-		Schema:           f64sConsumer.SchemaInfo,
-	})
+	}, NewDoubleSchema())
 	assert.Nil(t, err)
 
+	var res float64
 	msg, err := consumer.Receive(ctx)
 	assert.Nil(t, err)
-	res, err := f64sConsumer.UnSerialize(msg.Payload())
+	err = msg.GetValue(&res)
 	assert.Nil(t, err)
 	assert.Equal(t, res, float64(1))
-
 	defer consumer.Close()
 }

@@ -48,7 +48,7 @@ func TestProducerConnectError(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: "my-topic",
-	})
+	}, nil)
 
 	// Expect error in creating producer
 	assert.Nil(t, producer)
@@ -84,7 +84,7 @@ func TestProducer(t *testing.T) {
 			"my-name": "test",
 			"key":     "value",
 		},
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -118,8 +118,7 @@ func TestProducerNoTopic(t *testing.T) {
 
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
-	})
+	producer, err := client.CreateProducer(ProducerOptions{}, nil)
 
 	// Expect error in creating producer
 	assert.Nil(t, producer)
@@ -144,7 +143,7 @@ func TestMessageRouter(t *testing.T) {
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "my-partitioned-topic-partition-2",
 		SubscriptionName: "my-sub",
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer consumer.Close()
@@ -155,7 +154,7 @@ func TestMessageRouter(t *testing.T) {
 			fmt.Println("Routing message ", msg, " -- Partitions: ", tm.NumPartitions())
 			return 2
 		},
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -189,7 +188,7 @@ func TestProducerZstd(t *testing.T) {
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic:           "my-topic",
 		CompressionType: ZSTD,
-	})
+	}, nil)
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -223,7 +222,7 @@ func TestProducer_Flush(t *testing.T) {
 			"producer-name": "test-producer-name",
 			"producer-id":   "test-producer-id",
 		},
-	})
+	}, nil)
 	assert.Nil(t, err)
 	defer producer.Close()
 
@@ -234,7 +233,7 @@ func TestProducer_Flush(t *testing.T) {
 			"consumer-name": "test-consumer-name",
 			"consumer-id":   "test-consumer-id",
 		},
-	})
+	}, nil)
 	assert.Nil(t, err)
 	defer consumer.Close()
 
