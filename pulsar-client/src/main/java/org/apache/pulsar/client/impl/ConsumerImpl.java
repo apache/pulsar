@@ -167,17 +167,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
                                     SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
                                     long backoffIntervalNanos, long maxBackoffIntervalNanos) {
-        if (schema != null && schema.supportSchemaVersioning()) {
-            SchemaInfoProvider schemaInfoProvider = null;
-
-            try {
-                schemaInfoProvider = client.getSchemaProviderLoadingCache().get(topic);
-            } catch (ExecutionException e) {
-                throw new RuntimeException("Can't get generic schema provider for topic:" + topic);
-            }
-                schema.setSchemaInfoProvider(schemaInfoProvider);
-        }
-
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture,
                     subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);

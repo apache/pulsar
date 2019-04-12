@@ -21,9 +21,9 @@ package org.apache.pulsar.client.impl.schema.generic;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -31,7 +31,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * A generic json schema.
  */
-class GenericJsonSchema extends GenericSchemaImpl<GenericJsonRecord> {
+class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
@@ -40,7 +40,7 @@ class GenericJsonSchema extends GenericSchemaImpl<GenericJsonRecord> {
     }
 
     @Override
-    protected SchemaReader<GenericJsonRecord> loadReader(byte[] schemaVersion) {
+    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
         if (schemaInfo != null) {
             return new GenericJsonReader(schemaVersion,

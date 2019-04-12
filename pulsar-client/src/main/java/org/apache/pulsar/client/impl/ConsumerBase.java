@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -67,6 +68,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                            int receiverQueueSize, ExecutorService listenerExecutor,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
         super(client, topic);
+
+        if (schema != null && schema.supportSchemaVersioning()) {
+            SchemaInfoProvider schemaInfoProvider = null;
+
+            try {
+                schemaInfoProvider = client.getSchemaProviderLoadingCache().get(topic);
+            } catch (ExecutionException e) {
+                throw new RuntimeException("Can't get generic schema provider for topic:" + topic);
+            }
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
         this.conf = conf;

@@ -23,17 +23,18 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Auto detect schema.
  */
-public class AutoConsumeSchema<T extends GenericRecord> implements Schema<T> {
+public class AutoConsumeSchema implements Schema<GenericRecord> {
 
-    private Schema<T> schema;
+    private Schema<GenericRecord> schema;
 
-    public void setSchema(Schema<T> schema) {
+    public void setSchema(Schema<GenericRecord> schema) {
         this.schema = schema;
     }
 
@@ -54,17 +55,22 @@ public class AutoConsumeSchema<T extends GenericRecord> implements Schema<T> {
     }
 
     @Override
-    public byte[] encode(T message) {
+    public byte[] encode(GenericRecord message) {
         ensureSchemaInitialized();
 
         return schema.encode(message);
     }
 
     @Override
-    public T decode(byte[] bytes, byte[] schemaVersion) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
         return schema.decode(bytes, schemaVersion);
+    }
+
+    @Override
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        schema.setSchemaInfoProvider(schemaInfoProvider);
     }
 
     @Override

@@ -26,6 +26,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
 import java.io.ByteArrayOutputStream;
@@ -34,7 +35,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-public class GenericAvroReader implements SchemaReader<GenericAvroRecord> {
+public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     private final GenericDatumReader<GenericAvroRecord> reader;
     private BinaryEncoder encoder;

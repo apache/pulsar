@@ -30,7 +30,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic schema representation.
  */
-public abstract class GenericSchemaImpl<T extends GenericRecord> extends StructSchema<T> implements GenericSchema<T> {
+public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
     protected final List<Field> fields;
 

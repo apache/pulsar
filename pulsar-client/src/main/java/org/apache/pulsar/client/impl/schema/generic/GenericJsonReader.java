@@ -31,7 +31,7 @@ import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class GenericJsonReader implements SchemaReader<GenericJsonRecord> {
+public class GenericJsonReader implements SchemaReader<GenericRecord> {
 
     private final ObjectMapper objectMapper;
     private final byte[] schemaVersion;

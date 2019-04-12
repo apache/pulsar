@@ -23,11 +23,12 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
 import java.io.ByteArrayOutputStream;
 
-public class GenericAvroWriter implements SchemaWriter<GenericAvroRecord> {
+public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> writer;
     private BinaryEncoder encoder;
@@ -40,9 +41,9 @@ public class GenericAvroWriter implements SchemaWriter<GenericAvroRecord> {
     }
 
     @Override
-    public synchronized byte[] write(GenericAvroRecord message) {
+    public synchronized byte[] write(GenericRecord message) {
         try {
-            writer.write(message.getAvroRecord(), this.encoder);
+            writer.write(((GenericAvroRecord)message).getAvroRecord(), this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
