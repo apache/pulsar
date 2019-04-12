@@ -131,6 +131,12 @@
   	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
   	</dependency>
 
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
   </dependencies>
 
   <build>
