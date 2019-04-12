@@ -438,24 +438,26 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        if (schema instanceof AutoConsumeSchema) {
-            AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
-            return lookup.getSchema(TopicName.get(conf.getTopicName()))
-                    .thenCompose(schemaInfoOptional -> {
-                        if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
-                            GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoOptional.get());
-                            log.info("Auto detected schema for topic {} : {}",
-                                conf.getTopicName(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
-                            autoConsumeSchema.setSchema(genericSchema);
-                            return doCreateReaderAsync(conf, schema);
-                        } else {
-                            return FutureUtil.failedFuture(
-                                new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
-                        }
-                    });
-        } else {
-            return doCreateReaderAsync(conf, schema);
+        if (schema != null && schema.supportSchemaVersioning()) {
+            SchemaInfoProvider schemaInfoProvider = null;
+            try {
+                schemaInfoProvider = this.getSchemaProviderLoadingCache().get(conf.getTopicName());
+            } catch (ExecutionException e) {
+            }
+            if (schema instanceof AutoConsumeSchema) {
+                SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
+                if (schemaInfo.getType() != SchemaType.AVRO){
+                    return FutureUtil.failedFuture(
+                            new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
+                }
+                GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoProvider.getLatestSchema());
+                log.info("Auto detected schema for topic {} : {}",
+                        conf.getTopicName(), new String(schemaInfo.getSchema(), UTF_8));
+                ((AutoConsumeSchema) schema).setSchema(genericSchema);
+            }
+            schema.setSchemaInfoProvider(schemaInfoProvider);
         }
+        return doCreateReaderAsync(conf, schema);
     }
     <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
