@@ -46,12 +46,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.WebApplicationException;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -778,9 +781,18 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             do {
-                FunctionState functionState = admin.functions().getFunctionState(tenant, namespace, functionName, key);
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                System.out.println(gson.toJson(functionState));
+                try {
+                    FunctionState functionState = admin.functions()
+                                                       .getFunctionState(tenant, namespace, functionName, key);
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    gson.toJson(functionState);
+                } catch (PulsarAdminException pae) {
+                    if (pae.getStatusCode() == 404 && watch) {
+                        System.out.println(pae.getMessage());
+                    } else {
+                        throw pae;
+                    }
+                }
                 if (watch) {
                     Thread.sleep(1000);
                 }
