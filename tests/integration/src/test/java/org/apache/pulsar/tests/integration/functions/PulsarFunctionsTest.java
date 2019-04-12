@@ -77,12 +77,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
-    @Test(enabled = false)
+    @Test
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
@@ -244,7 +244,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             commands = new String[] {
                     PulsarCluster.ADMIN_SCRIPT,
-                    "sink", "create",
+                    "sink", "update",
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,

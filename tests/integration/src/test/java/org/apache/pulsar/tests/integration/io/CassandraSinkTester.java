@@ -60,7 +60,7 @@ public class CassandraSinkTester extends SinkTester<CassandraContainer> {
     private Session session;
 
     private CassandraSinkTester() {
-        super(NAME, "/pulsar/connectors/pulsar-io-cassandra-2.2.0-incubating-SNAPSHOT.nar", "org.apache.pulsar.io.cassandra.CassandraStringSink");
+        super(NAME, "/pulsar/connectors/pulsar-io-cassandra-2.4.0-SNAPSHOT.nar", "org.apache.pulsar.io.cassandra.CassandraStringSink");
 
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.keySpace = "keySpace_" + suffix;
