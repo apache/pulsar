@@ -45,7 +45,7 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         if (context.getCurrentRecord().getKey().isPresent()) {
             messageConf.put(TypedMessageBuilder.CONF_KEY, context.getCurrentRecord().getKey().get());
         }
-        messageConf.put(TypedMessageBuilder.CONF_KEY, System.currentTimeMillis());
+        messageConf.put(TypedMessageBuilder.CONF_EVENT_TIME, System.currentTimeMillis());
         context.publish(publishTopic, output, null, messageConf);
         return null;
     }
