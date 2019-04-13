@@ -73,6 +73,10 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_JAVA_CLASS =
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
+    public static final String PUBLISH_JAVA_CLASS =
+            "org.apache.pulsar.functions.api.examples.PublishFunctionWithMessageConf";
+
+
     public static final String EXCLAMATION_PYTHON_CLASS =
         "exclamation_function.ExclamationFunction";
 
@@ -82,9 +86,13 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_PYTHONZIP_CLASS =
             "exclamation";
 
+    public static final String PUBLISH_PYTHON_CLASS = "publish_function_with_message_conf.PublishFunctionWithMessageConf";
+
     public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_FILE = "exclamation_with_extra_deps.py";
     public static final String EXCLAMATION_PYTHONZIP_FILE = "exclamation.zip";
+    public static final String PUBLISH_FUNCTION_PYTHON_FILE = "publish_function_with_message_conf.py";
+
 
     protected static String getExclamationClass(Runtime runtime,
                                                 boolean pyZip,
