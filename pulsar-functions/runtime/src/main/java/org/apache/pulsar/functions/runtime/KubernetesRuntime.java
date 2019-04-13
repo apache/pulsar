@@ -417,6 +417,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         service.metadata(objectMeta);
 
         // create the stateful set spec
@@ -798,6 +799,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec

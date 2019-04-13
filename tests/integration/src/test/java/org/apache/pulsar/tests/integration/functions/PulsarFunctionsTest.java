@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -725,6 +726,108 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     //
 
     @Test
+    public void testPythonPublishFunction() throws Exception {
+        testPublishFunction(Runtime.PYTHON);
+    }
+
+    @Test
+    public void testJavaPublishFunction() throws Exception {
+        testPublishFunction(Runtime.JAVA);
+    }
+
+    private void testPublishFunction(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD) {
+            return;
+        }
+
+        Schema<?> schema;
+        if (Runtime.JAVA == runtime) {
+            schema = Schema.STRING;
+        } else {
+            schema = Schema.BYTES;
+        }
+
+        String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
+
+        String functionName = "test-publish-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+
+        if (runtime == Runtime.PYTHON) {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, PUBLISH_FUNCTION_PYTHON_FILE, PUBLISH_PYTHON_CLASS, schema, Collections.singletonMap("publish-topic", outputTopicName));
+        } else {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, null, PUBLISH_JAVA_CLASS, schema, Collections.singletonMap("publish-topic", outputTopicName));
+        }
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
+        // publish and consume result
+        if (Runtime.JAVA == runtime) {
+            // java supports schema
+            publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+        } else {
+            // python doesn't support schema
+
+            @Cleanup PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                    .build();
+            @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
+                    .topic(outputTopicName)
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("test-sub")
+                    .subscribe();
+
+            @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                    .topic(inputTopicName)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                producer.newMessage().key(String.valueOf(i)).property("count", String.valueOf(i)).value(("message-" + i).getBytes(UTF_8)).send();
+            }
+
+            Set<String> expectedMessages = new HashSet<>();
+            for (int i = 0; i < numMessages; i++) {
+                expectedMessages.add("message-" + i + "!");
+            }
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
+                String msgValue = new String(msg.getValue(), UTF_8);
+                log.info("Received: {}", msgValue);
+                assertEquals(msg.getKey(), String.valueOf(i));
+                assertEquals(msg.getProperties().get("count"), String.valueOf(i));
+                assertEquals(msg.getProperties().get("input_topic"), inputTopicName);
+                assertTrue(msg.getEventTime() > 0);
+                assertTrue(expectedMessages.contains(msgValue));
+                expectedMessages.remove(msgValue);
+            }
+        }
+
+        // get function status
+        getFunctionStatus(functionName, numMessages, true);
+
+        // get function stats
+        getFunctionStats(functionName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
+    }
+
+    @Test
     public void testPythonExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, false);
     }
@@ -841,6 +944,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             functionName,
             pyZip,
             withExtraDeps,
+            false,
             getExclamationClass(runtime, pyZip, withExtraDeps),
             schema);
     }
@@ -851,8 +955,47 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String functionName,
                                            boolean pyZip,
                                            boolean withExtraDeps,
+                                           boolean isPublishFunction,
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
+
+        String file = null;
+        if (Runtime.JAVA == runtime) {
+            file = null;
+        } else if (Runtime.PYTHON == runtime) {
+            if (isPublishFunction) {
+                file = PUBLISH_FUNCTION_PYTHON_FILE;
+            } else if (pyZip) {
+                file = EXCLAMATION_PYTHONZIP_FILE;
+            } else if (withExtraDeps) {
+                file = EXCLAMATION_WITH_DEPS_PYTHON_FILE;
+            } else {
+                file = EXCLAMATION_PYTHON_FILE;
+            }
+        }
+
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, file, functionClass, inputTopicSchema);
+    }
+
+    private static <T> void submitFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           String functionFile,
+                                           String functionClass,
+                                           Schema<T> inputTopicSchema) throws Exception {
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass, inputTopicSchema, null);
+    }
+
+    private static <T> void submitFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           String functionFile,
+                                           String functionClass,
+                                           Schema<T> inputTopicSchema,
+                                           Map<String, String> userConfigs) throws Exception {
+
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}'", inputTopicName);
         if (inputTopicName.endsWith(".*")) {
@@ -864,28 +1007,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
+        if (userConfigs != null) {
+            generator.setUserConfig(userConfigs);
+        }
         String command;
         if (Runtime.JAVA == runtime) {
             command = generator.generateCreateFunctionCommand();
         } else if (Runtime.PYTHON == runtime) {
             generator.setRuntime(runtime);
-            if (pyZip) {
-                command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHONZIP_FILE);
-            } else if (withExtraDeps) {
-                command = generator.generateCreateFunctionCommand(EXCLAMATION_WITH_DEPS_PYTHON_FILE);
-            } else {
-                command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHON_FILE);
-            }
+            command = generator.generateCreateFunctionCommand(functionFile);
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
 
         log.info("---------- Function command: {}", command);
         String[] commands = {
-            "sh", "-c", command
+                "sh", "-c", command
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-            commands);
+                commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
@@ -1181,7 +1321,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(
-            Runtime.JAVA, inputTopicName, outputTopicName, functionName, false, false,
+            Runtime.JAVA, inputTopicName, outputTopicName, functionName, false, false, false,
             AutoSchemaFunction.class.getName(),
             Schema.AVRO(CustomObject.class));
 

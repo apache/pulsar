@@ -119,14 +119,42 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_partition_key(self):
+    """Returns partition key of the input message is one exists"""
+    pass
+
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
 
   @abstractmethod
   def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None):
+    """
+
+    DEPRECATED
+
+    Publishes message to topic_name by first serializing the message using serde_class_name serde
+    The message will have properties specified if any
+    """
+    pass
+
+  @abstractmethod
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", compression_type=None, callback=None, message_conf=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
-    The message will have properties specified if any"""
+    The message will have properties specified if any
+
+    The available options for message_conf:
+
+      properties,
+      partition_key,
+      sequence_id,
+      replication_clusters,
+      disable_replication,
+      event_timestamp
+
+    """
     pass
 
   @abstractmethod
