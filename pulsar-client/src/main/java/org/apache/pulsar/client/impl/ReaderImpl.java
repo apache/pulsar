@@ -45,11 +45,14 @@ public class ReaderImpl<T> implements Reader<T> {
     private static final Logger log = LoggerFactory.getLogger(ReaderImpl.class);
 
     private final ConsumerImpl<T> consumer;
-    private final Long startPublishTime;
-    private boolean seekDone;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
+            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
+        this(client, readerConfiguration, listenerExecutor, consumerFuture, schema, null);
+    }
+    public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
+                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema, 
+                      Long startPublishTime) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
@@ -62,6 +65,8 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+        consumerConfiguration.setStartPublishTime(startPublishTime);
+        log.info("Consumer configuration value for startPublishTime is: " + startPublishTime);
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
         }
@@ -93,12 +98,6 @@ public class ReaderImpl<T> implements Reader<T> {
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
                 partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
                 client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
-        startPublishTime = readerConfiguration.getStartPublishTime();
-        if (startPublishTime == null) {
-            seekDone = true;
-        } else {
-            seekDone = false;
-        }
     }
 
     @Override
@@ -115,20 +114,8 @@ public class ReaderImpl<T> implements Reader<T> {
         return consumer.hasReachedEndOfTopic();
     }
 
-    private void seekIfNeeded() {
-        if (!seekDone) {
-            try {
-                consumer.seek(startPublishTime);
-            } catch (PulsarClientException exc) {
-                log.warn(exc.getMessage());
-            }
-            seekDone = true;
-        }
-    }
-
     @Override
     public Message<T> readNext() throws PulsarClientException {
-        seekIfNeeded();
         Message<T> msg = consumer.receive();
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
@@ -139,7 +126,6 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
-        seekIfNeeded();
         Message<T> msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
@@ -150,7 +136,6 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        seekIfNeeded();
         return consumer.receiveAsync().thenApply(msg -> {
             consumer.acknowledgeCumulativeAsync(msg);
             return msg;

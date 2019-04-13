@@ -479,7 +479,8 @@ public class PulsarClientImpl implements PulsarClient {
             CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+            ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, 
+                                                    schema, conf.getStartPublishTime());
 
             synchronized (consumers) {
                 consumers.put(reader.getConsumer(), Boolean.TRUE);

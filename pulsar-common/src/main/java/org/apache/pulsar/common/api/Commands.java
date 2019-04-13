@@ -406,12 +406,26 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, (MessageIdData) null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+        return Commands.newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName, isDurable,
+                   startMessageId, null, metadata, readCompacted, subscriptionInitialPosition, schemaInfo);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, Long startPublishTime,
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+        return Commands.newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName, isDurable,
+                   null, startPublishTime, metadata, readCompacted, subscriptionInitialPosition, schemaInfo);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+            Long startPublishTime, Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -425,6 +439,9 @@ public class Commands {
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
+        }
+        if (startPublishTime != null) {
+            subscribeBuilder.setStartPublishTime(startPublishTime);
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 

@@ -253,19 +253,24 @@ message CommandSubscribe {
 	// will send messages from that point
 	optional MessageIdData start_message_id = 9;
 
+    // If specified, the subscription will position the cursor
+    // to the timestamp given by the user and will send messages
+    // from that point.
+    optional uint64 start_publish_time = 10;
+
 	/// Add optional metadata key=value to this consumer
-    repeated KeyValue metadata = 10;
+    repeated KeyValue metadata = 11;
 
-    optional bool read_compacted = 11;
+    optional bool read_compacted = 12;
 
-	optional Schema schema = 12;
+	optional Schema schema = 13;
 	enum InitialPosition {
 		Latest   = 0;
 		Earliest = 1;
 	}
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
-	optional InitialPosition initialPosition = 13 [default = Latest];
+	optional InitialPosition initialPosition = 14 [default = Latest];
 }
 
 message CommandPartitionedTopicMetadata {

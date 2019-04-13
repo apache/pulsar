@@ -607,6 +607,8 @@ public class ServerCnx extends PulsarHandler {
                 subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
                 subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
                 : null;
+        final Long startPublishTime = subscribe.getStartPublishTime();
+        log.info("Start Publish Time recieved value is: " + startPublishTime);
         final String subscription = subscribe.getSubscription();
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.getReadCompacted();
@@ -673,6 +675,7 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
+                        log.info("Start Publish Time has value: " + startPublishTime);
                         service.getOrCreateTopic(topicName.toString())
                                 .thenCompose(topic -> {
                                     if (schema != null) {
@@ -681,7 +684,7 @@ public class ServerCnx extends PulsarHandler {
                                                     if (isCompatible) {
                                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                 subType, priorityLevel, consumerName, isDurable,
-                                                                startMessageId, metadata,
+                                                                startMessageId, startPublishTime, metadata,
                                                                 readCompacted, initialPosition);
                                                     } else {
                                                         return FutureUtil.failedFuture(
@@ -693,7 +696,7 @@ public class ServerCnx extends PulsarHandler {
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
-                                            startMessageId, metadata, readCompacted, initialPosition);
+                                            startMessageId, startPublishTime, metadata, readCompacted, initialPosition);
                                     }
                                 })
                                 .thenAccept(consumer -> {

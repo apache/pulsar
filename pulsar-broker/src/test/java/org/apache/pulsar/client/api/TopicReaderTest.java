@@ -93,14 +93,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
          Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
                 .create();
          final long timeMs = System.currentTimeMillis();
-         System.out.println("Current system time is: " + timeMs);
+         log.info("Current system time is: " + timeMs);
          for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes("UTF-8"));
             Thread.sleep(1000);
         }
 
-        System.out.println("Seeking to time: " + (timeMs + 3000));
+        log.info("Seeking to time: " + (timeMs + 3000));
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderAtSelectedTimestamp")
                 .startMessageId(timeMs + 3000).create();
 
@@ -110,7 +110,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader.readNext();
 
             String receivedMessage = new String(msg.getData(), "UTF-8");
-            log.debug("Received message: [{}]", receivedMessage);
+            log.info("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
