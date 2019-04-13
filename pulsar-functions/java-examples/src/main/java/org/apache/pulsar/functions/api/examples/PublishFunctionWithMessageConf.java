@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -40,11 +41,11 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         properties.putAll(context.getCurrentRecord().getProperties());
 
         Map<String, Object> messageConf = new HashMap<>();
-        messageConf.put("properties", properties);
+        messageConf.put(TypedMessageBuilder.CONF_PROPERTIES, properties);
         if (context.getCurrentRecord().getKey().isPresent()) {
-            messageConf.put("key", context.getCurrentRecord().getKey().get());
+            messageConf.put(TypedMessageBuilder.CONF_KEY, context.getCurrentRecord().getKey().get());
         }
-        messageConf.put("eventTime", System.currentTimeMillis());
+        messageConf.put(TypedMessageBuilder.CONF_KEY, System.currentTimeMillis());
         context.publish(publishTopic, output, null, messageConf);
         return null;
     }
