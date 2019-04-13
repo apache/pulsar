@@ -129,7 +129,7 @@ Splits: 19 total, 19 <span class="hljs-keyword">done</span> (100.00%)
 
 </code></pre>
 <p>当前，Pulsar中没有我们可以查询的数据。让我们启动内置连接器* DataGeneratorSource *来导入一些模拟数据供我们查询：</p>
-<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create --tenant <span class="hljs-built_in">test</span>-tenant --namespace <span class="hljs-built_in">test</span>-namespace --name generator --destinationTopicName generator_test --<span class="hljs-built_in">source</span>-type data-generator
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create --tenant public --namespace default --name generator --destinationTopicName generator_test --<span class="hljs-built_in">source</span>-type data-generator
 </code></pre>
 <p>然后，将有一个可以在&quot;public/default&quot;命名空间查询的主题：</p>
 <pre><code class="hljs css language-bash">presto&gt; show tables <span class="hljs-keyword">in</span> pulsar.<span class="hljs-string">"public/default"</span>;

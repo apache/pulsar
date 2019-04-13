@@ -129,7 +129,7 @@ Splits: 19 total, 19 <span class="hljs-keyword">done</span> (100.00%)
 
 </code></pre>
 <p>Currently, there is no data in Pulsar that we can query.  Lets start the built-in connector <em>DataGeneratorSource</em> to ingest some mock data for us to query:</p>
-<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create --tenant <span class="hljs-built_in">test</span>-tenant --namespace <span class="hljs-built_in">test</span>-namespace --name generator --destinationTopicName generator_test --<span class="hljs-built_in">source</span>-type data-generator
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create --name generator --destinationTopicName generator_test --<span class="hljs-built_in">source</span>-type data-generator
 </code></pre>
 <p>Afterwards, the will be a topic with can query in the namespace &quot;public/default&quot;:</p>
 <pre><code class="hljs css language-bash">presto&gt; show tables <span class="hljs-keyword">in</span> pulsar.<span class="hljs-string">"public/default"</span>;
