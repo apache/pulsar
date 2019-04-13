@@ -37,8 +37,7 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.Optional;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -74,7 +73,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString());
+        doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyBoolean(), anyString(), anyString());
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData("test-tenant",
                 "test-ns", "test-func", new AuthenticationDataSource() {

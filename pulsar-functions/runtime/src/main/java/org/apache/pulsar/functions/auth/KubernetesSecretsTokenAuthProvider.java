@@ -137,7 +137,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         // it will delete all the secrets in the namespace
                         coreClient.deleteNamespacedSecret(secretName,
                                 kubeNamespace, v1DeleteOptions, "true",
-                                null, null, null);
+                                null, null, null, null);
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -216,7 +216,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(Collections.singletonMap(FUNCTION_AUTH_TOKEN, token.getBytes()));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, "true");
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, true, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
