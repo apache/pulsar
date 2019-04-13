@@ -33,8 +33,7 @@
   <name>Apache Pulsar :: Tiered Storage :: Parent</name>
 
   <properties>
-    <!-- pin the jclouds-shaded version to make the pulsar build friendly to intellij -->
-    <pulsar.jclouds.shaded.version>2.3.0</pulsar.jclouds.shaded.version>
+    <pulsar.jclouds.shaded.version>${project.version}</pulsar.jclouds.shaded.version>
   </properties>
 
   <modules>
