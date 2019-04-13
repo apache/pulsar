@@ -72,14 +72,50 @@
                   <include>com.google.inject.extensions:guice-assistedinject</include>
                   <include>com.google.inject:guice</include>
                   <include>com.google.inject.extensions:guice-multibindings</include>
+                  <include>javax.ws.rs:*</include>
+                  <include>com.jamesmurty.utils:*</include>
+                  <include>net.iharder:*</include>
+                  <include>aopalliance:*</include>
+                  <include>javax.inject:*</include>
+                  <include>javax.annotation:*</include>
+                  <inlude>com.google.errorprone:*</inlude>
                 </includes>
               </artifactSet>
 
               <relocations>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>org.apache.pulsar.shaded.com.google</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.google</shadedPattern>
                 </relocation>
+                <relocation>
+                <pattern>javax.ws</pattern>
+                <shadedPattern>org.apache.pulsar.jcloud.shade.javax.ws</shadedPattern>
+              </relocation>
+                <relocation>
+                  <pattern>com.jamesmurty.utils</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.jamesmurty.utils</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>aopalliance</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.aopalliance</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.iharder</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.net.iharder</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.inject</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.errorprone</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
+                </relocation>
+
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
