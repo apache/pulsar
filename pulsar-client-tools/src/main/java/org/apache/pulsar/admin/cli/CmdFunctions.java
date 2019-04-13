@@ -786,7 +786,7 @@ public class CmdFunctions extends CmdBase {
                     gson.toJson(functionState);
                 } catch (PulsarAdminException pae) {
                     if (pae.getStatusCode() == 404 && watch) {
-                        System.out.println(pae.getMessage());
+                        System.err.println(pae.getMessage());
                     } else {
                         throw pae;
                     }
