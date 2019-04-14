@@ -27,7 +27,6 @@ import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.FooV2;
-import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -39,7 +38,6 @@ public class GenericAvroReaderTest {
     private AvroSchema fooSchemaNotNull;
     private AvroSchema fooSchema;
     private AvroSchema fooV2Schema;
-    private Bar bar;
 
 
     @BeforeMethod
@@ -51,8 +49,6 @@ public class GenericAvroReaderTest {
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class)
                 .build());
-
-        bar = new Bar();
 
         foo = new Foo();
         foo.setField1("foo1");

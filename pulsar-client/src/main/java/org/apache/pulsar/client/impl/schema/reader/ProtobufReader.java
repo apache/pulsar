@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Parser;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -33,8 +34,8 @@ public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> im
     public T read(byte[] bytes) {
         try {
             return this.tParser.parseFrom(bytes);
-        } catch (Exception e) {
-            throw new RuntimeException(new SchemaSerializationException(e));
+        } catch (InvalidProtocolBufferException e) {
+            throw new SchemaSerializationException(e);
         }
     }
 

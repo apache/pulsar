@@ -109,7 +109,7 @@ public class PulsarClientImpl implements PulsarClient {
 
                 @Override
                 public SchemaInfoProvider load(String topicName) {
-                    return loadSchemaProvider(topicName);
+                    return newSchemaProvider(topicName);
                 }
             });
 
@@ -306,8 +306,12 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-            schemaHandle(schema, conf.getSingleTopic());
-            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
+        try {
+            preProcessSchemaBeforeSubscribe(schema, conf.getSingleTopic());
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
+        }
+        return doSingleTopicSubscribeAsync(conf, schema, interceptors);
     }
 
     private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
@@ -422,7 +426,11 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        schemaHandle(schema, conf.getTopicName());
+        try {
+            preProcessSchemaBeforeSubscribe(schema, conf.getTopicName());
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
+        }
         return doCreateReaderAsync(conf, schema);
     }
     <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
@@ -721,7 +729,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    private SchemaInfoProvider loadSchemaProvider(String topicName) {
+    private SchemaInfoProvider newSchemaProvider(String topicName) {
         return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
     }
 
@@ -729,13 +737,16 @@ public class PulsarClientImpl implements PulsarClient {
         return schemaProviderLoadingCache;
     }
 
-    private void schemaHandle(Schema schema, String topicName) {
+    private void preProcessSchemaBeforeSubscribe(Schema schema, String topicName) throws Throwable {
         if (schema != null && schema.supportSchemaVersioning()) {
             SchemaInfoProvider schemaInfoProvider = null;
             try {
                 schemaInfoProvider = this.getSchemaProviderLoadingCache().get(topicName);
             } catch (ExecutionException e) {
+                log.error("Failed to load schema info provider for topic {}", topicName, e);
+                throw e.getCause();
             }
+
             if (schema instanceof AutoConsumeSchema) {
                 SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
                 if (schemaInfo.getType() != SchemaType.AVRO){

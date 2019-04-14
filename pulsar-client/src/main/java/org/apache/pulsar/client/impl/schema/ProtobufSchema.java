@@ -115,19 +115,19 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
 
-        try{
             SchemaInfo schemaInfo = SchemaInfo.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
                     .type(SchemaType.PROTOBUF)
                     .name("")
                     .properties(schemaDefinition.getProperties())
                     .build();
-        return new ProtobufSchema(schemaInfo,
-                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
-    }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-        throw new IllegalArgumentException(e);
-    }
 
+        try {
+            return new ProtobufSchema(schemaInfo,
+                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+        }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(

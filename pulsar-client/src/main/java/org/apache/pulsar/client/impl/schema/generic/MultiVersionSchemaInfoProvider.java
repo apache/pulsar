@@ -66,7 +66,7 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
-            return null;
+            throw new RuntimeException("Can't get generic schema for topic " + topicName.toString());
         }
     }
 
@@ -76,14 +76,10 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
             Optional<SchemaInfo> optional = pulsarClient.getLookup()
                     .getSchema(topicName).get();
             return optional.orElse(null);
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | InterruptedException e) {
             LOG.error("Can't get current schema for topic {}",
                     topicName.toString(), e);
-            return null;
-        } catch (InterruptedException e) {
-            LOG.error("Can't get current schema for topic {}",
-                    topicName.toString(), e);
-            return null;
+            throw new RuntimeException("Can't get current schema for topic " + topicName.toString());
         }
     }
 

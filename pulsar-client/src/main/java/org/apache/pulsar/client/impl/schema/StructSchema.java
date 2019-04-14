@@ -54,7 +54,7 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
 
-    public final org.apache.avro.Schema schema;
+    protected final org.apache.avro.Schema schema;
     protected final SchemaInfo schemaInfo;
     protected SchemaReader<T> reader;
     protected SchemaWriter<T> writer;
@@ -93,7 +93,7 @@ public abstract class StructSchema<T> implements Schema<T> {
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
-            return null;
+            throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
     }
 
@@ -104,16 +104,17 @@ public abstract class StructSchema<T> implements Schema<T> {
 
     protected static org.apache.avro.Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
-        if (pojo != null) {
-            return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
-        } else if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
+
+        if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
             return parseAvroSchema(schemaDefinition.getJsonDef());
+        } else if (pojo != null) {
+            return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
         } else {
             throw new RuntimeException("Schema definition must specify pojo class or schema json definition");
         }
     }
 
-    public static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+    protected static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final Parser parser = new Parser();
         return parser.parse(schemaJson);
     }
