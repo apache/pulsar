@@ -27,6 +27,7 @@ import com.facebook.presto.spi.type.RealType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -626,10 +627,10 @@ public abstract class TestPulsarConnector {
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
-            io.netty.buffer.ByteBuf payload = io.netty.buffer.Unpooled
+            ByteBuf payload = io.netty.buffer.Unpooled
                     .copiedBuffer(schema.encode(foo));
 
-            io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+            ByteBuf byteBuf = serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
             Entry entry = EntryImpl.create(0, i, byteBuf);
@@ -876,10 +877,10 @@ public abstract class TestPulsarConnector {
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-                                    io.netty.buffer.ByteBuf payload = io.netty.buffer.Unpooled
+                                    ByteBuf payload = io.netty.buffer.Unpooled
                                             .copiedBuffer(schema.encode(foo));
 
-                                    io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+                                    ByteBuf byteBuf = serializeMetadataAndPayload(
                                             Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
                                     completedBytes += byteBuf.readableBytes();
