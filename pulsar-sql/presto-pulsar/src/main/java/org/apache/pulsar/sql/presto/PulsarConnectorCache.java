@@ -55,8 +55,10 @@ public class PulsarConnectorCache {
     private Offloaders offloaderManager;
     private LedgerOffloader offloader;
 
-    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
-    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+    private static final String OFFLOADERS_DIRECTOR = "offloadersDirectory";
+    private static final String MANAGED_LEDGER_OFFLOAD_DRIVER = "managedLedgerOffloadDriver";
+    private static final String MANAGED_LEDGER_OFFLOAD_MAX_THREADS = "managedLedgerOffloadMaxThreads";
+
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
@@ -85,8 +87,6 @@ public class PulsarConnectorCache {
     private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-                .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("")
                 .setClientTcpNoDelay(false)
                 .setUseV2WireProtocol(true)
                 .setStickyReadsEnabled(true)
@@ -104,14 +104,13 @@ public class PulsarConnectorCache {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads())
-                    .name("offloader").build();
+                    .name("pulsar-offloader").build();
         }
         return this.offloaderScheduler;
     }
 
     private LedgerOffloader initManagedLedgerOffloader(PulsarConnectorConfig conf) {
 
-        log.info("driver: %s - %s", conf.getManagedLedgerOffloadDriver(), StringUtils.isNotBlank(conf.getManagedLedgerOffloadDriver()));
         try {
             if (StringUtils.isNotBlank(conf.getManagedLedgerOffloadDriver())) {
                 checkNotNull(conf.getOffloadersDirectory(),
@@ -121,23 +120,17 @@ public class PulsarConnectorCache {
                 LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
                         conf.getManagedLedgerOffloadDriver());
 
-                log.info("offloaderFactory: %s", offloaderFactory.getClass().getName());
-
-                log.info("supported: %s", offloaderFactory.isDriverSupported("aws-s3"));
-
-                log.info("methods: %s", Arrays.toString(offloaderFactory.getClass().getDeclaredMethods()));
-
                 Map<String, String> offloaderProperties = conf.getOffloaderProperties();
-                offloaderProperties.put("offloadersDirectory", conf.getOffloadersDirectory());
-                offloaderProperties.put("managedLedgerOffloadDriver", conf.getManagedLedgerOffloadDriver());
-                offloaderProperties.put("managedLedgerOffloadMaxThreads", String.valueOf(conf.getManagedLedgerOffloadMaxThreads()));
+                offloaderProperties.put(OFFLOADERS_DIRECTOR, conf.getOffloadersDirectory());
+                offloaderProperties.put(MANAGED_LEDGER_OFFLOAD_DRIVER, conf.getManagedLedgerOffloadDriver());
+                offloaderProperties.put(MANAGED_LEDGER_OFFLOAD_MAX_THREADS, String.valueOf(conf.getManagedLedgerOffloadMaxThreads()));
 
                 try {
                     return offloaderFactory.create(
                             PulsarConnectorUtils.getProperties(offloaderProperties),
                             ImmutableMap.of(
-                                    METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
-                                    METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                                    LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                                    LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                             ),
                             getOffloaderScheduler(conf));
                 } catch (IOException ioe) {

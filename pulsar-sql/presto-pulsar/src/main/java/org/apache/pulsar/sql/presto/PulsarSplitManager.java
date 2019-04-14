@@ -60,8 +60,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
 
-public class
-PulsarSplitManager implements ConnectorSplitManager {
+public class PulsarSplitManager implements ConnectorSplitManager {
 
     private final String connectorId;
 
@@ -127,8 +126,6 @@ PulsarSplitManager implements ConnectorSplitManager {
     ManagedLedgerFactory getManagedLedgerFactory() throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
-                .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("")
                 .setClientTcpNoDelay(false)
                 .setStickyReadsEnabled(true)
                 .setUseV2WireProtocol(true);
