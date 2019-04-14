@@ -305,8 +305,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
         int uncompressedSize = payload.readableBytes();
         ByteBuf compressedPayload = payload;
-        // batch will be compressed when closed
-        if (!isBatchMessagingEnabled()) {
+        // Batch will be compressed when closed
+        // If a message has a delayed delivery time, we'll always send it individually
+        if (!isBatchMessagingEnabled() || msgMetadataBuilder.hasDeliverAtTime()) {
             compressedPayload = compressor.encode(payload);
             payload.release();
 
@@ -361,7 +362,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
 
-                if (isBatchMessagingEnabled()) {
+                if (isBatchMessagingEnabled() && !msgMetadataBuilder.hasDeliverAtTime()) {
                     // handle boundary cases where message being added would exceed
                     // batch size and/or max message size
                     if (batchMessageContainer.hasSpaceInBatch(msg)) {

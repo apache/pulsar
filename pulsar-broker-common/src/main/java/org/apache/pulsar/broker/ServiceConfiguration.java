@@ -154,6 +154,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // waiting for another HTTP call to complete in same thread.
     private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
+    private boolean delayedDeliveryEnabled = true;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
+            + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
+    private long delayedDeliveryTickTimeMillis = 1000;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"

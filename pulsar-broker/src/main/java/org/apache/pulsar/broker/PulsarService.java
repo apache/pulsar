@@ -28,6 +28,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
@@ -166,6 +168,8 @@ public class PulsarService implements AutoCloseable {
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
 
+    private Optional<Timer> delayedDeliveryTimer = Optional.empty();
+
     private final MessagingServiceShutdownHook shutdownService;
 
     private MetricsGenerator metricsGenerator;
@@ -212,6 +216,10 @@ public class PulsarService implements AutoCloseable {
         try {
             if (state == State.Closed) {
                 return;
+            }
+
+            if (delayedDeliveryTimer.isPresent()) {
+                delayedDeliveryTimer.get().stop();
             }
 
             // close the service in reverse order v.s. in which they are started
@@ -543,7 +551,7 @@ public class PulsarService implements AutoCloseable {
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), config.getZooKeeperOperationTimeoutSeconds(),
                 getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), 
+                (int) config.getZooKeeperSessionTimeoutMillis(),
                 config.getZooKeeperOperationTimeoutSeconds(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
@@ -883,7 +891,7 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        if (config.getWebServicePort().isPresent()) {        
+        if (config.getWebServicePort().isPresent()) {
             return webAddress(advertisedAddress(config), config.getWebServicePort().get());
         } else {
             return null;
@@ -940,6 +948,16 @@ public class PulsarService implements AutoCloseable {
 
     public SchemaRegistryService getSchemaRegistryService() {
         return schemaRegistryService;
+    }
+
+    public synchronized Timer getDelayedDeliveryTimer() {
+        // Lazy initialize
+        if (!delayedDeliveryTimer.isPresent()) {
+            delayedDeliveryTimer = Optional.of(new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
+                    config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS));
+        }
+
+        return delayedDeliveryTimer.get();
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

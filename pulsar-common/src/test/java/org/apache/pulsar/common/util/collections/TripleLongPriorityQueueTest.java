@@ -16,28 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats.prometheus;
+package org.apache.pulsar.common.util.collections;
 
-import org.apache.pulsar.broker.service.Consumer;
+import static org.testng.Assert.assertEquals;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.testng.annotations.Test;
 
-public class AggregatedSubscriptionStats {
+public class TripleLongPriorityQueueTest {
 
-    public long msgBacklog;
+    @Test
+    public void testQueue() {
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
+        assertEquals(pq.size(), 0);
 
-    public boolean blockedSubscriptionOnUnackedMsgs;
+        final int N = 20;
 
-    public double msgRateRedeliver;
+        for (int i = N; i > 0; i--) {
+            pq.add(i, i * 2, i * 3);
+        }
 
-    public long unackedMessages;
+        assertEquals(pq.size(), N);
 
-    public double msgRateOut;
+        for (int i = 1; i <= N; i++) {
+            assertEquals(pq.peekN1(), i);
+            assertEquals(pq.peekN2(), i * 2);
+            assertEquals(pq.peekN3(), i * 3);
 
-    public double msgThroughputOut;
+            pq.pop();
 
-    public long msgDelayed;
+            assertEquals(pq.size(), N - i);
+        }
 
-    public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
+        pq.close();
+    }
 }

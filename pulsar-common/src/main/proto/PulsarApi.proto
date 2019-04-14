@@ -111,7 +111,10 @@ message MessageMetadata {
 	optional bytes encryption_param = 15;
 	optional bytes schema_version = 16;
 
-        optional bool partition_key_b64_encoded = 17 [ default = false ];
+	optional bool partition_key_b64_encoded = 17 [ default = false ];
+
+	// Mark the message to be delivered at or after the specified timestamp
+	optional uint64 deliver_at_time = 18;
 }
 
 

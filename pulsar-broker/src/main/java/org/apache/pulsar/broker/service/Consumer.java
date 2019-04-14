@@ -39,8 +39,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 
-import lombok.Data;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -56,6 +54,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -302,6 +301,21 @@ public class Consumer {
         return -1;
     }
 
+    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, Subscription subscription,
+            long consumerId) {
+        try {
+            // save the reader index and restore after parsing
+            int readerIdx = metadataAndPayload.readerIndex();
+            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+
+            return metadata;
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            return null;
+        }
+    }
+
     void updatePermitsAndPendingAcks(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
@@ -311,15 +325,26 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription, consumerId);
-            if (batchSize == -1) {
-                // this would suggest that the message might have been corrupted
+            MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+            PositionImpl pos = (PositionImpl) entry.getPosition();
+            if (msgMetadata == null) {
+                // Message metadata was corrupted
                 iter.remove();
-                PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
                 subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual, Collections.emptyMap());
                 continue;
+            } else if (msgMetadata.hasDeliverAtTime()
+                    && subscription.getDispatcher()
+                        .trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                // The message is marked for delayed delivery. Ignore for now.
+                iter.remove();
+                entry.release();
+                continue;
             }
+
+            int batchSize = msgMetadata.getNumMessagesInBatch();
+            msgMetadata.recycle();
+
             if (pendingAcks != null) {
                 pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
             }

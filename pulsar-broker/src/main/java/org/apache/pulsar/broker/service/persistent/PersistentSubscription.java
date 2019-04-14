@@ -634,10 +634,10 @@ public class PersistentSubscription implements Subscription {
         }
         if (SubType.Shared.equals(subStats.type)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-                subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
-                        .getTotalUnackedMessages();
-                subStats.blockedSubscriptionOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
-                        .isBlockedDispatcherOnUnackedMsgs();
+                PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
+                subStats.unackedMessages = d.getTotalUnackedMessages();
+                subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
+                subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
@@ -657,8 +657,17 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void addUnAckedMessages(int unAckMessages) {
+    public synchronized void addUnAckedMessages(int unAckMessages) {
         dispatcher.addUnAckedMessages(unAckMessages);
+    }
+
+    @Override
+    public synchronized long getNumberOfEntriesDelayed() {
+        if (dispatcher != null) {
+            return dispatcher.getNumberOfDelayedMessages();
+        } else {
+            return 0;
+        }
     }
 
     @Override
