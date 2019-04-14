@@ -111,7 +111,6 @@ public class JdbcSinkTest {
             .build();
 
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
-        genericAvroSchema.decode(bytes);
 
         when(message.getValue())
                 .thenReturn(genericAvroSchema.decode(bytes));
