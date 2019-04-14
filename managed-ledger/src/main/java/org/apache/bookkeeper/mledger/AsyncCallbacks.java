@@ -19,7 +19,12 @@
 package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
+
+import io.netty.buffer.ByteBuf;
+
 import java.util.List;
+
+import org.apache.pulsar.client.api.MessageId;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -114,6 +119,8 @@ public interface AsyncCallbacks {
     }
 
     interface FindEntryCallback {
+        void findEntryData(ByteBuf entryData, Object ctx);
+
         void findEntryComplete(Position position, Object ctx);
 
         void findEntryFailed(ManagedLedgerException exception, Object ctx);

@@ -433,6 +433,8 @@ public interface ManagedCursor {
      */
     void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx);
+    void asyncFindData(FindPositionConstraint constraint, Predicate<Entry> condition,
+            FindEntryCallback callback, Object ctx);
 
     /**
      * reset the cursor to specified position to enable replay of messages.

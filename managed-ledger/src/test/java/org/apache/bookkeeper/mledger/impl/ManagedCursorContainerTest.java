@@ -208,6 +208,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void asyncFindData(FindPositionConstraint constraint, Predicate<Entry> condition,
+                AsyncCallbacks.FindEntryCallback callback, Object ctx) {
+        }
+
+        @Override
         public void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback) {
 
         }

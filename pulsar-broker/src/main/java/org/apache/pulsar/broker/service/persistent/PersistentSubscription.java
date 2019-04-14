@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.base.MoreObjects;
 
+import io.netty.buffer.ByteBuf;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +52,9 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -329,6 +335,41 @@ public class PersistentSubscription implements Subscription {
         return future;
     }
 
+    public CompletableFuture<MessageId> findCorrespondingMessageId(long timestamp) {
+        CompletableFuture<MessageId> future = new CompletableFuture<>();
+        PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor);
+
+        persistentMessageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
+                if (exception instanceof ConcurrentFindCursorPositionException) {
+                    future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                } else {
+                    future.completeExceptionally(new BrokerServiceException(exception));
+                }
+            }
+
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public void findEntryData(ByteBuf buf, Object ctx) {
+                if (buf == null) {
+                    future.complete(MessageId.earliest);
+                } else {
+                    try {
+                        future.complete(MessageImpl.deserialize(buf).getMessageId());
+                    } catch (IOException exc) {
+                        log.warn(exc.getMessage());
+                    }
+                }
+            }
+        }, false);
+        return future;
+    }
+
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -369,6 +410,11 @@ public class PersistentSubscription implements Subscription {
                 } else {
                     future.completeExceptionally(new BrokerServiceException(exception));
                 }
+            }
+            
+            @Override
+            public void findEntryData(ByteBuf buf, Object ctx) {
+                throw new UnsupportedOperationException();
             }
         });
 

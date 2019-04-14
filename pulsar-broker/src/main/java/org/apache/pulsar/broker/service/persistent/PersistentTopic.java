@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -548,11 +549,27 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             lock.readLock().unlock();
         }
 
-        CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initialPosition) //
-                : getNonDurableSubscription(subscriptionName, startMessageId);
-
         int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
+
+        CompletableFuture<? extends Subscription> subscriptionFuture;
+        if (startPublishTime != null && startPublishTime != 0 && !isDurable) {
+            final CompletableFuture<MessageId> messageFuture = getMessageId(subscriptionName, startMessageId, subType, consumerId, priorityLevel, consumerName,
+                   0, cnx, cnx.getRole(), maxUnackedMessages, metadata, readCompacted, initialPosition, startPublishTime);
+
+            subscriptionFuture = 
+                messageFuture.thenApply(messageId -> {
+                    try {
+                        return getNonDurableSubscription(subscriptionName, messageId).get();
+                    } catch (InterruptedException | ExecutionException exc) {
+                        log.warn(exc.getMessage());
+                    }
+                    return null;
+                 });
+        } else {
+            subscriptionFuture = isDurable ? //
+                    getDurableSubscription(subscriptionName, initialPosition) //
+                    : getNonDurableSubscription(subscriptionName, startMessageId);
+        }
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
@@ -568,10 +585,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     future.completeExceptionally(
                             new BrokerServiceException("Connection was closed while the opening the cursor "));
                 } else {
-                    if(startPublishTime != null && startPublishTime != 0) {
-                        subscription.resetCursor(startPublishTime);
-                        log.info("Reset subscription cursor to " + startPublishTime);
-                    }
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
@@ -596,7 +609,52 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
+    private CompletableFuture<MessageId> getMessageId(String subscriptionName, MessageId startMessageId, 
+            SubType subType, long consumerId, int priorityLevel, String consumerName, int i, ServerCnx cnx, String role,
+            int maxUnackedMessages, Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            long startPublishTime) {
+        CompletableFuture<? extends Subscription> subscriptionFuture = getNonDurableSubscription(subscriptionName, startMessageId);
+        CompletableFuture<MessageId> future = new CompletableFuture<>();
+        subscriptionFuture.thenAccept(subscription -> {
+            try {
+                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition);
+                subscription.addConsumer(consumer);
+                if (!cnx.isActive()) {
+                    consumer.close();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
+                                consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
+                    }
+                    future.complete(null);
+                } else {
+                    final MessageId messageId = ((PersistentSubscription) subscription).findCorrespondingMessageId(startPublishTime).get();
+                    log.info("MessageId value is: " + ((MessageIdImpl) messageId).getEntryId() + " " +
+                             ((MessageIdImpl) messageId).getEntryId());
+                    consumer.close();
+                    future.complete(messageId);
+                }
+            } catch (BrokerServiceException | InterruptedException | ExecutionException e) {
+                if (e instanceof ConsumerBusyException) {
+                    log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                            consumerName);
+                } else if (e instanceof SubscriptionBusyException) {
+                    log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                }
+
+                USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
+                future.completeExceptionally(e);
+            }
+        }).exceptionally(ex -> {
+            log.warn("[{}] Failed to create subscription for {}: ", topic, subscriptionName, ex.getMessage());
+            USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
+            future.completeExceptionally(new PersistenceException(ex));
+            return null;
+        });
+        return future;
+    }
+
+	private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, new OpenCursorCallback() {
             @Override
@@ -625,15 +683,17 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
+        log.info("[{}][{}] Creating non-durable subscription", topic, subscriptionName);
 
         // Create a new non-durable cursor only for the first consumer that connects
         Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
+
             MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
                     : (MessageIdImpl) MessageId.latest;
 
             long ledgerId = msgId.getLedgerId();
             long entryId = msgId.getEntryId();
+
             if (msgId instanceof BatchMessageIdImpl) {
                 // When the start message is relative to a batch, we need to take one step back on the previous message,
                 // because the "batch" might not have been consumed in its entirety.

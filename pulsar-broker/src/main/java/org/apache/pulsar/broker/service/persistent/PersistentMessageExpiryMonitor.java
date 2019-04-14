@@ -30,6 +30,8 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBuf;
+
 /**
  */
 public class PersistentMessageExpiryMonitor implements FindEntryCallback {
@@ -130,5 +132,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         }
         expirationCheckInProgress = FALSE;
         updateRates();
+    }
+    
+    @Override
+    public void findEntryData(ByteBuf buf, Object ctx) {
+        throw new UnsupportedOperationException();
     }
 }
