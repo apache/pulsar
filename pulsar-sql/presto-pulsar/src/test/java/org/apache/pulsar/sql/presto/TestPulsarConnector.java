@@ -36,6 +36,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -796,7 +798,7 @@ public abstract class TestPulsarConnector {
                 long entries = topicsToNumEntries.get(schemaName);
 
 
-                ReadOnlyCursor readOnlyCursor = mock(ReadOnlyCursor.class);
+                ReadOnlyCursorImpl readOnlyCursor = mock(ReadOnlyCursorImpl.class);
                 doReturn(entries).when(readOnlyCursor).getNumberOfEntries();
 
                 doAnswer(new Answer<Void>() {
@@ -941,6 +943,8 @@ public abstract class TestPulsarConnector {
                         return (range.upperEndpoint().getEntryId() + 1) - range.lowerEndpoint().getEntryId();
                     }
                 });
+
+                when(readOnlyCursor.getCurrentLedgerInfo()).thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder().setLedgerId(0).build());
 
                 return readOnlyCursor;
             }
