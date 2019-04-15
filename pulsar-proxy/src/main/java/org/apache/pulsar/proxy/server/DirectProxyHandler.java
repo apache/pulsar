@@ -22,6 +22,8 @@ package org.apache.pulsar.proxy.server;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLSession;
 
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
@@ -36,6 +38,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -47,12 +50,12 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-import io.prometheus.client.Counter;
 
 public class DirectProxyHandler {
 
     private Channel inboundChannel;
     Channel outboundChannel;
+    protected static Map<ChannelId, ChannelId> inboundOutboundChannelMap = new ConcurrentHashMap<>();
     private String originalPrincipal;
     private String clientAuthData;
     private String clientAuthMethod;
@@ -114,6 +117,15 @@ public class DirectProxyHandler {
             final ProxyBackendHandler cnx = (ProxyBackendHandler) outboundChannel.pipeline()
                     .get("proxyOutboundHandler");
             cnx.setRemoteHostName(targetBroker.getHost());
+
+            // if enable full parsing feature
+            if (ProxyService.proxyLogLevel == 2) {
+                //Set a map between inbound and outbound,
+                //so can find inbound by outbound or find outbound by inbound
+                inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
+            }
+
+
         });
     }
 
@@ -215,9 +227,16 @@ public class DirectProxyHandler {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
                 }
-                inboundChannel.pipeline().remove("frameDecoder");
-                outboundChannel.pipeline().remove("frameDecoder");
-
+                if (ProxyService.proxyLogLevel == 0) {
+                    // direct tcp proxy
+                    inboundChannel.pipeline().remove("frameDecoder");
+                    outboundChannel.pipeline().remove("frameDecoder");
+                } else {
+                    // Enable parsing feature, proxyLogLevel(1 or 2)
+                    // Add parser handler
+                    inboundChannel.pipeline().addBefore("handler" , "inboundParser" , new ParserProxyHandler(inboundChannel , ParserProxyHandler.FRONTEND_CONN));
+                    outboundChannel.pipeline().addBefore("proxyOutboundHandler" , "outboundParser" , new ParserProxyHandler(outboundChannel , ParserProxyHandler.BACKEND_CONN));
+                }
                 // Start reading from both connections
                 inboundChannel.read();
                 outboundChannel.read();

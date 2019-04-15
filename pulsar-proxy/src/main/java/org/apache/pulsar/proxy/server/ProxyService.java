@@ -70,6 +70,8 @@ public class ProxyService implements Closeable {
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
+    protected static int proxyLogLevel;
+
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
     static final Gauge activeConnections = Gauge
@@ -116,6 +118,11 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = null;
         }
 
+        if (proxyConfig.getproxyLogLevel().isPresent()) {
+            ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getproxyLogLevel().get());
+        } else {
+            ProxyService.proxyLogLevel = 0;
+        }
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
         this.authenticationService = authenticationService;
