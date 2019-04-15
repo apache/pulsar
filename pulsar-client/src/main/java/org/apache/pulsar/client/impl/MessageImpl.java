@@ -230,7 +230,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public byte[] getSchemaVersion() {
-        if (msgMetadataBuilder.hasSchemaVersion()) {
+        if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion() ) {
             return msgMetadataBuilder.getSchemaVersion().toByteArray();
         } else {
             return null;
@@ -241,8 +241,9 @@ public class MessageImpl<T> implements Message<T> {
     public T getValue() {
         // check if the schema passed in from client supports schema versioning or not
         // this is an optimization to only get schema version when necessary
-        if (schema.supportSchemaVersioning()) {
-            return schema.decode(getData(), getSchemaVersion());
+        byte [] schemaVersion = getSchemaVersion();
+        if (schema.supportSchemaVersioning() && schemaVersion != null) {
+            return schema.decode(getData(), schemaVersion);
         } else {
             return schema.decode(getData());
         }
