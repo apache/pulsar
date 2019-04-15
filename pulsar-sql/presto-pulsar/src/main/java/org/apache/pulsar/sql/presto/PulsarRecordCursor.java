@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -83,6 +84,7 @@ public class PulsarRecordCursor implements RecordCursor {
     private DeserializeEntries deserializeEntries;
     private TopicName topicName;
     private PulsarConnectorMetricsTracker metricsTracker;
+    private boolean readOffloaded;
 
     // Stats total execution time of split
     private long startTime;
@@ -135,6 +137,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 NamespaceName.get(pulsarSplit.getSchemaName()),
                 pulsarSplit.getTableName());
         this.metricsTracker = pulsarConnectorMetricsTracker;
+        this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
 
         Schema schema = PulsarConnectorUtils.parseSchema(pulsarSplit.getSchema());
 
@@ -299,7 +302,6 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
 
             if (outstandingReadsRequests.get() > 0) {
-
                 if (!cursor.hasMoreEntries() || ((PositionImpl) cursor.getReadPosition())
                         .compareTo(pulsarSplit.getEndPosition()) >= 0) {
                     isDone = true;
@@ -308,8 +310,22 @@ public class PulsarRecordCursor implements RecordCursor {
                     int batchSize = Math.min(maxBatchSize, entryQueue.capacity() - entryQueue.size());
 
                     if (batchSize > 0) {
-                        outstandingReadsRequests.decrementAndGet();
-                        cursor.asyncReadEntries(batchSize, this, System.nanoTime());
+
+                        ReadOnlyCursorImpl readOnlyCursorImpl = ((ReadOnlyCursorImpl) cursor);
+                        // check if ledger is offloaded
+                        if (!readOffloaded  && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
+                            log.warn("Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
+                                    readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
+
+                            long numEntries = readOnlyCursorImpl.getCurrentLedgerInfo().getEntries();
+                            long entriesToSkip = (numEntries - ((PositionImpl) cursor.getReadPosition()).getEntryId()) + 1;
+                            cursor.skipEntries(Math.toIntExact((entriesToSkip)));
+
+                            entriesProcessed += entriesToSkip;
+                        } else {
+                            outstandingReadsRequests.decrementAndGet();
+                            cursor.asyncReadEntries(batchSize, this, System.nanoTime());
+                        }
 
                         // stats for successful read request
                         metricsTracker.incr_READ_ATTEMPTS_SUCCESS();

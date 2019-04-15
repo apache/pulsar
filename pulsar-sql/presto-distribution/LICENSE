@@ -235,6 +235,23 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.4.jar
  * Netty
     - netty-3.6.2.Final.jar
+    - netty-all-4.1.32.Final.jar
+    - netty-buffer-4.1.31.Final.jar
+    - netty-codec-4.1.31.Final.jar
+    - netty-codec-dns-4.1.33.Final.jar
+    - netty-codec-http-4.1.33.Final.jar
+    - netty-codec-socks-4.1.33.Final.jar
+    - netty-common-4.1.31.Final.jar
+    - netty-handler-4.1.31.Final.jar
+    - netty-handler-proxy-4.1.33.Final.jar
+    - netty-reactive-streams-2.0.0.jar
+    - netty-resolver-4.1.31.Final.jar
+    - netty-resolver-dns-4.1.33.Final.jar
+    - netty-tcnative-boringssl-static-2.0.20.Final.jar
+    - netty-transport-4.1.31.Final.jar
+    - netty-transport-native-epoll-4.1.31.Final.jar
+    - netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.31.Final.jar
  * Joda Time
     - joda-time-2.9.9.jar
  * Jetty
@@ -252,8 +269,6 @@ The Apache Software License, Version 2.0
     - jetty-server-9.4.11.v20180605.jar
     - jetty-servlet-9.4.11.v20180605.jar
     - jetty-util-9.4.11.v20180605.jar
-  * Javassist
-    - javassist-3.22.0-CR2.jar
   * Asynchronous Http Client
     - async-http-client-1.6.5.jar
   * Apache BVal
@@ -372,7 +387,6 @@ The Apache Software License, Version 2.0
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
     - snakeyaml-1.17.jar
-    - snakeyaml-1.23.jar
   * Snappy Java
     - snappy-java-1.1.1.3.jar
   * Bean Validation API
@@ -392,10 +406,59 @@ The Apache Software License, Version 2.0
     - lz4-java-1.5.0.jar
   * JCTools
     - jctools-core-2.1.2.jar
+  * Asynchronous Http Client
+    - async-http-client-2.7.0.jar
+    - async-http-client-netty-utils-2.7.0.jar
+  * Apache Bookkeeper
+    - bookkeeper-common-4.9.0.jar
+    - bookkeeper-common-allocator-4.9.0.jar
+    - bookkeeper-proto-4.9.0.jar
+    - bookkeeper-server-4.9.0.jar
+    - bookkeeper-stats-api-4.9.0.jar
+    - bookkeeper-tools-framework-4.9.0.jar
+    - circe-checksum-4.9.0.jar
+    - codahale-metrics-provider-4.9.0.jar
+    - cpu-affinity-4.9.0.jar
+    - http-server-4.9.0.jar
+    - prometheus-metrics-provider-4.9.0.jar
+  * Apache Commons
+    - commons-cli-1.2.jar
+    - commons-codec-1.10.jar
+    - commons-collections4-4.1.jar
+    - commons-configuration-1.10.jar
+    - commons-io-2.5.jar
+    - commons-lang-2.6.jar
+    - commons-logging-1.1.1.jar
+  * GSON
+    - gson-2.8.2.jar
+  * Jackson
+    - jackson-jaxrs-base-2.8.11.jar
+    - jackson-jaxrs-json-provider-2.8.11.jar
+    - jackson-module-jaxb-annotations-2.8.11.jar
+    - jackson-module-jsonSchema-2.8.11.jar
+  * Java Assist
+    - javassist-3.21.0-GA.jar
+  * Jetty
+    - jetty-http-9.4.12.v20180830.jar
+    - jetty-io-9.4.12.v20180830.jar
+    - jetty-security-9.4.12.v20180830.jar
+    - jetty-server-9.4.12.v20180830.jar
+    - jetty-servlet-9.4.12.v20180830.jar
+    - jetty-util-9.4.12.v20180830.jar
+  * Java Native Access
+    - jna-4.2.0.jar
+  * Yahoo Datasketches
+    - memory-0.8.3.jar
+    - sketches-core-0.8.3.jar
+  * Apache Zookeeper
+    - zookeeper-3.4.13.jar
+  * Apache Yetus Audience Annotations
+    - audience-annotations-0.5.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
    - protobuf-shaded-2.1.0-incubating.jar
+   - protobuf-java-3.5.1.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
@@ -476,6 +539,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
      - jgrapht-core-0.9.0.jar
   * Logback Core Module
     - logback-core-1.2.3.jar
+  * MIME Streaming Extension
+    - mimepull-1.9.6.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
@@ -484,6 +549,8 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
    - aopalliance-1.0.jar
  * XZ For Java
     - xz-1.5.jar
+ * Reactive Streams
+    - reactive-streams-1.0.2.jar
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
