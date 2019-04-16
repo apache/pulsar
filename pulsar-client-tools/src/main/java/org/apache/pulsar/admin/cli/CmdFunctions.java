@@ -280,9 +280,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowledges messages", hidden = true)
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowledge messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledges messages", arity = 1)
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)

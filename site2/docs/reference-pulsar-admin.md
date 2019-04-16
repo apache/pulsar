@@ -405,7 +405,7 @@ Options
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
 |`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
 |`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--broker-service-url `|The URL of the Pulsar broker||
 |`--classname`|The function's class name||
@@ -459,7 +459,7 @@ Options
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
 |`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
 |`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The function's class name||
 |`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
@@ -522,7 +522,7 @@ Options
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
 |`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
 |`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The function's class name||
 |`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
@@ -1518,7 +1518,7 @@ Options
 |`--sink-type`|The built-in sinks's connector provider||
 |`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--timeout-ms`|The message timeout in milliseconds||
 |`--retain-ordering`|Sink consumes and sinks messages in order||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
@@ -1552,7 +1552,7 @@ Options
 |`--sink-type`|The built-in sinks's connector provider||
 |`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--retain-ordering`|Sink consumes and sinks messages in order||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--timeout-ms`|The message timeout in milliseconds||
@@ -1702,7 +1702,7 @@ Options
 |`--sink-type`|The built-in sinks's connector provider||
 |`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledges messages||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--timeout-ms`|The message timeout in milliseconds||
 |`--client-auth-params`|Client authentication param||
 |`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
