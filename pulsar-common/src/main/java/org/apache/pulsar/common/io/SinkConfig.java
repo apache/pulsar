@@ -51,7 +51,7 @@ public class SinkConfig {
 
     private Map<String, String> topicToSchemaType;
 
-    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs;
 
     private Map<String, Object> configs;
     // This is a map of secretName(aka how the secret is going to be
