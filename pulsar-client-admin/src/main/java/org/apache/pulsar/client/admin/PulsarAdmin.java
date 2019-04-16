@@ -49,8 +49,6 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
-import org.apache.pulsar.client.impl.ServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.ClientConfig;
@@ -96,7 +94,6 @@ public class PulsarAdmin implements Closeable {
     private final TimeUnit connectTimeoutUnit;
     private final int readTimeout;
     private final TimeUnit readTimeoutUnit;
-    private final ServiceNameResolver serviceNameResolver;
 
     static {
         /**
@@ -165,10 +162,7 @@ public class PulsarAdmin implements Closeable {
 
         this.client = clientBuilder.build();
 
-        this.serviceNameResolver = new PulsarServiceNameResolver();
-        this.serviceNameResolver.updateServiceUrl(serviceUrl);
-
-        this.serviceUrl = this.serviceNameResolver.resolveHostUri().toString();
+        this.serviceUrl = serviceUrl;
         root = client.target(serviceUrl);
 
         this.clusters = new ClustersImpl(root, auth);
