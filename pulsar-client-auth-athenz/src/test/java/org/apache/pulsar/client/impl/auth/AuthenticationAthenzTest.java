@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.auth;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 import org.apache.pulsar.client.impl.auth.AuthenticationAthenz;
@@ -170,5 +171,28 @@ public class AuthenticationAthenzTest {
         } catch (Exception e) {
             Assert.fail();
         }
+    }
+
+    @Test
+    public void testAutoPrefetchEnabled() throws Exception {
+        Field field = auth.getClass().getDeclaredField("autoPrefetchEnabled");
+        field.setAccessible(true);
+        assertFalse((boolean) field.get(auth));
+
+        String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+
+        authParamsMap.put("autoPrefetchEnabled", "true");
+        AuthenticationAthenz auth1 = new AuthenticationAthenz();
+        auth1.configure(jsonMapper.writeValueAsString(authParamsMap));
+        assertTrue((boolean) field.get(auth1));
+        auth1.close();
+
+        authParamsMap.put("autoPrefetchEnabled", "false");
+        AuthenticationAthenz auth2 = new AuthenticationAthenz();
+        auth2.configure(jsonMapper.writeValueAsString(authParamsMap));
+        assertFalse((boolean) field.get(auth2));
+        auth2.close();
     }
 }
