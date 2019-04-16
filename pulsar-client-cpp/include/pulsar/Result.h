@@ -20,8 +20,7 @@
 #define ERROR_HPP_
 
 #include <iosfwd>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
@@ -80,11 +79,9 @@ enum Result
 };
 
 // Return string representation of result code
-const char* strResult(Result result);
+PULSAR_PUBLIC const char* strResult(Result result);
 }  // namespace pulsar
 
-std::ostream& operator<<(std::ostream& s, pulsar::Result result);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, pulsar::Result result);
 
 #endif /* ERROR_HPP_ */

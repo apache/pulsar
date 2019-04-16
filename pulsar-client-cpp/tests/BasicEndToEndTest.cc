@@ -24,6 +24,7 @@
 #include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
+#include "boost/thread/thread.hpp"
 #include "CustomRoutingPolicy.h"
 #include <mutex>
 #include <lib/TopicName.h>
@@ -94,7 +95,7 @@ static void receiveCallBack(Result r, const Message &msg, std::string &messageCo
 static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
                                   uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
-        usleep(delayInMicros);
+        boost::this_thread::sleep(boost::posix_time::microseconds(delayInMicros));
     }
     sendCallBack(r, msg, prefix, count);
 }
@@ -374,7 +375,7 @@ TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
     ASSERT_EQ(ResultOk, client1.close());
 
     // 2 seconds
-    usleep(2 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
 
     ASSERT_EQ(ResultOk, client2.close());
 }
@@ -742,7 +743,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     LOG_INFO("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
 
-    usleep(2 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
 
     Producer producer;
     ProducerConfiguration producerConfiguration;
@@ -880,7 +881,7 @@ TEST(BasicEndToEndTest, testMessageListener) {
     }
 
     // Sleeping for 5 seconds
-    usleep(5 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(5 * 1000 * 1000));
     ASSERT_EQ(globalCount, 10);
     consumer.close();
     producer.close();
@@ -920,10 +921,10 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     int temp = 1000;
     for (int i = 0; i < 10000; i++) {
         if (i && i % 1000 == 0) {
-            usleep(2 * 1000 * 1000);
+            boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
             ASSERT_EQ(globalCount, temp);
             consumer.resumeMessageListener();
-            usleep(2 * 1000 * 1000);
+            boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
             ASSERT_EQ(globalCount, i);
             temp = globalCount;
             consumer.pauseMessageListener();
@@ -935,7 +936,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     ASSERT_EQ(globalCount, temp);
     consumer.resumeMessageListener();
     // Sleeping for 2 seconds
-    usleep(2 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
 
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
@@ -970,7 +971,7 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
                            std::bind(resendMessage, std::placeholders::_1, std::placeholders::_2, producer));
     }
     // 3 seconds
-    usleep(3 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(3 * 1000 * 1000));
     producer.close();
     Lock lock(mutex_);
     ASSERT_GE(globalResendMessageCount, 3);
@@ -1022,7 +1023,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
 
     // Wait for all messages to be acked by broker
     while (PulsarFriend::sum(producerStatsImplPtr->getTotalSendMap()) < numOfMessages) {
-        usleep(1000);  // 1 ms
+        boost::this_thread::sleep(boost::posix_time::microseconds(1000));  // 1 ms
     }
 
     // Get latencies
@@ -1050,10 +1051,10 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     ASSERT_GE((uint64_t)totalLatencies[3], 20 * 100);
 
     while (producerStatsImplPtr->getNumMsgsSent() != 0) {
-        usleep(1e6);  // wait till stats flush
+        boost::this_thread::sleep(boost::posix_time::seconds(1));  // wait till stats flush
     }
 
-    usleep(1 * 1e6);  // 1 second
+    boost::this_thread::sleep(boost::posix_time::seconds(1));  // 1 second
 
     latencyAccumulator = producerStatsImplPtr->getLatencyAccumulator();
     latencies = boost::accumulators::extended_p_square(latencyAccumulator);
@@ -1207,7 +1208,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
             do {
                 ClientConnectionWeakPtr clientConnectionWeakPtr = PulsarFriend::getClientConnection(pImpl);
                 clientConnectionPtr = clientConnectionWeakPtr.lock();
-                usleep(1 * 1e6);
+                boost::this_thread::sleep(boost::posix_time::seconds(1));
             } while (!clientConnectionPtr);
             oldConnections.push_back(clientConnectionPtr);
             clientConnectionPtr->close();
@@ -1495,7 +1496,7 @@ TEST(BasicEndToEndTest, testSeek) {
     // seek to earliest, expected receive first message.
     result = consumer.seek(MessageId::earliest());
     // Sleeping for 500ms to wait for consumer re-connect
-    usleep(500 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(500 * 1000));
 
     ASSERT_EQ(ResultOk, result);
     consumer.receive(msgReceived, 100);
@@ -2066,7 +2067,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4, and 1 producer not match");
 
     // 3. wait enough time to trigger auto discovery
-    usleep(2 * 1000 * 1000);
+    boost::this_thread::sleep(boost::posix_time::microseconds(2 * 1000 * 1000));
 
     // 4. produce data.
     int messageNumber = 100;
@@ -2233,7 +2234,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     std::string url =
         adminUrl + "admin/v2/persistent/public/default/partition-testSyncFlushBatchMessages/partitions";
     int res = makePutRequest(url, "5");
-    int numberOfPartitions = 5;
+    const int numberOfPartitions = 5;
 
     LOG_INFO("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
@@ -2446,7 +2447,7 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     std::string url =
         adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
     int res = makePutRequest(url, "5");
-    int numberOfPartitions = 5;
+    const int numberOfPartitions = 5;
 
     LOG_INFO("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
@@ -2582,7 +2583,7 @@ TEST(BasicEndToEndTest, testReceiveAsync) {
         if (count == totalMsgs) {
             break;
         }
-        usleep(1 * 1000 * 1000);
+        boost::this_thread::sleep(boost::posix_time::microseconds(1 * 1000 * 1000));
     }
     ASSERT_FALSE(isFailed);
     ASSERT_EQ(count, totalMsgs);
@@ -2633,7 +2634,7 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsync) {
         if (count == totalMsgs) {
             break;
         }
-        usleep(1 * 1000 * 1000);
+        boost::this_thread::sleep(boost::posix_time::microseconds(1 * 1000 * 1000));
     }
     ASSERT_FALSE(isFailed);
     ASSERT_EQ(count, totalMsgs);
@@ -2705,7 +2706,7 @@ TEST(BasicEndToEndTest, testBatchMessagesReceiveAsync) {
         if (count == numOfMessages) {
             break;
         }
-        usleep(1 * 1000 * 1000);
+        boost::this_thread::sleep(boost::posix_time::microseconds(1 * 1000 * 1000));
     }
     ASSERT_FALSE(isFailed);
     ASSERT_EQ(count, numOfMessages);
@@ -2744,7 +2745,7 @@ TEST(BasicEndToEndTest, testReceiveAsyncFailedConsumer) {
         if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
             break;
         }
-        usleep(1 * 1000 * 1000);
+        boost::this_thread::sleep(boost::posix_time::microseconds(1 * 1000 * 1000));
     }
 
     ASSERT_TRUE(isFailedOnConsumerClosing);
@@ -2788,7 +2789,7 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
         if (isFailedOnConsumerClosing && isFailedOnConsumerClosed) {
             break;
         }
-        usleep(1 * 1000 * 1000);
+        boost::this_thread::sleep(boost::posix_time::microseconds(1 * 1000 * 1000));
     }
 
     ASSERT_TRUE(isFailedOnConsumerClosing);

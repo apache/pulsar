@@ -26,15 +26,14 @@
 #include <thread>
 #include <boost/noncopyable.hpp>
 #include <mutex>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 typedef std::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
 typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> > TlsSocketPtr;
 typedef std::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef std::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
-class ExecutorService : private boost::noncopyable {
+class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
     friend class ClientConnection;
 
    public:
@@ -76,7 +75,7 @@ class ExecutorService : private boost::noncopyable {
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;
 
-class ExecutorServiceProvider {
+class PULSAR_PUBLIC ExecutorServiceProvider {
    public:
     explicit ExecutorServiceProvider(int nthreads);
 
@@ -94,7 +93,5 @@ class ExecutorServiceProvider {
 
 typedef std::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  //_PULSAR_EXECUTOR_SERVICE_HEADER_

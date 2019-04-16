@@ -19,31 +19,30 @@
 
 #pragma once
 
+#include <pulsar/defines.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#pragma GCC visibility push(default)
 
 typedef struct _pulsar_authentication pulsar_authentication_t;
 
 typedef char *(*token_supplier)(void *);
 
-pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
                                                       const char *authParamsString);
 
-pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
                                                           const char *privateKeyPath);
 
-pulsar_authentication_t *pulsar_authentication_token_create(const char *token);
-pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(token_supplier tokenSupplier,
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create(const char *token);
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(
+    token_supplier tokenSupplier,
                                                                           void *ctx);
 
-pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
 
-void pulsar_authentication_free(pulsar_authentication_t *authentication);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC void pulsar_authentication_free(pulsar_authentication_t *authentication);
 
 #ifdef __cplusplus
 }
