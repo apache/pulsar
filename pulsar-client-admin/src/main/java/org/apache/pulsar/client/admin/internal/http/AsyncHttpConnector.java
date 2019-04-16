@@ -24,9 +24,12 @@ import io.netty.handler.ssl.SslContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -144,8 +147,10 @@ public class AsyncHttpConnector implements Connector {
 
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
         String originalUri = uri.toString();
-        String newUri =
-            (originalUri.split(":")[0] + "://") + address.getHostName() + ":" + address.getPort() + uri.getPath();
+        String newUri = (originalUri.split(":")[0] + "://")
+                        + address.getHostName() + ":"
+                        + address.getPort()
+                        + uri.getRawPath();
         return URI.create(newUri);
     }
 
