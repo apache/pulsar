@@ -677,4 +677,40 @@ public class TestCmdSinks {
 
         verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
     }
+
+    @Test
+    public void testUpdateSink() throws Exception {
+
+        updateSink.name = "my-sink";
+
+        updateSink.archive = "new-archive";
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .archive(updateSink.archive)
+                .build()), eq(updateSink.archive));
+
+
+        updateSink.archive = null;
+
+        updateSink.parallelism = 2;
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .parallelism(2)
+                .build()), eq(null));
+
+    }
 }
