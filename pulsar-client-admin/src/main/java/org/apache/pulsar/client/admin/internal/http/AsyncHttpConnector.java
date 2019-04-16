@@ -150,7 +150,9 @@ public class AsyncHttpConnector implements Connector {
         String newUri = (originalUri.split(":")[0] + "://")
                         + address.getHostName() + ":"
                         + address.getPort()
-                        + uri.getRawPath();
+                        + uri.getRawPath()
+                        + "?"
+                        + uri.getRawQuery();
         return URI.create(newUri);
     }
 
