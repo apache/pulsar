@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBuf;
 
 public interface SchemaHandler {
 
