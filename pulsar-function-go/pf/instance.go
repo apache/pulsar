@@ -63,6 +63,11 @@ func (gi *goInstance) startFunction(function function) error {
 		log.Errorf("setup consumer failed, error is:%v", err)
 		return err
 	}
+	err = gi.setupLogHandler()
+	if err != nil {
+		log.Errorf("setup log appender failed, error is:%v", err)
+		return err
+	}
 
 CLOSE:
 	for {
@@ -75,6 +80,9 @@ CLOSE:
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
+
+			gi.addLogTopicHandler()
+
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
 				log.Errorf("handler message error:%v", err)
@@ -83,6 +91,7 @@ CLOSE:
 				}
 				return err
 			}
+
 			gi.processResult(msgInput, output)
 
 		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)):
@@ -91,6 +100,7 @@ CLOSE:
 		}
 	}
 
+	gi.closeLogTopic()
 	gi.close()
 	return nil
 }
@@ -248,8 +258,7 @@ func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
-	//todo: in the current version of pulsar-client-go, we do not support this operation
-	//gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
@@ -257,6 +266,39 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 		return time.Duration(math.MaxInt64)
 	}
 	return timeoutMilliSecond
+}
+
+func (gi *goInstance) setupLogHandler() error {
+	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
+		gi.context.logAppender = NewLogAppender(
+			gi.client,                                         //pulsar client
+			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
+			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
+				gi.context.instanceConf.funcDetails.Namespace,
+				gi.context.instanceConf.funcDetails.Name),
+		)
+		return gi.context.logAppender.Start()
+	}
+	return nil
+}
+
+func (gi *goInstance) addLogTopicHandler() {
+	if gi.context.logAppender == nil {
+		panic("please init logAppender")
+	}
+
+	for _, logByte := range log.StrEntry {
+		gi.context.logAppender.Append([]byte(logByte))
+	}
+}
+
+func (gi *goInstance) closeLogTopic() {
+	log.Info("closing log topic...")
+	if gi.context.logAppender == nil {
+		return
+	}
+	gi.context.logAppender.Stop()
+	gi.context.logAppender = nil
 }
 
 func (gi *goInstance) close() {

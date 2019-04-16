@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/apache/pulsar/pulsar-client-go v0.0.0-20190312044336-ff4db8db12be h1:BpPXJTLeqlWQPlMZxFP+/Sm1Zva7NJB2gWRfWlN8xi8=
-github.com/apache/pulsar/pulsar-client-go v0.0.0-20190312044336-ff4db8db12be/go.mod h1:Dt5jPpS2v4WlPya7e9jXrqGN+6BVzVyaBw+bixjLFFU=
+github.com/apache/pulsar/pulsar-client-go v0.0.0-20190320194916-f03971cb5b4f h1:X408m6eknpEC7CoRBLzkvYzNpslP2D4/xQJNfR5Q0mk=
+github.com/apache/pulsar/pulsar-client-go v0.0.0-20190320194916-f03971cb5b4f/go.mod h1:Dt5jPpS2v4WlPya7e9jXrqGN+6BVzVyaBw+bixjLFFU=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
