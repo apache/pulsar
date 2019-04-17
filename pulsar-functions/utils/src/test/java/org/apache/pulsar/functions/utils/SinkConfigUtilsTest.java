@@ -53,7 +53,15 @@ public class SinkConfigUtilsTest {
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sinkConfig.setConfigs(new HashMap<>());
+
+        Map<String, String> producerConfigs = new HashMap<>();
+        producerConfigs.put("security.protocal", "SASL_PLAINTEXT");
+        Map<String, Object> configs = new HashMap<>();
+        configs.put("topic", "kafka");
+        configs.put("bootstrapServers", "server-1,server-2");
+        configs.put("producerConfigProperties", producerConfigs);
+
+        sinkConfig.setConfigs(configs);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
