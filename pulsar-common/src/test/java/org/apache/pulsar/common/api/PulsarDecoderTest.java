@@ -24,9 +24,14 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Properties;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -56,5 +61,26 @@ public class PulsarDecoderTest {
             .handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
     }
 
+    @Test
+    public void testMaxSize() {
+        String commonConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/common.conf";
+        try {
+            int maxMessageSize  = Integer.valueOf(loadConfig(commonConfigFile).getProperty("maxMessageSize"));
+            assertEquals(maxMessageSize, PulsarDecoder.MaxMessageSize);
+            int maxFrameSize = Integer.valueOf(loadConfig(commonConfigFile).getProperty("maxFrameSize"));
+            assertEquals(maxFrameSize, PulsarDecoder.MaxFrameSize);
+        } catch (IOException e) {
+            assertEquals((5 * 1024 * 1024 - (10 * 1024)), PulsarDecoder.MaxMessageSize);
+            assertEquals(5 * 1024 * 1024, PulsarDecoder.MaxFrameSize);
+        }
+    }
+
+    private static Properties loadConfig(String configFile) throws IOException {
+        try(FileInputStream inStream = new FileInputStream(configFile)) {
+            Properties properties = new Properties();
+            properties.load(inStream);
+            return properties;
+        }
+    }
 
 }

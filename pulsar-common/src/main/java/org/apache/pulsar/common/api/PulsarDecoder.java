@@ -24,6 +24,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Properties;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -65,11 +69,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
-
     // Max message size is limited by max BookKeeper entry size which is 5MB, and we need to account
     // for headers as well.
-    public final static int MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024));
-    public final static int MaxFrameSize = 5 * 1024 * 1024;
+    public static int MaxMessageSize;
+    public static int MaxFrameSize;
+
+    private static String commonConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/common.conf";
+
+    static {
+        try {
+            MaxMessageSize = Integer.valueOf(loadConfig(commonConfigFile).getProperty("maxMessageSize"));
+            MaxFrameSize = Integer.valueOf(loadConfig(commonConfigFile).getProperty("maxFrameSize"));
+        } catch (IOException e) {
+            MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024));
+            MaxFrameSize = 5 * 1024 * 1024;
+        }
+    }
+
+    private static Properties loadConfig(String configFile) throws IOException {
+        try(FileInputStream inStream = new FileInputStream(configFile)) {
+            Properties properties = new Properties();
+            properties.load(inStream);
+            return properties;
+        }
+    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
