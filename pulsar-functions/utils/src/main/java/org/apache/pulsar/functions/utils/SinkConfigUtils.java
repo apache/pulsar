@@ -412,6 +412,15 @@ public class SinkConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getSourceSubscriptionName()) && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
             throw new IllegalArgumentException("Subscription Name cannot be altered");
         }
+
+        if (newConfig.getInputSpecs() == null) {
+            newConfig.setInputSpecs(new HashMap<>());
+        }
+
+        if (mergedConfig.getInputSpecs() == null) {
+            mergedConfig.setInputSpecs(new HashMap<>());
+        }
+
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
                 newConfig.getInputSpecs().put(topicName,
