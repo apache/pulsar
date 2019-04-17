@@ -165,7 +165,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setInputSpecs(new HashMap<>());
         sinkConfig.setInputs(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -190,7 +189,6 @@ public class TestCmdSinks {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setTopicToSerdeClassName(null);
         sinkConfig.setTopicToSchemaType(null);
-        sinkConfig.setInputSpecs(new HashMap<>());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -212,7 +210,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getInputSpecs().clear();
         sinkConfig.setTopicsPattern(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
