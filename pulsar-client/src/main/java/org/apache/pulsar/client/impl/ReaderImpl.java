@@ -21,18 +21,12 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
@@ -45,14 +39,11 @@ public class ReaderImpl<T> implements Reader<T> {
     private static final Logger log = LoggerFactory.getLogger(ReaderImpl.class);
 
     private final ConsumerImpl<T> consumer;
+    private final Long startPublishTime;
+    private boolean seekDone;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
-        this(client, readerConfiguration, listenerExecutor, consumerFuture, schema, null);
-    }
-    public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema, 
-                      Long startPublishTime) {
+                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
@@ -65,8 +56,6 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
-        consumerConfiguration.setStartPublishTime(startPublishTime);
-        log.info("Consumer configuration value for startPublishTime is: " + startPublishTime);
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
         }
@@ -98,6 +87,12 @@ public class ReaderImpl<T> implements Reader<T> {
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
                 partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
                 client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
+        startPublishTime = readerConfiguration.getStartPublishTime();
+        if (startPublishTime == null) {
+            seekDone = true;
+        } else {
+            seekDone = false;
+        }
     }
 
     @Override
@@ -114,8 +109,29 @@ public class ReaderImpl<T> implements Reader<T> {
         return consumer.hasReachedEndOfTopic();
     }
 
+    private void seekIfNeeded() {
+        try {
+            seekIfNeededAsync().get();
+        } catch (InterruptedException | ExecutionException exc) {
+            log.warn(exc.getMessage());
+        }
+    }
+
+    private CompletableFuture<Void> seekIfNeededAsync() {
+        final CompletableFuture<Void> future;
+        if (!seekDone) {
+            seekDone = true;
+            future = seekAsync(startPublishTime);
+        } else {
+            future = new CompletableFuture<>();
+            future.complete(null);
+        }
+        return future;
+    }
+
     @Override
     public Message<T> readNext() throws PulsarClientException {
+        seekIfNeeded();
         Message<T> msg = consumer.receive();
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
@@ -126,6 +142,7 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
+        seekIfNeeded();
         Message<T> msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
@@ -136,9 +153,16 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        return consumer.receiveAsync().thenApply(msg -> {
-            consumer.acknowledgeCumulativeAsync(msg);
-            return msg;
+        return seekIfNeededAsync().thenApply(argument -> {
+            try {
+                return consumer.receiveAsync().thenApply(msg -> {
+                    consumer.acknowledgeCumulativeAsync(msg);
+                    return msg;
+                }).get();
+            } catch (InterruptedException | ExecutionException e) {
+                log.warn(e.getMessage());
+            }
+            return null;
         });
     }
 
@@ -165,5 +189,25 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public boolean isConnected() {
         return consumer.isConnected();
+    }
+
+    @Override
+    public void seek(MessageId messageId) throws PulsarClientException {
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void seek(long timestamp) throws PulsarClientException {
+        consumer.seek(timestamp);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(MessageId messageId) {
+        return consumer.seekAsync(messageId);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(long timestamp) {
+        return consumer.seekAsync(timestamp);
     }
 }

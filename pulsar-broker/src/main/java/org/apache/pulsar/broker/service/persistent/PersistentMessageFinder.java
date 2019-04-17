@@ -27,9 +27,6 @@ import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
-
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -59,51 +56,28 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
-        findMessages(timestamp, callback, true);
-    }
-
-    public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback, boolean usePosition) {
         this.timestamp = timestamp;
         if (messageFindInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
 
-            if (usePosition) {
-                cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
-                    MessageImpl msg = null;
-                    try {
-                        msg = MessageImpl.deserialize(entry.getDataBuffer());
-                        log.info("Message publish time is: " + msg.getPublishTime());
-                        return msg.getPublishTime() <= timestamp;
-                    } catch (Exception e) {
-                        log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
-                    } finally {
-                        entry.release();
-                        if (msg != null) {
-                            msg.recycle();
-                        }
+            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
+                MessageImpl msg = null;
+                try {
+                    msg = MessageImpl.deserialize(entry.getDataBuffer());
+                    log.info("Message publish time is: " + msg.getPublishTime());
+                    return msg.getPublishTime() <= timestamp;
+                } catch (Exception e) {
+                    log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
+                } finally {
+                    entry.release();
+                    if (msg != null) {
+                        msg.recycle();
                     }
-                    return false;
-                }, this, callback);
-            } else {
-                cursor.asyncFindData(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
-                    MessageImpl msg = null;
-                    try {
-                        msg = MessageImpl.deserialize(entry.getDataBuffer());
-                        log.info("Message publish time is: " + msg.getPublishTime());
-                        return msg.getPublishTime() <= timestamp;
-                    } catch (Exception e) {
-                        log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
-                    } finally {
-                        entry.release();
-                        if (msg != null) {
-                            msg.recycle();
-                        }
-                    }
-                    return false;
-                }, this, callback);
-            }
+                }
+                return false;
+            }, this, callback);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
@@ -143,20 +117,5 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
         messageFindInProgress = FALSE;
         callback.findEntryFailed(exception, null);
-    }
-
-    @Override
-    public void findEntryData(ByteBuf entryData, Object ctx) {
-        checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
-        AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
-        if (entryData != null) {
-            log.info("[{}][{}] Found entryData closest to provided timestamp {}", topicName, subName, timestamp);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] No position found closest to provided timestamp {}", topicName, subName, timestamp);
-            }
-        }
-        messageFindInProgress = FALSE;
-        callback.findEntryData(entryData, null);
     }
 }

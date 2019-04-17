@@ -28,9 +28,6 @@ import static org.testng.Assert.*;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -2064,11 +2061,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
                 result.exception = exception;
                 counter.countDown();
-            }
-            
-            @Override
-            public void findEntryData(ByteBuf buf, Object ctx) {
-                throw new UnsupportedOperationException();
             }
         };
 

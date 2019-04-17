@@ -140,7 +140,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final long backoffIntervalNanos;
     private final long maxBackoffIntervalNanos;
-    private final Long startPublishTime;
+
     protected volatile boolean paused;
 
     enum SubscriptionMode {
@@ -188,7 +188,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
-        this.startPublishTime = conf.getStartPublishTime();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -223,8 +222,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler = new ConnectionHandler(this,
                         new BackoffBuilder()
                            .setInitialTime(100, TimeUnit.MILLISECONDS)
-                           .setMax(60, TimeUnit.SECONDS)
-                           .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                           .setMandatoryStop(60, TimeUnit.SECONDS)
+                           .setMax(0, TimeUnit.MILLISECONDS)
                            .useUserConfiguredIntervals(backoffIntervalNanos, 
                                                        maxBackoffIntervalNanos)
                            .create(),
@@ -528,8 +527,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             si = null;
         }
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, startPublishTime, metadata, readCompacted, InitialPosition.valueOf(subscriptionInitialPosition.getValue()), si);
-        log.info("Start Publish Time that is being sent is: " + startPublishTime);
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted, InitialPosition.valueOf(subscriptionInitialPosition.getValue()), si);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -1379,6 +1377,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to publish time {}", topic, subscription, timestamp);
+            acknowledgmentsGroupingTracker.flushAndClean();
+            lastDequeuedMessage = MessageId.earliest;
+            incomingMessages.clear();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -1410,6 +1411,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to message id {}", topic, subscription, messageId);
+            acknowledgmentsGroupingTracker.flushAndClean();
+            lastDequeuedMessage = messageId;
+            incomingMessages.clear();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());

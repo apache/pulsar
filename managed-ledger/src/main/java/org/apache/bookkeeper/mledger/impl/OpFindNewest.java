@@ -19,21 +19,14 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.base.Predicate;
-
-import io.netty.buffer.ByteBuf;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 
 class OpFindNewest implements ReadEntryCallback {
-    private static final Logger log = LoggerFactory.getLogger(ReadEntryCallback.class);
-
     private final ManagedCursorImpl cursor;
     private final PositionImpl startPosition;
     private final FindEntryCallback callback;
@@ -45,14 +38,13 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     PositionImpl searchPosition;
-    boolean usePosition;
     long min;
     long max;
     Position lastMatchedPosition = null;
     State state;
 
     public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
-            long numberOfEntries, FindEntryCallback callback, Object ctx, boolean usePosition) {
+            long numberOfEntries, FindEntryCallback callback, Object ctx) {
         this.cursor = cursor;
         this.startPosition = startPosition;
         this.callback = callback;
@@ -64,8 +56,6 @@ class OpFindNewest implements ReadEntryCallback {
 
         this.searchPosition = startPosition;
         this.state = State.checkFirst;
-        log.info("Use Position was set to: " + usePosition);
-        this.usePosition = usePosition;
     }
 
     @Override
@@ -74,11 +64,7 @@ class OpFindNewest implements ReadEntryCallback {
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
-                if (!usePosition) {
-                    callback.findEntryData((ByteBuf) null, OpFindNewest.this.ctx);
-                    return;
-                }
-                callback.findEntryComplete((Position) null, OpFindNewest.this.ctx);
+                callback.findEntryComplete(null, OpFindNewest.this.ctx);
                 return;
             } else {
                 lastMatchedPosition = position;
@@ -91,10 +77,6 @@ class OpFindNewest implements ReadEntryCallback {
             break;
         case checkLast:
             if (condition.apply(entry)) {
-                if (!usePosition) {
-                    callback.findEntryData(entry.getDataBuffer(), OpFindNewest.this.ctx);
-                    return;
-                }
                 callback.findEntryComplete(position, OpFindNewest.this.ctx);
                 return;
             } else {
@@ -115,9 +97,6 @@ class OpFindNewest implements ReadEntryCallback {
             }
 
             if (max <= min) {
-                if (!usePosition) {
-                    callback.findEntryData(entry.getDataBuffer(), OpFindNewest.this.ctx);
-                }
                 callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
                 return;
             }

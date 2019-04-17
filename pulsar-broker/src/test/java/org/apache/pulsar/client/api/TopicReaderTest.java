@@ -106,7 +106,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = 3; i < 10; i++) {
+        for (int i = 2; i < 10; i++) {
             msg = reader.readNext();
 
             String receivedMessage = new String(msg.getData(), "UTF-8");
@@ -536,6 +536,128 @@ public class TopicReaderTest extends ProducerConsumerBase {
         ((ReaderImpl) reader).getConsumer().seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
 
         assertTrue(reader.hasMessageAvailable());
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithTimeOnBeginningOfTopic";
+        final int numOfMessage = 10;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        assertTrue(reader.hasMessageAvailable());
+
+        // Read all messages the first time
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+        }
+
+        assertFalse(reader.hasMessageAvailable());
+
+        // Perform cursor reset by time
+        reader.seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
+
+        // Read all messages a second time after seek()
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+        }
+
+        // Reader should be finished
+        assertTrue(reader.isConnected());
+        assertFalse(reader.hasMessageAvailable());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithMessageIdOnMiddleOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithMessageIdOnMiddleOfTopic";
+        final int numOfMessage = 100;
+        final int halfMessages = numOfMessage / 2;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        assertTrue(reader.hasMessageAvailable());
+
+        // Read all messages the first time
+        MessageId midmessageToSeek = null;
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+
+            if (i == halfMessages) {
+                midmessageToSeek = message.getMessageId();
+            }
+        }
+
+        assertFalse(reader.hasMessageAvailable());
+
+        // Perform cursor reset by MessageId to half of the topic
+        reader.seek(midmessageToSeek);
+
+        // Read all halved messages after seek()
+        for (int i = halfMessages + 1; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+        }
+
+        // Reader should be finished
+        assertTrue(reader.isConnected());
+        assertFalse(reader.hasMessageAvailable());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
+        final int numOfMessage = 10;
+        final int halfMessages = numOfMessage / 2;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        long l = System.currentTimeMillis();
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+            Thread.sleep(100);
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        int plusTime = (halfMessages + 1) * 100;
+        reader.seek(l + plusTime);
+
+        for (int i = halfMessages; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+        }
 
         reader.close();
         producer.close();

@@ -100,11 +100,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 result.exception = exception;
                 future.completeExceptionally(exception);
             }
-            
-            @Override
-            public void findEntryData(ByteBuf buf, Object ctx) {
-                throw new UnsupportedOperationException();
-            }
         });
         return future;
     }
@@ -178,10 +173,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
             @Override
             public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
                 ex.set(true);
-            }
-
-            @Override
-            public void findEntryData(ByteBuf buf, Object ctx) {
             }
         });
         assertTrue(ex.get());

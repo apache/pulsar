@@ -38,8 +38,6 @@ import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import io.netty.buffer.ByteBuf;
-
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -748,11 +746,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 result.exception = exception;
                 counter.countDown();
             }
-
-            @Override
-            public void findEntryData(ByteBuf entryData, Object ctx) {
-                throw new UnsupportedOperationException();
-            }
         }, null);
 
         counter.await();
@@ -766,17 +759,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx) {
-        asyncFind(constraint, condition, callback, ctx, true);
-    }
-
-    @Override
-    public void asyncFindData(FindPositionConstraint constraint, Predicate<Entry> condition,
-            FindEntryCallback callback, Object ctx) {
-        asyncFind(constraint, condition, callback, ctx, false);
-    }
-
-    private void asyncFind(FindPositionConstraint constraint, Predicate<Entry> condition,
-            FindEntryCallback callback, Object ctx, boolean usePosition) {
         OpFindNewest op;
         PositionImpl startPosition = null;
         long max = 0;
@@ -797,7 +779,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"), ctx);
             return;
         }
-        op = new OpFindNewest(this, startPosition, condition, max, callback, ctx, usePosition);
+        op = new OpFindNewest(this, startPosition, condition, max, callback, ctx);
         op.find();
     }
 
