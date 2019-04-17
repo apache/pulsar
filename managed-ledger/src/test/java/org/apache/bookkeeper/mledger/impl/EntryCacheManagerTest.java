@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.BeforeClass;
@@ -211,7 +212,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
+        ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
+        mlConf.setCacheEvictionFrequency(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger", mlConf);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");
