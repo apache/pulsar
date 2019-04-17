@@ -48,7 +48,9 @@ public interface Subscription {
 
     long getNumberOfEntriesInBacklog();
 
-    long getNumberOfEntriesDelayed();
+    default long getNumberOfEntriesDelayed() {
+        return 0;
+    }
 
     List<Consumer> getConsumers();
 
