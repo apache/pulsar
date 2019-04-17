@@ -128,7 +128,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
-        assertTrue(consumer.getTopic().startsWith(MultiTopicsConsumerImpl.FAKE_TOPIC_NAME_PREFIX));
+        assertTrue(consumer.getTopic().startsWith(MultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
         List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();

@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
 
 public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
-    public static final String FAKE_TOPIC_NAME_PREFIX = "TopicsConsumerFakeTopicName";
+    public static final String DUMMY_TOPIC_NAME_PREFIX = "MultiTopicsConsumer-";
 
     // All topics should be in same namespace
     protected NamespaceName namespaceName;
@@ -99,7 +99,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors) {
-        this(client, FAKE_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
+        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
                 subscribeFuture, schema, interceptors);
     }
 
