@@ -19,6 +19,10 @@
 package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.function.Function;
 
 import org.apache.pulsar.client.api.Message;
@@ -83,6 +87,16 @@ public class FunctionAssignmentTailer
             }
             log.info("Received assignment update: {}", assignment);
             this.functionRuntimeManager.processAssignment(assignment);
+
+            try {
+                List<String> lines = Files.readAllLines(Paths.get("/tmp/flag"), StandardCharsets.UTF_8);
+                if (lines.size() > 0 && lines.get(0).equals("true")) {
+                    throw new RuntimeException("test");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
         }
     }
 
