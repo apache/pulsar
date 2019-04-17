@@ -597,7 +597,6 @@ public abstract class ComponentImpl {
                 SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(existingSinkConfig, sinkConfig);
                 mergedComponentConfigJson = new Gson().toJson(mergedConfig);
             } catch (Exception e) {
-                log.error("error: {}", e);
                 throw new RestException(Status.BAD_REQUEST, e.getMessage());
             }
         }
