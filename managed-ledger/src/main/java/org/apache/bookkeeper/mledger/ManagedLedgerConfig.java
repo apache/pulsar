@@ -63,6 +63,7 @@ public class ManagedLedgerConfig {
     private byte[] password = "".getBytes(Charsets.UTF_8);
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private Clock clock = Clock.systemUTC();
+    private double cacheEvictionFrequency = 100;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -515,9 +516,9 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * 
+     *
      * Ledger-Op (Create/Delete) timeout
-     * 
+     *
      * @return
      */
     public long getMetadataOperationsTimeoutSeconds() {
@@ -526,17 +527,17 @@ public class ManagedLedgerConfig {
 
     /**
      * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
-     * 
+     *
      * @param metadataOperationsTimeoutSeconds
      */
     public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
         this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
         return this;
     }
-    
+
     /**
      * Ledger read-entry timeout
-     * 
+     *
      * @return
      */
     public long getReadEntryTimeoutSeconds() {
@@ -546,7 +547,7 @@ public class ManagedLedgerConfig {
     /**
      * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
      * readTimeoutSeconds <= 0)
-     * 
+     *
      * @param readTimeoutSeconds
      * @return
      */
@@ -554,18 +555,35 @@ public class ManagedLedgerConfig {
         this.readEntryTimeoutSeconds = readEntryTimeoutSeconds;
         return this;
     }
-    
+
     public long getAddEntryTimeoutSeconds() {
         return addEntryTimeoutSeconds;
     }
 
     /**
      * Add-entry timeout after which add-entry callback will be failed if add-entry is not succeeded.
-     * 
+     *
      * @param addEntryTimeoutSeconds
      */
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
         this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
+    }
+
+    /**
+     * @return the configured cache eviction frequency for the managed ledger
+     */
+    public double getCacheEvictionFrequency() {
+        return cacheEvictionFrequency;
+    }
+
+    /**
+     * Configure the cache eviction frequency for the managed ledger
+     *
+     * @param cacheEvictionFrequency
+     *            a frequence, in updates/s. Default is 100
+     */
+    public void setCacheEvictionFrequency(double cacheEvictionFrequency) {
+        this.cacheEvictionFrequency = cacheEvictionFrequency;
     }
 }
