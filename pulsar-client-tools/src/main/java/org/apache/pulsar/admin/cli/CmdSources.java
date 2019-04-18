@@ -207,6 +207,7 @@ public class CmdSources extends CmdBase {
 
     @Parameters(commandDescription = "Update a Pulsar IO source connector")
     protected class UpdateSource extends SourceDetailsCommand {
+
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
@@ -218,7 +219,12 @@ public class CmdSources extends CmdBase {
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
-            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+            if (sourceConfig.getTenant() == null) {
+                sourceConfig.setTenant(PUBLIC_TENANT);
+            }
+            if (sourceConfig.getNamespace() == null) {
+                sourceConfig.setNamespace(DEFAULT_NAMESPACE);
+            }
         }
     }
 

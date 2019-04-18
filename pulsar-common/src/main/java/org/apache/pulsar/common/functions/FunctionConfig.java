@@ -64,7 +64,7 @@ public class FunctionConfig {
     /**
      * A generalized way of specifying inputs
      */
-    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs;
 
     private String output;
 
