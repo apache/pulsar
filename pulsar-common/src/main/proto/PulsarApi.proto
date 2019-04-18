@@ -342,7 +342,7 @@ message CommandLookupTopicResponse {
 	// lookup has been completed.
 	optional bool proxy_through_service_url = 8 [default = false];
 
-	repeated string topic                 = 9;
+	repeated string topics                = 9;
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,

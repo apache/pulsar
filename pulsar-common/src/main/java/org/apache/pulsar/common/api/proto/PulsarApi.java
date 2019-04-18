@@ -12458,10 +12458,10 @@ public final class PulsarApi {
     boolean hasProxyThroughServiceUrl();
     boolean getProxyThroughServiceUrl();
     
-    // repeated string topic = 9;
-    java.util.List<String> getTopicList();
-    int getTopicCount();
-    String getTopic(int index);
+    // repeated string topics = 9;
+    java.util.List<String> getTopicsList();
+    int getTopicsCount();
+    String getTopics(int index);
   }
   public static final class CommandLookupTopicResponse extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -12688,18 +12688,18 @@ public final class PulsarApi {
       return proxyThroughServiceUrl_;
     }
     
-    // repeated string topic = 9;
-    public static final int TOPIC_FIELD_NUMBER = 9;
-    private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topic_;
+    // repeated string topics = 9;
+    public static final int TOPICS_FIELD_NUMBER = 9;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topics_;
     public java.util.List<String>
-        getTopicList() {
-      return topic_;
+        getTopicsList() {
+      return topics_;
     }
-    public int getTopicCount() {
-      return topic_.size();
+    public int getTopicsCount() {
+      return topics_.size();
     }
-    public String getTopic(int index) {
-      return topic_.get(index);
+    public String getTopics(int index) {
+      return topics_.get(index);
     }
     
     private void initFields() {
@@ -12711,7 +12711,7 @@ public final class PulsarApi {
       error_ = org.apache.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
       proxyThroughServiceUrl_ = false;
-      topic_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
+      topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -12758,8 +12758,8 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         output.writeBool(8, proxyThroughServiceUrl_);
       }
-      for (int i = 0; i < topic_.size(); i++) {
-        output.writeBytes(9, topic_.getByteString(i));
+      for (int i = 0; i < topics_.size(); i++) {
+        output.writeBytes(9, topics_.getByteString(i));
       }
     }
     
@@ -12803,12 +12803,12 @@ public final class PulsarApi {
       }
       {
         int dataSize = 0;
-        for (int i = 0; i < topic_.size(); i++) {
+        for (int i = 0; i < topics_.size(); i++) {
           dataSize += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-            .computeBytesSizeNoTag(topic_.getByteString(i));
+            .computeBytesSizeNoTag(topics_.getByteString(i));
         }
         size += dataSize;
-        size += 1 * getTopicList().size();
+        size += 1 * getTopicsList().size();
       }
       memoizedSerializedSize = size;
       return size;
@@ -12939,7 +12939,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000040);
         proxyThroughServiceUrl_ = false;
         bitField0_ = (bitField0_ & ~0x00000080);
-        topic_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
+        topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000100);
         return this;
       }
@@ -13007,11 +13007,11 @@ public final class PulsarApi {
         }
         result.proxyThroughServiceUrl_ = proxyThroughServiceUrl_;
         if (((bitField0_ & 0x00000100) == 0x00000100)) {
-          topic_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.UnmodifiableLazyStringList(
-              topic_);
+          topics_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.UnmodifiableLazyStringList(
+              topics_);
           bitField0_ = (bitField0_ & ~0x00000100);
         }
-        result.topic_ = topic_;
+        result.topics_ = topics_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -13042,13 +13042,13 @@ public final class PulsarApi {
         if (other.hasProxyThroughServiceUrl()) {
           setProxyThroughServiceUrl(other.getProxyThroughServiceUrl());
         }
-        if (!other.topic_.isEmpty()) {
-          if (topic_.isEmpty()) {
-            topic_ = other.topic_;
+        if (!other.topics_.isEmpty()) {
+          if (topics_.isEmpty()) {
+            topics_ = other.topics_;
             bitField0_ = (bitField0_ & ~0x00000100);
           } else {
-            ensureTopicIsMutable();
-            topic_.addAll(other.topic_);
+            ensureTopicsIsMutable();
+            topics_.addAll(other.topics_);
           }
           
         }
@@ -13134,8 +13134,8 @@ public final class PulsarApi {
               break;
             }
             case 74: {
-              ensureTopicIsMutable();
-              topic_.add(input.readBytes());
+              ensureTopicsIsMutable();
+              topics_.add(input.readBytes());
               break;
             }
           }
@@ -13363,59 +13363,59 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated string topic = 9;
-      private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topic_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
-      private void ensureTopicIsMutable() {
+      // repeated string topics = 9;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
+      private void ensureTopicsIsMutable() {
         if (!((bitField0_ & 0x00000100) == 0x00000100)) {
-          topic_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList(topic_);
+          topics_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList(topics_);
           bitField0_ |= 0x00000100;
          }
       }
       public java.util.List<String>
-          getTopicList() {
-        return java.util.Collections.unmodifiableList(topic_);
+          getTopicsList() {
+        return java.util.Collections.unmodifiableList(topics_);
       }
-      public int getTopicCount() {
-        return topic_.size();
+      public int getTopicsCount() {
+        return topics_.size();
       }
-      public String getTopic(int index) {
-        return topic_.get(index);
+      public String getTopics(int index) {
+        return topics_.get(index);
       }
-      public Builder setTopic(
+      public Builder setTopics(
           int index, String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  ensureTopicIsMutable();
-        topic_.set(index, value);
+  ensureTopicsIsMutable();
+        topics_.set(index, value);
         
         return this;
       }
-      public Builder addTopic(String value) {
+      public Builder addTopics(String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  ensureTopicIsMutable();
-        topic_.add(value);
+  ensureTopicsIsMutable();
+        topics_.add(value);
         
         return this;
       }
-      public Builder addAllTopic(
+      public Builder addAllTopics(
           java.lang.Iterable<String> values) {
-        ensureTopicIsMutable();
-        super.addAll(values, topic_);
+        ensureTopicsIsMutable();
+        super.addAll(values, topics_);
         
         return this;
       }
-      public Builder clearTopic() {
-        topic_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
+      public Builder clearTopics() {
+        topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000100);
         
         return this;
       }
-      void addTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
-        ensureTopicIsMutable();
-        topic_.add(value);
+      void addTopics(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        ensureTopicsIsMutable();
+        topics_.add(value);
         
       }
       
