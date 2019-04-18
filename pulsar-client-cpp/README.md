@@ -176,6 +176,7 @@ Clone and build all dependencies from source if a binary distro can't be found.
 - [zlib](https://github.com/madler/zlib)
 - [OpenSSL](https://github.com/openssl/openssl)
 - [ProtoBuf](https://github.com/protocolbuffers/protobuf)
+- [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32)
 
 If you want to build and run the tests, then also install
 - [GTest and GMock](https://github.com/google/googletest)
@@ -187,7 +188,7 @@ If you want to build and run the tests, then also install
 ${PULSAR_PATH}/pulsar-client-cpp/cmake .
 
 #if all dependencies are not in your path, then passing in a PROTOC_PATH and CMAKE_PREFIX_PATH is necessary
-${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCMAKE_PREFIX_PATH="C:/boost;C:/openssl;C:/zlib;C:/curl;C:/protobuf;C:/googletest" .
+${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCMAKE_PREFIX_PATH="C:/boost;C:/openssl;C:/zlib;C:/curl;C:/protobuf;C:/googletest;C:/dlfcn-win32" .
 
 #This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
 ```
