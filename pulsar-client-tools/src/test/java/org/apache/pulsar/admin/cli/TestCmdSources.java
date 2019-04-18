@@ -569,4 +569,40 @@ public class TestCmdSources {
 
         verify(source).deleteSource(eq(TENANT), eq(NAMESPACE), null);
     }
+
+    @Test
+    public void testUpdateSource() throws Exception {
+
+        updateSource.name = "my-source";
+
+        updateSource.archive = "new-archive";
+
+        updateSource.processArguments();
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .archive(updateSource.archive)
+                .build()), eq(updateSource.archive));
+
+
+        updateSource.archive = null;
+
+        updateSource.parallelism = 2;
+
+        updateSource.processArguments();
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .parallelism(2)
+                .build()), eq(null));
+
+    }
 }
