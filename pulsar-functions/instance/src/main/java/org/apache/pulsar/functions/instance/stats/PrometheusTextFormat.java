@@ -37,12 +37,6 @@ public class PrometheusTextFormat {
          */
         while (mfs.hasMoreElements()) {
             Collector.MetricFamilySamples metricFamilySamples = mfs.nextElement();
-            writer.write("# TYPE ");
-            writer.write(metricFamilySamples.name);
-            writer.write(' ');
-            writer.write(typeString(metricFamilySamples.type));
-            writer.write('\n');
-
             for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
                 writer.write(sample.name);
                 if (sample.labelNames.size() > 0) {
@@ -63,21 +57,6 @@ public class PrometheusTextFormat {
                 }
                 writer.write('\n');
             }
-        }
-    }
-
-    private static String typeString(Collector.Type t) {
-        switch (t) {
-        case GAUGE:
-            return "gauge";
-        case COUNTER:
-            return "counter";
-        case SUMMARY:
-            return "summary";
-        case HISTOGRAM:
-            return "histogram";
-        default:
-            return "untyped";
         }
     }
 
