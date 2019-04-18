@@ -20,10 +20,13 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.netty.handler.codec.http.HttpHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -32,6 +35,10 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.asynchttpclient.AsyncHandler;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.HttpResponseBodyPart;
+import org.asynchttpclient.HttpResponseStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -42,21 +49,26 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.FileChannel;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class FunctionsImpl extends BaseResource implements Functions {
 
     private final WebTarget functions;
+    private final AsyncHttpClient asyncHttpClient;
 
-    public FunctionsImpl(WebTarget web, Authentication auth) {
+    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.functions = web.path("/admin/v3/functions");
+        this.asyncHttpClient = asyncHttpClient;
     }
 
     @Override
@@ -328,17 +340,49 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
+
         try {
-            InputStream response = request(functions.path("download")
-                    .queryParam("path", path)).get(InputStream.class);
-            if (response != null) {
-                File targetFile = new File(destinationPath);
-                java.nio.file.Files.copy(
-                        response,
-                        targetFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING);
+            File file = new File(destinationPath);
+            if (!file.exists()) {
+                file.createNewFile();
             }
+            FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
+            WebTarget target = functions.path("download").queryParam("path", path);
+
+            Future<Integer> whenStatusCode = asyncHttpClient.prepareGet(target.getUri().toASCIIString())
+                    .execute(new AsyncHandler<Integer>() {
+                        private Integer status;
+                        @Override
+                        public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
+                            status = responseStatus.getStatusCode();
+                            if (status != Response.Status.OK.getStatusCode()) {
+                                return State.ABORT;
+                            }
+                            return State.CONTINUE;
+                        }
+                        @Override
+                        public State onHeadersReceived(HttpHeaders headers) throws Exception {
+                            return State.CONTINUE;
+                        }
+                        @Override
+                        public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+                            os.write(bodyPart.getBodyByteBuffer());
+                            return State.CONTINUE;
+                        }
+                        @Override
+                        public Integer onCompleted() throws Exception {
+                            return status;
+                        }
+                        @Override
+                        public void onThrowable(Throwable t) {
+                        }
+                    });
+
+            Integer statusCode = whenStatusCode.get();
+
+            os.close();
         } catch (Exception e) {
+            log.error("e: {}", e, e);
             throw getApiException(e);
         }
     }
