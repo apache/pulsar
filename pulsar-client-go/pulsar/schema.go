@@ -72,13 +72,13 @@ type Schema interface {
 	GetSchemaInfo() *SchemaInfo
 }
 
-type SchemaDefinition struct {
-	SchemaDef *goavro.Codec
+type AvroCodec struct {
+	Codec *goavro.Codec
 }
 
-func NewSchemaDefinition(schema *goavro.Codec) *SchemaDefinition {
-	schemaDef := &SchemaDefinition{
-		SchemaDef: schema,
+func NewSchemaDefinition(schema *goavro.Codec) *AvroCodec {
+	schemaDef := &AvroCodec{
+		Codec: schema,
 	}
 	return schemaDef
 }
@@ -90,7 +90,7 @@ func initAvroCodec(codec string) (*goavro.Codec, error) {
 }
 
 type JsonSchema struct {
-	SchemaDefinition
+	AvroCodec
 	SchemaInfo
 }
 
@@ -101,7 +101,7 @@ func NewJsonSchema(jsonAvroSchemaDef string, properties map[string]string) *Json
 		log.Fatalf("init codec error:%v", err)
 	}
 	schemaDef := NewSchemaDefinition(avroCodec)
-	js.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
+	js.SchemaInfo.Schema = schemaDef.Codec.Schema()
 	js.SchemaInfo.Type = JSON
 	js.SchemaInfo.Properties = properties
 	js.SchemaInfo.Name = "Json"
@@ -125,7 +125,7 @@ func (js *JsonSchema) GetSchemaInfo() *SchemaInfo {
 }
 
 type ProtoSchema struct {
-	SchemaDefinition
+	AvroCodec
 	SchemaInfo
 }
 
@@ -136,8 +136,8 @@ func NewProtoSchema(protoAvroSchemaDef string, properties map[string]string) *Pr
 		log.Fatalf("init codec error:%v", err)
 	}
 	schemaDef := NewSchemaDefinition(avroCodec)
-	ps.SchemaDefinition.SchemaDef = schemaDef.SchemaDef
-	ps.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
+	ps.AvroCodec.Codec = schemaDef.Codec
+	ps.SchemaInfo.Schema = schemaDef.Codec.Schema()
 	ps.SchemaInfo.Type = PROTOBUF
 	ps.SchemaInfo.Properties = properties
 	ps.SchemaInfo.Name = "Proto"
@@ -161,7 +161,7 @@ func (ps *ProtoSchema) GetSchemaInfo() *SchemaInfo {
 }
 
 type AvroSchema struct {
-	SchemaDefinition
+	AvroCodec
 	SchemaInfo
 }
 
@@ -172,8 +172,8 @@ func NewAvroSchema(avroSchemaDef string, properties map[string]string) *AvroSche
 		log.Fatalf("init codec error:%v", err)
 	}
 	schemaDef := NewSchemaDefinition(avroCodec)
-	as.SchemaDefinition.SchemaDef = schemaDef.SchemaDef
-	as.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
+	as.AvroCodec.Codec = schemaDef.Codec
+	as.SchemaInfo.Schema = schemaDef.Codec.Schema()
 	as.SchemaInfo.Type = AVRO
 	as.SchemaInfo.Name = "Avro"
 	as.SchemaInfo.Properties = properties
@@ -186,21 +186,21 @@ func (as *AvroSchema) Encode(data interface{}) ([]byte, error) {
 		log.Errorf("serialize data error:%s", err.Error())
 		return nil, err
 	}
-	native, _, err := as.SchemaDef.NativeFromTextual(textual)
+	native, _, err := as.Codec.NativeFromTextual(textual)
 	if err != nil {
 		log.Errorf("convert native Go form to binary Avro data error:%s", err.Error())
 		return nil, err
 	}
-	return as.SchemaDef.BinaryFromNative(nil, native)
+	return as.Codec.BinaryFromNative(nil, native)
 }
 
 func (as *AvroSchema) Decode(data []byte, v interface{}) error {
-	native, _, err := as.SchemaDef.NativeFromBinary(data)
+	native, _, err := as.Codec.NativeFromBinary(data)
 	if err != nil {
 		log.Errorf("convert binary Avro data back to native Go form error:%s", err.Error())
 		return err
 	}
-	textual, err := as.SchemaDef.TextualFromNative(nil, native)
+	textual, err := as.Codec.TextualFromNative(nil, native)
 	if err != nil {
 		log.Errorf("convert native Go form to textual Avro data error:%s", err.Error())
 		return err
