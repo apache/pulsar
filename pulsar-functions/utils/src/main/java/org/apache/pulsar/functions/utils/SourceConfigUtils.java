@@ -19,16 +19,19 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -38,12 +41,14 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
+@Slf4j
 public class SourceConfigUtils {
 
     @Getter
@@ -155,8 +160,16 @@ public class SourceConfigUtils {
             sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
         }
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+            TypeReference<HashMap<String,Object>> typeRef
+                    = new TypeReference<HashMap<String,Object>>() {};
+            Map<String, Object> configMap;
+            try {
+                configMap = ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
+            } catch (IOException e) {
+                log.error("Failed to read configs for source {}", FunctionCommon.getFullyQualifiedName(functionDetails), e);
+                throw new RuntimeException(e);
+            }
+            sourceConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
