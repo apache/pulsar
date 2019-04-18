@@ -87,16 +87,6 @@ public class FunctionAssignmentTailer
             }
             log.info("Received assignment update: {}", assignment);
             this.functionRuntimeManager.processAssignment(assignment);
-
-            try {
-                List<String> lines = Files.readAllLines(Paths.get("/tmp/flag"), StandardCharsets.UTF_8);
-                if (lines.size() > 0 && lines.get(0).equals("true")) {
-                    throw new RuntimeException("test");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
         }
     }
 
