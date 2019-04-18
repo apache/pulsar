@@ -179,7 +179,7 @@ public class LocalRunner {
             null, /* python instance file */
             null, /* log directory */
             null, /* extra dependencies dir */
-            new DefaultSecretsProviderConfigurator())) {
+            new DefaultSecretsProviderConfigurator(), false)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
