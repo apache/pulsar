@@ -40,7 +40,7 @@ func main() {
 		SubscriptionName: "my-subscription",
 		Type:             pulsar.Shared,
 		MessageChannel:   channel,
-	}, nil)
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

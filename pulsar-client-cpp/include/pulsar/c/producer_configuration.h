@@ -88,11 +88,9 @@ void pulsar_producer_configuration_set_compression_type(pulsar_producer_configur
 pulsar_compression_type pulsar_producer_configuration_get_compression_type(
     pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_schema_type(pulsar_producer_configuration_t *conf,
+void pulsar_producer_configuration_set_schema_info(pulsar_producer_configuration_t *conf,
                                                    pulsar_schema_type schemaType, const char *name,
-                                                   const char *schema);
-
-pulsar_schema_type pulsar_producer_configuration_get_schema_type(pulsar_producer_configuration_t *conf);
+                                                   const char *schema, pulsar_string_map_t *properties);
 
 void pulsar_producer_configuration_set_max_pending_messages(pulsar_producer_configuration_t *conf,
                                                             int maxPendingMessages);

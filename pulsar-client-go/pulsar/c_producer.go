@@ -110,21 +110,45 @@ func createProducerAsync(client *client, schema Schema, options ProducerOptions,
 		C.pulsar_producer_configuration_set_compression_type(conf, C.pulsar_compression_type(options.CompressionType))
 	}
 
-	if schema != nil {
+	if schema != nil && schema.GetSchemaInfo() != nil {
 		if schema.GetSchemaInfo().Type != NONE {
 			cName := C.CString(schema.GetSchemaInfo().Name)
 			cSchema := C.CString(schema.GetSchemaInfo().Schema)
+			properties := C.pulsar_string_map_create()
 			defer C.free(unsafe.Pointer(cName))
 			defer C.free(unsafe.Pointer(cSchema))
-			C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
-				cName, cSchema)
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_producer_configuration_set_schema_info(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
+				cName, cSchema, properties)
 		} else {
 			cName := C.CString("BYTES")
 			cSchema := C.CString("")
+			properties := C.pulsar_string_map_create()
 			defer C.free(unsafe.Pointer(cName))
 			defer C.free(unsafe.Pointer(cSchema))
-			C.pulsar_producer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
-				cName, cSchema)
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_producer_configuration_set_schema_info(conf, C.pulsar_schema_type(BYTES),
+				cName, cSchema, properties)
 		}
 	}
 
@@ -242,12 +266,17 @@ func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback 
 			callback(msg, errors.New("message value is nil, please check"))
 			return
 		}
-		payLoad, err := p.schema.Serialize(msg.Value)
+		payLoad, err := p.schema.Encode(msg.Value)
 		if err != nil {
 			callback(msg, errors.New("serialize message value error, please check"))
 			return
 		}
 		msg.Payload = payLoad
+	} else {
+		if msg.Value != nil {
+			callback(msg, errors.New("message value is set but no schema is provided, please check"))
+			return
+		}
 	}
 	cMsg := buildMessage(msg)
 	defer C.pulsar_message_free(cMsg)

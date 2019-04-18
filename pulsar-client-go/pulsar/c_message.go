@@ -109,7 +109,7 @@ func messageFinalizer(msg *message) {
 }
 
 func (m *message) GetValue(v interface{}) error {
-	return m.schema.UnSerialize(m.Payload(), v)
+	return m.schema.Decode(m.Payload(), v)
 }
 
 func (m *message) Properties() map[string]string {

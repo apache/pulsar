@@ -188,7 +188,27 @@ func clientFinalizer(client *client) {
 	C.pulsar_client_free(client.ptr)
 }
 
-func (client *client) CreateProducer(options ProducerOptions, schema Schema) (Producer, error) {
+func (client *client) CreateProducer(options ProducerOptions) (Producer, error) {
+	// Create is implemented on async create with a channel to wait for
+	// completion without blocking the real thread
+	c := make(chan struct {
+		Producer
+		error
+	})
+
+	client.CreateProducerAsync(options, nil, func(producer Producer, err error) {
+		c <- struct {
+			Producer
+			error
+		}{producer, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.Producer, res.error
+}
+
+func (client *client) CreateTypedProducer(options ProducerOptions, schema Schema) (Producer, error) {
 	// Create is implemented on async create with a channel to wait for
 	// completion without blocking the real thread
 	c := make(chan struct {
@@ -212,7 +232,25 @@ func (client *client) CreateProducerAsync(options ProducerOptions, schema Schema
 	createProducerAsync(client, schema, options, callback)
 }
 
-func (client *client) Subscribe(options ConsumerOptions, schema Schema) (Consumer, error) {
+func (client *client) Subscribe(options ConsumerOptions) (Consumer, error) {
+	c := make(chan struct {
+		Consumer
+		error
+	})
+
+	client.SubscribeAsync(options, nil, func(consumer Consumer, err error) {
+		c <- struct {
+			Consumer
+			error
+		}{consumer, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.Consumer, res.error
+}
+
+func (client *client) SubscribeWithSchema(options ConsumerOptions, schema Schema) (Consumer, error) {
 	c := make(chan struct {
 		Consumer
 		error
@@ -234,7 +272,25 @@ func (client *client) SubscribeAsync(options ConsumerOptions, schema Schema, cal
 	subscribeAsync(client, options, schema, callback)
 }
 
-func (client *client) CreateReader(options ReaderOptions, schema Schema) (Reader, error) {
+func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
+	c := make(chan struct {
+		Reader
+		error
+	})
+
+	client.CreateReaderAsync(options, nil, func(reader Reader, err error) {
+		c <- struct {
+			Reader
+			error
+		}{reader, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.Reader, res.error
+}
+
+func (client *client) CreateTypedReader(options ReaderOptions, schema Schema) (Reader, error) {
 	c := make(chan struct {
 		Reader
 		error

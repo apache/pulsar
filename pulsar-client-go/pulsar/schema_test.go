@@ -21,7 +21,6 @@ package pulsar
 
 import (
 	"context"
-
 	"testing"
 
 	log "github.com/apache/pulsar/pulsar-client-go/logutil"
@@ -62,8 +61,8 @@ func TestJsonSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	jsonSchema := NewJsonSchema(exampleSchemaDef)
-	producer, err := client.CreateProducer(ProducerOptions{
+	jsonSchema := NewJsonSchema(exampleSchemaDef, nil)
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "jsonTopic",
 	}, jsonSchema)
 	err = producer.Send(context.Background(), ProducerMessage{
@@ -77,11 +76,28 @@ func TestJsonSchema(t *testing.T) {
 	}
 	defer producer.Close()
 
+	properties := make(map[string]string)
+	properties["pulsar"]="hello"
+	jsonSchemaWithProperties := NewJsonSchema(exampleSchemaDef, properties)
+	producer1, err := client.CreateTypedProducer(ProducerOptions{
+		Topic: "jsonTopic",
+	}, jsonSchemaWithProperties)
+	err = producer1.Send(context.Background(), ProducerMessage{
+		Value: &testJson{
+			ID:   100,
+			Name: "pulsar",
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer producer1.Close()
+
 	//create consumer
 	var s testJson
 
-	consumerJS := NewJsonSchema(exampleSchemaDef)
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumerJS := NewJsonSchema(exampleSchemaDef, nil)
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "jsonTopic",
 		SubscriptionName: "sub-2",
 	}, consumerJS)
@@ -101,8 +117,8 @@ func TestProtoSchema(t *testing.T) {
 	defer client.Close()
 
 	// create producer
-	psProducer := NewProtoSchema(protoSchemaDef)
-	producer, err := client.CreateProducer(ProducerOptions{
+	psProducer := NewProtoSchema(protoSchemaDef, nil)
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "proto",
 	}, psProducer)
 	if err := producer.Send(context.Background(), ProducerMessage{
@@ -116,8 +132,8 @@ func TestProtoSchema(t *testing.T) {
 
 	//create consumer
 	unobj := pb.Test{}
-	psConsumer := NewProtoSchema(protoSchemaDef)
-	consumer, err := client.Subscribe(ConsumerOptions{
+	psConsumer := NewProtoSchema(protoSchemaDef, nil)
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "proto",
 		SubscriptionName: "sub-1",
 	}, psConsumer)
@@ -137,8 +153,8 @@ func TestAvroSchema(t *testing.T) {
 	defer client.Close()
 
 	// create producer
-	asProducer := NewAvroSchema(exampleSchemaDef)
-	producer, err := client.CreateProducer(ProducerOptions{
+	asProducer := NewAvroSchema(exampleSchemaDef, nil)
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "avro-topic",
 	}, asProducer)
 	assert.Nil(t, err)
@@ -154,8 +170,8 @@ func TestAvroSchema(t *testing.T) {
 	//create consumer
 	unobj := testAvro{}
 
-	asConsumer := NewAvroSchema(exampleSchemaDef)
-	consumer, err := client.Subscribe(ConsumerOptions{
+	asConsumer := NewAvroSchema(exampleSchemaDef, nil)
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "avro-topic",
 		SubscriptionName: "sub-1",
 	}, asConsumer)
@@ -174,8 +190,8 @@ func TestStringSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	ssProducer := NewStringSchema()
-	producer, err := client.CreateProducer(ProducerOptions{
+	ssProducer := NewStringSchema(nil)
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "strTopic",
 	}, ssProducer)
 	assert.Nil(t, err)
@@ -187,10 +203,10 @@ func TestStringSchema(t *testing.T) {
 	defer producer.Close()
 
 	var res *string
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "strTopic",
 		SubscriptionName: "sub-2",
-	}, NewStringSchema())
+	}, NewStringSchema(nil))
 	assert.Nil(t, err)
 
 	msg, err := consumer.Receive(context.Background())
@@ -206,9 +222,9 @@ func TestBytesSchema(t *testing.T) {
 	defer client.Close()
 
 	bytes := []byte{121, 110, 121, 110}
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "bytesTopic",
-	}, NewBytesSchema())
+	}, NewBytesSchema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -219,10 +235,10 @@ func TestBytesSchema(t *testing.T) {
 	defer producer.Close()
 
 	var res []byte
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "bytesTopic",
 		SubscriptionName: "sub-2",
-	}, NewBytesSchema())
+	}, NewBytesSchema(nil))
 	assert.Nil(t, err)
 
 	msg, err := consumer.Receive(context.Background())
@@ -237,9 +253,9 @@ func TestInt8Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "int8Topic1",
-	}, NewInt8Schema())
+	}, NewInt8Schema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -249,10 +265,10 @@ func TestInt8Schema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "int8Topic1",
 		SubscriptionName: "sub-2",
-	}, NewInt8Schema())
+	}, NewInt8Schema(nil))
 	assert.Nil(t, err)
 
 	var res int8
@@ -269,9 +285,9 @@ func TestInt16Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "int16Topic",
-	}, NewInt16Schema())
+	}, NewInt16Schema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -281,10 +297,10 @@ func TestInt16Schema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "int16Topic",
 		SubscriptionName: "sub-2",
-	}, NewInt16Schema())
+	}, NewInt16Schema(nil))
 	assert.Nil(t, err)
 
 	var res int16
@@ -300,9 +316,9 @@ func TestInt32Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "int32Topic1",
-	}, NewInt32Schema())
+	}, NewInt32Schema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -312,10 +328,10 @@ func TestInt32Schema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "int32Topic1",
 		SubscriptionName: "sub-2",
-	}, NewInt32Schema())
+	}, NewInt32Schema(nil))
 	assert.Nil(t, err)
 
 	var res int32
@@ -331,9 +347,9 @@ func TestInt64Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "int64Topic",
-	}, NewInt64Schema())
+	}, NewInt64Schema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -343,10 +359,10 @@ func TestInt64Schema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "int64Topic",
 		SubscriptionName: "sub-2",
-	}, NewInt64Schema())
+	}, NewInt64Schema(nil))
 	assert.Nil(t, err)
 
 	var res int64
@@ -362,9 +378,9 @@ func TestFloatSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "floatTopic",
-	}, NewFloatSchema())
+	}, NewFloatSchema(nil))
 	assert.Nil(t, err)
 	if err := producer.Send(context.Background(), ProducerMessage{
 		Value: float32(1),
@@ -373,10 +389,10 @@ func TestFloatSchema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "floatTopic",
 		SubscriptionName: "sub-2",
-	}, NewFloatSchema())
+	}, NewFloatSchema(nil))
 	assert.Nil(t, err)
 
 	var res float32
@@ -392,9 +408,9 @@ func TestDoubleSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
+	producer, err := client.CreateTypedProducer(ProducerOptions{
 		Topic: "doubleTopic",
-	}, NewDoubleSchema())
+	}, NewDoubleSchema(nil))
 	assert.Nil(t, err)
 	ctx := context.Background()
 	if err := producer.Send(ctx, ProducerMessage{
@@ -404,10 +420,10 @@ func TestDoubleSchema(t *testing.T) {
 	}
 	defer producer.Close()
 
-	consumer, err := client.Subscribe(ConsumerOptions{
+	consumer, err := client.SubscribeWithSchema(ConsumerOptions{
 		Topic:            "doubleTopic",
 		SubscriptionName: "sub-2",
-	}, NewDoubleSchema())
+	}, NewDoubleSchema(nil))
 	assert.Nil(t, err)
 
 	var res float64

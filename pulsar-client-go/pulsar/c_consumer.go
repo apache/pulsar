@@ -112,21 +112,45 @@ func subscribeAsync(client *client, options ConsumerOptions, schema Schema, call
 		C.pulsar_consumer_set_subscription_initial_position(conf, C.initial_position(options.SubscriptionInitPos))
 	}
 
-	if schema != nil {
+	if schema != nil && schema.GetSchemaInfo() != nil {
 		if schema.GetSchemaInfo().Type != NONE {
 			cName := C.CString(schema.GetSchemaInfo().Name)
 			cSchema := C.CString(schema.GetSchemaInfo().Schema)
+			properties := C.pulsar_string_map_create()
 			defer C.free(unsafe.Pointer(cName))
 			defer C.free(unsafe.Pointer(cSchema))
-			C.pulsar_consumer_configuration_set_schema_type(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
-				cName, cSchema)
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_consumer_configuration_set_schema_info(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
+				cName, cSchema, properties)
 		} else {
 			cName := C.CString("BYTES")
 			cSchema := C.CString("")
+			properties := C.pulsar_string_map_create()
 			defer C.free(unsafe.Pointer(cName))
 			defer C.free(unsafe.Pointer(cSchema))
-			C.pulsar_consumer_configuration_set_schema_type(conf, C.pulsar_schema_type(BYTES),
-				cName, cSchema)
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_consumer_configuration_set_schema_info(conf, C.pulsar_schema_type(BYTES),
+				cName, cSchema, properties)
 		}
 	}
 
@@ -168,12 +192,7 @@ func subscribeAsync(client *client, options ConsumerOptions, schema Schema, call
 	subName := C.CString(options.SubscriptionName)
 	defer C.free(unsafe.Pointer(subName))
 
-	var callbackPtr unsafe.Pointer
-	if schema != nil {
-		callbackPtr = savePointer(&subscribeContext{schema: schema, conf: conf, consumer: consumer, callback: callback})
-	} else {
-		callbackPtr = savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback})
-	}
+	callbackPtr := savePointer(&subscribeContext{schema: schema, conf: conf, consumer: consumer, callback: callback})
 
 	if options.Topic != "" {
 		topic := C.CString(options.Topic)

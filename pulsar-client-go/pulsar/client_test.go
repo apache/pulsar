@@ -80,7 +80,7 @@ func TestTokenAuth(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -111,7 +111,7 @@ func TestTokenAuthSupplier(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -149,6 +149,6 @@ func TestClient_ValidationHostName(t *testing.T) {
 	topicName := "persistent://private/auth/test-tls-detect-https"
 	_, err = client.CreateProducer(ProducerOptions{
 		Topic: topicName,
-	}, nil)
+	})
 	assert.NotNil(t, err)
 }

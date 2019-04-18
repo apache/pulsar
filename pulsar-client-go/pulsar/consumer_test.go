@@ -44,7 +44,7 @@ func TestConsumerConnectError(t *testing.T) {
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            "my-topic",
 		SubscriptionName: "my-subscription",
-	}, nil)
+	})
 
 	// Expect error in creating consumer
 	assert.Nil(t, consumer)
@@ -65,7 +65,7 @@ func TestConsumer(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -78,7 +78,7 @@ func TestConsumer(t *testing.T) {
 		ReceiverQueueSize: 100,
 		MaxTotalReceiverQueueSizeAcrossPartitions: 10000,
 		Type: Shared,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer.Close()
@@ -135,7 +135,7 @@ func TestConsumerCompaction(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -144,7 +144,7 @@ func TestConsumerCompaction(t *testing.T) {
 	consumer1, err := client.Subscribe(ConsumerOptions{
 		Topic:            topic,
 		SubscriptionName: "my-sub-1",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	consumer1.Close()
@@ -153,7 +153,7 @@ func TestConsumerCompaction(t *testing.T) {
 		Topic:            topic,
 		SubscriptionName: "my-sub-2",
 		ReadCompacted:    true,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	consumer2.Close()
@@ -190,7 +190,7 @@ func TestConsumerCompaction(t *testing.T) {
 	consumer1, err = client.Subscribe(ConsumerOptions{
 		Topic:            topic,
 		SubscriptionName: "my-sub-1",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer1.Close()
@@ -199,7 +199,7 @@ func TestConsumerCompaction(t *testing.T) {
 		Topic:            topic,
 		SubscriptionName: "my-sub-2",
 		ReadCompacted:    true,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer2.Close()
@@ -242,7 +242,7 @@ func TestConsumerWithInvalidConf(t *testing.T) {
 
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic: "my-topic",
-	}, nil)
+	})
 
 	// Expect error in creating cosnumer
 	assert.Nil(t, consumer)
@@ -252,7 +252,7 @@ func TestConsumerWithInvalidConf(t *testing.T) {
 
 	consumer, err = client.Subscribe(ConsumerOptions{
 		SubscriptionName: "my-subscription",
-	}, nil)
+	})
 
 	// Expect error in creating consumer
 	assert.Nil(t, consumer)
@@ -303,13 +303,13 @@ func TestConsumerMultiTopics(t *testing.T) {
 
 	producer1, err := client.CreateProducer(ProducerOptions{
 		Topic: "multi-topic-1",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 
 	producer2, err := client.CreateProducer(ProducerOptions{
 		Topic: "multi-topic-2",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer1.Close()
@@ -318,7 +318,7 @@ func TestConsumerMultiTopics(t *testing.T) {
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topics:           []string{"multi-topic-1", "multi-topic-2"},
 		SubscriptionName: "my-sub",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer.Close()
@@ -366,13 +366,13 @@ func TestConsumerRegex(t *testing.T) {
 
 	producer1, err := client.CreateProducer(ProducerOptions{
 		Topic: "topic-1",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 
 	producer2, err := client.CreateProducer(ProducerOptions{
 		Topic: "topic-2",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer1.Close()
@@ -381,7 +381,7 @@ func TestConsumerRegex(t *testing.T) {
 	consumer, err := client.Subscribe(ConsumerOptions{
 		TopicsPattern:    "persistent://public/default/topic-.*",
 		SubscriptionName: "my-sub",
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer.Close()
@@ -429,7 +429,7 @@ func TestConsumer_Seek(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topicName,
-	}, nil)
+	})
 	assert.Nil(t, err)
 	assert.Equal(t, producer.Topic(), topicName)
 	defer producer.Close()
@@ -437,7 +437,7 @@ func TestConsumer_Seek(t *testing.T) {
 	consumer, err := client.Subscribe(ConsumerOptions{
 		Topic:            topicName,
 		SubscriptionName: subName,
-	}, nil)
+	})
 	assert.Nil(t, err)
 	assert.Equal(t, consumer.Topic(), topicName)
 	assert.Equal(t, consumer.Subscription(), subName)
@@ -490,7 +490,7 @@ func TestConsumer_SubscriptionInitPos(t *testing.T) {
 	// create producer
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topicName,
-	}, nil)
+	})
 	assert.Nil(t, err)
 	defer producer.Close()
 
@@ -512,7 +512,7 @@ func TestConsumer_SubscriptionInitPos(t *testing.T) {
 		Topic:               topicName,
 		SubscriptionName:    subName,
 		SubscriptionInitPos: Earliest,
-	}, nil)
+	})
 	assert.Nil(t, err)
 	defer consumer.Close()
 
@@ -534,7 +534,7 @@ func TestConsumerNegativeAcks(t *testing.T) {
 
 	producer, err := client.CreateProducer(ProducerOptions{
 		Topic: topic,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
@@ -545,7 +545,7 @@ func TestConsumerNegativeAcks(t *testing.T) {
 		Topic:               topic,
 		SubscriptionName:    "my-sub",
 		NackRedeliveryDelay: &nackDelay,
-	}, nil)
+	})
 
 	assert.Nil(t, err)
 	defer consumer.Close()

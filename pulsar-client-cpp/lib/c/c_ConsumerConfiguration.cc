@@ -40,17 +40,11 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
     return (pulsar_consumer_type)consumer_configuration->consumerConfiguration.getConsumerType();
 }
 
-void pulsar_consumer_configuration_set_schema_type(pulsar_consumer_configuration_t *consumer_configuration,
+void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
                                                    pulsar_schema_type schemaType, const char *name,
-                                                   const char *schema) {
-    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema);
+                                                   const char *schema, pulsar_string_map_t *properties) {
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema, properties->map);
     consumer_configuration->consumerConfiguration.setSchema(schemaInfo);
-}
-
-pulsar_schema_type pulsar_consumer_configuration_get_schema_type(
-    pulsar_consumer_configuration_t *consumer_configuration) {
-    auto schemaInfo = consumer_configuration->consumerConfiguration.getSchema();
-    return pulsar_schema_type(schemaInfo.getSchemaType());
 }
 
 static void message_listener_callback(pulsar::Consumer consumer, const pulsar::Message &msg,
@@ -118,6 +112,7 @@ void pulsar_configure_set_negative_ack_redelivery_delay_ms(
     pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis) {
     consumer_configuration->consumerConfiguration.setNegativeAckRedeliveryDelayMs(redeliveryDelayMillis);
 }
+
 long pulsar_configure_get_negative_ack_redelivery_delay_ms(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.getNegativeAckRedeliveryDelayMs();

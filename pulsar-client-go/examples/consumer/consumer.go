@@ -38,7 +38,7 @@ func main() {
 		Topic:            "my-topic",
 		SubscriptionName: "my-subscription",
 		Type:             pulsar.Shared,
-	}, nil)
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

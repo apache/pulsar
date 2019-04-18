@@ -62,20 +62,12 @@ type SchemaInfo struct {
 	Name   string
 	Schema string
 	Type   SchemaType
-}
-
-func NewSchemaInfo(name string, schema string, schemaType SchemaType) *SchemaInfo {
-	si := &SchemaInfo{
-		Name:   name,
-		Schema: schema,
-		Type:   schemaType,
-	}
-	return si
+	Properties map[string]string
 }
 
 type Schema interface {
-	Serialize(v interface{}) ([]byte, error)
-	UnSerialize(data []byte, v interface{}) error
+	Encode(v interface{}) ([]byte, error)
+	Decode(data []byte, v interface{}) error
 	Validate(message []byte) error
 	GetSchemaInfo() *SchemaInfo
 }
@@ -91,9 +83,9 @@ func NewSchemaDefinition(schema *goavro.Codec) *SchemaDefinition {
 	return schemaDef
 }
 
-// initCodec returns a Codec used to translate between a byte slice of either
+// initAvroCodec returns a Codec used to translate between a byte slice of either
 // binary or textual Avro data and native Go data.
-func initCodec(codec string) (*goavro.Codec, error) {
+func initAvroCodec(codec string) (*goavro.Codec, error) {
 	return goavro.NewCodec(codec)
 }
 
@@ -102,33 +94,34 @@ type JsonSchema struct {
 	SchemaInfo
 }
 
-func NewJsonSchema(codec string) *JsonSchema {
+func NewJsonSchema(jsonAvroSchemaDef string, properties map[string]string) *JsonSchema {
 	js := new(JsonSchema)
-	schema, err := initCodec(codec)
+	avroCodec, err := initAvroCodec(jsonAvroSchemaDef)
 	if err != nil {
 		log.Fatalf("init codec error:%v", err)
 	}
-	schemaDef := NewSchemaDefinition(schema)
+	schemaDef := NewSchemaDefinition(avroCodec)
 	js.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
 	js.SchemaInfo.Type = JSON
+	js.SchemaInfo.Properties = properties
+	js.SchemaInfo.Name = "Json"
 	return js
 }
 
-func (js *JsonSchema) Serialize(data interface{}) ([]byte, error) {
+func (js *JsonSchema) Encode(data interface{}) ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (js *JsonSchema) UnSerialize(data []byte, v interface{}) error {
+func (js *JsonSchema) Decode(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
 func (js *JsonSchema) Validate(message []byte) error {
-	return js.UnSerialize(message, nil)
+	return js.Decode(message, nil)
 }
 
 func (js *JsonSchema) GetSchemaInfo() *SchemaInfo {
-	jsonSchema := NewSchemaInfo("Json", js.SchemaInfo.Schema, JSON)
-	return jsonSchema
+	return &js.SchemaInfo
 }
 
 type ProtoSchema struct {
@@ -136,34 +129,35 @@ type ProtoSchema struct {
 	SchemaInfo
 }
 
-func NewProtoSchema(codec string) *ProtoSchema {
+func NewProtoSchema(protoAvroSchemaDef string, properties map[string]string) *ProtoSchema {
 	ps := new(ProtoSchema)
-	schema, err := initCodec(codec)
+	avroCodec, err := initAvroCodec(protoAvroSchemaDef)
 	if err != nil {
 		log.Fatalf("init codec error:%v", err)
 	}
-	schemaDef := NewSchemaDefinition(schema)
+	schemaDef := NewSchemaDefinition(avroCodec)
 	ps.SchemaDefinition.SchemaDef = schemaDef.SchemaDef
 	ps.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
 	ps.SchemaInfo.Type = PROTOBUF
+	ps.SchemaInfo.Properties = properties
+	ps.SchemaInfo.Name = "Proto"
 	return ps
 }
 
-func (ps *ProtoSchema) Serialize(data interface{}) ([]byte, error) {
+func (ps *ProtoSchema) Encode(data interface{}) ([]byte, error) {
 	return proto.Marshal(data.(proto.Message))
 }
 
-func (ps *ProtoSchema) UnSerialize(data []byte, v interface{}) error {
+func (ps *ProtoSchema) Decode(data []byte, v interface{}) error {
 	return proto.Unmarshal(data, v.(proto.Message))
 }
 
 func (ps *ProtoSchema) Validate(message []byte) error {
-	return ps.UnSerialize(message, nil)
+	return ps.Decode(message, nil)
 }
 
 func (ps *ProtoSchema) GetSchemaInfo() *SchemaInfo {
-	jsonSchema := NewSchemaInfo("Proto", ps.SchemaDef.Schema(), PROTOBUF)
-	return jsonSchema
+	return &ps.SchemaInfo
 }
 
 type AvroSchema struct {
@@ -171,20 +165,22 @@ type AvroSchema struct {
 	SchemaInfo
 }
 
-func NewAvroSchema(codec string) *AvroSchema {
+func NewAvroSchema(avroSchemaDef string, properties map[string]string) *AvroSchema {
 	as := new(AvroSchema)
-	schema, err := initCodec(codec)
+	avroCodec, err := initAvroCodec(avroSchemaDef)
 	if err != nil {
 		log.Fatalf("init codec error:%v", err)
 	}
-	schemaDef := NewSchemaDefinition(schema)
+	schemaDef := NewSchemaDefinition(avroCodec)
 	as.SchemaDefinition.SchemaDef = schemaDef.SchemaDef
 	as.SchemaInfo.Schema = schemaDef.SchemaDef.Schema()
 	as.SchemaInfo.Type = AVRO
+	as.SchemaInfo.Name = "Avro"
+	as.SchemaInfo.Properties = properties
 	return as
 }
 
-func (as *AvroSchema) Serialize(data interface{}) ([]byte, error) {
+func (as *AvroSchema) Encode(data interface{}) ([]byte, error) {
 	textual, err := json.Marshal(data)
 	if err != nil {
 		log.Errorf("serialize data error:%s", err.Error())
@@ -198,7 +194,7 @@ func (as *AvroSchema) Serialize(data interface{}) ([]byte, error) {
 	return as.SchemaDef.BinaryFromNative(nil, native)
 }
 
-func (as *AvroSchema) UnSerialize(data []byte, v interface{}) error {
+func (as *AvroSchema) Decode(data []byte, v interface{}) error {
 	native, _, err := as.SchemaDef.NativeFromBinary(data)
 	if err != nil {
 		log.Errorf("convert binary Avro data back to native Go form error:%s", err.Error())
@@ -218,38 +214,31 @@ func (as *AvroSchema) UnSerialize(data []byte, v interface{}) error {
 }
 
 func (as *AvroSchema) Validate(message []byte) error {
-	return as.UnSerialize(message, nil)
+	return as.Decode(message, nil)
 }
 
 func (as *AvroSchema) GetSchemaInfo() *SchemaInfo {
-	jsonSchema := NewSchemaInfo("avro", as.SchemaDef.Schema(), AVRO)
-	return jsonSchema
+	return &as.SchemaInfo
 }
 
 type StringSchema struct {
-	SchemaDefinition
 	SchemaInfo
 }
 
-func NewStringSchema() *StringSchema {
+func NewStringSchema(properties map[string]string) *StringSchema {
 	strSchema := new(StringSchema)
-	strSchema.SchemaInfo = *(strSchema.GetSchemaInfo())
+	strSchema.SchemaInfo.Properties = properties
+	strSchema.SchemaInfo.Name = "String"
+	strSchema.SchemaInfo.Type = STRING
+	strSchema.SchemaInfo.Schema = ""
 	return strSchema
 }
 
-func (ss *StringSchema) Serialize(v interface{}) ([]byte, error) {
-	//sh := (*reflect.StringHeader)(unsafe.Pointer(&v))
-	//bh := reflect.SliceHeader{
-	//	Data: sh.Data,
-	//	Len:  sh.Len,
-	//	Cap:  sh.Len,
-	//}
-	//return *(*[]byte)(unsafe.Pointer(&bh)), nil
-
+func (ss *StringSchema) Encode(v interface{}) ([]byte, error) {
 	return []byte(v.(string)), nil
 }
 
-func (ss *StringSchema) UnSerialize(data []byte, v interface{}) error {
+func (ss *StringSchema) Decode(data []byte, v interface{}) error {
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
 	sh := reflect.StringHeader{
 		Data: bh.Data,
@@ -260,64 +249,66 @@ func (ss *StringSchema) UnSerialize(data []byte, v interface{}) error {
 	return nil
 }
 
-func (ss *StringSchema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("string", "", STRING)
+func (ss *StringSchema) Validate(message []byte) error {
+	return ss.Decode(message, nil)
 }
 
-func (ss *StringSchema) Validate(message []byte) error {
-	return ss.UnSerialize(message, nil)
+func (ss *StringSchema) GetSchemaInfo() *SchemaInfo {
+	return &ss.SchemaInfo
 }
 
 type BytesSchema struct {
 	SchemaInfo
 }
 
-func NewBytesSchema() *BytesSchema {
+func NewBytesSchema(properties map[string]string) *BytesSchema {
 	bytesSchema := new(BytesSchema)
-	bytesSchema.SchemaInfo = *(bytesSchema.GetSchemaInfo())
+	bytesSchema.SchemaInfo.Properties = properties
+	bytesSchema.SchemaInfo.Name = "Bytes"
+	bytesSchema.SchemaInfo.Type = BYTES
+	bytesSchema.SchemaInfo.Schema = ""
 	return bytesSchema
 }
 
-func (bs *BytesSchema) Serialize(data interface{}) ([]byte, error) {
+func (bs *BytesSchema) Encode(data interface{}) ([]byte, error) {
 	return data.([]byte), nil
 }
 
-func (bs *BytesSchema) UnSerialize(data []byte, v interface{}) error {
+func (bs *BytesSchema) Decode(data []byte, v interface{}) error {
 	reflect.ValueOf(v).Elem().Set(reflect.ValueOf(data))
 	return nil
 }
 
-func (bs *BytesSchema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("Bytes", "", BYTES)
+func (bs *BytesSchema) Validate(message []byte) error {
+	return bs.Decode(message, nil)
 }
 
-func (bs *BytesSchema) Validate(message []byte) error {
-	return bs.UnSerialize(message, nil)
+func (bs *BytesSchema) GetSchemaInfo() *SchemaInfo {
+	return &bs.SchemaInfo
 }
 
 type Int8Schema struct {
 	SchemaInfo
 }
 
-func NewInt8Schema() *Int8Schema {
+func NewInt8Schema(properties map[string]string) *Int8Schema {
 	int8Schema := new(Int8Schema)
-	int8Schema.SchemaInfo = *(int8Schema.GetSchemaInfo())
+	int8Schema.SchemaInfo.Properties = properties
+	int8Schema.SchemaInfo.Schema = ""
+	int8Schema.SchemaInfo.Type = INT8
+	int8Schema.SchemaInfo.Name = "INT8"
 	return int8Schema
 }
 
-func (is8 *Int8Schema) Serialize(value interface{}) ([]byte, error) {
+func (is8 *Int8Schema) Encode(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	err := WriteElements(&buf, value.(int8))
 	return buf.Bytes(), err
 }
 
-func (is8 *Int8Schema) UnSerialize(data []byte, v interface{}) error {
+func (is8 *Int8Schema) Decode(data []byte, v interface{}) error {
 	buf := bytes.NewReader(data)
 	return ReadElements(buf, v)
-}
-
-func (is8 *Int8Schema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("INT8", "", INT8)
 }
 
 func (is8 *Int8Schema) Validate(message []byte) error {
@@ -327,29 +318,32 @@ func (is8 *Int8Schema) Validate(message []byte) error {
 	return nil
 }
 
+func (is8 *Int8Schema) GetSchemaInfo() *SchemaInfo {
+	return &is8.SchemaInfo
+}
+
 type Int16Schema struct {
 	SchemaInfo
 }
 
-func NewInt16Schema() *Int16Schema {
+func NewInt16Schema(properties map[string]string) *Int16Schema {
 	int16Schema := new(Int16Schema)
-	int16Schema.SchemaInfo = *(int16Schema.GetSchemaInfo())
+	int16Schema.SchemaInfo.Properties = properties
+	int16Schema.SchemaInfo.Name = "INT16"
+	int16Schema.SchemaInfo.Type = INT16
+	int16Schema.SchemaInfo.Schema = ""
 	return int16Schema
 }
 
-func (is16 *Int16Schema) Serialize(value interface{}) ([]byte, error) {
+func (is16 *Int16Schema) Encode(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	err := WriteElements(&buf, value.(int16))
 	return buf.Bytes(), err
 }
 
-func (is16 *Int16Schema) UnSerialize(data []byte, v interface{}) error {
+func (is16 *Int16Schema) Decode(data []byte, v interface{}) error {
 	buf := bytes.NewReader(data)
 	return ReadElements(buf, v)
-}
-
-func (is16 *Int16Schema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("INT16", "", INT16)
 }
 
 func (is16 *Int16Schema) Validate(message []byte) error {
@@ -359,29 +353,32 @@ func (is16 *Int16Schema) Validate(message []byte) error {
 	return nil
 }
 
+func (is16 *Int16Schema) GetSchemaInfo() *SchemaInfo {
+	return &is16.SchemaInfo
+}
+
 type Int32Schema struct {
 	SchemaInfo
 }
 
-func NewInt32Schema() *Int32Schema {
+func NewInt32Schema(properties map[string]string) *Int32Schema {
 	int32Schema := new(Int32Schema)
-	int32Schema.SchemaInfo = *(int32Schema.GetSchemaInfo())
+	int32Schema.SchemaInfo.Properties = properties
+	int32Schema.SchemaInfo.Schema = ""
+	int32Schema.SchemaInfo.Name = "INT32"
+	int32Schema.SchemaInfo.Type = INT32
 	return int32Schema
 }
 
-func (is32 *Int32Schema) Serialize(value interface{}) ([]byte, error) {
+func (is32 *Int32Schema) Encode(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	err := WriteElements(&buf, value.(int32))
 	return buf.Bytes(), err
 }
 
-func (is32 *Int32Schema) UnSerialize(data []byte, v interface{}) error {
+func (is32 *Int32Schema) Decode(data []byte, v interface{}) error {
 	buf := bytes.NewReader(data)
 	return ReadElements(buf, v)
-}
-
-func (is32 *Int32Schema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("INT32", "", INT32)
 }
 
 func (is32 *Int32Schema) Validate(message []byte) error {
@@ -391,29 +388,32 @@ func (is32 *Int32Schema) Validate(message []byte) error {
 	return nil
 }
 
+func (is32 *Int32Schema) GetSchemaInfo() *SchemaInfo {
+	return &is32.SchemaInfo
+}
+
 type Int64Schema struct {
 	SchemaInfo
 }
 
-func NewInt64Schema() *Int64Schema {
+func NewInt64Schema(properties map[string]string) *Int64Schema {
 	int64Schema := new(Int64Schema)
-	int64Schema.SchemaInfo = *(int64Schema.GetSchemaInfo())
+	int64Schema.SchemaInfo.Properties = properties
+	int64Schema.SchemaInfo.Name = "INT64"
+	int64Schema.SchemaInfo.Type = INT64
+	int64Schema.SchemaInfo.Schema = ""
 	return int64Schema
 }
 
-func (is64 *Int64Schema) Serialize(value interface{}) ([]byte, error) {
+func (is64 *Int64Schema) Encode(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	err := WriteElements(&buf, value.(int64))
 	return buf.Bytes(), err
 }
 
-func (is64 *Int64Schema) UnSerialize(data []byte, v interface{}) error {
+func (is64 *Int64Schema) Decode(data []byte, v interface{}) error {
 	buf := bytes.NewReader(data)
 	return ReadElements(buf, v)
-}
-
-func (is64 *Int64Schema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("INT64", "", INT64)
 }
 
 func (is64 *Int64Schema) Validate(message []byte) error {
@@ -423,21 +423,28 @@ func (is64 *Int64Schema) Validate(message []byte) error {
 	return nil
 }
 
+func (is64 *Int64Schema) GetSchemaInfo() *SchemaInfo {
+	return &is64.SchemaInfo
+}
+
 type FloatSchema struct {
 	SchemaInfo
 }
 
-func NewFloatSchema() *FloatSchema {
+func NewFloatSchema(properties map[string]string) *FloatSchema {
 	floatSchema := new(FloatSchema)
-	floatSchema.SchemaInfo = *(floatSchema.GetSchemaInfo())
+	floatSchema.SchemaInfo.Properties = properties
+	floatSchema.SchemaInfo.Type = FLOAT
+	floatSchema.SchemaInfo.Name = "FLOAT"
+	floatSchema.SchemaInfo.Schema = ""
 	return floatSchema
 }
 
-func (fs *FloatSchema) Serialize(value interface{}) ([]byte, error) {
+func (fs *FloatSchema) Encode(value interface{}) ([]byte, error) {
 	return BinarySerializer.PutFloat(value)
 }
 
-func (fs *FloatSchema) UnSerialize(data []byte, v interface{}) error {
+func (fs *FloatSchema) Decode(data []byte, v interface{}) error {
 	floatValue, err := BinarySerializer.Float32(data)
 	if err != nil {
 		log.Errorf("unSerialize float error:%s", err.Error())
@@ -447,10 +454,6 @@ func (fs *FloatSchema) UnSerialize(data []byte, v interface{}) error {
 	return nil
 }
 
-func (fs *FloatSchema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("FLOAT", "", FLOAT)
-}
-
 func (fs *FloatSchema) Validate(message []byte) error {
 	if len(message) != 4 {
 		return errors.New("size of data received by FloatSchema is not 4")
@@ -458,21 +461,28 @@ func (fs *FloatSchema) Validate(message []byte) error {
 	return nil
 }
 
+func (fs *FloatSchema) GetSchemaInfo() *SchemaInfo {
+	return &fs.SchemaInfo
+}
+
 type DoubleSchema struct {
 	SchemaInfo
 }
 
-func NewDoubleSchema() *DoubleSchema {
+func NewDoubleSchema(properties map[string]string) *DoubleSchema {
 	doubleSchema := new(DoubleSchema)
-	doubleSchema.SchemaInfo = *(doubleSchema.GetSchemaInfo())
+	doubleSchema.SchemaInfo.Properties = properties
+	doubleSchema.SchemaInfo.Type = DOUBLE
+	doubleSchema.SchemaInfo.Name = "DOUBLE"
+	doubleSchema.SchemaInfo.Schema = ""
 	return doubleSchema
 }
 
-func (ds *DoubleSchema) Serialize(value interface{}) ([]byte, error) {
+func (ds *DoubleSchema) Encode(value interface{}) ([]byte, error) {
 	return BinarySerializer.PutDouble(value)
 }
 
-func (ds *DoubleSchema) UnSerialize(data []byte, v interface{}) error {
+func (ds *DoubleSchema) Decode(data []byte, v interface{}) error {
 	doubleValue, err := BinarySerializer.Float64(data)
 	if err != nil {
 		log.Errorf("unSerialize double value error:%s", err.Error())
@@ -482,13 +492,13 @@ func (ds *DoubleSchema) UnSerialize(data []byte, v interface{}) error {
 	return nil
 }
 
-func (ds *DoubleSchema) GetSchemaInfo() *SchemaInfo {
-	return NewSchemaInfo("DOUBLE", "", DOUBLE)
-}
-
 func (ds *DoubleSchema) Validate(message []byte) error {
 	if len(message) != 8 {
 		return errors.New("size of data received by DoubleSchema is not 8")
 	}
 	return nil
+}
+
+func (ds *DoubleSchema) GetSchemaInfo() *SchemaInfo {
+	return &ds.SchemaInfo
 }
