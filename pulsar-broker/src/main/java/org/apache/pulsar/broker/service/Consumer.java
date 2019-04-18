@@ -283,24 +283,6 @@ public class Consumer {
         }
     }
 
-    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, Subscription subscription, long consumerId) {
-        try {
-            // save the reader index and restore after parsing
-            metadataAndPayload.markReaderIndex();
-            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-            metadataAndPayload.resetReaderIndex();
-            int batchSize = metadata.getNumMessagesInBatch();
-            metadata.recycle();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] num messages in batch are {} ", subscription, consumerId, batchSize);
-            }
-            return batchSize;
-        } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
-        }
-        return -1;
-    }
-
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, Subscription subscription,
             long consumerId) {
         try {

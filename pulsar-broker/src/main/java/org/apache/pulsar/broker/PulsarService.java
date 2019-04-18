@@ -28,13 +28,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -97,9 +98,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
-import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
@@ -168,8 +169,6 @@ public class PulsarService implements AutoCloseable {
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
 
-    private Optional<Timer> delayedDeliveryTimer = Optional.empty();
-
     private final MessagingServiceShutdownHook shutdownService;
 
     private MetricsGenerator metricsGenerator;
@@ -216,10 +215,6 @@ public class PulsarService implements AutoCloseable {
         try {
             if (state == State.Closed) {
                 return;
-            }
-
-            if (delayedDeliveryTimer.isPresent()) {
-                delayedDeliveryTimer.get().stop();
             }
 
             // close the service in reverse order v.s. in which they are started
@@ -948,16 +943,6 @@ public class PulsarService implements AutoCloseable {
 
     public SchemaRegistryService getSchemaRegistryService() {
         return schemaRegistryService;
-    }
-
-    public synchronized Timer getDelayedDeliveryTimer() {
-        // Lazy initialize
-        if (!delayedDeliveryTimer.isPresent()) {
-            delayedDeliveryTimer = Optional.of(new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
-                    config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS));
-        }
-
-        return delayedDeliveryTimer.get();
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

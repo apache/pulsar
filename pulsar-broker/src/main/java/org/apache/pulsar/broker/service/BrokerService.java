@@ -80,6 +80,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -189,6 +191,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -271,9 +275,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
             }
         };
+
+        this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
+                .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
     }
 
     public void start() throws Exception {
+        this.delayedDeliveryTrackerFactory.initialize(pulsar.getConfiguration());
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), producerNameGeneratorPath,
                 pulsar.getConfiguration().getClusterName());
 
@@ -413,6 +421,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ClientCnxnAspect.removeListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(null);
         topicOrderedExecutor.shutdown();
+        delayedDeliveryTrackerFactory.close();
         log.info("Broker service completely shut down");
     }
 
@@ -1373,6 +1382,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         });
 
+    }
+
+    public DelayedDeliveryTrackerFactory getDelayedDeliveryTrackerFactory() {
+        return delayedDeliveryTrackerFactory;
     }
 
     public static List<String> getDynamicConfiguration() {

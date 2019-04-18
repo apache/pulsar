@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -664,7 +665,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
         if (!delayedDeliveryTracker.isPresent()) {
             // Initialize the tracker the first time we need to use it
-            delayedDeliveryTracker = Optional.of(new DelayedDeliveryTracker(this));
+            delayedDeliveryTracker = Optional.of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
         }
 
         return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
@@ -698,7 +699,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     public long getNumberOfDelayedMessages() {
         if (delayedDeliveryTracker.isPresent()) {
-            return delayedDeliveryTracker.get().size();
+            return delayedDeliveryTracker.get().getNumberOfDelayedMessages();
         } else {
             return 0;
         }

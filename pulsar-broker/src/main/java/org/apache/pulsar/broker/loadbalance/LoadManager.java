@@ -108,12 +108,12 @@ public interface LoadManager {
      * @throws Exception
      */
     public void disableBroker() throws Exception;
-    
+
     /**
      * Get list of available brokers in cluster
-     * 
+     *
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
     Set<String> getAvailableBrokers() throws Exception;
 
@@ -134,9 +134,7 @@ public interface LoadManager {
             // Assume there is a constructor with one argument of PulsarService.
             final Object loadManagerInstance = loadManagerClass.newInstance();
             if (loadManagerInstance instanceof LoadManager) {
-                final LoadManager casted = (LoadManager) loadManagerInstance;
-                casted.initialize(pulsar);
-                return casted;
+                return (LoadManager) loadManagerInstance;
             } else if (loadManagerInstance instanceof ModularLoadManager) {
                 final LoadManager casted = new ModularLoadManagerWrapper((ModularLoadManager) loadManagerInstance);
                 casted.initialize(pulsar);

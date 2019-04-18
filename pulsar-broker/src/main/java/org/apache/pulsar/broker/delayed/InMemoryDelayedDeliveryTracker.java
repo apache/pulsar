@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
+package org.apache.pulsar.broker.delayed;
 
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -29,10 +29,11 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @Slf4j
-public class DelayedDeliveryTracker implements AutoCloseable, TimerTask {
+public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
     private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
 
@@ -49,13 +50,13 @@ public class DelayedDeliveryTracker implements AutoCloseable, TimerTask {
 
     private final long tickTimeMillis;
 
-    public DelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher) {
+    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis) {
         this.dispatcher = dispatcher;
-        this.timer = dispatcher.getTopic().getBrokerService().pulsar().getDelayedDeliveryTimer();
-        this.tickTimeMillis = dispatcher.getTopic().getBrokerService().pulsar().getConfiguration()
-                .getDelayedDeliveryTickTimeMillis();
+        this.timer = timer;
+        this.tickTimeMillis = tickTimeMillis;
     }
 
+    @Override
     public boolean addMessage(long ledgerId, long entryId, long deliveryAt) {
         long now = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
@@ -75,6 +76,7 @@ public class DelayedDeliveryTracker implements AutoCloseable, TimerTask {
     /**
      * Return true if there's at least a message that is scheduled to be delivered already
      */
+    @Override
     public boolean hasMessageAvailable() {
         return !priorityQueue.isEmpty() && priorityQueue.peekN1() <= System.currentTimeMillis();
     }
@@ -82,6 +84,7 @@ public class DelayedDeliveryTracker implements AutoCloseable, TimerTask {
     /**
      * Get a set of position of messages that have already reached
      */
+    @Override
     public Set<PositionImpl> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         Set<PositionImpl> positions = new TreeSet<>();
@@ -111,7 +114,8 @@ public class DelayedDeliveryTracker implements AutoCloseable, TimerTask {
         return positions;
     }
 
-    public long size() {
+    @Override
+    public long getNumberOfDelayedMessages() {
         return priorityQueue.size();
     }
 

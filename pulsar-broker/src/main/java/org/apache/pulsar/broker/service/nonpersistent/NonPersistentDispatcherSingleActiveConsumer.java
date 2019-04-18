@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
 
 import java.util.List;
 
@@ -32,6 +31,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -61,7 +61,9 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             currentConsumer.sendMessages(entries);
         } else {
             entries.forEach(entry -> {
-                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), subscription, -1);
+                MessageMetadata msgMetatada = Consumer.peekMessageMetadata(entry.getDataBuffer(), subscription, -1);
+                int totalMsgs = msgMetatada.getNumMessagesInBatch();
+                msgMetatada.recycle();
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent();
                 }
