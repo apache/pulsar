@@ -69,6 +69,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     @Override
+    public TypedMessageBuilder<T> orderingKey(String orderingKey) {
+        msgMetadataBuilder.setOrderingKey(orderingKey);
+        return this;
+    }
+
+    @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);

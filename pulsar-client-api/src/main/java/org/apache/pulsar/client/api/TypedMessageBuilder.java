@@ -95,6 +95,15 @@ public interface TypedMessageBuilder<T> extends Serializable {
     TypedMessageBuilder<T> key(String key);
 
     /**
+     * Sets the ordering key of the message for message dispatch in {@link SubscriptionType#Key_Shared} mode.
+     * Partition key Will be used if ordering key not specified
+     *
+     * @param orderingKey the ordering key for the message
+     * @return the message builder instance
+     */
+    TypedMessageBuilder<T> orderingKey(String orderingKey);
+
+    /**
      * Sets the bytes of the key of the message for routing policy.
      * Internally the bytes will be base64 encoded.
      *
