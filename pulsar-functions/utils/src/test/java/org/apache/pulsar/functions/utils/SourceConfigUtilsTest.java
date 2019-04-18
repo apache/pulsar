@@ -51,7 +51,15 @@ public class SourceConfigUtilsTest {
         sourceConfig.setParallelism(1);
         sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sourceConfig.setConfigs(new HashMap<>());
+
+        Map<String, String> consumerConfigs = new HashMap<>();
+        consumerConfigs.put("security.protocal", "SASL_PLAINTEXT");
+        Map<String, Object> configs = new HashMap<>();
+        configs.put("topic", "kafka");
+        configs.put("bootstrapServers", "server-1,server-2");
+        configs.put("consumerConfigProperties", consumerConfigs);
+
+        sourceConfig.setConfigs(configs);
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 

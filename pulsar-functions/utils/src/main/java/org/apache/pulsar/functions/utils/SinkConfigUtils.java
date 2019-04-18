@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
@@ -31,6 +32,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -239,8 +241,16 @@ public class SinkConfigUtils {
             sinkConfig.setArchive("builtin://" + functionDetails.getSink().getBuiltin());
         }
         if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
+            TypeReference<HashMap<String,Object>> typeRef
+                    = new TypeReference<HashMap<String,Object>>() {};
+            Map<String, Object> configMap;
+            try {
+               configMap = ObjectMapperFactory.getThreadLocal().readValue(functionDetails.getSink().getConfigs(), typeRef);
+            } catch (IOException e) {
+                log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails), e);
+                throw new RuntimeException(e);
+            }
+            sinkConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
