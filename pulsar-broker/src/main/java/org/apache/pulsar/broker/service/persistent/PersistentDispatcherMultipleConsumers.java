@@ -688,7 +688,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         return false;
     }
 
-    private Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    private synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         if (!messagesToRedeliver.isEmpty()) {
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
@@ -697,7 +697,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         }
     }
 
-    public long getNumberOfDelayedMessages() {
+    public synchronized long getNumberOfDelayedMessages() {
         if (delayedDeliveryTracker.isPresent()) {
             return delayedDeliveryTracker.get().getNumberOfDelayedMessages();
         } else {

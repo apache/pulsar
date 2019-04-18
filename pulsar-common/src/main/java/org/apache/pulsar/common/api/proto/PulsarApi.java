@@ -3086,7 +3086,7 @@ public final class PulsarApi {
     boolean hasPartitionKeyB64Encoded();
     boolean getPartitionKeyB64Encoded();
     
-    // optional uint64 deliver_at_time = 18;
+    // optional int64 deliver_at_time = 18;
     boolean hasDeliverAtTime();
     long getDeliverAtTime();
   }
@@ -3399,7 +3399,7 @@ public final class PulsarApi {
       return partitionKeyB64Encoded_;
     }
     
-    // optional uint64 deliver_at_time = 18;
+    // optional int64 deliver_at_time = 18;
     public static final int DELIVER_AT_TIME_FIELD_NUMBER = 18;
     private long deliverAtTime_;
     public boolean hasDeliverAtTime() {
@@ -3518,7 +3518,7 @@ public final class PulsarApi {
         output.writeBool(17, partitionKeyB64Encoded_);
       }
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
-        output.writeUInt64(18, deliverAtTime_);
+        output.writeInt64(18, deliverAtTime_);
       }
     }
     
@@ -3599,7 +3599,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(18, deliverAtTime_);
+          .computeInt64Size(18, deliverAtTime_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4072,7 +4072,7 @@ public final class PulsarApi {
             }
             case 144: {
               bitField0_ |= 0x00010000;
-              deliverAtTime_ = input.readUInt64();
+              deliverAtTime_ = input.readInt64();
               break;
             }
           }
@@ -4657,7 +4657,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 deliver_at_time = 18;
+      // optional int64 deliver_at_time = 18;
       private long deliverAtTime_ ;
       public boolean hasDeliverAtTime() {
         return ((bitField0_ & 0x00010000) == 0x00010000);
