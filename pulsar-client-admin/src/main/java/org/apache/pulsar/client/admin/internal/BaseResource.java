@@ -201,4 +201,29 @@ public abstract class BaseResource {
         }
     }
 
+    public PulsarAdminException getApiException(String responseBody, int statusCode) {
+        ClientErrorException cee = new ClientErrorException(responseBody, statusCode);
+        switch (statusCode) {
+            case 401:
+            case 403:
+                return new NotAuthorizedException(cee);
+            case 404:
+                return new NotFoundException(cee);
+            case 405:
+                return new NotAllowedException(cee);
+            case 409:
+                return new ConflictException(cee);
+            case 412:
+                return new PreconditionFailedException(cee);
+            default:
+                return new PulsarAdminException(cee);
+
+        }
+
+    }
+
+    public PulsarAdminException getApiException(org.asynchttpclient.Response response) {
+        return getApiException(response.getResponseBody(), response.getStatusCode());
+    }
+
 }

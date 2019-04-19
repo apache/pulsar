@@ -169,7 +169,9 @@ public class PulsarAdmin implements Closeable {
         this.serviceUrl = serviceUrl;
         root = client.target(serviceUrl);
 
-        this.httpAsyncClient = asyncConnectorProvider.getConnector(this.connectTimeout, this.readTimeout).getHttpClient();
+        this.httpAsyncClient = asyncConnectorProvider.getConnector(
+                Math.toIntExact(TimeUnit.SECONDS.toMillis(this.connectTimeout)),
+                Math.toIntExact(TimeUnit.SECONDS.toMillis(this.readTimeout))).getHttpClient();
 
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
@@ -394,13 +396,10 @@ public class PulsarAdmin implements Closeable {
         }
         client.close();
 
-        if (httpAsyncClient != null) {
-            try {
-                httpAsyncClient.close();
-            } catch (IOException e) {
-               LOG.error("Failed to close http async client", e);
-            }
+        try {
+            httpAsyncClient.close();
+        } catch (IOException e) {
+           LOG.error("Failed to close http async client", e);
         }
     }
-
 }

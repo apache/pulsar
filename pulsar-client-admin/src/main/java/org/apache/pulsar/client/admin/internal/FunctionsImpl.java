@@ -25,8 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
-import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -35,10 +33,14 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -50,14 +52,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.channels.FileChannel;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import static org.asynchttpclient.Dsl.post;
+import static org.asynchttpclient.Dsl.put;
 
 @Slf4j
 public class FunctionsImpl extends BaseResource implements Functions {
@@ -156,21 +158,22 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        org.asynchttpclient.Response response;
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+               builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                new Gson().toJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            response = asyncHttpClient.executeRequest(builder.build()).get();
         } catch (Exception e) {
             throw getApiException(e);
+        }
+
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw getApiException(response);
         }
     }
 
@@ -203,21 +206,22 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        org.asynchttpclient.Response response;
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = put(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                new Gson().toJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
-                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            response = asyncHttpClient.executeRequest(builder.build()).get();
         } catch (Exception e) {
             throw getApiException(e);
+        }
+
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw getApiException(response);
         }
     }
 
@@ -341,6 +345,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
 
+        HttpResponseStatus status;
         try {
             File file = new File(destinationPath);
             if (!file.exists()) {
@@ -349,41 +354,48 @@ public class FunctionsImpl extends BaseResource implements Functions {
             FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
             WebTarget target = functions.path("download").queryParam("path", path);
 
-            Future<Integer> whenStatusCode = asyncHttpClient.prepareGet(target.getUri().toASCIIString())
-                    .execute(new AsyncHandler<Integer>() {
-                        private Integer status;
+            Future<HttpResponseStatus> whenStatusCode = asyncHttpClient.prepareGet(target.getUri().toASCIIString())
+                    .execute(new AsyncHandler<HttpResponseStatus>() {
+                        private HttpResponseStatus status;
+
                         @Override
                         public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
-                            status = responseStatus.getStatusCode();
-                            if (status != Response.Status.OK.getStatusCode()) {
+                            status = responseStatus;
+                            if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
                                 return State.ABORT;
                             }
                             return State.CONTINUE;
                         }
+
                         @Override
                         public State onHeadersReceived(HttpHeaders headers) throws Exception {
                             return State.CONTINUE;
                         }
+
                         @Override
                         public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
                             os.write(bodyPart.getBodyByteBuffer());
                             return State.CONTINUE;
                         }
+
                         @Override
-                        public Integer onCompleted() throws Exception {
+                        public HttpResponseStatus onCompleted() throws Exception {
                             return status;
                         }
+
                         @Override
                         public void onThrowable(Throwable t) {
                         }
                     });
 
-            Integer statusCode = whenStatusCode.get();
-
+            status = whenStatusCode.get();
             os.close();
         } catch (Exception e) {
-            log.error("e: {}", e, e);
             throw getApiException(e);
+        }
+
+        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+            throw getApiException(status.getStatusText(), status.getStatusCode());
         }
     }
 

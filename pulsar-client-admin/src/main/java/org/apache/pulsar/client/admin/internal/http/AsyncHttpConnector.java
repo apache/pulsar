@@ -70,11 +70,11 @@ public class AsyncHttpConnector implements Connector {
     }
 
     @SneakyThrows
-    public AsyncHttpConnector(int connectTimeout, int readTimeout, ClientConfigurationData conf) {
+    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs, ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(connectTimeout);
-        confBuilder.setReadTimeout(readTimeout);
+        confBuilder.setConnectTimeout(connectTimeoutMs);
+        confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
