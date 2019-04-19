@@ -202,10 +202,6 @@ public abstract class BaseResource {
 
     public PulsarAdminException getApiException(String responseBody, int statusCode) {
 
-        if (statusCode >= 200 && statusCode < 300) {
-            return null;
-        }
-
         if (statusCode >= 500) {
             ServerErrorException see = new ServerErrorException(responseBody, statusCode);
             return new PulsarAdminException(see);
