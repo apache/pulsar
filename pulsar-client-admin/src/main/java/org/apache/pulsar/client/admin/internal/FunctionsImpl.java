@@ -58,11 +58,12 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static org.asynchttpclient.Dsl.get;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 
 @Slf4j
-public class FunctionsImpl extends BaseResource implements Functions {
+public class FunctionsImpl extends ComponentResource implements Functions {
 
     private final WebTarget functions;
     private final AsyncHttpClient asyncHttpClient;
@@ -167,7 +168,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(builder.build()).get();
+            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -215,7 +216,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(builder.build()).get();
+            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -335,7 +336,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                     .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
                     .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
 
-            response = asyncHttpClient.executeRequest(builder.build()).get();
+            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -357,40 +358,42 @@ public class FunctionsImpl extends BaseResource implements Functions {
             FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
             WebTarget target = functions.path("download").queryParam("path", path);
 
-            Future<HttpResponseStatus> whenStatusCode = asyncHttpClient.prepareGet(target.getUri().toASCIIString())
-                    .execute(new AsyncHandler<HttpResponseStatus>() {
-                        private HttpResponseStatus status;
+            RequestBuilder builder = get(target.getUri().toASCIIString());
 
-                        @Override
-                        public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
-                            status = responseStatus;
-                            if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
-                                return State.ABORT;
-                            }
-                            return State.CONTINUE;
-                        }
+            Future<HttpResponseStatus> whenStatusCode
+                    = asyncHttpClient.executeRequest(addAuthHeaders(builder).build(), new AsyncHandler<HttpResponseStatus>() {
+                private HttpResponseStatus status;
 
-                        @Override
-                        public State onHeadersReceived(HttpHeaders headers) throws Exception {
-                            return State.CONTINUE;
-                        }
+                @Override
+                public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
+                    status = responseStatus;
+                    if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
+                        return State.ABORT;
+                    }
+                    return State.CONTINUE;
+                }
 
-                        @Override
-                        public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+                @Override
+                public State onHeadersReceived(HttpHeaders headers) throws Exception {
+                    return State.CONTINUE;
+                }
 
-                            os.write(bodyPart.getBodyByteBuffer());
-                            return State.CONTINUE;
-                        }
+                @Override
+                public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
 
-                        @Override
-                        public HttpResponseStatus onCompleted() throws Exception {
-                            return status;
-                        }
+                    os.write(bodyPart.getBodyByteBuffer());
+                    return State.CONTINUE;
+                }
 
-                        @Override
-                        public void onThrowable(Throwable t) {
-                        }
-                    });
+                @Override
+                public HttpResponseStatus onCompleted() throws Exception {
+                    return status;
+                }
+
+                @Override
+                public void onThrowable(Throwable t) {
+                }
+            });
 
             status = whenStatusCode.get();
             os.close();

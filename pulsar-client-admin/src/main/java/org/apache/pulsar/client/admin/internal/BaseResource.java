@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
-    private final Authentication auth;
+    protected final Authentication auth;
 
     protected BaseResource(Authentication auth) {
         this.auth = auth;

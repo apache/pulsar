@@ -47,7 +47,7 @@ import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 
 @Slf4j
-public class SourceImpl extends BaseResource implements Source {
+public class SourceImpl extends ComponentResource implements Source {
 
     private final WebTarget source;
     private final AsyncHttpClient asyncHttpClient;
@@ -126,7 +126,7 @@ public class SourceImpl extends BaseResource implements Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(builder.build()).get();
+            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -174,7 +174,7 @@ public class SourceImpl extends BaseResource implements Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(builder.build()).get();
+            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
