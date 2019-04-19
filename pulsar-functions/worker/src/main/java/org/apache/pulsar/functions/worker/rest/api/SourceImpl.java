@@ -32,7 +32,6 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
-import org.apache.pulsar.functions.worker.rest.RestUtils;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -41,6 +40,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
+
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class SourceImpl extends ComponentImpl {
@@ -260,7 +261,7 @@ public class SourceImpl extends ComponentImpl {
                                       final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
-            RestUtils.throwUnavailableException();
+            throwUnavailableException();
         }
 
         // validate parameters
