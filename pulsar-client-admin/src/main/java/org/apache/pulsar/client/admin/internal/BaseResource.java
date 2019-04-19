@@ -199,37 +199,4 @@ public abstract class BaseResource {
             throw new WebApplicationException(response);
         }
     }
-
-    public PulsarAdminException getApiException(String responseBody, int statusCode) {
-
-        if (statusCode >= 500) {
-            ServerErrorException see = new ServerErrorException(responseBody, statusCode);
-            return new PulsarAdminException(see);
-        } else if (statusCode >= 400) {
-            ClientErrorException cee = new ClientErrorException(responseBody, statusCode);
-            switch (statusCode) {
-                case 401:
-                case 403:
-                    return new NotAuthorizedException(cee);
-                case 404:
-                    return new NotFoundException(cee);
-                case 405:
-                    return new NotAllowedException(cee);
-                case 409:
-                    return new ConflictException(cee);
-                case 412:
-                    return new PreconditionFailedException(cee);
-                default:
-                    return new PulsarAdminException(cee);
-            }
-        } else  {
-            return new PulsarAdminException(responseBody);
-        }
-
-    }
-
-    public PulsarAdminException getApiException(org.asynchttpclient.Response response) {
-        return getApiException(response.getResponseBody(), response.getStatusCode());
-    }
-
 }

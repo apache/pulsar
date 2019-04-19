@@ -41,10 +41,14 @@ public class PulsarAdminException extends Exception {
             return e.getResponse().readEntity(ErrorData.class).reason;
         } catch (Exception ex) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
-            } catch (Exception ex2) {
-                // could not parse output to ErrorData class
-                return e.getMessage();
+                return ObjectMapperFactory.getThreadLocal().readValue(e.getResponse().getEntity().toString(), ErrorData.class).reason;
+            } catch (Exception ex1) {
+                try {
+                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                } catch (Exception ex2) {
+                    // could not parse output to ErrorData class
+                    return e.getMessage();
+                }
             }
         }
     }

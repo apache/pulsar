@@ -159,7 +159,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
@@ -168,13 +167,14 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
+
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
@@ -207,7 +207,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = put(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
@@ -216,13 +215,13 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
@@ -330,19 +329,17 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = post(functions.path("upload").getUri().toASCIIString())
                     .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
                     .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
 
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
@@ -397,12 +394,12 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
             status = whenStatusCode.get();
             os.close();
+
+            if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                throw getApiException(Response.status(status.getStatusCode()).entity(status.getStatusText()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
-            throw getApiException(status.getStatusText(), status.getStatusCode());
         }
     }
 

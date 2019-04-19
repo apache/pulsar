@@ -117,7 +117,6 @@ public class SinkImpl extends ComponentResource implements Sink {
 
     @Override
     public void createSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = post(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
@@ -126,13 +125,14 @@ public class SinkImpl extends ComponentResource implements Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
+
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
@@ -165,7 +165,6 @@ public class SinkImpl extends ComponentResource implements Sink {
 
     @Override
     public void updateSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
@@ -174,13 +173,13 @@ public class SinkImpl extends ComponentResource implements Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 

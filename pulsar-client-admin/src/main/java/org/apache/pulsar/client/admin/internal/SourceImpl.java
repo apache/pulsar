@@ -117,7 +117,6 @@ public class SourceImpl extends ComponentResource implements Source {
 
     @Override
     public void createSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = post(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
@@ -126,13 +125,12 @@ public class SourceImpl extends ComponentResource implements Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
@@ -165,7 +163,6 @@ public class SourceImpl extends ComponentResource implements Source {
 
     @Override
     public void updateSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
-        org.asynchttpclient.Response response;
         try {
             RequestBuilder builder = put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
@@ -174,13 +171,13 @@ public class SourceImpl extends ComponentResource implements Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
-        }
-
-        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw getApiException(response);
         }
     }
 
