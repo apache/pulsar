@@ -41,12 +41,13 @@ import java.util.stream.Collectors;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
 
-    private static final String NONE_KEY = "NONE_KEY";
+    public static final String NONE_KEY = "NONE_KEY";
 
-    private StickyKeyConsumerSelector selector;
+    private final StickyKeyConsumerSelector selector;
 
-    public PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
+    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
         super(topic, cursor);
+        //todo Consumer selector Pluggable
         selector = new HashRangeStickyKeyConsumerSelector();
     }
 
@@ -73,6 +74,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             final Iterator<Map.Entry<String, List<Entry>>> iterator = groupedEntries.entrySet().iterator();
             while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
                 final Map.Entry<String, List<Entry>> entriesWithSameKey = iterator.next();
+                //todo None key policy
                 final Consumer consumer = selector.select(entriesWithSameKey.getKey());
 
                 if (consumer == null) {

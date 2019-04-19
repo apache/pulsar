@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+
 public interface StickyKeyConsumerSelector {
 
     /**
      * Add a new consumer
      * @param consumer new consumer
      */
-    void addConsumer(Consumer consumer);
+    void addConsumer(Consumer consumer) throws ConsumerAssignException;
 
     /**
      * Remove the consumer

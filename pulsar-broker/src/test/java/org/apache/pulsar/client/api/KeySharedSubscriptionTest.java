@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -27,6 +28,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
@@ -55,21 +57,24 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
                 .subscribe();
 
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
                 .subscribe();
 
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
                 .subscribe();
 
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.RANGE_SIZE;
+        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
 
@@ -84,7 +89,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
             if (slot < consumer3Slot) {
                 consumer3ExpectMessages++;
             } else if (slot < consumer2Slot) {
@@ -118,7 +123,205 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer1ExpectMessages, consumer1Received);
         Assert.assertEquals(consumer2ExpectMessages, consumer2Received);
         Assert.assertEquals(consumer3ExpectMessages, consumer3Received);
+
+        // messages not acked, test redelivery
+
+        for (int i = 0; i < consumer1ExpectMessages; i++) {
+            Message message = consumer1.receive();
+            consumer1.acknowledge(message);
+            consumer1Received++;
+        }
+
+        for (int i = 0; i < consumer2ExpectMessages; i++) {
+            Message message = consumer2.receive();
+            consumer2.acknowledge(message);
+            consumer2Received++;
+        }
+
+        for (int i = 0; i < consumer3ExpectMessages; i++) {
+            Message message = consumer3.receive();
+            consumer3.acknowledge(message);
+            consumer3Received++;
+        }
+
+        Assert.assertEquals(consumer1ExpectMessages * 2, consumer1Received);
+        Assert.assertEquals(consumer2ExpectMessages * 2, consumer2Received);
+        Assert.assertEquals(consumer3ExpectMessages * 2, consumer3Received);
     }
 
+    @Test
+    public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
 
+        String topic = "persistent://public/default/key_shared_none_key";
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer2Slot = consumer1Slot >> 1;
+        int consumer3Slot = consumer2Slot >> 1;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value(("Message - " + i).getBytes())
+                    .send();
+        }
+
+        int expectMessages = 100;
+        int receiveMessages = 0;
+        int slot = Math.abs(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.hashCode()
+                % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
+        if (slot < consumer3Slot) {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer3.receive();
+                consumer3.acknowledge(message);
+                receiveMessages++;
+            }
+        } else if (slot < consumer2Slot) {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer2.receive();
+                consumer2.acknowledge(message);
+                receiveMessages++;
+            }
+        } else {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer1.receive();
+                consumer1.acknowledge(message);
+                receiveMessages++;
+            }
+        }
+        Assert.assertEquals(expectMessages, receiveMessages);
+
+        Producer<byte[]> batchingProducer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            batchingProducer.newMessage()
+                    .value(("Message - " + i).getBytes())
+                    .send();
+        }
+
+        if (slot < consumer3Slot) {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer3.receive();
+                consumer3.acknowledge(message);
+                receiveMessages++;
+            }
+        } else if (slot < consumer2Slot) {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer2.receive();
+                consumer2.acknowledge(message);
+                receiveMessages++;
+            }
+        } else {
+            for (int i = 0; i < expectMessages; i++) {
+                Message message = consumer1.receive();
+                consumer1.acknowledge(message);
+                receiveMessages++;
+            }
+        }
+
+        Assert.assertEquals(expectMessages * 2, receiveMessages);
+
+    }
+
+    @Test
+    public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+        String topic = "persistent://public/default/key_shared_ordering_key";
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer2Slot = consumer1Slot >> 1;
+        int consumer3Slot = consumer2Slot >> 1;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        int consumer1ExpectMessages = 0;
+        int consumer2ExpectMessages = 0;
+        int consumer3ExpectMessages = 0;
+
+        for (int i = 0; i < 100; i++) {
+            String key = UUID.randomUUID().toString();
+            String orderingKey = UUID.randomUUID().toString();
+            int slot = Math.abs(orderingKey.hashCode() % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
+            if (slot < consumer3Slot) {
+                consumer3ExpectMessages++;
+            } else if (slot < consumer2Slot) {
+                consumer2ExpectMessages++;
+            } else {
+                consumer1ExpectMessages++;
+            }
+            producer.newMessage()
+                    .key(key)
+                    .orderingKey(orderingKey)
+                    .value(key.getBytes())
+                    .send();
+        }
+
+        int consumer1Received = 0;
+        for (int i = 0; i < consumer1ExpectMessages; i++) {
+            consumer1.receive();
+            consumer1Received++;
+        }
+
+        int consumer2Received = 0;
+        for (int i = 0; i < consumer2ExpectMessages; i++) {
+            consumer2.receive();
+            consumer2Received++;
+        }
+
+        int consumer3Received = 0;
+        for (int i = 0; i < consumer3ExpectMessages; i++) {
+            consumer3.receive();
+            consumer3Received++;
+        }
+        Assert.assertEquals(consumer1ExpectMessages, consumer1Received);
+        Assert.assertEquals(consumer2ExpectMessages, consumer2Received);
+        Assert.assertEquals(consumer3ExpectMessages, consumer3Received);
+    }
 }

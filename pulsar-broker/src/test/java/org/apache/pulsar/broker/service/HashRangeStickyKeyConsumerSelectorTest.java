@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
 import static org.mockito.Mockito.mock;
 
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -28,7 +30,7 @@ import java.util.UUID;
 public class HashRangeStickyKeyConsumerSelectorTest {
 
     @Test
-    public void testConsumerSelect() {
+    public void testConsumerSelect() throws ConsumerAssignException {
 
         StickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector();
         String key1 = "anyKey";
@@ -36,7 +38,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         Consumer consumer1 = mock(Consumer.class);
         selector.addConsumer(consumer1);
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.RANGE_SIZE;
+        int consumer1Slot = DEFAULT_RANGE_SIZE;
         Assert.assertEquals(selector.select(key1), consumer1);
 
         Consumer consumer2 = mock(Consumer.class);
@@ -45,7 +47,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % DEFAULT_RANGE_SIZE);
             if (slot < consumer2Slot) {
                 Assert.assertEquals(selector.select(key), consumer2);
             } else {
@@ -59,7 +61,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % DEFAULT_RANGE_SIZE);
             if (slot < consumer3Slot) {
                 Assert.assertEquals(selector.select(key), consumer3);
             } else if (slot < consumer2Slot) {
@@ -75,7 +77,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % DEFAULT_RANGE_SIZE);
             if (slot < consumer3Slot) {
                 Assert.assertEquals(selector.select(key), consumer3);
             } else if (slot < consumer2Slot) {
@@ -90,7 +92,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         selector.removeConsumer(consumer1);
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % DEFAULT_RANGE_SIZE);
             if (slot < consumer3Slot) {
                 Assert.assertEquals(selector.select(key), consumer3);
             } else if (slot < consumer2Slot) {
@@ -103,7 +105,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         selector.removeConsumer(consumer2);
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.RANGE_SIZE);
+            int slot = Math.abs(key.hashCode() % DEFAULT_RANGE_SIZE);
             if (slot < consumer3Slot) {
                 Assert.assertEquals(selector.select(key), consumer3);
             } else {
@@ -116,5 +118,23 @@ public class HashRangeStickyKeyConsumerSelectorTest {
             String key = UUID.randomUUID().toString();
             Assert.assertEquals(selector.select(key), consumer4);
         }
+    }
+
+    @Test(expectedExceptions = ConsumerAssignException.class)
+    public void testSplitExceed() throws ConsumerAssignException {
+        StickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector(16);
+        for (int i = 0; i <= 16; i++) {
+            selector.addConsumer(mock(Consumer.class));
+        }
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRangeSizeLessThan2() {
+        new HashRangeStickyKeyConsumerSelector(1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRangeSizePower2() {
+        new HashRangeStickyKeyConsumerSelector(6);
     }
 }

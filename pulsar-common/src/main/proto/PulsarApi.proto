@@ -154,6 +154,7 @@ enum ServerError {
     InvalidTopicName = 17; // The topic name is not valid
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
+	ConsumerAssignError = 19; // Dispatcher assign consumer error
 }
 
 enum AuthMethod {

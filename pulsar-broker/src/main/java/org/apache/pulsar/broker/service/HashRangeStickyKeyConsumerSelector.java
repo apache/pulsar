@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -32,21 +34,34 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
-    public static final int RANGE_SIZE = 2 << 15;
+    public static final int DEFAULT_RANGE_SIZE =  2 << 15;
+
+    private final int rangeSize;
 
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private final Map<Consumer, Integer> consumerRange;
 
     public HashRangeStickyKeyConsumerSelector() {
+        this(DEFAULT_RANGE_SIZE);
+    }
+
+    public HashRangeStickyKeyConsumerSelector(int rangeSize) {
+        if (rangeSize < 2) {
+            throw new IllegalArgumentException("range size must greater than 2");
+        }
+        if (!is2Power(rangeSize)) {
+            throw new IllegalArgumentException("range size must be nth power with 2");
+        }
         this.rangeMap = new ConcurrentSkipListMap<>();
         this.consumerRange = new HashMap<>();
+        this.rangeSize = rangeSize;
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) {
+    public synchronized void addConsumer(Consumer consumer) throws ConsumerAssignException {
         if (rangeMap.size() == 0) {
-            rangeMap.put(RANGE_SIZE, consumer);
-            consumerRange.put(consumer, RANGE_SIZE);
+            rangeMap.put(rangeSize, consumer);
+            consumerRange.put(consumer, rangeSize);
         } else {
             splitRange(findBiggestRange(), consumer);
         }
@@ -56,7 +71,7 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     public synchronized void removeConsumer(Consumer consumer) {
         Integer removeRange = consumerRange.get(consumer);
         if (removeRange != null) {
-            if (removeRange == RANGE_SIZE && rangeMap.size() > 1) {
+            if (removeRange == rangeSize && rangeMap.size() > 1) {
                 Consumer lowerConsumer = rangeMap.lowerEntry(removeRange).getValue();
                 rangeMap.put(removeRange, lowerConsumer);
                 consumerRange.put(lowerConsumer, removeRange);
@@ -70,7 +85,7 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     @Override
     public Consumer select(String stickyKey) {
         if (rangeMap.size() > 0) {
-            int slot = Math.abs(stickyKey.hashCode() % RANGE_SIZE);
+            int slot = Math.abs(stickyKey.hashCode() % rangeSize);
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
@@ -79,7 +94,7 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
 
     private int findBiggestRange() {
         int slots = 0;
-        int busiestRange = RANGE_SIZE;
+        int busiestRange = rangeSize;
         for (Entry<Integer, Consumer> entry : rangeMap.entrySet()) {
             Integer lowerKey = rangeMap.lowerKey(entry.getKey());
             if (lowerKey == null) {
@@ -93,17 +108,22 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
         return busiestRange;
     }
 
-    private void splitRange(int range, Consumer targetConsumer) {
+    private void splitRange(int range, Consumer targetConsumer) throws ConsumerAssignException {
         Integer lowerKey = rangeMap.lowerKey(range);
         if (lowerKey == null) {
             lowerKey = 0;
         }
         if (range - lowerKey <= 1) {
-            throw new RuntimeException("No more range can assigned to new consumer, assigned consumers "
+            throw new ConsumerAssignException("No more range can assigned to new consumer, assigned consumers "
                     + rangeMap.size());
         }
         int splitRange = range - ((range - lowerKey) >> 1);
         rangeMap.put(splitRange, targetConsumer);
         consumerRange.put(targetConsumer, splitRange);
+    }
+
+    private boolean is2Power(int num) {
+        if(num < 2) return false;
+        return (num & num - 1) == 0;
     }
 }
