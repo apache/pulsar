@@ -329,17 +329,35 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
+//        try {
+//            final FormDataMultiPart mp = new FormDataMultiPart();
+//
+//            mp.bodyPart(new FileDataBodyPart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+//
+//            mp.bodyPart(new FormDataBodyPart("path", path, MediaType.TEXT_PLAIN_TYPE));
+//            request(functions.path("upload"))
+//                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+//        } catch (Exception e) {
+//            throw getApiException(e);
+//        }
+
+
+        org.asynchttpclient.Response response;
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
-
-            mp.bodyPart(new FileDataBodyPart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM_TYPE));
-
-            mp.bodyPart(new FormDataBodyPart("path", path, MediaType.TEXT_PLAIN_TYPE));
-            request(functions.path("upload"))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            RequestBuilder builder = post(functions.path("upload").getUri().toASCIIString())
+                    .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
+                    .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
+            
+            response = asyncHttpClient.executeRequest(builder.build()).get();
         } catch (Exception e) {
             throw getApiException(e);
         }
+
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw getApiException(response);
+        }
+
+
     }
 
     @Override
