@@ -278,27 +278,26 @@ if (BUILD_PYTHON_WRAPPER)
 endif ()
 
 # `make format` option
-if (NOT APPLE)
+if (NOT APPLE AND NOT WIN32)
     set(CLANG_FORMAT_VERSION "5.0")
 endif()
 
-if (UNIX)
-    find_package(ClangTools)
-    set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
-    add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
-            ${CLANG_FORMAT_BIN}
-            0
-            ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-            ${CMAKE_SOURCE_DIR}/lib
-            ${CMAKE_SOURCE_DIR}/tests
-            ${CMAKE_SOURCE_DIR}/include)
 
-    # `make check-format` option (for CI test)
-    add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
-            ${CLANG_FORMAT_BIN}
-            1
-            ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-            ${CMAKE_SOURCE_DIR}/lib
-            ${CMAKE_SOURCE_DIR}/tests
-            ${CMAKE_SOURCE_DIR}/include)
-endif()
+find_package(ClangTools)
+set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
+add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+        ${CLANG_FORMAT_BIN}
+        0
+        ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+        ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/include)
+
+# `make check-format` option (for CI test)
+add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+        ${CLANG_FORMAT_BIN}
+        1
+        ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+        ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/include)

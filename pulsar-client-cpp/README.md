@@ -177,6 +177,7 @@ Clone and build all dependencies from source if a binary distro can't be found.
 - [OpenSSL](https://github.com/openssl/openssl)
 - [ProtoBuf](https://github.com/protocolbuffers/protobuf)
 - [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32)
+- [LLVM](https://llvm.org/builds/) (for clang-tidy and clang-format)
 
 If you want to build and run the tests, then also install
 - [GTest and GMock](https://github.com/google/googletest)

@@ -76,5 +76,4 @@ class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
 typedef std::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }  // namespace pulsar
 
-
 #endif  //_PULSAR_BINARY_LOOKUP_SERVICE_HEADER_

@@ -73,7 +73,6 @@ char *pulsar_message_id_str(pulsar_message_id_t *messageId) {
 #else
     return strndup(s.c_str(), s.length());
 #endif
-
 }
 
 void pulsar_message_id_free(pulsar_message_id_t *messageId) { delete messageId; }

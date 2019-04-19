@@ -48,5 +48,4 @@ class PULSAR_PUBLIC Backoff {
 };
 }  // namespace pulsar
 
-
 #endif  //_PULSAR_BACKOFF_HEADER_

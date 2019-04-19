@@ -78,7 +78,7 @@ PULSAR_PUBLIC pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pu
  * @param callback the callback to get notification of the completion
  */
 PULSAR_PUBLIC void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
-                                pulsar_send_callback callback, void *ctx);
+                                              pulsar_send_callback callback, void *ctx);
 
 /**
  * Get the last sequence id that was published by this producer.

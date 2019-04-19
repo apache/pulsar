@@ -27,7 +27,8 @@ extern "C" {
 
 typedef struct _pulsar_consumer_configuration pulsar_consumer_configuration_t;
 
-typedef enum {
+typedef enum
+{
     /**
      * There can be only 1 consumer on the same topic with the same consumerName
      */
@@ -45,7 +46,8 @@ typedef enum {
     pulsar_ConsumerFailover
 } pulsar_consumer_type;
 
-typedef enum {
+typedef enum
+{
     /**
      * the latest position which means the start consuming position will be the last message
      */
@@ -77,12 +79,10 @@ PULSAR_PUBLIC void pulsar_consumer_configuration_free(
  * consumers will be promoted to primary and will start getting messages.
  */
 PULSAR_PUBLIC void pulsar_consumer_configuration_set_consumer_type(
-    pulsar_consumer_configuration_t *consumer_configuration,
-                                                     pulsar_consumer_type consumerType);
+    pulsar_consumer_configuration_t *consumer_configuration, pulsar_consumer_type consumerType);
 
 PULSAR_PUBLIC pulsar_consumer_type
-pulsar_consumer_configuration_get_consumer_type(
-    pulsar_consumer_configuration_t *consumer_configuration);
+pulsar_consumer_configuration_get_consumer_type(pulsar_consumer_configuration_t *consumer_configuration);
 
 /**
  * A message listener enables your application to configure how to process
@@ -141,7 +141,7 @@ PULSAR_PUBLIC int pulsar_consumer_get_max_total_receiver_queue_size_across_parti
     pulsar_consumer_configuration_t *consumer_configuration);
 
 PULSAR_PUBLIC void pulsar_consumer_set_consumer_name(pulsar_consumer_configuration_t *consumer_configuration,
-                                       const char *consumerName);
+                                                     const char *consumerName);
 
 PULSAR_PUBLIC const char *pulsar_consumer_get_consumer_name(
     pulsar_consumer_configuration_t *consumer_configuration);
@@ -154,8 +154,7 @@ PULSAR_PUBLIC const char *pulsar_consumer_get_consumer_name(
  * @param timeout in milliseconds
  */
 PULSAR_PUBLIC void pulsar_consumer_set_unacked_messages_timeout_ms(
-    pulsar_consumer_configuration_t *consumer_configuration,
-                                                     const uint64_t milliSeconds);
+    pulsar_consumer_configuration_t *consumer_configuration, const uint64_t milliSeconds);
 
 /**
  * @return the configured timeout in milliseconds for unacked messages.
@@ -193,7 +192,7 @@ PULSAR_PUBLIC int pulsar_consumer_is_encryption_enabled(
 PULSAR_PUBLIC int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_configuration);
 
 PULSAR_PUBLIC void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consumer_configuration,
-                                        int compacted);
+                                                      int compacted);
 
 PULSAR_PUBLIC int pulsar_consumer_get_subscription_initial_position(
     pulsar_consumer_configuration_t *consumer_configuration);
@@ -202,8 +201,7 @@ PULSAR_PUBLIC void pulsar_consumer_set_subscription_initial_position(
     pulsar_consumer_configuration_t *consumer_configuration, initial_position subscriptionInitialPosition);
 
 PULSAR_PUBLIC void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf,
-                                                              const char *name,
-                                                const char *value);
+                                                              const char *name, const char *value);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //

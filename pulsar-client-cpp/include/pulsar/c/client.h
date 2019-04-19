@@ -60,7 +60,7 @@ typedef void (*pulsar_close_callback)(pulsar_result result, void *ctx);
  * @param clientConfiguration the client configuration to use
  */
 PULSAR_PUBLIC pulsar_client_t *pulsar_client_create(const char *serviceUrl,
-                                      const pulsar_client_configuration_t *clientConfiguration);
+                                                    const pulsar_client_configuration_t *clientConfiguration);
 
 /**
  * Create a producer with default configuration
@@ -73,33 +73,32 @@ PULSAR_PUBLIC pulsar_client_t *pulsar_client_create(const char *serviceUrl,
  * @return ResultError if there was an error
  */
 PULSAR_PUBLIC pulsar_result pulsar_client_create_producer(pulsar_client_t *client, const char *topic,
-                                            const pulsar_producer_configuration_t *conf,
-                                            pulsar_producer_t **producer);
+                                                          const pulsar_producer_configuration_t *conf,
+                                                          pulsar_producer_t **producer);
 
 PULSAR_PUBLIC void pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,
-                                         const pulsar_producer_configuration_t *conf,
-                                         pulsar_create_producer_callback callback, void *ctx);
+                                                       const pulsar_producer_configuration_t *conf,
+                                                       pulsar_create_producer_callback callback, void *ctx);
 
 PULSAR_PUBLIC pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic,
-                                      const char *subscriptionName,
-                                      const pulsar_consumer_configuration_t *conf,
-                                      pulsar_consumer_t **consumer);
+                                                    const char *subscriptionName,
+                                                    const pulsar_consumer_configuration_t *conf,
+                                                    pulsar_consumer_t **consumer);
 
 PULSAR_PUBLIC void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic,
                                                  const char *subscriptionName,
-                                   const pulsar_consumer_configuration_t *conf,
-                                   pulsar_subscribe_callback callback, void *ctx);
+                                                 const pulsar_consumer_configuration_t *conf,
+                                                 pulsar_subscribe_callback callback, void *ctx);
 
 PULSAR_PUBLIC void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics,
-                                                              int topicsCount,
-                                                const char *subscriptionName,
-                                                const pulsar_consumer_configuration_t *conf,
-                                                pulsar_subscribe_callback callback, void *ctx);
+                                                              int topicsCount, const char *subscriptionName,
+                                                              const pulsar_consumer_configuration_t *conf,
+                                                              pulsar_subscribe_callback callback, void *ctx);
 
 PULSAR_PUBLIC void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
-                                           const char *subscriptionName,
-                                           const pulsar_consumer_configuration_t *conf,
-                                           pulsar_subscribe_callback callback, void *ctx);
+                                                         const char *subscriptionName,
+                                                         const pulsar_consumer_configuration_t *conf,
+                                                         pulsar_subscribe_callback callback, void *ctx);
 
 /**
  * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified
@@ -131,19 +130,21 @@ PULSAR_PUBLIC void pulsar_client_subscribe_pattern_async(pulsar_client_t *client
  * @return The {@code Reader} object
  */
 PULSAR_PUBLIC pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *topic,
-                                          const pulsar_message_id_t *startMessageId,
-                                          pulsar_reader_configuration_t *conf, pulsar_reader_t **reader);
+                                                        const pulsar_message_id_t *startMessageId,
+                                                        pulsar_reader_configuration_t *conf,
+                                                        pulsar_reader_t **reader);
 
 PULSAR_PUBLIC void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topic,
-                                       const pulsar_message_id_t *startMessageId,
-                                       pulsar_reader_configuration_t *conf, pulsar_reader_callback callback,
-                                       void *ctx);
+                                                     const pulsar_message_id_t *startMessageId,
+                                                     pulsar_reader_configuration_t *conf,
+                                                     pulsar_reader_callback callback, void *ctx);
 
 PULSAR_PUBLIC pulsar_result pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
-                                                 pulsar_string_list_t **partitions);
+                                                               pulsar_string_list_t **partitions);
 
 PULSAR_PUBLIC void pulsar_client_get_topic_partitions_async(pulsar_client_t *client, const char *topic,
-                                              pulsar_get_partitions_callback callback, void *ctx);
+                                                            pulsar_get_partitions_callback callback,
+                                                            void *ctx);
 
 PULSAR_PUBLIC pulsar_result pulsar_client_close(pulsar_client_t *client);
 

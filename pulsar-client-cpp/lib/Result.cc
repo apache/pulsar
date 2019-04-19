@@ -140,4 +140,3 @@ const char* pulsar::strResult(Result result) {
 }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }
-

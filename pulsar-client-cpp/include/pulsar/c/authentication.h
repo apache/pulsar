@@ -30,15 +30,14 @@ typedef struct _pulsar_authentication pulsar_authentication_t;
 typedef char *(*token_supplier)(void *);
 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
-                                                      const char *authParamsString);
+                                                                    const char *authParamsString);
 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
-                                                          const char *privateKeyPath);
+                                                                        const char *privateKeyPath);
 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create(const char *token);
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(
-    token_supplier tokenSupplier,
-                                                                          void *ctx);
+    token_supplier tokenSupplier, void *ctx);
 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
 

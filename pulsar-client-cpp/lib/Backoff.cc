@@ -27,9 +27,11 @@ Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const Tim
       mandatoryStopMade_(false),
       mandatoryStop_(mandatoryStop)
 #ifndef _MSC_VER
-      , randomSeed_(time(NULL))
+      ,
+      randomSeed_(time(NULL))
 #endif
-      {}
+{
+}
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;

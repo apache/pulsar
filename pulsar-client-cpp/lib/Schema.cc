@@ -97,4 +97,3 @@ const std::string &SchemaInfo::getSchema() const { return impl_->schema_; }
 const std::map<std::string, std::string> &SchemaInfo::getProperties() const { return impl_->properties_; }
 
 }  // namespace pulsar
-

@@ -57,8 +57,7 @@ PULSAR_PUBLIC pulsar_result pulsar_reader_read_next(pulsar_reader_t *reader, pul
  * @return ResultInvalidConfiguration if a message listener had been set in the configuration
  */
 PULSAR_PUBLIC pulsar_result pulsar_reader_read_next_with_timeout(pulsar_reader_t *reader,
-                                                                 pulsar_message_t **msg,
-                                                   int timeoutMs);
+                                                                 pulsar_message_t **msg, int timeoutMs);
 
 PULSAR_PUBLIC pulsar_result pulsar_reader_close(pulsar_reader_t *reader);
 

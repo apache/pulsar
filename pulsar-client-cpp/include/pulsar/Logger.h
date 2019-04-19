@@ -50,4 +50,3 @@ class PULSAR_PUBLIC LoggerFactory {
 
 typedef std::shared_ptr<LoggerFactory> LoggerFactoryPtr;
 }  // namespace pulsar
-
