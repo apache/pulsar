@@ -377,6 +377,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
                         @Override
                         public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+
                             os.write(bodyPart.getBodyByteBuffer());
                             return State.CONTINUE;
                         }

@@ -27,9 +27,13 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -39,14 +43,19 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.util.List;
 
+import static org.asynchttpclient.Dsl.post;
+import static org.asynchttpclient.Dsl.put;
+
 @Slf4j
 public class SourceImpl extends BaseResource implements Source {
 
     private final WebTarget source;
+    private final AsyncHttpClient asyncHttpClient;
 
-    public SourceImpl(WebTarget web, Authentication auth) {
+    public SourceImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.source = web.path("/admin/v3/source");
+        this.asyncHttpClient = asyncHttpClient;
     }
 
     @Override
@@ -108,21 +117,22 @@ public class SourceImpl extends BaseResource implements Source {
 
     @Override
     public void createSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
+        org.asynchttpclient.Response response;
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = post(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-
-            mp.bodyPart(new FormDataBodyPart("sourceConfig",
-                new Gson().toJson(sourceConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            response = asyncHttpClient.executeRequest(builder.build()).get();
         } catch (Exception e) {
             throw getApiException(e);
+        }
+
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw getApiException(response);
         }
     }
 
@@ -155,21 +165,22 @@ public class SourceImpl extends BaseResource implements Source {
 
     @Override
     public void updateSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
+        org.asynchttpclient.Response response;
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-
-            mp.bodyPart(new FormDataBodyPart("sourceConfig",
-                    new Gson().toJson(sourceConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()))
-                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            response = asyncHttpClient.executeRequest(builder.build()).get();
         } catch (Exception e) {
             throw getApiException(e);
+        }
+
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw getApiException(response);
         }
     }
 
