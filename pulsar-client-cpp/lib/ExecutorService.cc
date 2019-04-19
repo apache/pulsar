@@ -55,13 +55,9 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
 }
 
 void ExecutorService::close() {
-    // Ensure this service has not already been closed. This is
-    // because worker_.join() is not re-entrant on Windows
-    if (work_) {
-        io_service_.stop();
-        work_.reset();
-        worker_.join();
-    }
+    io_service_.stop();
+    work_.reset();
+    worker_.join();
 }
 
 void ExecutorService::postWork(std::function<void(void)> task) { io_service_.post(task); }
