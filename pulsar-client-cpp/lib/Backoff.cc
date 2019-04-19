@@ -25,13 +25,8 @@ Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const Tim
       max_(max),
       next_(initial),
       mandatoryStopMade_(false),
-      mandatoryStop_(mandatoryStop)
-#ifndef _MSC_VER
-      ,
-      randomSeed_(time(NULL))
-#endif
-{
-}
+      mandatoryStop_(mandatoryStop),
+      rng_(time(NULL)) {}
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;
@@ -52,11 +47,7 @@ TimeDuration Backoff::next() {
         }
     }
     // Add Randomness
-#ifdef _MSC_VER
-    int randomNumber = rand();
-#else
-    int randomNumber = rand_r(&randomSeed_);
-#endif
+    int randomNumber = rng_();
 
     current = current - (current * (randomNumber % 10) / 100);
     return std::max(initial_, current);
