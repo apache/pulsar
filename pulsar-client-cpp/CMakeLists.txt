@@ -110,7 +110,7 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options regex system thread)
+find_package(Boost REQUIRED COMPONENTS program_options regex system)
 
 find_package(ZLIB REQUIRED)
 

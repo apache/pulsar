@@ -23,12 +23,11 @@
 #include <lib/Commands.h>
 #include <lib/TopicName.h>
 #include <sstream>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread/thread.hpp>
 #include "CustomRoutingPolicy.h"
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include <ctime>
+#include <thread>
 #include "LogUtils.h"
 #include "PulsarFriend.h"
 #include "ConsumerTest.h"
@@ -327,7 +326,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
-    boost::this_thread::sleep(boost::posix_time::seconds(20));
+    std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_NE(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
@@ -780,7 +779,7 @@ TEST(BatchMessageTest, testPermits) {
         LOG_DEBUG("sending message " << messageContent);
     }
 
-    boost::this_thread::sleep(boost::posix_time::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     Message receivedMsg;
     int i = 0;
@@ -814,7 +813,7 @@ TEST(BatchMessageTest, testPermits) {
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
-    boost::this_thread::sleep(boost::posix_time::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     ASSERT_LE(ConsumerTest::getNumOfMessagesInQueue(consumer), consumerConfig.getReceiverQueueSize());
     ASSERT_GE(ConsumerTest::getNumOfMessagesInQueue(consumer), consumerConfig.getReceiverQueueSize() / 2);
@@ -848,7 +847,7 @@ TEST(BatchMessageTest, testPartitionedTopics) {
     LOG_DEBUG("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
 
-    boost::this_thread::sleep(boost::posix_time::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     Producer producer;
     // Enable batching on producer side

@@ -19,12 +19,11 @@
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread/thread.hpp>
 
 #include "HttpHelper.h"
 
 #include <string>
+#include <thread>
 
 using namespace pulsar;
 
@@ -51,7 +50,7 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     ASSERT_TRUE(res == 204 || res == 409);
 
     // Ensure dedup status was refreshed
-    boost::this_thread::sleep(boost::posix_time::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ReaderConfiguration readerConf;
     Reader reader;

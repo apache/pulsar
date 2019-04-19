@@ -25,10 +25,8 @@ DECLARE_LOG_OBJECT()
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/accumulators/statistics/p_square_quantile.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options.hpp>
-#include <boost/thread/thread.hpp>
 #include <thread>
 #include <functional>
 namespace po = boost::program_options;
@@ -404,10 +402,10 @@ int main(int argc, char** argv) {
         thread.join();
     }
     // Waiting for the sendCallbacks To Complete
-    boost::this_thread::sleep(boost::posix_time::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     for (int i = 0; i < producerList.size(); i++) {
         producerList[i].close();
     }
     // Waiting for 2 seconds
-    boost::this_thread::sleep(boost::posix_time::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 }
