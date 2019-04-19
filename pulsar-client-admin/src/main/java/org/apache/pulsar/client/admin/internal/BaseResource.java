@@ -37,7 +37,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
 import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
-import org.apache.pulsar.client.admin.PulsarAdminException.HttpErrorException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -202,22 +201,33 @@ public abstract class BaseResource {
     }
 
     public PulsarAdminException getApiException(String responseBody, int statusCode) {
-        ClientErrorException cee = new ClientErrorException(responseBody, statusCode);
-        switch (statusCode) {
-            case 401:
-            case 403:
-                return new NotAuthorizedException(cee);
-            case 404:
-                return new NotFoundException(cee);
-            case 405:
-                return new NotAllowedException(cee);
-            case 409:
-                return new ConflictException(cee);
-            case 412:
-                return new PreconditionFailedException(cee);
-            default:
-                return new PulsarAdminException(cee);
 
+        if (statusCode >= 200 && statusCode < 300) {
+            return null;
+        }
+
+        if (statusCode >= 500) {
+            ServerErrorException see = new ServerErrorException(responseBody, statusCode);
+            return new PulsarAdminException(see);
+        } else if (statusCode >= 400) {
+            ClientErrorException cee = new ClientErrorException(responseBody, statusCode);
+            switch (statusCode) {
+                case 401:
+                case 403:
+                    return new NotAuthorizedException(cee);
+                case 404:
+                    return new NotFoundException(cee);
+                case 405:
+                    return new NotAllowedException(cee);
+                case 409:
+                    return new ConflictException(cee);
+                case 412:
+                    return new PreconditionFailedException(cee);
+                default:
+                    return new PulsarAdminException(cee);
+            }
+        } else  {
+            return new PulsarAdminException(responseBody);
         }
 
     }
