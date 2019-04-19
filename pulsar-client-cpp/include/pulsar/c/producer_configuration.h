@@ -28,22 +28,15 @@
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     pulsar_UseSinglePartition,
     pulsar_RoundRobinDistribution,
     pulsar_CustomPartition
 } pulsar_partitions_routing_mode;
 
-typedef enum
-{
-    pulsar_Murmur3_32Hash,
-    pulsar_BoostHash,
-    pulsar_JavaStringHash
-} pulsar_hashing_scheme;
+typedef enum { pulsar_Murmur3_32Hash, pulsar_BoostHash, pulsar_JavaStringHash } pulsar_hashing_scheme;
 
-typedef enum
-{
+typedef enum {
     pulsar_CompressionNone = 0,
     pulsar_CompressionLZ4 = 1,
     pulsar_CompressionZLib = 2
