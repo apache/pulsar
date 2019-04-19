@@ -77,6 +77,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
+import org.apache.pulsar.functions.worker.rest.RestUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -114,7 +115,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
-import static org.apache.pulsar.functions.utils.FunctionCommon.extractFileFromPkgURL;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
@@ -295,7 +295,7 @@ public abstract class ComponentImpl {
                                  AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         if (tenant == null) {
@@ -515,7 +515,7 @@ public abstract class ComponentImpl {
                                AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         if (tenant == null) {
@@ -700,7 +700,7 @@ public abstract class ComponentImpl {
                                    AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -775,7 +775,7 @@ public abstract class ComponentImpl {
                                           final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -841,7 +841,7 @@ public abstract class ComponentImpl {
                                              final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -899,7 +899,7 @@ public abstract class ComponentImpl {
                                         final String clientRole,
                                         final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -969,7 +969,7 @@ public abstract class ComponentImpl {
                                                  final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1024,7 +1024,7 @@ public abstract class ComponentImpl {
                                          final String clientRole,
                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1076,7 +1076,7 @@ public abstract class ComponentImpl {
                                           final String clientRole,
                                           final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1132,7 +1132,7 @@ public abstract class ComponentImpl {
                                                                                                    final String clientRole,
                                                                                                    final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1193,7 +1193,7 @@ public abstract class ComponentImpl {
                                       final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1249,7 +1249,7 @@ public abstract class ComponentImpl {
 
     public List<ConnectorDefinition> getListOfConnectors() {
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         return this.worker().getConnectorsManager().getConnectors();
@@ -1265,7 +1265,7 @@ public abstract class ComponentImpl {
                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1380,7 +1380,7 @@ public abstract class ComponentImpl {
                                           final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         try {
@@ -1673,11 +1673,6 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
-    }
-
-    protected static void throwUnavailableException() {
-        throw new RestException(Status.SERVICE_UNAVAILABLE,
-                "Function worker service is not done initializing. " + "Please try again in a little while.");
     }
 
     private void throwStateStoreUnvailableResponse() {

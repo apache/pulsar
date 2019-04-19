@@ -32,6 +32,7 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
+import org.apache.pulsar.functions.worker.rest.RestUtils;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -259,7 +260,7 @@ public class SourceImpl extends ComponentImpl {
                                       final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
+            RestUtils.throwUnavailableException();
         }
 
         // validate parameters
