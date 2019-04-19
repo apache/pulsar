@@ -56,6 +56,16 @@ pulsarWebServiceUrl: http://localhost:8080
 # the authentication parameter to be used by the pulsar client used in worker service
 # clientAuthenticationParameters:
 
+# Bookie Authentication
+#
+# Authentication plugin to use when connecting to bookies
+# bookkeeperClientAuthenticationPlugin:
+# BookKeeper auth plugin implementatation specifics parameters name and values
+# bookkeeperClientAuthenticationParametersName:
+# Parameters for bookkeeper auth plugin
+# bookkeeperClientAuthenticationParameters:
+
+
 # pulsar topics used for function metadata management
 
 pulsarFunctionsNamespace: public/functions
