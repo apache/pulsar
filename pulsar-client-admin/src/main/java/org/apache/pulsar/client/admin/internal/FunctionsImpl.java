@@ -343,8 +343,6 @@ public class FunctionsImpl extends BaseResource implements Functions {
         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
             throw getApiException(response);
         }
-
-
     }
 
     @Override
