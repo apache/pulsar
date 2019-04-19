@@ -65,7 +65,7 @@ public class LookupProxyHandler {
             .create()
             .register();
 
-    private static final Counter getSchemaRequestss = Counter
+    private static final Counter getSchemaRequests = Counter
             .build("pulsar_proxy_get_schema_requests", "Counter of schema requests")
             .create()
             .register();
@@ -345,7 +345,7 @@ public class LookupProxyHandler {
     }
 
     public void handleGetSchema(CommandGetSchema commandGetSchema) {
-        getSchemaRequestss.inc();
+        getSchemaRequests.inc();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received GetSchema", clientAddress);
         }
@@ -391,8 +391,6 @@ public class LookupProxyHandler {
                     Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
             return null;
         });
-
-
 
     }
 
