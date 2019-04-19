@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -89,7 +90,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Math.abs(key.hashCode() % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
+            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
+                % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
             if (slot < consumer3Slot) {
                 consumer3ExpectMessages++;
             } else if (slot < consumer2Slot) {
@@ -189,8 +191,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         int expectMessages = 100;
         int receiveMessages = 0;
-        int slot = Math.abs(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.hashCode()
-                % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
+        int slot = Murmur3_32Hash.getInstance().makeHash(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.getBytes())
+            % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         if (slot < consumer3Slot) {
             for (int i = 0; i < expectMessages; i++) {
                 Message message = consumer3.receive();
@@ -288,7 +290,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
             String orderingKey = UUID.randomUUID().toString();
-            int slot = Math.abs(orderingKey.hashCode() % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE);
+            int slot = Murmur3_32Hash.getInstance().makeHash(orderingKey.getBytes())
+                % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
             if (slot < consumer3Slot) {
                 consumer3ExpectMessages++;
             } else if (slot < consumer2Slot) {
@@ -298,7 +301,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             producer.newMessage()
                     .key(key)
-                    .orderingKey(orderingKey)
+                    .orderingKey(orderingKey.getBytes())
                     .value(key.getBytes())
                     .send();
         }

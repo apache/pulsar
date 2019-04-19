@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
@@ -69,15 +70,15 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     @Override
-    public TypedMessageBuilder<T> orderingKey(String orderingKey) {
-        msgMetadataBuilder.setOrderingKey(orderingKey);
+    public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
         return this;
     }
 
     @Override
-    public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
-        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+    public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
+        msgMetadataBuilder.setOrderingKey(ByteString.copyFrom(orderingKey));
         return this;
     }
 

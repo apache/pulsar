@@ -40,6 +40,6 @@ public interface StickyKeyConsumerSelector {
      * @param stickyKey sticky key
      * @return consumer
      */
-    Consumer select(String stickyKey);
+    Consumer select(byte[] stickyKey);
 
 }

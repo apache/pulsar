@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
-public interface Hash extends org.apache.pulsar.common.util.Hash {
+public interface Hash {
 
     /**
-     * Generate the hash of a given String
+     * Generate the hash of a given byte array
      *
-     * @return The hash of {@param s}, which is non-negative integer.
+     * @return The hash of {@param b}, which is non-negative integer.
      */
-    int makeHash(String s);
+    int makeHash(byte[] b);
 }

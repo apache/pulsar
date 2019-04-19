@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,11 +27,30 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
- * This is a consumer selector based hash range.
+ * This is a consumer selector based fixed hash range.
  *
  * 1.Each consumer serves a fixed range of hash value
  * 2.The whole range of hash value could be covered by all the consumers.
  * 3.Once a consumer is removed, the left consumers could still serve the whole range.
+ *
+ * Initializing with a fixed hash range, by default 2 << 5.
+ * First consumer added, hash range looks like:
+ *
+ * 0 -> 65536(consumer-1)
+ *
+ * Second consumer added, will find a biggest range to split:
+ *
+ * 0 -> 32768(consumer-2) -> 65536(consumer-1)
+ *
+ * While a consumer removed, The range for this consumer will be taken over
+ * by other consumer, consumer-2 removed:
+ *
+ * 0 -> 65536(consumer-1)
+ *
+ * In this approach use skip list map to maintain the hash range and consumers.
+ *
+ * Select consumer will return the ceiling key of message key hashcode % range size.
+ *
  */
 public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
@@ -83,9 +103,9 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     }
 
     @Override
-    public Consumer select(String stickyKey) {
+    public Consumer select(byte[] stickyKey) {
         if (rangeMap.size() > 0) {
-            int slot = Math.abs(stickyKey.hashCode() % rangeSize);
+            int slot = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;

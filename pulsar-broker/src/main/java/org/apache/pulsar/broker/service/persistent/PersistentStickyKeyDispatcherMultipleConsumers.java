@@ -68,12 +68,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         if (entries.size() > 0) {
-            final Map<String, List<Entry>> groupedEntries = entries
+            final Map<byte[], List<Entry>> groupedEntries = entries
                     .stream()
                     .collect(Collectors.groupingBy(entry -> peekStickyKey(entry.getDataBuffer()), Collectors.toList()));
-            final Iterator<Map.Entry<String, List<Entry>>> iterator = groupedEntries.entrySet().iterator();
+            final Iterator<Map.Entry<byte[], List<Entry>>> iterator = groupedEntries.entrySet().iterator();
             while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-                final Map.Entry<String, List<Entry>> entriesWithSameKey = iterator.next();
+                final Map.Entry<byte[], List<Entry>> entriesWithSameKey = iterator.next();
                 //TODO: None key policy
                 final Consumer consumer = selector.select(entriesWithSameKey.getKey());
 
@@ -141,18 +141,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return SubType.Key_Shared;
     }
 
-    private String peekStickyKey(ByteBuf metadataAndPayload) {
+    private byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         metadataAndPayload.markReaderIndex();
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
         metadataAndPayload.resetReaderIndex();
         String key = metadata.getPartitionKey();
-        String orderingKey = metadata.getOrderingKey();
         metadata.recycle();
-        String keyForOrder = StringUtils.isNotBlank(orderingKey) ? orderingKey : key;
-        if (StringUtils.isNotBlank(keyForOrder)) {
-            return keyForOrder;
+        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
+            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
         } else {
-            return NONE_KEY;
+            return NONE_KEY.getBytes();
         }
     }
 
