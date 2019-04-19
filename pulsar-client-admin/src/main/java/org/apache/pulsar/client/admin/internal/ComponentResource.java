@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
-import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
 
 import java.util.Map;
@@ -44,23 +43,5 @@ public class ComponentResource extends BaseResource {
         } catch (Throwable t) {
             throw new PulsarAdminException.GettingAuthenticationDataException(t);
         }
-
-
-
-
-
-
-//        try {
-//            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON);
-//            // Add headers for authentication if any
-//            if (auth != null && auth.getAuthData().hasDataForHttp()) {
-//                for (Map.Entry<String, String> header : auth.getAuthData().getHttpHeaders()) {
-//                    builder.header(header.getKey(), header.getValue());
-//                }
-//            }
-//            return builder;
-//        } catch (Throwable t) {
-//            throw new PulsarAdminException.GettingAuthenticationDataException(t);
-//        }
     }
 }
