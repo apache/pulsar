@@ -356,8 +356,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageConf) {
         Producer<O> producer;
         try {
-            producer = getProducer(topicName, schema);
-            TypedMessageBuilder<O> messageBuilder = producer.newMessage();
+            TypedMessageBuilder<O> messageBuilder = newOutputMessage(topicName, schema);
             if (messageConf != null) {
                 messageBuilder.loadConf(messageConf);
             }
