@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.io;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import lombok.ToString;
@@ -386,7 +384,6 @@ public class PulsarFunctionE2ETest {
         sinkConfig.setName(functionName);
         sinkConfig.setParallelism(1);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-//        sinkConfig.setInputs(Collections.singleton(sourceTopic));
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().build()));
         sinkConfig.setSourceSubscriptionName(subName);
         sinkConfig.setCleanupSubscription(true);
@@ -543,7 +540,6 @@ public class PulsarFunctionE2ETest {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
 
-                log.info("admin.topics().getStats(sourceTopic): {}", new Gson().toJson(topicStats));
                 return topicStats.subscriptions.containsKey(subscriptionName)
                         && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
                         && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 523;
