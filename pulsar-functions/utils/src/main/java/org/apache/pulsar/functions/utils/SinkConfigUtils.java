@@ -123,12 +123,18 @@ public class SinkConfigUtils {
         }
         if (sinkConfig.getInputSpecs() != null) {
             sinkConfig.getInputSpecs().forEach((topic, spec) -> {
-                sourceSpecBuilder.putInputSpecs(topic,
-                        Function.ConsumerSpec.newBuilder()
-                                .setSerdeClassName(spec.getSerdeClassName() != null ? spec.getSerdeClassName() : "")
-                                .setSchemaType(spec.getSchemaType() != null ? spec.getSchemaType() : "")
-                                .setIsRegexPattern(spec.isRegexPattern())
-                                .build());
+                Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
+                        .setIsRegexPattern(spec.isRegexPattern());
+                if (!StringUtils.isBlank(spec.getSchemaType())) {
+                    bldr.setSchemaType(spec.getSchemaType());
+                } else if (!StringUtils.isBlank(spec.getSerdeClassName())) {
+                    bldr.setSerdeClassName(spec.getSerdeClassName());
+                }
+                if (spec.getReceiverQueueSize() != null) {
+                    bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
+                            .setValue(spec.getReceiverQueueSize()).build());
+                }
+                sourceSpecBuilder.putInputSpecs(topic, bldr.build());
             });
         }
 
@@ -215,6 +221,9 @@ public class SinkConfigUtils {
             }
             if (!isEmpty(input.getValue().getSchemaType())) {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            if (input.getValue().hasReceiverQueueSize()) {
+                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfigMap.put(input.getKey(), consumerConfig);
