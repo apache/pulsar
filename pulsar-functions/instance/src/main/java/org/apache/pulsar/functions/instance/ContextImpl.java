@@ -337,13 +337,68 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, schemaOrSerdeClassName, null);
+        return publish(topicName, object, schemaOrSerdeClassName, (Map<String, Object>) null);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf) {
         return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), messageConf);
+    }
+
+    @Override
+    public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) {
+        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
+        if (producer == null) {
+            try {
+                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
+                        .schema(schema)
+                        .blockIfQueueFull(true)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                        .compressionType(CompressionType.LZ4)
+                        .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                        .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                        .messageRouter(FunctionResultRouter.of())
+                        // set send timeout to be infinity to prevent potential deadlock with consumer
+                        // that might happen when consumer is blocked due to unacked messages
+                        .sendTimeout(0, TimeUnit.SECONDS)
+                        .topic(topicName)
+                        .properties(InstanceUtils.getProperties(componentType,
+                                FunctionCommon.getFullyQualifiedName(
+                                        this.config.getFunctionDetails().getTenant(),
+                                        this.config.getFunctionDetails().getNamespace(),
+                                        this.config.getFunctionDetails().getName()),
+                                this.config.getInstanceId()))
+                        .create();
+
+                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
+
+                if (existingProducer != null) {
+                    // The value in the map was not updated after the concurrent put
+                    newProducer.close();
+                    producer = existingProducer;
+                } else {
+                    producer = newProducer;
+                }
+
+            } catch (PulsarClientException e) {
+                logger.error("Failed to create Producer while doing user publish", e);
+                return (TypedMessageBuilder<O>) FutureUtil.failedFuture(e);
+            }
+        }
+        return producer.newMessage();
+    }
+
+    @Override
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, TypedMessageBuilder<O> messageBuilder) {
+        CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
+        future.exceptionally(e -> {
+            this.statsManager.incrSysExceptions(e);
+            logger.error("Failed to publish to topic {} with error {}", topicName, e);
+            return null;
+        });
+        return future;
     }
 
     @SuppressWarnings("unchecked")
