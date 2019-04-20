@@ -46,18 +46,10 @@ ENDIF ()
 MESSAGE(STATUS "CMAKE_BUILD_TYPE:  " ${CMAKE_BUILD_TYPE})
 
 set(Boost_NO_BOOST_CMAKE ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_STANDARD 11)
 
 if (NOT MSVC)
-    if (NOT CXX_STANDARD)
-        set(CXX_STANDARD -std=c++11)
-    endif()
-    string(APPEND CMAKE_CXX_FLAGS ${CXX_STANDARD})
-
-    if (NOT C_STANDARD)
-        set(C_STANDARD -std=c11)
-    endif()
-    string(APPEND CMAKE_C_FLAGS ${C_STANDARD})
-
     add_compile_options(-msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations)
 else()
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOGDI -D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS)
@@ -66,7 +58,7 @@ endif(NOT MSVC)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(Protobuf_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
+set(Protobuf_LITE_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
 
 if (NOT LOG_CATEGORY_NAME)
@@ -115,10 +107,10 @@ find_package(Boost REQUIRED COMPONENTS program_options regex system)
 find_package(ZLIB REQUIRED)
 
 find_package(Protobuf QUIET)
-if (NOT Protobuf_FOUND)
-    find_library(Protobuf_LIBRARIES protobuf-lite libprotobuf-lite)
+if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARIES)
+    find_library(Protobuf_LITE_LIBRARIES protobuf-lite libprotobuf-lite)
     find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
-endif (NOT Protobuf_FOUND)
+endif()
 
 find_package(CURL QUIET)
 if (NOT CURL_FOUND)
@@ -215,7 +207,7 @@ set(COMMON_LIBS
   ${CURL_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARIES}
-  ${Protobuf_LIBRARIES}
+  ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
 )
 
