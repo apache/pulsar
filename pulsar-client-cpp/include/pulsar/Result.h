@@ -77,6 +77,7 @@ enum Result
     ResultCryptoError,              /// Error when crypto operation fails
 
     ResultIncompatibleSchema,  /// Specified schema is incompatible with the topic's schema
+    ResultConsumerAssignError, /// Error when a new consumer connected but can't assign messages to this consumer
 };
 
 // Return string representation of result code
