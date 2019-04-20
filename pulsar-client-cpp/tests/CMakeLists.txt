@@ -21,10 +21,10 @@ find_library(GMOCK_LIBRARY_PATH gmock)
 find_library(GTEST_LIBRARY_PATH gtest)
 find_library(GMOCKD_LIBRARY_PATH gmockd)
 find_library(GTESTD_LIBRARY_PATH gtestd)
-if (GMOCKD_LIBRARY_PATH-NOTFOUND)
+if (NOT GMOCKD_LIBRARY_PATH)
     set(GMOCKD_LIBRARY_PATH ${GMOCK_LIBRARY_PATH})
 endif()
-if (GTESTD_LIBRARY_PATH-NOTFOUND)
+if (NOT GTESTD_LIBRARY_PATH)
     set(GTESTD_LIBRARY_PATH ${GTEST_LIBRARY_PATH})
 endif()
 
@@ -34,4 +34,4 @@ add_executable(main ${TEST_SOURCES})
 
 target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/lib)
 
-target_link_libraries(main ${CLIENT_LIBS} pulsarShared ${Boost_THREAD_LIBRARY} $<$<CONFIG:Debug>:${GMOCKD_LIBRARY_PATH}> $<$<CONFIG:Debug>:${GTESTD_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GMOCK_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GTEST_LIBRARY_PATH}>)
+target_link_libraries(main ${CLIENT_LIBS} pulsarShared $<$<CONFIG:Debug>:${GMOCKD_LIBRARY_PATH}> $<$<CONFIG:Debug>:${GTESTD_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GMOCK_LIBRARY_PATH}> $<$<NOT:$<CONFIG:Debug>>:${GTEST_LIBRARY_PATH}>)
