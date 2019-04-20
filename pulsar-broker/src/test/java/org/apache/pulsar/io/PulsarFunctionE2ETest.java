@@ -398,9 +398,10 @@ public class PulsarFunctionE2ETest {
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
         final String propertyKey = "key";
         final String propertyValue = "value";
-        final String functionName = "PulsarSink-test";
+        final String functionName = "PulsarFunction-test";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
@@ -408,15 +409,35 @@ public class PulsarFunctionE2ETest {
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic2).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
         functionConfig.setParallelism(2);
+        functionConfig.setOutput(sinkTopic2);
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sinkTopic2);
+                return topicStats.publishers.size() == 2
+                        && topicStats.publishers.get(0).metadata != null
+                        && topicStats.publishers.get(0).metadata.containsKey("id")
+                        && topicStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        TopicStats topicStats = admin.topics().getStats(sinkTopic2);
+        assertEquals(topicStats.publishers.size(), 2);
+        assertTrue(topicStats.publishers.get(0).metadata != null);
+        assertTrue(topicStats.publishers.get(0).metadata.containsKey("id"));
+        assertEquals(topicStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, functionName));
 
         retryStrategically((test) -> {
             try {
@@ -728,16 +749,36 @@ public class PulsarFunctionE2ETest {
             }
         }, 10, 150);
 
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
+        sourceConfig.setTopicName(sinkTopic2);
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic).numberOfEntries > 4);
+                TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
+                return sourceStats.publishers.size() == 1
+                        && sourceStats.publishers.get(0).metadata != null
+                        && sourceStats.publishers.get(0).metadata.containsKey("id")
+                        && sourceStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 1);
+
+        TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
+        assertEquals(sourceStats.publishers.size(), 1);
+        assertTrue(sourceStats.publishers.get(0).metadata != null);
+        assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
+        assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2).numberOfEntries > 4);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertEquals(admin.topics().getStats(sinkTopic2).publishers.size(), 1);
 
         String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
         log.info("prometheusMetrics: {}", prometheusMetrics);
