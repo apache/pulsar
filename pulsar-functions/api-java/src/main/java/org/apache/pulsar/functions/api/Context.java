@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
 
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.slf4j.Logger;
@@ -268,8 +269,5 @@ public interface Context {
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf);
 
-    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema);
-
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, TypedMessageBuilder<O> messageBuilder);
-
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
 }
