@@ -1435,7 +1435,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // it should succeed ignoring missing fields
         TenantsImpl properties = (TenantsImpl) admin.tenants();
         IncompatibleTenantAdmin result = properties.request(properties.getWebTarget().path("prop-xyz"))
-                .get(IncompatibleTenantAdmin.class);
+                .get().get(IncompatibleTenantAdmin.class);
 
         assertEquals(result.allowedClusters, Sets.newHashSet("test"));
         assertEquals(result.someNewIntField, 0);
@@ -1866,11 +1866,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // (a) Url encoding
         LookupData urlEncodedLookupData = lookup
                 .request(target2.path("/topic/persistent").path(ns1 + "/" + urlEncodedTopic))
-                .get(LookupData.class);
+                .get().get(LookupData.class);
         // (b) Uri encoding
         LookupData uriEncodedLookupData = lookup
                 .request(target2.path("/topic/persistent").path(ns1 + "/" + uriEncodedTopic))
-                .get(LookupData.class);
+                .get().get(LookupData.class);
         Assert.assertNotNull(urlEncodedLookupData.getBrokerUrl());
         assertEquals(urlEncodedLookupData.getBrokerUrl(), uriEncodedLookupData.getBrokerUrl());
 

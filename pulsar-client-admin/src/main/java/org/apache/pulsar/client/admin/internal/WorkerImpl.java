@@ -48,7 +48,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException {
         try {
-            Response response = request(workerStats.path("functionsmetrics")).get();
+            Response response = request(workerStats.path("functionsmetrics")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
@@ -63,7 +63,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException {
         try {
-            Response response = request(workerStats.path("metrics")).get();
+            Response response = request(workerStats.path("metrics")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
@@ -76,7 +76,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            Response response = request(worker.path("cluster")).get();
+            Response response = request(worker.path("cluster")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
@@ -89,7 +89,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
         try {
-            Response response = request(worker.path("cluster").path("leader")).get();
+            Response response = request(worker.path("cluster").path("leader")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
@@ -102,7 +102,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public Map<String, Collection<String>> getAssignments() throws PulsarAdminException {
         try {
-            Response response = request(worker.path("assignments")).get();
+            Response response = request(worker.path("assignments")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }

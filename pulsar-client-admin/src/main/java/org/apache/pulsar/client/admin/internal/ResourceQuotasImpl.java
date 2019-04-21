@@ -42,7 +42,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
         try {
-            return request(adminV2Quotas).get(ResourceQuota.class);
+            return request(adminV2Quotas).get().get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -50,7 +50,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
         try {
-            request(adminV2Quotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminV2Quotas).get().post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -60,7 +60,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle);
-            return request(path).get(ResourceQuota.class);
+            return request(path).get().get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -71,7 +71,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle);
-            request(path).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).get().post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -81,7 +81,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle);
-            request(path).delete();
+            request(path).get().delete();
         } catch (Exception e) {
             throw getApiException(e);
         }

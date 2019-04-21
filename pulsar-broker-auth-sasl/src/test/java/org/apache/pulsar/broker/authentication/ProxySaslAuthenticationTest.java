@@ -30,10 +30,12 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.Configuration;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
@@ -181,18 +183,27 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		isTcpLookup = true;
 		conf.setAdvertisedAddress(localHostname);
 		conf.setAuthenticationEnabled(true);
-		conf.setSaslAuthentication(true);
 		conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		conf.setSaslJaasServerSectionName("PulsarBroker");
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
 		conf.setAuthenticationProviders(providers);
 		conf.setClusterName("test");
+		conf.setSuperUserRoles(ImmutableSet.of("client/" + localHostname + "@" + kdc.getRealm()));
 
 		super.init();
 
 		lookupUrl = new URI("broker://" + "localhost" + ":" + BROKER_PORT);
 
+		// set admin auth, to verify admin web resources
+		Map<String, String> clientSaslConfig = Maps.newHashMap();
+		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+		clientSaslConfig.put("serverType", "broker");
+		log.info("set client jaas section name: PulsarClient");
+		admin = PulsarAdmin.builder()
+			.serviceHttpUrl(brokerUrl.toString())
+			.authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+			.build();
 		super.producerBaseSetup();
 		log.info("-- {} --, end.", methodName);
 	}
@@ -208,7 +219,6 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("-- Starting {} test --", methodName);
 
 		// Step 1: Create Admin Client
-		//updateAdminClient();
 		final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
 		// create a client which connects to proxy and pass authData
 		String topicName = "persistent://my-property/my-ns/my-topic1";

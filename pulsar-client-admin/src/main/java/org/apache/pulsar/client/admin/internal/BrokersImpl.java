@@ -43,7 +43,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public List<String> getActiveBrokers(String cluster) throws PulsarAdminException {
         try {
-            return request(adminBrokers.path(cluster)).get(new GenericType<List<String>>() {
+            return request(adminBrokers.path(cluster)).get().get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -54,7 +54,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
             throws PulsarAdminException {
         try {
-            return request(adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces")).get(
+            return request(adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces")).get()
+                .get(
                     new GenericType<Map<String, NamespaceOwnershipStatus>>() {
                     });
         } catch (Exception e) {
@@ -65,8 +66,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
         try {
-            request(adminBrokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
-                    ErrorData.class);
+            request(adminBrokers.path("/configuration/").path(configName).path(configValue)).get()
+                .post(Entity.json(""), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -75,7 +76,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
         try {
-            return request(adminBrokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
+            return request(adminBrokers.path("/configuration/").path("values")).get()
+                .get(new GenericType<Map<String, String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -85,7 +87,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public List<String> getDynamicConfigurationNames() throws PulsarAdminException {
         try {
-            return request(adminBrokers.path("/configuration")).get(new GenericType<List<String>>() {
+            return request(adminBrokers.path("/configuration")).get().get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -95,7 +97,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public Map<String, String> getRuntimeConfigurations() throws PulsarAdminException {
         try {
-            return request(adminBrokers.path("/configuration").path("runtime")).get(new GenericType<Map<String, String>>() {
+            return request(adminBrokers.path("/configuration").path("runtime")).get().get(new GenericType<Map<String, String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -105,7 +107,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
         try {
-            return request(adminBrokers.path("/internal-configuration")).get(InternalConfigurationData.class);
+            return request(adminBrokers.path("/internal-configuration")).get().get(InternalConfigurationData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -114,7 +116,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public void healthcheck() throws PulsarAdminException {
         try {
-            String result = request(adminBrokers.path("/health")).get(String.class);
+            String result = request(adminBrokers.path("/health")).get().get(String.class);
             if (!result.trim().toLowerCase().equals("ok")) {
                 throw new PulsarAdminException("Healthcheck returned unexpected result: " + result);
             }

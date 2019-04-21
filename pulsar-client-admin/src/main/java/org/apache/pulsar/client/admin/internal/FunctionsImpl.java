@@ -53,6 +53,8 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
+import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -77,7 +79,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public List<String> getFunctions(String tenant, String namespace) throws PulsarAdminException {
         try {
-            Response response = request(functions.path(tenant).path(namespace)).get();
+            Response response = request(functions.path(tenant).path(namespace)).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -91,7 +93,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-             Response response = request(functions.path(tenant).path(namespace).path(function)).get();
+             Response response = request(functions.path(tenant).path(namespace).path(function)).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -105,7 +107,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public FunctionStatus getFunctionStatus(
             String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-            Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
+            Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -120,7 +122,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         try {
             Response response = request(
                     functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status"))
-                            .get();
+                            .get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -134,7 +136,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             Response response = request(
-                    functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats")).get();
+                    functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -148,7 +150,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public FunctionStats getFunctionStats(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
             Response response = request(
-                    functions.path(tenant).path(namespace).path(function).path("stats")).get();
+                    functions.path(tenant).path(namespace).path(function).path("stats")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -172,7 +174,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                 throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
             }
-
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -189,7 +190,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new Gson().toJson(functionConfig),
                 MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .get().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -199,7 +200,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
             request(functions.path(cluster).path(namespace).path(function))
-                    .delete(ErrorData.class);
+                .get().delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -235,7 +236,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
-                    .path(functionConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    .path(functionConfig.getName())).get().put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -258,7 +259,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 mp.bodyPart(new FormDataBodyPart("topic", topic, MediaType.TEXT_PLAIN_TYPE));
             }
             return request(functions.path(tenant).path(namespace).path(functionName).path("trigger"))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), String.class);
+                .get().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), String.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -269,7 +270,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("restart")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("restart")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -279,7 +280,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void restartFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path("restart"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -290,7 +291,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("stop")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("stop")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -300,7 +301,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void stopFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path("stop"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -311,7 +312,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("start")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -321,7 +322,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void startFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
         try {
             request(functions.path(tenant).path(namespace).path(functionName).path("start"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -406,7 +407,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
-            Response response = request(functions.path("connectors")).get();
+            Response response = request(functions.path("connectors")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -431,7 +432,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
+            return request(functions.path("cluster")).get().get(new GenericType<List<WorkerInfo>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -442,7 +443,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         throws PulsarAdminException {
         try {
             Response response = request(functions.path(tenant)
-                .path(namespace).path(function).path("state").path(key)).get();
+                .path(namespace).path(function).path("state").path(key)).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }

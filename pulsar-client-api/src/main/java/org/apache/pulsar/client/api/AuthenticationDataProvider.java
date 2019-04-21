@@ -88,7 +88,7 @@ public interface AuthenticationDataProvider extends Serializable {
      *
      * @return an enumeration of all the header names
      */
-    default Set<Map.Entry<String, String>> getHttpHeaders() {
+    default Set<Map.Entry<String, String>> getHttpHeaders() throws Exception {
         return null;
     }
 

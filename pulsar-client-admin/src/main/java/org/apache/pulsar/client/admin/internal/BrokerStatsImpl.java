@@ -47,11 +47,11 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
         adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
-    
+
     @Override
     public JsonArray getMetrics() throws PulsarAdminException {
         try {
-            String json = request(adminV2BrokerStats.path("/metrics")).get(String.class);
+            String json = request(adminV2BrokerStats.path("/metrics")).get().get(String.class);
             return new Gson().fromJson(json, JsonArray.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -61,7 +61,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
         try {
-            return request(adminV2BrokerStats.path("/allocator-stats").path(allocatorName)).get(AllocatorStats.class);
+            return request(adminV2BrokerStats.path("/allocator-stats").path(allocatorName)).get().get(AllocatorStats.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -70,7 +70,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public JsonArray getMBeans() throws PulsarAdminException {
         try {
-            String json = request(adminV2BrokerStats.path("/mbeans")).get(String.class);
+            String json = request(adminV2BrokerStats.path("/mbeans")).get().get(String.class);
             return new Gson().fromJson(json, JsonArray.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -80,7 +80,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public JsonObject getTopics() throws PulsarAdminException {
         try {
-            String json = request(adminV2BrokerStats.path("/topics")).get(String.class);
+            String json = request(adminV2BrokerStats.path("/topics")).get().get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -90,7 +90,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
         try {
-            return request(adminV2BrokerStats.path("/load-report")).get(LocalBrokerData.class);
+            return request(adminV2BrokerStats.path("/load-report")).get().get(LocalBrokerData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -99,7 +99,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public JsonObject getPendingBookieOpsStats() throws PulsarAdminException {
         try {
-            String json = request(adminV2BrokerStats.path("/bookieops")).get(String.class);
+            String json = request(adminV2BrokerStats.path("/bookieops")).get().get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -110,7 +110,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget admin = ns.isV2() ? adminV2BrokerStats : adminBrokerStats;
-            String json = request(admin.path("/broker-resource-availability").path(ns.toString())).get(String.class);
+            String json = request(admin.path("/broker-resource-availability").path(ns.toString())).get().get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);

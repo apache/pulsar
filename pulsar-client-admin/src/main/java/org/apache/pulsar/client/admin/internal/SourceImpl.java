@@ -61,7 +61,7 @@ public class SourceImpl extends ComponentResource implements Source {
     @Override
     public List<String> listSources(String tenant, String namespace) throws PulsarAdminException {
         try {
-            Response response = request(source.path(tenant).path(namespace)).get();
+            Response response = request(source.path(tenant).path(namespace)).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -75,7 +75,7 @@ public class SourceImpl extends ComponentResource implements Source {
     @Override
     public SourceConfig getSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
-             Response response = request(source.path(tenant).path(namespace).path(sourceName)).get();
+             Response response = request(source.path(tenant).path(namespace).path(sourceName)).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -89,7 +89,7 @@ public class SourceImpl extends ComponentResource implements Source {
     public SourceStatus getSourceStatus(
             String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
-            Response response = request(source.path(tenant).path(namespace).path(sourceName).path("status")).get();
+            Response response = request(source.path(tenant).path(namespace).path(sourceName).path("status")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -105,7 +105,7 @@ public class SourceImpl extends ComponentResource implements Source {
         try {
             Response response = request(
                     source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status"))
-                            .get();
+                            .get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -145,7 +145,7 @@ public class SourceImpl extends ComponentResource implements Source {
                     new Gson().toJson(sourceConfig),
                 MediaType.APPLICATION_JSON_TYPE));
             request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .get().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -155,7 +155,7 @@ public class SourceImpl extends ComponentResource implements Source {
     public void deleteSource(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
             request(source.path(cluster).path(namespace).path(function))
-                    .delete(ErrorData.class);
+                    .get().delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -191,7 +191,7 @@ public class SourceImpl extends ComponentResource implements Source {
             mp.bodyPart(new FormDataBodyPart("sourceConfig", new Gson().toJson(sourceConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
-                    .path(sourceConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    .path(sourceConfig.getName())).get().put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -203,7 +203,7 @@ public class SourceImpl extends ComponentResource implements Source {
             throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("restart")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("restart")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -213,7 +213,7 @@ public class SourceImpl extends ComponentResource implements Source {
     public void restartSource(String tenant, String namespace, String functionName) throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(functionName).path("restart"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -224,7 +224,7 @@ public class SourceImpl extends ComponentResource implements Source {
             throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
-                    .path("stop")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("stop")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -234,7 +234,7 @@ public class SourceImpl extends ComponentResource implements Source {
     public void stopSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(sourceName).path("stop"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -245,7 +245,7 @@ public class SourceImpl extends ComponentResource implements Source {
             throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
-                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("start")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -255,7 +255,7 @@ public class SourceImpl extends ComponentResource implements Source {
     public void startSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
             request(source.path(tenant).path(namespace).path(sourceName).path("start"))
-                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -264,7 +264,7 @@ public class SourceImpl extends ComponentResource implements Source {
     @Override
     public List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException {
         try {
-            Response response = request(source.path("builtinsources")).get();
+            Response response = request(source.path("builtinsources")).get().get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }

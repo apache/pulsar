@@ -57,18 +57,23 @@ public class LookupImpl extends BaseResource implements Lookup {
         WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
 
         try {
-            return request(target).get(String.class);
+            return request(target).get().get(String.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     private String doTopicLookup(WebTarget lookupResource) throws PulsarAdminException {
-        LookupData lookupData = request(lookupResource).get(LookupData.class);
-        if (useTls) {
-            return lookupData.getBrokerUrlTls();
-        } else {
-            return lookupData.getBrokerUrl();
+        try {
+            LookupData lookupData = request(lookupResource).get().get(LookupData.class);
+            if (useTls) {
+                return lookupData.getBrokerUrlTls();
+            } else {
+                return lookupData.getBrokerUrl();
+            }
+        }
+        catch (Exception e) {
+            throw getApiException(e);
         }
     }
 

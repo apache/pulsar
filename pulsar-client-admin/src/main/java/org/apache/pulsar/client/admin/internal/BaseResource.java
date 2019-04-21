@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -43,6 +45,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -57,25 +61,53 @@ public abstract class BaseResource {
         this.auth = auth;
     }
 
-    public Builder request(final WebTarget target) throws PulsarAdminException {
+    // do the authentication stage, and once authentication completed return a Builder
+    public CompletableFuture<Builder> request(final WebTarget target) throws PulsarAdminException {
+        CompletableFuture<Builder> builderFuture = new CompletableFuture<>();
+        CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
         try {
-            Builder builder = target.request(MediaType.APPLICATION_JSON);
-            // Add headers for authentication if any
-            if (auth != null && auth.getAuthData().hasDataForHttp()) {
-                for (Map.Entry<String, String> header : auth.getAuthData().getHttpHeaders()) {
-                    builder.header(header.getKey(), header.getValue());
-                }
+            AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
+
+            if (authData.hasDataForHttp()) {
+                auth.authenticationStage(target.getUri().toString(), authData, null, authFuture);
+            } else {
+                authFuture.complete(null);
             }
-            return builder;
+
+            // auth complete, return a new Builder
+            authFuture.whenComplete((respHeaders, ex) -> {
+                if (ex != null) {
+                    log.warn("[{}] Failed to perform http request at authn stage: {}",
+                        ex.getMessage());
+                    builderFuture.completeExceptionally(new PulsarClientException(ex));
+                    return;
+                }
+
+                try {
+                    Builder builder = target.request(MediaType.APPLICATION_JSON);
+                    if (authData.hasDataForHttp()) {
+                        Set<Entry<String, String>> headers =
+                            auth.newRequestHeader(target.getUri().toString(), authData, respHeaders);
+                        if (headers != null) {
+                            headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                    builderFuture.complete(builder);
+                } catch (Throwable t) {
+                    builderFuture.completeExceptionally(new GettingAuthenticationDataException(t));
+                }
+            });
         } catch (Throwable t) {
-            throw new GettingAuthenticationDataException(t);
+            builderFuture.completeExceptionally(new GettingAuthenticationDataException(t));
         }
+
+        return builderFuture;
     }
 
     public <T> CompletableFuture<Void> asyncPutRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).async().put(entity, new InvocationCallback<ErrorData>() {
+            request(target).get().async().put(entity, new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -89,7 +121,7 @@ public abstract class BaseResource {
                 }
 
             });
-        } catch (PulsarAdminException cae) {
+        } catch (Exception cae) {
             future.completeExceptionally(cae);
         }
         return future;
@@ -98,7 +130,7 @@ public abstract class BaseResource {
     public <T> CompletableFuture<Void> asyncPostRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).async().post(entity, new InvocationCallback<ErrorData>() {
+            request(target).get().async().post(entity, new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -112,7 +144,7 @@ public abstract class BaseResource {
                 }
 
             });
-        } catch (PulsarAdminException cae) {
+        } catch (Exception cae) {
             future.completeExceptionally(cae);
         }
         return future;
@@ -120,8 +152,8 @@ public abstract class BaseResource {
 
     public <T> Future<T> asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
         try {
-            return request(target).async().get(callback);
-        } catch (PulsarAdminException cae) {
+            return request(target).get().async().get(callback);
+        } catch (Exception cae) {
             return FutureUtil.failedFuture(cae);
         }
     }
@@ -129,7 +161,7 @@ public abstract class BaseResource {
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).async().delete(new InvocationCallback<ErrorData>() {
+            request(target).get().async().delete(new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -142,7 +174,7 @@ public abstract class BaseResource {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
             });
-        } catch (PulsarAdminException cae) {
+        } catch (Exception cae) {
             future.completeExceptionally(cae);
         }
         return future;

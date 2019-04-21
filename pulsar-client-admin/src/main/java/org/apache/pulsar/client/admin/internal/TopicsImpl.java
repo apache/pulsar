@@ -94,10 +94,10 @@ public class TopicsImpl extends BaseResource implements Topics {
             WebTarget persistentPath = namespacePath("persistent", ns);
             WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
 
-            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
+            List<String> persistentTopics = request(persistentPath).get().get(new GenericType<List<String>>() {
             });
 
-            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
+            List<String> nonPersistentTopics = request(nonPersistentPath).get().get(new GenericType<List<String>>() {
             });
             return new ArrayList<>(
                     Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
@@ -113,10 +113,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
             WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
-            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
+            List<String> persistentTopics = request(persistentPath).get().get(new GenericType<List<String>>() {
             });
 
-            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
+            List<String> nonPersistentTopics = request(nonPersistentPath).get().get(new GenericType<List<String>>() {
             });
             return new ArrayList<>(
                     Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
@@ -164,7 +164,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         try {
             TopicName tn = TopicName.get(topic);
             WebTarget path = topicPath(tn, "permissions");
-            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {});
+            return request(path).get().get(new GenericType<Map<String, Set<AuthAction>>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -175,7 +175,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         try {
             TopicName tn = TopicName.get(topic);
             WebTarget path = topicPath(tn, "permissions", role);
-            request(path).post(Entity.entity(actions, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).get().post(Entity.entity(actions, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -186,7 +186,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         try {
             TopicName tn = TopicName.get(topic);
             WebTarget path = topicPath(tn, "permissions", role);
-            request(path).delete(ErrorData.class);
+            request(path).get().delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -215,14 +215,14 @@ public class TopicsImpl extends BaseResource implements Topics {
             throw new PulsarAdminException(e.getCause());
         }
     }
-    
+
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
     	TopicName tn = validateTopic(topic);
     	WebTarget path = topicPath(tn);
     	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
-    
+
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
@@ -556,7 +556,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 });
         return future;
     }
-    
+
     @Override
     public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
         try {
@@ -741,7 +741,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             TopicName tn = validateTopic(topic);
             String encodedSubName = Codec.encode(subscriptionName);
             WebTarget path = topicPath(tn, "subscription", encodedSubName);
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).get().put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -763,7 +763,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             String encodedSubName = Codec.encode(subName);
             WebTarget path = topicPath(tn, "subscription", encodedSubName,
                     "resetcursor", String.valueOf(timestamp));
-            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -784,7 +784,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             TopicName tn = validateTopic(topic);
             String encodedSubName = Codec.encode(subName);
             WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetcursor");
-            request(path).post(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+            request(path).get().post(Entity.entity(messageId, MediaType.APPLICATION_JSON),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -807,7 +807,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         try {
             final WebTarget path = topicPath(tn, "terminate");
 
-            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+            request(path).get().async().post(Entity.entity("", MediaType.APPLICATION_JSON),
                     new InvocationCallback<MessageIdImpl>() {
 
                         @Override
@@ -822,7 +822,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
-        } catch (PulsarAdminException cae) {
+        } catch (Exception cae) {
             future.completeExceptionally(cae);
         }
 
@@ -834,7 +834,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            request(topicPath(tn, "compaction"))
+            request(topicPath(tn, "compaction")).get()
                 .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -846,7 +846,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            return request(topicPath(tn, "compaction"))
+            return request(topicPath(tn, "compaction")).get()
                 .get(LongRunningProcessStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -858,7 +858,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "offload");
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
+            request(path).get().put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -869,7 +869,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            return request(topicPath(tn, "offload"))
+            return request(topicPath(tn, "offload")).get()
                 .get(OffloadProcessStatus.class);
         } catch (Exception e) {
             throw getApiException(e);

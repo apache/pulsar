@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
@@ -29,11 +28,17 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
 import javax.security.auth.login.Configuration;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,6 +47,8 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -129,6 +136,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         // Client config
         Map<String, String> clientSaslConfig = Maps.newHashMap();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
         authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
         log.info("created AuthenticationSasl");
@@ -151,26 +159,39 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         log.info("-- {} --, start at host: {}", methodName, localHostname);
-        isTcpLookup = true;
+        //isTcpLookup = true;
+        isTcpLookup = false;
+
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
-        conf.setSaslAuthentication(true);
         conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
+        conf.setSuperUserRoles(ImmutableSet.of("client/" + localHostname + "@" + kdc.getRealm()));
 
         super.init();
 
-        lookupUrl = new URI("broker://" + "localhost" + ":" + BROKER_PORT);
+        lookupUrl = new URI("http://" + "localhost" + ":" + BROKER_WEBSERVICE_PORT);
+
         pulsarClient = PulsarClient.builder()
             .serviceUrl(lookupUrl.toString())
             .statsInterval(0, TimeUnit.SECONDS)
             .authentication(authSasl).build();
 
+        // set admin auth, to verify admin web resources
+        Map<String, String> clientSaslConfig = Maps.newHashMap();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        log.info("set client jaas section name: PulsarClient");
+        admin = PulsarAdmin.builder()
+            .serviceHttpUrl(brokerUrl.toString())
+            .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+            .build();
         log.info("-- {} --, end.", methodName);
+
         super.producerBaseSetup();
     }
 
@@ -213,6 +234,53 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
+
+        log.info("-- {} -- end", methodName);
+    }
+
+    // Test sasl server/client auth.
+    @Test
+    public void testSaslServerAndClientAuth() throws Exception {
+        log.info("-- {} -- start", methodName);
+        String hostName = "localhost";
+
+        // prepare client and server side resource
+        AuthenticationDataProvider dataProvider =  authSasl.getAuthData(hostName);
+        AuthenticationProviderSasl saslServer  = (AuthenticationProviderSasl)
+            (pulsar.getBrokerService().getAuthenticationService()
+                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME));
+        AuthenticationState authState = saslServer.newAuthState(null, null, null);
+
+        // auth between server and client.
+        // first time auth
+        AuthData initData1 = dataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+        AuthData serverData1 = authState.authenticate(initData1);
+        boolean complete = authState.isComplete();
+        Assert.assertEquals(complete, false);
+
+        // second time auth, completed
+        AuthData initData2 = dataProvider.authenticate(serverData1);
+        AuthData serverData2 = authState.authenticate(initData2);
+        complete = authState.isComplete();
+        Assert.assertEquals(complete, true);
+        Assert.assertEquals(serverData2.getBytes(), null);
+
+        // if completed, server could not auth again.
+        try {
+            authState.authenticate(initData2);
+            Assert.fail("Expected fail because auth completed for authState");
+        } catch (Exception e) {
+            // expected
+        }
+
+        // another server could not serve old client
+        try {
+            AuthenticationState authState2 = saslServer.newAuthState(null, null, null);
+            AuthData serverData3 = authState2.authenticate(initData1);
+            Assert.fail("Expected fail. server is auth old client data");
+        } catch (Exception e) {
+            // expected
+        }
 
         log.info("-- {} -- end", methodName);
     }
