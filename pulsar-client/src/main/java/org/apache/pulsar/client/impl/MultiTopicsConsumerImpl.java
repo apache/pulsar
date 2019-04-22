@@ -664,11 +664,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // subscribe one more given topic
     public CompletableFuture<Void> subscribeAsync(String topicName) {
-        try {
-            client.preProcessSchemaBeforeSubscribe(client, schema, conf.getSingleTopic());
-        } catch (Throwable t) {
-            return FutureUtil.failedFuture(t);
-        }
         if (!topicNameValid(topicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
