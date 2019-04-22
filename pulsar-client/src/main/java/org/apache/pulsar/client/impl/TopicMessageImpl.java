@@ -129,6 +129,16 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public boolean hasOrderingKey() {
+        return msg.hasOrderingKey();
+    }
+
+    @Override
+    public byte[] getOrderingKey() {
+        return msg.getOrderingKey();
+    }
+
+    @Override
     public T getValue() {
         return msg.getValue();
     }

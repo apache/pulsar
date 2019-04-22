@@ -16,14 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.broker.service;
 
-public interface Hash extends org.apache.pulsar.common.util.Hash {
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+
+public interface StickyKeyConsumerSelector {
 
     /**
-     * Generate the hash of a given String
-     *
-     * @return The hash of {@param s}, which is non-negative integer.
+     * Add a new consumer
+     * @param consumer new consumer
      */
-    int makeHash(String s);
+    void addConsumer(Consumer consumer) throws ConsumerAssignException;
+
+    /**
+     * Remove the consumer
+     * @param consumer consumer to be removed
+     */
+    void removeConsumer(Consumer consumer);
+
+    /**
+     * Select a consumer by sticky key
+     *
+     * @param stickyKey sticky key
+     * @return consumer
+     */
+    Consumer select(byte[] stickyKey);
+
 }

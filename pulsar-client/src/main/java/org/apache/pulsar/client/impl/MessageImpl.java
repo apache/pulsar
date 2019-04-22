@@ -336,6 +336,18 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    @Override
+    public boolean hasOrderingKey() {
+        checkNotNull(msgMetadataBuilder);
+        return msgMetadataBuilder.hasOrderingKey();
+    }
+
+    @Override
+    public byte[] getOrderingKey() {
+        checkNotNull(msgMetadataBuilder);
+        return msgMetadataBuilder.getOrderingKey().toByteArray();
+    }
+
     public ClientCnx getCnx() {
         return cnx;
     }
