@@ -159,7 +159,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         log.info("-- {} --, start at host: {}", methodName, localHostname);
-        //isTcpLookup = true;
+        // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
 
         conf.setAdvertisedAddress(localHostname);

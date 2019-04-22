@@ -43,7 +43,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException {
         try {
             TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn)).get().get(GetSchemaResponse.class);
+            GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
             info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
@@ -59,7 +59,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException {
         try {
             TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version))).get().get(GetSchemaResponse.class);
+            GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version))).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
             info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
@@ -75,7 +75,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public void deleteSchema(String topic) throws PulsarAdminException {
         try {
             TopicName tn = TopicName.get(topic);
-            request(schemaPath(tn)).get().delete(DeleteSchemaResponse.class);
+            request(schemaPath(tn)).delete(DeleteSchemaResponse.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -86,7 +86,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         try {
             TopicName tn = TopicName.get(topic);
             request(schemaPath(tn))
-                .get().post(Entity.json(payload), ErrorData.class);
+                .post(Entity.json(payload), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

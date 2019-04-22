@@ -44,7 +44,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public List<String> getTenants() throws PulsarAdminException {
         try {
-            return request(adminTenants).get().get(new GenericType<List<String>>() {
+            return request(adminTenants).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -54,7 +54,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public TenantInfo getTenantInfo(String tenant) throws PulsarAdminException {
         try {
-            return request(adminTenants.path(tenant)).get().get(TenantInfo.class);
+            return request(adminTenants.path(tenant)).get(TenantInfo.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -63,7 +63,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public void createTenant(String tenant, TenantInfo config) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).get().put(Entity.entity(config, MediaType.APPLICATION_JSON),
+            request(adminTenants.path(tenant)).put(Entity.entity(config, MediaType.APPLICATION_JSON),
                     ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -73,7 +73,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).get().post(Entity.entity(config, MediaType.APPLICATION_JSON),
+            request(adminTenants.path(tenant)).post(Entity.entity(config, MediaType.APPLICATION_JSON),
                     ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -83,7 +83,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public void deleteTenant(String tenant) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).get().delete(ErrorData.class);
+            request(adminTenants.path(tenant)).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

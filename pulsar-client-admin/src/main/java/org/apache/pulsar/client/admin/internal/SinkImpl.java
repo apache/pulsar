@@ -61,7 +61,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     @Override
     public List<String> listSinks(String tenant, String namespace) throws PulsarAdminException {
         try {
-            Response response = request(sink.path(tenant).path(namespace)).get().get();
+            Response response = request(sink.path(tenant).path(namespace)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -75,7 +75,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     @Override
     public SinkConfig getSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
-             Response response = request(sink.path(tenant).path(namespace).path(sinkName)).get().get();
+             Response response = request(sink.path(tenant).path(namespace).path(sinkName)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -89,7 +89,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     public SinkStatus getSinkStatus(
             String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
-            Response response = request(sink.path(tenant).path(namespace).path(sinkName).path("status")).get().get();
+            Response response = request(sink.path(tenant).path(namespace).path(sinkName).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -105,7 +105,7 @@ public class SinkImpl extends ComponentResource implements Sink {
         try {
             Response response = request(
                     sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status"))
-                            .get().get();
+                            .get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
@@ -130,6 +130,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                 throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
             }
+
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -146,7 +147,7 @@ public class SinkImpl extends ComponentResource implements Sink {
                     new Gson().toJson(sinkConfig),
                 MediaType.APPLICATION_JSON_TYPE));
             request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()))
-                    .get().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -156,7 +157,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     public void deleteSink(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
             request(sink.path(cluster).path(namespace).path(function))
-                    .get().delete(ErrorData.class);
+                    .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -192,7 +193,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             mp.bodyPart(new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
-                    .path(sinkConfig.getName())).get().put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    .path(sinkConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -204,7 +205,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("restart")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("restart")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -214,7 +215,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     public void restartSink(String tenant, String namespace, String functionName) throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(functionName).path("restart"))
-                    .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -225,7 +226,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
-                    .path("stop")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("stop")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -235,7 +236,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     public void stopSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(sinkName).path("stop"))
-                    .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -246,7 +247,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
-                    .path("start")).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -256,7 +257,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     public void startSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
             request(sink.path(tenant).path(namespace).path(sinkName).path("start"))
-                    .get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -265,7 +266,7 @@ public class SinkImpl extends ComponentResource implements Sink {
     @Override
     public List<ConnectorDefinition> getBuiltInSinks() throws PulsarAdminException {
         try {
-            Response response = request(sink.path("builtinsinks")).get().get();
+            Response response = request(sink.path("builtinsinks")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }

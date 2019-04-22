@@ -62,7 +62,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public List<String> getNamespaces(String tenant) throws PulsarAdminException {
         try {
             WebTarget path = adminV2Namespaces.path(tenant);
-            return request(path).get().get(new GenericType<List<String>>() {
+            return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -73,7 +73,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException {
         try {
             WebTarget path = adminNamespaces.path(tenant).path(cluster);
-            return request(path).get().get(new GenericType<List<String>>() {
+            return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -86,7 +86,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             String action = ns.isV2() ? "topics" : "destinations";
             WebTarget path = namespacePath(ns, action);
-            return request(path).get().get(new GenericType<List<String>>() {
+            return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -98,7 +98,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns);
-            return request(path).get().get(Policies.class);
+            return request(path).get(Policies.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -114,10 +114,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                 // For V2 API we pass full Policy class instance
                 Policies policies = new Policies();
                 policies.replication_clusters = clusters;
-                request(path).get().put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
+                request(path).put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
             } else {
                 // For V1 API, we pass the BundlesData on creation
-                request(path).get().put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                request(path).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
                 // For V1, we need to do it in 2 steps
                 setNamespaceReplicationClusters(namespace, clusters);
             }
@@ -140,7 +140,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             WebTarget path = namespacePath(ns);
 
             // For V2 API we pass full Policy class instance
-            request(path).get().put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -156,10 +156,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                 // For V2 API we pass full Policy class instance
                 Policies policies = new Policies();
                 policies.bundles = bundlesData;
-                request(path).get().put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
+                request(path).put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
             } else {
                 // For V1 API, we pass the BundlesData on creation
-                request(path).get().put(Entity.entity(bundlesData, MediaType.APPLICATION_JSON), ErrorData.class);
+                request(path).put(Entity.entity(bundlesData, MediaType.APPLICATION_JSON), ErrorData.class);
             }
         } catch (Exception e) {
             throw getApiException(e);
@@ -171,7 +171,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns);
-            request(path).get().put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -182,7 +182,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns);
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -193,7 +193,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundleRange);
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -204,7 +204,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions");
-            return request(path).get().get(new GenericType<Map<String, Set<AuthAction>>>() {});
+            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -216,7 +216,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions", role);
-            request(path).get().post(Entity.entity(actions, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(actions, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -227,20 +227,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions", role);
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-
+    
     @Override
     public void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
             throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions", "subscription", subscription);
-            request(path).get().post(Entity.entity(roles, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(roles, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -251,18 +251,18 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions", subscription, role);
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
-
+    
     @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "replication");
-            return request(path).get().get(new GenericType<List<String>>() {});
+            return request(path).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -273,7 +273,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "replication");
-            request(path).get().post(Entity.entity(clusterIds, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(clusterIds, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -284,7 +284,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "messageTTL");
-            return request(path).get().get(new GenericType<Integer>() {});
+            return request(path).get(new GenericType<Integer>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -295,7 +295,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "messageTTL");
-            request(path).get().post(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -307,7 +307,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "antiAffinity");
-            request(path).get().post(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -318,7 +318,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "antiAffinity");
-            return request(path).get().get(new GenericType<String>() {});
+            return request(path).get(new GenericType<String>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -329,7 +329,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throws PulsarAdminException {
         try {
             WebTarget path = adminNamespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
-            return request(path.queryParam("property", tenant)).get().get(new GenericType<List<String>>() {});
+            return request(path.queryParam("property", tenant)).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -340,7 +340,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "antiAffinity");
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -351,7 +351,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "deduplication");
-            request(path).get().post(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -362,7 +362,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "backlogQuotaMap");
-            return request(path).get().get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {
+            return request(path).get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -374,7 +374,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "backlogQuota");
-            request(path).get().post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -386,7 +386,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "backlogQuota");
             request(path.queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString()))
-                    .get().delete(ErrorData.class);
+                    .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -397,7 +397,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "persistence");
-            request(path).get().post(Entity.entity(persistence, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(persistence, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -408,7 +408,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "persistence");
-            return request(path).get().get(PersistencePolicies.class);
+            return request(path).get(PersistencePolicies.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -419,7 +419,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "retention");
-            request(path).get().post(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -431,7 +431,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "retention");
-            return request(path).get().get(RetentionPolicies.class);
+            return request(path).get(RetentionPolicies.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -442,7 +442,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "unload");
-            request(path).get().put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -453,7 +453,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "configversion");
-            return request(path).get().get(String.class);
+            return request(path).get(String.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -464,7 +464,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle, "unload");
-            request(path).get().put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -477,7 +477,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle, "split");
             request(path.queryParam("unload", Boolean.toString(unloadSplitBundles)))
-                    .get().put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -488,7 +488,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "dispatchRate");
-            request(path).get().post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -499,7 +499,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "dispatchRate");
-            return request(path).get().get(DispatchRate.class);
+            return request(path).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -510,7 +510,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscribeRate");
-            request(path).get().post(Entity.entity(subscribeRate, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(subscribeRate, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -521,7 +521,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscribeRate");
-            return request(path).get().get(SubscribeRate.class);
+            return request(path).get(SubscribeRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -532,7 +532,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
-            request(path).get().post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -543,7 +543,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
-            return request(path).get().get(DispatchRate.class);
+            return request(path).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -554,7 +554,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "clearBacklog");
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -566,7 +566,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "clearBacklog", subscription);
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -577,7 +577,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle, "clearBacklog");
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -589,7 +589,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle, "clearBacklog", subscription);
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -600,7 +600,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "unsubscribe", subscription);
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -612,7 +612,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, bundle, "unsubscribe", subscription);
-            request(path).get().post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -623,7 +623,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscriptionAuthMode");
-            request(path).get().post(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -634,7 +634,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "encryptionRequired");
-            request(path).get().post(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -645,7 +645,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxProducersPerTopic");
-            return request(path).get().get(Integer.class);
+            return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -656,7 +656,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxProducersPerTopic");
-            request(path).get().post(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -667,7 +667,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
-            return request(path).get().get(Integer.class);
+            return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -678,7 +678,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
-            request(path).get().post(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -689,7 +689,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
-            return request(path).get().get(Integer.class);
+            return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -700,7 +700,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
-            request(path).get().post(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).post(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -711,7 +711,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "compactionThreshold");
-            return request(path).get().get(Long.class);
+            return request(path).get(Long.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -722,7 +722,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "compactionThreshold");
-            request(path).get().put(Entity.entity(compactionThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity(compactionThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -733,7 +733,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadThreshold");
-            return request(path).get().get(Long.class);
+            return request(path).get(Long.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -744,7 +744,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadThreshold");
-            request(path).get().put(Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path).put(Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -755,7 +755,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
-            return request(path).get().get(Long.class);
+            return request(path).get(Long.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -766,7 +766,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
-            request(path).get().put(Entity.entity(TimeUnit.MILLISECONDS.convert(lag, unit), MediaType.APPLICATION_JSON),
+            request(path).put(Entity.entity(TimeUnit.MILLISECONDS.convert(lag, unit), MediaType.APPLICATION_JSON),
                               ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -778,7 +778,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
-            request(path).get().delete(ErrorData.class);
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -790,7 +790,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "schemaAutoUpdateCompatibilityStrategy");
-            return request(path).get().get(SchemaAutoUpdateCompatibilityStrategy.class);
+            return request(path).get(SchemaAutoUpdateCompatibilityStrategy.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -803,7 +803,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "schemaAutoUpdateCompatibilityStrategy");
-            request(path).get().put(Entity.entity(strategy, MediaType.APPLICATION_JSON),
+            request(path).put(Entity.entity(strategy, MediaType.APPLICATION_JSON),
                               ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

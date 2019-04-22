@@ -50,6 +50,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.google.common.collect.Maps;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
@@ -130,7 +131,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     }
 
     // for http auth.
-    private static final long LIVE_SECONDS = 3600;
+    private static final long SASL_ROLE_TOKEN_LIVE_SECONDS = 3600;
     // A signer for http role token, with random secret.
     private SaslRoleTokenSigner signer;
 
@@ -169,8 +170,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     }
 
     private String createAuthRoleToken(String role, String sessionId) {
-        long expires = System.currentTimeMillis() + LIVE_SECONDS * 1000; // 1 hour
-        SaslRoleToken token = new SaslRoleToken(role, sessionId, expires);
+        long expireAtMs = System.currentTimeMillis() + SASL_ROLE_TOKEN_LIVE_SECONDS * 1000; // 1 hour
+        SaslRoleToken token = new SaslRoleToken(role, sessionId, expireAtMs);
 
         String signed = signer.sign(token.toString());
         if (log.isDebugEnabled()) {
@@ -188,7 +189,14 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         if (id == null) {
             return null;
         }
-        return authStates.get(new Long(id));
+
+        try {
+            return authStates.get(Long.parseLong(id));
+        } catch (NumberFormatException e) {
+            log.error("[{}] Wrong Id String in Token {}. e:", request.getRequestURI(),
+                id, e);
+            return null;
+        }
     }
 
     private void setResponseHeaderState(HttpServletResponse response, String state) {
@@ -210,7 +218,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             // role token expired, send role token expired to client.
             if (saslAuthRoleToken.equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED)) {
                 setResponseHeaderState(response, SASL_AUTH_ROLE_TOKEN_EXPIRED);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "role token Expired");
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Role token expired");
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Server side role token expired: {}", request.getRequestURI(), saslAuthRoleToken);
                 }

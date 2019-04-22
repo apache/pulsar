@@ -40,7 +40,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
         try {
-            return request(adminBookies.path("racks-info")).get().get(BookiesRackConfiguration.class);
+            return request(adminBookies.path("racks-info")).get(BookiesRackConfiguration.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -49,8 +49,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public BookieInfo getBookieRackInfo(String bookieAddress) throws PulsarAdminException {
         try {
-            return request(adminBookies.path("racks-info").path(bookieAddress)).get()
-                .get(BookieInfo.class);
+            return request(adminBookies.path("racks-info").path(bookieAddress)).get(BookieInfo.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -59,7 +58,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public void deleteBookieRackInfo(String bookieAddress) throws PulsarAdminException {
         try {
-            request(adminBookies.path("racks-info").path(bookieAddress)).get().delete(ErrorData.class);
+            request(adminBookies.path("racks-info").path(bookieAddress)).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -69,7 +68,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     public void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo)
             throws PulsarAdminException {
         try {
-            request(adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group)).get()
+            request(adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group))
                     .post(Entity.entity(bookieInfo, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

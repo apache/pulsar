@@ -61,8 +61,16 @@ public abstract class BaseResource {
         this.auth = auth;
     }
 
+    public Builder request(final WebTarget target) throws PulsarAdminException {
+        try {
+            return requestAsync(target).get();
+        } catch (Exception e) {
+            throw new GettingAuthenticationDataException(e);
+        }
+    }
+
     // do the authentication stage, and once authentication completed return a Builder
-    public CompletableFuture<Builder> request(final WebTarget target) throws PulsarAdminException {
+    public CompletableFuture<Builder> requestAsync(final WebTarget target) {
         CompletableFuture<Builder> builderFuture = new CompletableFuture<>();
         CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
         try {
@@ -107,7 +115,7 @@ public abstract class BaseResource {
     public <T> CompletableFuture<Void> asyncPutRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).get().async().put(entity, new InvocationCallback<ErrorData>() {
+            request(target).async().put(entity, new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -121,7 +129,7 @@ public abstract class BaseResource {
                 }
 
             });
-        } catch (Exception cae) {
+        } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
         return future;
@@ -130,7 +138,7 @@ public abstract class BaseResource {
     public <T> CompletableFuture<Void> asyncPostRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).get().async().post(entity, new InvocationCallback<ErrorData>() {
+            request(target).async().post(entity, new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -144,7 +152,7 @@ public abstract class BaseResource {
                 }
 
             });
-        } catch (Exception cae) {
+        } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
         return future;
@@ -152,8 +160,8 @@ public abstract class BaseResource {
 
     public <T> Future<T> asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
         try {
-            return request(target).get().async().get(callback);
-        } catch (Exception cae) {
+            return request(target).async().get(callback);
+        } catch (PulsarAdminException cae) {
             return FutureUtil.failedFuture(cae);
         }
     }
@@ -161,7 +169,7 @@ public abstract class BaseResource {
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(target).get().async().delete(new InvocationCallback<ErrorData>() {
+            request(target).async().delete(new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -174,7 +182,7 @@ public abstract class BaseResource {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
             });
-        } catch (Exception cae) {
+        } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
         return future;

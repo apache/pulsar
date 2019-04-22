@@ -43,19 +43,19 @@ public class SaslServerTokenSignerTest {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         try {
             signer.sign(null);
-            Assert.fail();
+            Assert.fail("Null String should Failed");
         } catch (IllegalArgumentException ex) {
             // Expected
         } catch (Throwable ex) {
-            Assert.fail();
+            Assert.fail("Null String should Failed with IllegalArgumentException.");
         }
         try {
             signer.sign("");
-            Assert.fail();
+            Assert.fail("Empty String should Failed");
         } catch (IllegalArgumentException ex) {
             // Expected
         } catch (Throwable ex) {
-            Assert.fail();
+            Assert.fail("Empty String should Failed with IllegalArgumentException.");
         }
     }
 

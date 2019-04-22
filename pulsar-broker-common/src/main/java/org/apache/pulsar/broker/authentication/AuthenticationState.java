@@ -57,6 +57,6 @@ public interface AuthenticationState {
      * Get AuthenticationState ID
      */
     default long getStateId() {
-        return 0;
+        return -1L;
     }
 }
