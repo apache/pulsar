@@ -127,6 +127,11 @@ public class PersistentSubscription implements Subscription {
                             topic);
                 }
                 break;
+            case Key_Shared:
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor);
+                }
+                break;
             default:
                 throw new ServerMetadataException("Unsupported subscription type");
             }
