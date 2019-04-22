@@ -319,7 +319,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         try {
             admin.lookups().lookupTopic(topic);
         } catch (PulsarAdminException e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof InternalServerErrorException);
+            Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
     }
