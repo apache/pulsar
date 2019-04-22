@@ -349,7 +349,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    public void start() throws Exception {
+    public void start(boolean enableStreamStorage) throws  Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();
         // Use minimal configuration requiring less memory for unit tests
@@ -373,6 +373,14 @@ public class LocalBookkeeperEnsemble {
         runZookeeper(1000);
         initializeZookeper();
         runBookies(conf);
+
+        if (enableStreamStorage) {
+            runStreamStorage(new CompositeConfiguration());
+        }
+    }
+
+    public void start() throws Exception {
+        start(false);
     }
 
     public void startStandalone() throws Exception {

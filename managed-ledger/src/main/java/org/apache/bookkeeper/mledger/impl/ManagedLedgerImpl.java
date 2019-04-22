@@ -845,6 +845,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName)
+            throws ManagedLedgerException {
+        checkManagedLedgerIsOpen();
+        checkFenced();
+
+        return new NonDurableCursorImpl(bookKeeper, config, this, cursorName,
+                (PositionImpl) startCursorPosition);
+    }
+
+    @Override
     public Iterable<ManagedCursor> getCursors() {
         return cursors;
     }

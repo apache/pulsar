@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -258,7 +259,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return null;
         }
     }
-
+    
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
     }
@@ -336,11 +337,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+        return publish(topicName, object, schemaOrSerdeClassName, null);
     }
 
     @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
+    @Override
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), messageConf);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageConf) {
         Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
 
         if (producer == null) {
@@ -382,7 +389,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        TypedMessageBuilder<O> messageBuilder = producer.newMessage();
+        if (messageConf != null) {
+            messageBuilder.loadConf(messageConf);
+        }
+        CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         future.exceptionally(e -> {
             this.statsManager.incrSysExceptions(e);
             logger.error("Failed to publish to topic {} with error {}", topicName, e);

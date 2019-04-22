@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -41,6 +42,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
+@Slf4j
 public class FunctionConfigUtils {
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
@@ -478,7 +480,7 @@ public class FunctionConfigUtils {
         }
 
         if (functionConfig.getParallelism() != null && functionConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Function parallelism should positive number");
+            throw new IllegalArgumentException("Function parallelism must be a positive number");
         }
         // Ensure that topics aren't being used as both input and output
         verifyNoTopicClash(allInputTopics, functionConfig.getOutput());
@@ -560,19 +562,13 @@ public class FunctionConfigUtils {
         return retval;
     }
 
-    public static ClassLoader validate(FunctionConfig functionConfig, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
         doCommonChecks(functionConfig);
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             ClassLoader classLoader = null;
-            if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+            if (functionPackageFile != null) {
                 try {
-                    classLoader = FunctionCommon.extractClassLoader(functionPkgUrl);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
-                }
-            } else if (uploadedInputStreamAsFile != null) {
-                try {
-                    classLoader = loadJar(uploadedInputStreamAsFile);
+                    classLoader = loadJar(functionPackageFile);
                 } catch (MalformedURLException e) {
                     throw new IllegalArgumentException("Corrupted Jar File", e);
                 }
@@ -611,6 +607,15 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
+
+        if (newConfig.getInputSpecs() == null) {
+            newConfig.setInputSpecs(new HashMap<>());
+        }
+
+        if (mergedConfig.getInputSpecs() == null) {
+            mergedConfig.setInputSpecs(new HashMap<>());
+        }
+        
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
                 newConfig.getInputSpecs().put(topicName,
@@ -652,9 +657,6 @@ public class FunctionConfigUtils {
                 mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
-        if (!StringUtils.isEmpty(newConfig.getOutput()) && !newConfig.getOutput().equals(existingConfig.getOutput())) {
-            throw new IllegalArgumentException("Output topics differ");
-        }
         if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
             throw new IllegalArgumentException("Output Serde mismatch");
         }
@@ -669,6 +671,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Orderning cannot be altered");
+        }
+        if (!StringUtils.isEmpty(newConfig.getOutput())) {
+            mergedConfig.setOutput(newConfig.getOutput());
         }
         if (newConfig.getUserConfig() != null) {
             mergedConfig.setUserConfig(newConfig.getUserConfig());

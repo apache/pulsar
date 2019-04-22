@@ -151,7 +151,7 @@ flexible messaging model and an intuitive client API.</description>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
     <jersey.version>2.27</jersey.version>
-    <athenz.version>1.7.17</athenz.version>
+    <athenz.version>1.8.17</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
     <rocksdb.version>5.13.3</rocksdb.version>
@@ -1330,8 +1330,6 @@ flexible messaging model and an intuitive client API.</description>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <verbose>false</verbose>
-          <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename>${project.build.outputDirectory}/${project.artifactId}-git.properties</generateGitPropertiesFilename>
           <failOnNoGitDirectory>false</failOnNoGitDirectory>
           <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
           <format>properties</format>

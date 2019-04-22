@@ -139,7 +139,7 @@ public class ProcessRuntimeTest {
             pythonInstanceFile,
             logDirectory,
             extraDependenciesDir, /* extra dependencies dir */
-            new TestSecretsProviderConfigurator());
+            new TestSecretsProviderConfigurator(), false);
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {

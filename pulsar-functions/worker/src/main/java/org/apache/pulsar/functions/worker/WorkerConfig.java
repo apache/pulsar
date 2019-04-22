@@ -223,6 +223,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String clientAuthenticationParameters;
     @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "Authentication plugin to use when connecting to bookies"
+    )
+    private String bookkeeperClientAuthenticationPlugin;
+    @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+    )
+    private String bookkeeperClientAuthenticationParametersName;
+    @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "Parameters for bookkeeper auth plugin"
+    )
+    private String bookkeeperClientAuthenticationParameters;
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "Frequency how often worker performs compaction on function-topics, in seconds"
     )
@@ -261,9 +276,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
-        doc = "Whether to enable TLS when clients connect to broker"
+        doc = "Whether to enable TLS when clients connect to broker",
+        deprecated = true
     )
     // TLS for Functions -> Broker
+    // @deprecated use "pulsar+ssl://" in serviceUrl to enable
+    @Deprecated
     private boolean useTls = false;
     @FieldContext(
         category = CATEGORY_SECURITY,

@@ -380,14 +380,18 @@ Subcommands
 * `delete`
 * `update`
 * `get`
-* `getstatus`
+* `restart`
+* `stop`
+* `start`
+* `status`
+* `stats`
 * `list`
 * `querystate`
 * `trigger`
 
 
 ### `localrun`
-Run a Pulsar Function locally
+Run the Pulsar Function locally (rather than deploying it to the Pulsar cluster)
 
 
 Usage
@@ -398,43 +402,51 @@ $ pulsar-admin functions localrun options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--cpu`|The CPU to allocate to each function instance (in number of cores)||
-|`--ram`|The RAM to allocate to each function instance (in bytes)||
-|`--disk`|The disk space to allocate to each function instance (in bytes)||
-|`--auto-ack`|Let the functions framework manage acking||
+|`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
+|`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
+|`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--broker-service-url `|The URL of the Pulsar broker||
-|`--classname`|The name of the function’s class||
-|`--custom-serde-inputs`|A map of the input topic to SerDe name||
-|`--custom-schema-inputs`|A map of the input topic to Schema class name||
-|`--client-auth-params`|Client Authentication Params||
-|`--function-config-file`|The path of the YAML config file used to configure the function||
-|`--hostname-verification-enabled`|Enable Hostname verification||
-|`--instance-id-offset`|Instance ids will be assigned starting from this offset||
-|`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--log-topic`|The topic to which logs from this function are published||
-|`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function||
-|`--namespace`|The function’s namespace||
-|`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--output-serde-classname`|The SerDe class used for the function’s output||
+|`--classname`|The function's class name||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema class names (as a JSON string)||
+|`--client-auth-params`|Client authentication param||
+|`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
+|`--function-config-file`|The path to a YAML config file specifying the function's configuration||
+|`--hostname-verification-enabled`|Enable hostname verification|false|
+|`--instance-id-offset`|Start the instanceIds from this offset|0|
+|`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
+|`--log-topic`|The topic to which the function's logs are produced||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--output`|The function's output topic (If none is specified, no output is written)||
+|`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
-|`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--schema-type`|Schema Type to be used for storing output messages||
-|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
+|`--state-storage-service-url`|The URL for the state storage service (by default Apache BookKeeper)||
 |`--tenant`|The function’s tenant||
-|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
-|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
-|`--window-length-count`|The number of messages per window.||
-|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)||
+|`--user-config`|User-defined config key/values||
+|`--window-length-count`|The number of messages per window||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds||
+|`--dead-letter-topic`|The topic where all messages which could not be processed successfully are sent||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--max-message-retries`|How many times should we try to process a message before giving up||
+|`--retain-ordering`|Function consumes and processes messages in order||
+|`--timeout-ms`|The message timeout in milliseconds||
+|`--tls-allow-insecure`|Allow insecure tls connection|false|
+|`--tls-trust-cert-path`|The tls trust cert file path||
+|`--use-tls`|Use tls connection|false|
 
 
 ### `create`
-Creates a new Pulsar Function on the target infrastructure
+Create a Pulsar Function in cluster mode (i.e. deploy it on a Pulsar cluster)
 
 Usage
 ```
@@ -444,38 +456,42 @@ $ pulsar-admin functions create options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--cpu`|The CPU to allocate to each function instance (in number of cores)||
-|`--ram`|The RAM to allocate to each function instance (in bytes)||
-|`--disk`|The disk space to allocate to each function instance (in bytes)||
-|`--auto-ack`|Let the functions framework manage acking||
+|`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
+|`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
+|`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
-|`--classname`|The name of the function’s class||
-|`--custom-serde-inputs`|A map of the input topic to SerDe name||
-|`--custom-schema-inputs`|A map of the input topic to Schema class name||
-|`--function-config-file`|The path of the YAML config file used to configure the function||
-|`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--log-topic`|The topic to which logs from this function are published||
-|`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function||
+|`--classname`|The function's class name||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema class names (as a JSON string)||
+|`--function-config-file`|The path to a YAML config file specifying the function's configuration||
+|`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
+|`--log-topic`|The topic to which the function's logs are produced||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--name`|The function's name||
 |`--namespace`|The function’s namespace||
-|`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--output-serde-classname`|The SerDe class used for the function’s output||
+|`--output`|The function's output topic (If none is specified, no output is written)||
+|`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
-|`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--schema-type`|Schema Type to be used for storing output messages||
-|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
-|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
-|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
-|`--window-length-count`|The number of messages per window.||
-|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)||
+|`--user-config`|User-defined config key/values||
+|`--window-length-count`|The number of messages per window||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds||
+|`--dead-letter-topic`|The topic where all messages which could not be processed||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--max-message-retries`|How many times should we try to process a message before giving up||
+|`--retain-ordering`|Function consumes and processes messages in order||
+|`--timeout-ms`|The message timeout in milliseconds||
 
 
 ### `delete`
-Deletes an existing Pulsar Function
+Delete a Pulsar Function that's running on a Pulsar cluster
 
 Usage
 ```bash
@@ -485,13 +501,14 @@ $ pulsar-admin functions delete options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function to delete||
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 
 ### `update`
-Updates an existing Pulsar Function
+Update a Pulsar Function that's been deployed to a Pulsar cluster
 
 Usage
 ```bash
@@ -502,38 +519,42 @@ $ pulsar-admin functions update options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--cpu`|The CPU to allocate to each function instance (in number of cores)||
-|`--ram`|The RAM to allocate to each function instance (in bytes)||
-|`--disk`|The disk space to allocate to each function instance (in bytes)||
-|`--auto-ack`|Let the functions framework manage acking||
+|`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
+|`--ram`|The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)||
+|`--disk`|The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
-|`--classname`|The name of the function’s class||
-|`--custom-serde-inputs`|A map of the input topic to SerDe name||
-|`--custom-schema-inputs`|A map of the input topic to Schema class name||
-|`--function-config-file`|The path of the YAML config file used to configure the function||
-|`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--log-topic`|The topic to which logs from this function are published||
-|`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function||
+|`--classname`|The function's class name||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema class names (as a JSON string)||
+|`--function-config-file`|The path to a YAML config file specifying the function's configuration||
+|`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
+|`--log-topic`|The topic to which the function's logs are produced||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--name`|The function's name||
 |`--namespace`|The function’s namespace||
-|`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--output-serde-classname`|The SerDe class used for the function’s output||
+|`--output`|The function's output topic (If none is specified, no output is written)||
+|`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
-|`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--schema-type`|Schema Type to be used for storing output messages||
-|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
-|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
-|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
-|`--window-length-count`|The number of messages per window.||
-|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)||
+|`--user-config`|User-defined config key/values||
+|`--window-length-count`|The number of messages per window||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds||
+|`--dead-letter-topic`|The topic where all messages which could not be processed||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--max-message-retries`|How many times should we try to process a message before giving up||
+|`--retain-ordering`|Function consumes and processes messages in order||
+|`--timeout-ms`|The message timeout in milliseconds||
 
 
 ### `get`
-Fetch information about an existing Pulsar Function
+Fetch information about a Pulsar Function
 
 Usage
 ```bash
@@ -543,13 +564,14 @@ $ pulsar-admin functions get options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function||
-|`--namespace`|The namespace of the function||
-|`--tenant`|The tenant of the function||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 
 ### `restart`
-Restarts either all instances or one particular instance of a function
+Restart function instance
 
 Usage
 ```bash
@@ -559,14 +581,15 @@ $ pulsar-admin functions restart options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function||
-|`--namespace`|The namespace of the function||
-|`--tenant`|The tenant of the function||
-|`--instance-id`|The function instanceId; restart all instances if instance-id is not provided||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--instance-id`|The function instanceId (restart all instances if instance-id is not provided)||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 
 ### `stop`
-Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again)
+Stops function instance
 
 Usage
 ```bash
@@ -576,30 +599,68 @@ $ pulsar-admin functions stop options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function||
-|`--namespace`|The namespace of the function||
-|`--tenant`|The tenant of the function||
-|`--instance-id`|The function instanceId; stop all instances if instance-id is not provided||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--instance-id`|The function instanceId (stop all instances if instance-id is not provided)||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 
-### `getstatus`
-Get the status of an existing Pulsar Function
+### `start`
+Starts a stopped function instance
 
 Usage
 ```bash
-$ pulsar-admin functions getstatus options
+$ pulsar-admin functions start options
 ```
 
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function||
-|`--namespace`|The namespace of the function||
-|`--tenant`|The tenant of the function||
-|`--instance-id`|The function instanceId; get status of all instances if instance-id is not provided||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--instance-id`|The function instanceId (start all instances if instance-id is not provided)||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
+
+
+### `status`
+Check the current status of a Pulsar Function
+
+Usage
+```bash
+$ pulsar-admin functions status options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--instance-id`|The function instanceId (Get-status of all instances if instance-id is not provided)||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
+
+
+### `stats`
+Get the current stats of a Pulsar Function
+
+Usage
+```bash
+$ pulsar-admin functions stats options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--instance-id`|The function instanceId (Get-stats of all instances if instance-id is not provided)||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 ### `list`
-List all Pulsar Functions for a specific tenant and namespace
+List all of the Pulsar Functions running under a specific tenant and namespace
 
 Usage
 ```bash
@@ -609,12 +670,12 @@ $ pulsar-admin functions list options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--namespace`|The namespace of the function||
-|`--tenant`|The tenant of the function||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
 
 
 ### `querystate`
-Retrieve the current state of a Pulsar Function by key
+Fetch the current state associated with a Pulsar Function running in cluster mode
 
 Usage
 ```bash
@@ -624,16 +685,16 @@ $ pulsar-admin functions querystate options
 Options
 |Flag|Description|Default|
 |---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`-k`, `--key`|The key for the state you want to fetch||
-|`--name`|The name of the function whose state you want to query||
-|`--namespace`|The namespace of the function whose state you want to query||
-|`--tenant`|The tenant of the function whose state you want to query||
-|`-u`, `--storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
-|`-w`, `--watch`|If set, watching for state changes is enabled|false|
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
+|`-w`, `--watch`|Watch for changes in the value associated with a key for a Pulsar Function|false|
 
 
 ### `trigger`
-Triggers the specified Pulsar Function with a supplied value or file data
+Triggers the specified Pulsar Function with a supplied value
 
 Usage
 ```bash
@@ -643,11 +704,13 @@ $ pulsar-admin functions trigger options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the Pulsar Function to trigger||
-|`--namespace`|The namespace of the Pulsar Function to trigger||
-|`--tenant`|The tenant of the Pulsar Function to trigger||
-|`--trigger-file`|The path to the file containing the data with which the Pulsar Function is to be triggered||
-|`--trigger-value`|The value with which the Pulsar Function is to be triggered||
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
+|`--name`|The function's name||
+|`--namespace`|The function's namespace||
+|`--tenant`|The function's tenant||
+|`--topic`|The specific topic name that the function consumes from that you want to inject the data to||
+|`--trigger-file`|The path to the file that contains the data with which you'd like to trigger the function||
+|`--trigger-value`|The value with which you want to trigger the function||
 
 
 ## `namespaces`
@@ -1417,6 +1480,12 @@ Subcommands
 * `create`
 * `update`
 * `delete`
+* `list`
+* `get`
+* `status`
+* `stop`
+* `start`
+* `restart`
 * `localrun`
 * `available-sinks`
 
@@ -1432,29 +1501,31 @@ $ pulsar-admin sink create options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--classname`|The sink’s Java class name||
+|`--classname`|The sink's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
 |`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink||
+|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|Sink config key/values||
+|`--sink-config`|User defined configs key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
 |`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Let the functions framework manage acking||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--retain-ordering`|Sink consumes and sinks messages in order||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 
 
 ### `update`
-Submit a Pulsar IO sink connector to run in a Pulsar cluster
+Update a Pulsar IO sink connector
 
 Usage
 ```bash
@@ -1464,27 +1535,31 @@ $ pulsar-admin sink update options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--classname`|The sink’s Java class name||
+|`--classname`|The sink's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
 |`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink||
+|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|Sink config key/values||
+|`--sink-config`|User defined configs key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
 |`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
+|`--retain-ordering`|Sink consumes and sinks messages in order||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
+|`--timeout-ms`|The message timeout in milliseconds||
 
 
 ### `delete`
-Stops a Pulsar IO sink
+Stops a Pulsar IO sink connector
 
 Usage
 ```bash
@@ -1494,13 +1569,112 @@ $ pulsar-admin sink delete options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function to delete||
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `list`
+List all running Pulsar IO sink connectors
+
+Usage
+```bash
+$ pulsar-admin sink list options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `get`
+Gets the information about a Pulsar IO sink connector
+
+Usage
+```bash
+$ pulsar-admin sink get options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `status`
+Check the current status of a Pulsar Sink
+
+Usage
+```bash
+$ pulsar-admin sink status options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The sink instanceId (Get-status of all instances if instance-id is not provided)||
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `stop`
+Stops sink instance
+
+Usage
+```bash
+$ pulsar-admin sink stop options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The sink instanceId (stop all instances if instance-id is not provided)||
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `start`
+Starts sink instance
+
+Usage
+```bash
+$ pulsar-admin sink start options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The sink instanceId (start all instances if instance-id is not provided)||
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
+
+
+### `restart`
+Restart sink instance
+
+Usage
+```bash
+$ pulsar-admin sink restart options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The sink instanceId (restart all instances if instance-id is not provided)||
+|`--name`|The sink's name||
+|`--namespace`|The sink's namespace||
+|`--tenant`|The sink's tenant||
 
 
 ### `localrun`
-Run the Pulsar sink locally (rather than in the Pulsar cluster)
+Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)
 
 Usage
 ```bash
@@ -1511,29 +1685,37 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`--broker-service-url`|The URL for the Pulsar broker||
-|`--classname`|The sink’s Java class name||
+|`--classname`|The sink's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
 |`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink||
+|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|Sink config key/values||
+|`--sink-config`|User defined configs key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
 |`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Let the functions framework manage acking||
+|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--client-auth-params`|Client authentication param||
+|`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
+|`--hostname-verification-enabled`|Enable hostname verification|false|
+|`--retain-ordering`|Sink consumes and sinks messages in order||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
+|`--tls-allow-insecure`|Allow insecure tls connection|false|
+|`--tls-trust-cert-path`|The tls trust cert file path||
+|`--use-tls`|Use tls connection|false|
 
 
 ### `available-sinks`
-Get a list of all built-in sink connectors
+Get the list of Pulsar IO connector sinks supported by Pulsar cluster
 
 Usage
 ```bash
@@ -1553,6 +1735,12 @@ Subcommands
 * `create`
 * `update`
 * `delete`
+* `get`
+* `status`
+* `list`
+* `stop`
+* `start`
+* `restart`
 * `localrun`
 * `available-sources`
 
@@ -1568,16 +1756,16 @@ $ pulsar-admin source create options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--classname`|The source’s Java class name||
+|`--classname`|The source's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--deserialization-classname`|The SerDe classname for the source||
 |`--destination-topic-name`|The Pulsar topic to which data is sent||
 |`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source||
+|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider||
@@ -1597,16 +1785,16 @@ $ pulsar-admin source update options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--classname`|The source’s Java class name||
+|`--classname`|The source's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--deserialization-classname`|The SerDe classname for the source||
 |`--destination-topic-name`|The Pulsar topic to which data is sent||
 |`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source||
+|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider||
@@ -1616,7 +1804,7 @@ Options
 
 
 ### `delete`
-Stops a Pulsar IO source
+Stops a Pulsar IO source connector
 
 Usage
 ```bash
@@ -1626,13 +1814,112 @@ $ pulsar-admin source delete options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function to delete||
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `get`
+Gets the information about a Pulsar IO source connector
+
+Usage
+```bash
+$ pulsar-admin source get options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `status`
+Check the current status of a Pulsar Source
+
+Usage
+```bash
+$ pulsar-admin source status options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The source instanceId (Get-status of all instances if instance-id is not provided)||
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `list`
+List all running Pulsar IO source connectors
+
+Usage
+```bash
+$ pulsar-admin source list options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `stop`
+Stop source instance
+
+Usage
+```bash
+$ pulsar-admin source stop options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The source instanceId (stop all instances if instance-id is not provided)||
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `start`
+Start source instance
+
+Usage
+```bash
+$ pulsar-admin source start options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The source instanceId (start all instances if instance-id is not provided)||
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
+
+
+### `restart`
+Restart source instance
+
+Usage
+```bash
+$ pulsar-admin source restart options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--instance-id`|The source instanceId (restart all instances if instance-id is not provided)||
+|`--name`|The source's name||
+|`--namespace`|The source's namespace||
+|`--tenant`|The source's tenant||
 
 
 ### `localrun`
-Run the Pulsar source locally (rather than in the Pulsar cluster)
+Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)
 
 Usage
 ```bash
@@ -1642,26 +1929,33 @@ $ pulsar-admin source localrun options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--classname`|The source’s Java class name||
+|`--classname`|The source's class name if archive is file-url-path (file://)||
 |`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--deserialization-classname`|The SerDe classname for the source||
 |`--destination-topic-name`|The Pulsar topic to which data is sent||
 |`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source||
+|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider||
 |`--source-config`|Source config key/values||
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
+|`--broker-service-url`|The URL for the Pulsar broker||
+|`--client-auth-params`|Client authentication param||
+|`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
+|`--hostname-verification-enabled`|Enable hostname verification|false|
+|`--tls-allow-insecure`|Allow insecure tls connection|false|
+|`--tls-trust-cert-path`|The tls trust cert file path||
+|`--use-tls`|Use tls connection||
 
 
 ### `available-sources`
-Get a list of all built-in source connectors
+Get the list of Pulsar IO connector sources supported by Pulsar cluster
 
 Usage
 ```bash

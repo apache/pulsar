@@ -18,15 +18,23 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 import java.time.Clock;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
+
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -623,4 +631,76 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
 
     }
+
+    @Test
+    public void testMessageBuilderLoadConf() throws Exception {
+        String topic = "my-topic-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("a", "1");
+        properties.put("b", "2");
+
+        Map<String, Object> msgConf = new HashMap<>();
+        msgConf.put("key", "key-1");
+        msgConf.put("properties", properties);
+        msgConf.put("eventTime", 1234L);
+        msgConf.put("sequenceId", 5L);
+        msgConf.put("replicationClusters", Lists.newArrayList("a", "b", "c"));
+        msgConf.put("disableReplication", false);
+
+        producer.newMessage()
+            .value("my-message")
+            .loadConf(msgConf)
+            .send();
+
+
+        Message<String> msg = consumer.receive();
+        assertEquals(msg.getKey(), "key-1");
+        assertEquals(msg.getProperties().get("a"), "1");
+        assertEquals(msg.getProperties().get("b"), "2");
+        assertEquals(msg.getEventTime(), 1234);
+        assertEquals(msg.getSequenceId(), 5);
+
+        consumer.acknowledge(msg);
+
+        // Try with invalid confs
+        msgConf.clear();
+        msgConf.put("nonExistingKey", "key-1");
+
+        try {
+            producer.newMessage()
+                    .value("my-message")
+                    .loadConf(msgConf)
+                    .send();
+            fail("Should have failed");
+        } catch (RuntimeException e) {
+            // expected
+        }
+
+        // Try with invalid type
+        msgConf.clear();
+        msgConf.put("eventTime", "hello");
+
+        try {
+            producer.newMessage()
+                    .value("my-message")
+                    .loadConf(msgConf)
+                    .send();
+            fail("Should have failed");
+        } catch (RuntimeException e) {
+            // expected
+        }
+    }
+
 }
