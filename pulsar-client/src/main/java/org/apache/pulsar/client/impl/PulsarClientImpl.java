@@ -307,7 +307,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         try {
-            preProcessSchemaBeforeSubscribe(schema, conf.getSingleTopic());
+            preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic());
         } catch (Throwable t) {
             return FutureUtil.failedFuture(t);
         }
@@ -427,7 +427,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         try {
-            preProcessSchemaBeforeSubscribe(schema, conf.getTopicName());
+            preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName());
         } catch (Throwable t) {
             return FutureUtil.failedFuture(t);
         }
@@ -733,15 +733,15 @@ public class PulsarClientImpl implements PulsarClient {
         return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
     }
 
-    public LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
+    private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
     }
 
-    private void preProcessSchemaBeforeSubscribe(Schema schema, String topicName) throws Throwable {
+    protected void preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl, Schema schema, String topicName) throws Throwable {
         if (schema != null && schema.supportSchemaVersioning()) {
             SchemaInfoProvider schemaInfoProvider = null;
             try {
-                schemaInfoProvider = this.getSchemaProviderLoadingCache().get(topicName);
+                schemaInfoProvider = pulsarClientImpl.getSchemaProviderLoadingCache().get(topicName);
             } catch (ExecutionException e) {
                 log.error("Failed to load schema info provider for topic {}", topicName, e);
                 throw e.getCause();
