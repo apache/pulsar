@@ -141,7 +141,7 @@ public class HttpClient implements Closeable {
             }
 
             // auth complete, do real request
-            authFuture.whenComplete((response, ex) -> {
+            authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
                     log.warn("[{}] Failed to perform http request at authentication stage: {}",
                         requestUrl, ex.getMessage());
@@ -156,7 +156,7 @@ public class HttpClient implements Closeable {
                 if (authData.hasDataForHttp()) {
                     Set<Entry<String, String>> headers;
                     try {
-                        headers = authentication.newRequestHeader(requestUrl, authData, response);
+                        headers = authentication.newRequestHeader(requestUrl, authData, respHeaders);
                     } catch (Exception e) {
                         log.warn("[{}] Error during HTTP get headers: {}", requestUrl, e.getMessage());
                         future.completeExceptionally(new PulsarClientException(e));

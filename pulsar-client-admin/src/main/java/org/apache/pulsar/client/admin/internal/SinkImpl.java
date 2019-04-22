@@ -125,7 +125,7 @@ public class SinkImpl extends ComponentResource implements Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).get();
 
             if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                 throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
@@ -172,7 +172,7 @@ public class SinkImpl extends ComponentResource implements Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(builder).build()).get();
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).get();
 
             if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                 throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
