@@ -27,6 +27,7 @@ type FunctionContext struct {
 	instanceConf *instanceConf
 	userConfigs  map[string]interface{}
 	inputTopics  []string
+	logAppender  *LogAppender
 }
 
 func NewFuncContext() *FunctionContext {

@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -80,7 +81,15 @@ public class CmdFunctions extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
@@ -271,9 +280,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowledge messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
@@ -641,7 +650,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
     class GetFunctionStats extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-stats of all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -778,9 +787,18 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             do {
-                FunctionState functionState = admin.functions().getFunctionState(tenant, namespace, functionName, key);
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                System.out.println(gson.toJson(functionState));
+                try {
+                    FunctionState functionState = admin.functions()
+                                                       .getFunctionState(tenant, namespace, functionName, key);
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    gson.toJson(functionState);
+                } catch (PulsarAdminException pae) {
+                    if (pae.getStatusCode() == 404 && watch) {
+                        System.err.println(pae.getMessage());
+                    } else {
+                        throw pae;
+                    }
+                }
                 if (watch) {
                     Thread.sleep(1000);
                 }

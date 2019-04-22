@@ -27,13 +27,17 @@ import com.facebook.presto.spi.type.RealType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -51,9 +55,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
-import org.apache.pulsar.shade.javax.ws.rs.core.Response;
-import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -625,10 +629,10 @@ public abstract class TestPulsarConnector {
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
-            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
+            ByteBuf payload = io.netty.buffer.Unpooled
                     .copiedBuffer(schema.encode(foo));
 
-            org.apache.pulsar.shade.io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+            ByteBuf byteBuf = serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
             Entry entry = EntryImpl.create(0, i, byteBuf);
@@ -794,7 +798,7 @@ public abstract class TestPulsarConnector {
                 long entries = topicsToNumEntries.get(schemaName);
 
 
-                ReadOnlyCursor readOnlyCursor = mock(ReadOnlyCursor.class);
+                ReadOnlyCursorImpl readOnlyCursor = mock(ReadOnlyCursorImpl.class);
                 doReturn(entries).when(readOnlyCursor).getNumberOfEntries();
 
                 doAnswer(new Answer<Void>() {
@@ -875,10 +879,10 @@ public abstract class TestPulsarConnector {
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
+                                    ByteBuf payload = io.netty.buffer.Unpooled
                                             .copiedBuffer(schema.encode(foo));
 
-                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+                                    ByteBuf byteBuf = serializeMetadataAndPayload(
                                             Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
                                     completedBytes += byteBuf.readableBytes();
@@ -907,8 +911,8 @@ public abstract class TestPulsarConnector {
                     @Override
                     public Position answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        org.apache.pulsar.shade.com.google.common.base.Predicate<Entry> predicate
-                                = (org.apache.pulsar.shade.com.google.common.base.Predicate<Entry>) args[1];
+                        com.google.common.base.Predicate<Entry> predicate
+                                = (com.google.common.base.Predicate<Entry>) args[1];
 
                         String schemaName = TopicName.get(
                                 TopicName.get(
@@ -933,12 +937,14 @@ public abstract class TestPulsarConnector {
                     @Override
                     public Long answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        org.apache.pulsar.shade.com.google.common.collect.Range<PositionImpl>  range
-                                = (org.apache.pulsar.shade.com.google.common.collect.Range<PositionImpl> ) args[0];
+                        com.google.common.collect.Range<PositionImpl>  range
+                                = (com.google.common.collect.Range<PositionImpl> ) args[0];
 
                         return (range.upperEndpoint().getEntryId() + 1) - range.lowerEndpoint().getEntryId();
                     }
                 });
+
+                when(readOnlyCursor.getCurrentLedgerInfo()).thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder().setLedgerId(0).build());
 
                 return readOnlyCursor;
             }
@@ -948,8 +954,10 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(),
-                    pulsarConnectorConfig, managedLedgerFactory, new PulsarConnectorMetricsTracker(new NullStatsProvider())));
+            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
+                    fooColumnHandles, split.getValue(),
+                    pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider())));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }
