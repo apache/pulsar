@@ -25,14 +25,7 @@ import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -52,12 +45,9 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -94,11 +84,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final Summary userMetricsSummary;
 
     private final static String[] userMetricsLabelNames;
+
     static {
         // add label to indicate user metric
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
+
     private final ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
@@ -259,7 +251,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return null;
         }
     }
-    
+
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
     }
@@ -348,25 +340,107 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
-        Producer<O> producer = getProducer(topicName, schema);
-        return producer.newMessage();
+        final TypedMessageBuilder<O> underlyingBuilder = getProducer(topicName, schema).newMessage();
+        return new TypedMessageBuilder<O>() {
+
+            @Override
+            public MessageId send() throws PulsarClientException {
+                try {
+                    return sendAsync().get();
+                } catch (ExecutionException e) {
+                    Throwable t = e.getCause();
+                    if (t instanceof PulsarClientException) {
+                        throw (PulsarClientException) t;
+                    } else {
+                        throw new PulsarClientException(t);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new PulsarClientException(e);
+                }
+            }
+
+            @Override
+            public CompletableFuture<MessageId> sendAsync() {
+                return underlyingBuilder.sendAsync()
+                        .whenComplete((result, cause) -> {
+                            if (null != cause) {
+                                statsManager.incrSysExceptions(cause);
+                                logger.error("Failed to publish to topic {} with error {}", topicName, cause);
+                            }
+                        });
+            }
+
+            @Override
+            public TypedMessageBuilder<O> key(String key) {
+                underlyingBuilder.key(key);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> keyBytes(byte[] key) {
+                underlyingBuilder.keyBytes(key);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> value(O value) {
+                underlyingBuilder.value(value);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> property(String name, String value) {
+                underlyingBuilder.property(name, value);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> properties(Map<String, String> properties) {
+                underlyingBuilder.properties(properties);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> eventTime(long timestamp) {
+                underlyingBuilder.eventTime(timestamp);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> sequenceId(long sequenceId) {
+                underlyingBuilder.sequenceId(sequenceId);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> replicationClusters(List<String> clusters) {
+                underlyingBuilder.replicationClusters(clusters);
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> disableReplication() {
+                underlyingBuilder.disableReplication();
+                return this;
+            }
+
+            @Override
+            public TypedMessageBuilder<O> loadConf(Map<String, Object> config) {
+                underlyingBuilder.loadConf(config);
+                return this;
+            }
+        };
     }
 
     @SuppressWarnings("unchecked")
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageConf) {
-        Producer<O> producer;
         try {
             TypedMessageBuilder<O> messageBuilder = newOutputMessage(topicName, schema);
             if (messageConf != null) {
                 messageBuilder.loadConf(messageConf);
             }
-            CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
-            future.exceptionally(e -> {
-                this.statsManager.incrSysExceptions(e);
-                logger.error("Failed to publish to topic {} with error {}", topicName, e);
-                return null;
-            });
-            return future;
+            return messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         } catch (PulsarClientException e) {
             logger.error("Failed to create Producer while doing user publish", e);
             return FutureUtil.failedFuture(e);

@@ -236,6 +236,7 @@ public interface Context {
      * @param schemaOrSerdeClassName Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name
      *                               of the custom schema class
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
 
@@ -245,6 +246,7 @@ public interface Context {
      * @param topicName The name of the topic for publishing
      * @param object    The object that needs to be published
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
     <O> CompletableFuture<Void> publish(String topicName, O object);
 
@@ -266,8 +268,18 @@ public interface Context {
      *                         "disableReplication"
      *
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf);
 
+    /**
+     * New output message using schema for serializing to the topic
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
 }
