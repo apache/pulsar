@@ -103,7 +103,7 @@ type Client interface {
 	// This method will block until the producer is created successfully
 	CreateProducer(ProducerOptions) (Producer, error)
 
-	CreateTypedProducer(ProducerOptions, Schema) (Producer, error)
+	CreateProducerWithSchema(ProducerOptions, Schema) (Producer, error)
 
 	// Create a `Consumer` by subscribing to a topic.
 	//
@@ -117,7 +117,7 @@ type Client interface {
 	// This method will block until the reader is created successfully.
 	CreateReader(ReaderOptions) (Reader, error)
 
-	CreateTypedReader(ReaderOptions, Schema) (Reader, error)
+	CreateReaderWithSchema(ReaderOptions, Schema) (Reader, error)
 
 	// Fetch the list of partitions for a given topic
 	//

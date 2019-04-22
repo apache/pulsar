@@ -208,7 +208,7 @@ func (client *client) CreateProducer(options ProducerOptions) (Producer, error) 
 	return res.Producer, res.error
 }
 
-func (client *client) CreateTypedProducer(options ProducerOptions, schema Schema) (Producer, error) {
+func (client *client) CreateProducerWithSchema(options ProducerOptions, schema Schema) (Producer, error) {
 	// Create is implemented on async create with a channel to wait for
 	// completion without blocking the real thread
 	c := make(chan struct {
@@ -290,7 +290,7 @@ func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
 	return res.Reader, res.error
 }
 
-func (client *client) CreateTypedReader(options ReaderOptions, schema Schema) (Reader, error) {
+func (client *client) CreateReaderWithSchema(options ReaderOptions, schema Schema) (Reader, error) {
 	c := make(chan struct {
 		Reader
 		error
