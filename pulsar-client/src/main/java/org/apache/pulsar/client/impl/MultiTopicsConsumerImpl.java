@@ -743,7 +743,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<CompletableFuture<Consumer<T>>> futureList;
 
         try {
-            client.preProcessSchemaBeforeSubscribe(client, schema, conf.getSingleTopic());
+            client.preProcessSchemaBeforeSubscribe(client, schema, topicName);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
