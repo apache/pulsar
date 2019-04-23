@@ -118,8 +118,7 @@ func TestProducerNoTopic(t *testing.T) {
 
 	defer client.Close()
 
-	producer, err := client.CreateProducer(ProducerOptions{
-	})
+	producer, err := client.CreateProducer(ProducerOptions{})
 
 	// Expect error in creating producer
 	assert.Nil(t, producer)

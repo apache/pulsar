@@ -246,5 +246,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .close();
 
         admin.topics().getList(namespace);
+
+        // Test multiple stats request to make sure the proxy will try against all brokers and receive 307
+        // responses that it will handle internally.
+        for (int i = 0; i < 10; i++) {
+            admin.topics().getStats(topic);
+        }
     }
 }

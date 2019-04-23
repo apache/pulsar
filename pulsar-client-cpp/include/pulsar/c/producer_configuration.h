@@ -42,6 +42,25 @@ typedef enum {
     pulsar_CompressionZLib = 2
 } pulsar_compression_type;
 
+typedef enum {
+    pulsar_None = 0,
+    pulsar_String = 1,
+    pulsar_Json = 2,
+    pulsar_Protobuf = 3,
+    pulsar_Avro = 4,
+    pulsar_Boolean = 5,
+    pulsar_Int8 = 6,
+    pulsar_Int16 = 7,
+    pulsar_Int32 = 8,
+    pulsar_Int64 = 9,
+    pulsar_Float32 = 10,
+    pulsar_Float64 = 11,
+    pulsar_KeyValue = 15,
+    pulsar_Bytes = -1,
+    pulsar_AutoConsume = -3,
+    pulsar_AutoPublish = -4,
+} pulsar_schema_type;
+
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
 
 PULSAR_PUBLIC pulsar_producer_configuration_t *pulsar_producer_configuration_create();
@@ -71,9 +90,12 @@ PULSAR_PUBLIC void pulsar_producer_configuration_set_compression_type(
 PULSAR_PUBLIC pulsar_compression_type
 pulsar_producer_configuration_get_compression_type(pulsar_producer_configuration_t *conf);
 
-PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages(
-    pulsar_producer_configuration_t *conf, int maxPendingMessages);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_schema_info(pulsar_producer_configuration_t *conf,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties);
 
+PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages(pulsar_producer_configuration_t *conf,
+                                                            int maxPendingMessages);
 PULSAR_PUBLIC int pulsar_producer_configuration_get_max_pending_messages(
     pulsar_producer_configuration_t *conf);
 

@@ -137,6 +137,14 @@ public final class WorkerUtils {
                 .setUseDaemonThread(true);
         conf.setProperty("bkc.allowShadedLedgerManagerFactoryClass", true);
         conf.setProperty("bkc.shadedLedgerManagerFactoryClassPrefix", "dlshade.");
+        if (isNotBlank(workerConfig.getBookkeeperClientAuthenticationPlugin())) {
+            conf.setProperty("bkc.clientAuthProviderFactoryClass",
+                    workerConfig.getBookkeeperClientAuthenticationPlugin());
+            if (isNotBlank(workerConfig.getBookkeeperClientAuthenticationParametersName())) {
+                conf.setProperty("bkc." + workerConfig.getBookkeeperClientAuthenticationParametersName(),
+                        workerConfig.getBookkeeperClientAuthenticationParameters());
+            }
+        }
         return conf;
     }
 

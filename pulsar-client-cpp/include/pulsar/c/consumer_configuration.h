@@ -20,6 +20,7 @@
 
 #include <pulsar/defines.h>
 #include "consumer.h"
+#include "producer_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +82,10 @@ PULSAR_PUBLIC void pulsar_consumer_configuration_set_consumer_type(
 
 PULSAR_PUBLIC pulsar_consumer_type
 pulsar_consumer_configuration_get_consumer_type(pulsar_consumer_configuration_t *consumer_configuration);
+
+void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties);
 
 /**
  * A message listener enables your application to configure how to process

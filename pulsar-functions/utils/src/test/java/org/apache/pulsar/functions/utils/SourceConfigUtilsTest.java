@@ -119,13 +119,6 @@ public class SourceConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
-    public void testMergeDifferentOutput() {
-        SourceConfig sourceConfig = createSourceConfig();
-        SourceConfig newSourceConfig = createUpdatedSourceConfig("topicName", "Different");
-        SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-    }
-
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SourceConfig sourceConfig = createSourceConfig();

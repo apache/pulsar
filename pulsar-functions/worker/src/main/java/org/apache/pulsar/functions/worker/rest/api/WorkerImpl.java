@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class WorkerImpl {
@@ -77,7 +79,7 @@ public class WorkerImpl {
 
     public List<WorkerInfo> getCluster() {
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
         }
         List<WorkerInfo> workers = worker().getMembershipManager().getCurrentMembership();
         return workers;
@@ -85,9 +87,8 @@ public class WorkerImpl {
 
     public WorkerInfo getClusterLeader() {
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
         }
-
         MembershipManager membershipManager = worker().getMembershipManager();
         WorkerInfo leader = membershipManager.getLeader();
 
@@ -99,9 +100,8 @@ public class WorkerImpl {
     }
 
     public Map<String, Collection<String>> getAssignments() {
-
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
@@ -128,9 +128,7 @@ public class WorkerImpl {
 
     private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics() {
         if (!isWorkerServiceAvailable()) {
-            throw new WebApplicationException(
-                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not available")).build());
+            throwUnavailableException();
         }
         return worker().getMetricsGenerator().generate();
     }
@@ -146,7 +144,7 @@ public class WorkerImpl {
 
     private List<WorkerFunctionInstanceStats> getFunctionsMetrics() throws IOException {
         if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+            throwUnavailableException();
         }
 
         WorkerService workerService = worker();
@@ -183,5 +181,13 @@ public class WorkerImpl {
             }
         }
         return metricsList;
+    }
+
+    public List<ConnectorDefinition> getListOfConnectors() {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        return this.worker().getConnectorsManager().getConnectors();
     }
 }
