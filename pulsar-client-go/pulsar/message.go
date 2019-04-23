@@ -25,6 +25,9 @@ type ProducerMessage struct {
 	// Payload for the message
 	Payload []byte
 
+	//Value and payload is mutually exclusive, `Value interface{}` for schema message.
+	Value interface{}
+
 	// Sets the key of the message for routing policy
 	Key string
 
@@ -66,6 +69,9 @@ type Message interface {
 
 	// Get the key of the message, if any
 	Key() string
+
+	//Get the de-serialized value of the message, according the configured
+	GetValue(v interface{}) error
 }
 
 // Identifier for a particular message
