@@ -329,118 +329,22 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, schemaOrSerdeClassName, (Map<String, Object>) null);
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
     @SuppressWarnings("unchecked")
-    @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), messageConf);
-    }
-
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
-        final TypedMessageBuilder<O> underlyingBuilder = getProducer(topicName, schema).newMessage();
-        return new TypedMessageBuilder<O>() {
-
-            @Override
-            public MessageId send() throws PulsarClientException {
-                try {
-                    return sendAsync().get();
-                } catch (ExecutionException e) {
-                    Throwable t = e.getCause();
-                    if (t instanceof PulsarClientException) {
-                        throw (PulsarClientException) t;
-                    } else {
-                        throw new PulsarClientException(t);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new PulsarClientException(e);
-                }
-            }
-
-            @Override
-            public CompletableFuture<MessageId> sendAsync() {
-                return underlyingBuilder.sendAsync()
-                        .whenComplete((result, cause) -> {
-                            if (null != cause) {
-                                statsManager.incrSysExceptions(cause);
-                                logger.error("Failed to publish to topic {} with error {}", topicName, cause);
-                            }
-                        });
-            }
-
-            @Override
-            public TypedMessageBuilder<O> key(String key) {
-                underlyingBuilder.key(key);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> keyBytes(byte[] key) {
-                underlyingBuilder.keyBytes(key);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> value(O value) {
-                underlyingBuilder.value(value);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> property(String name, String value) {
-                underlyingBuilder.property(name, value);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> properties(Map<String, String> properties) {
-                underlyingBuilder.properties(properties);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> eventTime(long timestamp) {
-                underlyingBuilder.eventTime(timestamp);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> sequenceId(long sequenceId) {
-                underlyingBuilder.sequenceId(sequenceId);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> replicationClusters(List<String> clusters) {
-                underlyingBuilder.replicationClusters(clusters);
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> disableReplication() {
-                underlyingBuilder.disableReplication();
-                return this;
-            }
-
-            @Override
-            public TypedMessageBuilder<O> loadConf(Map<String, Object> config) {
-                underlyingBuilder.loadConf(config);
-                return this;
-            }
-        };
+        MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
+        TypedMessageBuilder<O> typedMessageBuilder = getProducer(topicName, schema).newMessage();
+        messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
+        return messageBuilder;
     }
 
     @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageConf) {
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
         try {
-            TypedMessageBuilder<O> messageBuilder = newOutputMessage(topicName, schema);
-            if (messageConf != null) {
-                messageBuilder.loadConf(messageConf);
-            }
-            return messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
+            return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
         } catch (PulsarClientException e) {
             logger.error("Failed to create Producer while doing user publish", e);
             return FutureUtil.failedFuture(e);
@@ -527,5 +431,106 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
         return metricsMap;
+    }
+
+    class MessageBuilderImpl<O> implements TypedMessageBuilder<O> {
+        private TypedMessageBuilder<O> underlyingBuilder;
+        @Override
+        public MessageId send() throws PulsarClientException {
+            try {
+                return sendAsync().get();
+            } catch (ExecutionException e) {
+                Throwable t = e.getCause();
+                if (t instanceof PulsarClientException) {
+                    throw (PulsarClientException) t;
+                } else {
+                    throw new PulsarClientException(t);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new PulsarClientException(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<MessageId> sendAsync() {
+            return underlyingBuilder.sendAsync()
+                    .whenComplete((result, cause) -> {
+                        if (null != cause) {
+                            statsManager.incrSysExceptions(cause);
+                            logger.error("Failed to publish to topic with error {}", cause);
+                        }
+                    });
+        }
+
+        @Override
+        public TypedMessageBuilder<O> key(String key) {
+            underlyingBuilder.key(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> keyBytes(byte[] key) {
+            underlyingBuilder.keyBytes(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> orderingKey(byte[] orderingKey) {
+            underlyingBuilder.orderingKey(orderingKey);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> value(O value) {
+            underlyingBuilder.value(value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> property(String name, String value) {
+            underlyingBuilder.property(name, value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> properties(Map<String, String> properties) {
+            underlyingBuilder.properties(properties);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> eventTime(long timestamp) {
+            underlyingBuilder.eventTime(timestamp);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> sequenceId(long sequenceId) {
+            underlyingBuilder.sequenceId(sequenceId);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> replicationClusters(List<String> clusters) {
+            underlyingBuilder.replicationClusters(clusters);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> disableReplication() {
+            underlyingBuilder.disableReplication();
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> loadConf(Map<String, Object> config) {
+            underlyingBuilder.loadConf(config);
+            return this;
+        }
+
+        public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
+            this.underlyingBuilder = underlyingBuilder;
+        }
     }
 }

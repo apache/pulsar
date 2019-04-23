@@ -251,28 +251,6 @@ public interface Context {
     <O> CompletableFuture<Void> publish(String topicName, O object);
 
     /**
-     * Publish an object using serDe or schema class for serializing to the topic.
-     *
-     * @param topicName              The name of the topic for publishing
-     * @param object                 The object that needs to be published
-     * @param schemaOrSerdeClassName Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name
-     *                               of the custom schema class
-     * @param messageConf      A map of configurations to set for the message that will be published
-     *                         The available options are:
-     *
-     *                         "key" - Parition Key
-     *                         "properties" - Map of properties
-     *                         "eventTime"
-     *                         "sequenceId"
-     *                         "replicationClusters"
-     *                         "disableReplication"
-     *
-     * @return A future that completes when the framework is done publishing the message
-     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
-     */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf);
-
-    /**
      * New output message using schema for serializing to the topic
      *
      * @param topicName The name of the topic for output message
