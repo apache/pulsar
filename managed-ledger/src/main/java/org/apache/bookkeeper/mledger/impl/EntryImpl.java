@@ -162,6 +162,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         data.release();
         data = null;
+        timestamp = -1;
         ledgerId = -1;
         entryId = -1;
         recyclerHandle.recycle(this);

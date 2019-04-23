@@ -42,7 +42,8 @@ public class ManagedLedgerFactoryConfig {
      */
     private double cacheEvictionFrequency = 10;
 
-    public long getMaxCacheSize() {
-        return maxCacheSize;
-    }
+    /**
+     * Threshould to consider a cursor as "backlogged"
+     */
+    private long thresholdBackloggedCursor = 1000;
 }

@@ -142,7 +142,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
         this.cacheEvictionTask = scheduledExecutor.scheduleAtFixedRate(() -> cacheEviction(), 0,
-                (long) (1000 / config.getCacheEvictionFrequency()), TimeUnit.MILLISECONDS);
+                (long) (1000 / Math.min(config.getCacheEvictionFrequency(), 1000.0)), TimeUnit.MILLISECONDS);
     }
 
     private synchronized void refreshStats() {
@@ -163,20 +163,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private synchronized void cacheEviction() {
-        long now = System.nanoTime();
-        long period = now - lastCacheEvictionTimestamp;
-        long maxTimestamp = now - period;
-
         ledgers.values().forEach(mlfuture -> {
             if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
                 ManagedLedgerImpl ml = mlfuture.getNow(null);
                 if (ml != null) {
-                    ml.entryCache.invalidateEntriesBeforeTimestamp(maxTimestamp);
+                    ml.entryCache.invalidateEntriesBeforeTimestamp(lastCacheEvictionTimestamp);
                 }
             }
         });
 
-        lastCacheEvictionTimestamp = now;
+        lastCacheEvictionTimestamp = System.nanoTime();
     }
 
     /**

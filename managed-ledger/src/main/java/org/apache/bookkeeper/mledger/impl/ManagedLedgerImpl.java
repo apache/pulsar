@@ -227,6 +227,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, "readOpCount");
     private volatile long readOpCount = 0;
 
+    private final long backloggedCursorThresholdEntries;
+
     /**
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
      * created asynchronously and hence there is no ready ledger to write into.
@@ -257,6 +259,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = Maps.newHashMap();
         this.clock = config.getClock();
+        this.backloggedCursorThresholdEntries = factory.getConfig().getThresholdBackloggedCursor();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
@@ -902,6 +905,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public long getTotalSize() {
         return TOTAL_SIZE_UPDATER.get(this);
+    }
+
+    @Override
+    public void checkBackloggedCursors() {
+        // activate caught up cursors
+        cursors.forEach(cursor -> {
+            if (cursor.getNumberOfEntries() < backloggedCursorThresholdEntries) {
+                cursor.setActive();
+            } else {
+                cursor.setInactive();
+            }
+        });
     }
 
     @Override
