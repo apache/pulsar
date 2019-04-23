@@ -63,7 +63,6 @@ public class ManagedLedgerConfig {
     private byte[] password = "".getBytes(Charsets.UTF_8);
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private Clock clock = Clock.systemUTC();
-    private double cacheEvictionFrequency = 100;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -568,22 +567,5 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
         this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
-    }
-
-    /**
-     * @return the configured cache eviction frequency for the managed ledger
-     */
-    public double getCacheEvictionFrequency() {
-        return cacheEvictionFrequency;
-    }
-
-    /**
-     * Configure the cache eviction frequency for the managed ledger
-     *
-     * @param cacheEvictionFrequency
-     *            a frequence, in updates/s. Default is 100
-     */
-    public void setCacheEvictionFrequency(double cacheEvictionFrequency) {
-        this.cacheEvictionFrequency = cacheEvictionFrequency;
     }
 }

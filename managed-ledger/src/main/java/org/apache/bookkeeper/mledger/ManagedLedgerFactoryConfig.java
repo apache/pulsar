@@ -37,6 +37,11 @@ public class ManagedLedgerFactoryConfig {
     private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
+    /**
+     * Frequency of cache eviction triggering. Default is 10 times per second.
+     */
+    private double cacheEvictionFrequency = 10;
+
     public long getMaxCacheSize() {
         return maxCacheSize;
     }

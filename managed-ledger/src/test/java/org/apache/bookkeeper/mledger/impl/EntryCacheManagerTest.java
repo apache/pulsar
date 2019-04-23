@@ -208,13 +208,12 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
+        config.setCacheEvictionFrequency(1);
 
         factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
-        mlConf.setCacheEvictionFrequency(1);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger", mlConf);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");

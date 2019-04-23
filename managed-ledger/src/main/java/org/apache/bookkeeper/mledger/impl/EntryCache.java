@@ -54,6 +54,8 @@ public interface EntryCache extends Comparable<EntryCache> {
      */
     void invalidateEntries(PositionImpl lastPosition);
 
+    void invalidateEntriesBeforeTimestamp(long timestamp);
+
     /**
      * Remove from the cache all the entries belonging to a specific ledger.
      *

@@ -322,12 +322,6 @@ public interface ManagedLedger {
      */
     long getEstimatedBacklogSize();
 
-    /**
-     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
-     * backlog.
-     */
-    void checkBackloggedCursors();
-
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
     /**
