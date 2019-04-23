@@ -116,4 +116,63 @@ public interface Reader<T> extends Closeable {
      * @return Whether the reader is connected to the broker
      */
     boolean isConnected();
+
+    /**
+     * Reset the subscription associated with this reader to a specific message id.
+     * <p>
+     *
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     * <p>
+     * <ul>
+     * <li><code>MessageId.earliest</code> : Reset the reader on the earliest message available in the topic
+     * <li><code>MessageId.latest</code> : Reset the reader on the latest message in the topic
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param messageId the message id where to reposition the reader
+     */
+    void seek(MessageId messageId) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this reader to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp the message publish time where to reposition the reader
+     */
+    void seek(long timestamp) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this reader to a specific message id.
+     * <p>
+     *
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     * <p>
+     * <ul>
+     * <li><code>MessageId.earliest</code> : Reset the reader on the earliest message available in the topic
+     * <li><code>MessageId.latest</code> : Reset the reader on the latest message in the topic
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param messageId the message id where to position the reader
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekAsync(MessageId messageId);
+
+    /**
+     * Reset the subscription associated with this reader to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp
+     *            the message publish time where to position the reader
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekAsync(long timestamp);
 }
