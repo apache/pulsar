@@ -101,7 +101,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		File keytabProxy = new File(kerberosWorkDir, "pulsarproxy.keytab");
 		kdc.createPrincipal(keytabProxy, principalProxyNoRealm);
 
-		File jaasFile = new File(kerberosWorkDir, "jaas.properties");
+		File jaasFile = new File(kerberosWorkDir, "jaas.conf");
 		try (FileWriter writer = new FileWriter(jaasFile)) {
 			writer.write("\n"
 				+ "PulsarBroker {\n"
@@ -137,7 +137,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 			);
 		}
 
-		File krb5file = new File(kerberosWorkDir, "krb5.properties");
+		File krb5file = new File(kerberosWorkDir, "krb5.conf");
 		try (FileWriter writer = new FileWriter(krb5file)) {
 			String conf = "[libdefaults]\n"
 				+ " default_realm = " + kdc.getRealm() + "\n"
@@ -149,11 +149,11 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 				+ "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
 				+ " }";
 			writer.write(conf);
-			log.info("krb5.properties:\n" + conf);
+			log.info("krb5.conf:\n" + conf);
 		}
 
 		System.setProperty("java.security.auth.login.config", jaasFile.getAbsolutePath());
-		System.setProperty("java.security.krb5.properties", krb5file.getAbsolutePath());
+		System.setProperty("java.security.krb5.conf", krb5file.getAbsolutePath());
 		Configuration.getConfiguration().refresh();
 
 		// Client config
@@ -164,7 +164,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	@AfterClass
 	public static void stopMiniKdc() {
 		System.clearProperty("java.security.auth.login.config");
-		System.clearProperty("java.security.krb5.properties");
+		System.clearProperty("java.security.krb5.conf");
 		if (kdc != null) {
 			kdc.stop();
 		}
@@ -233,9 +233,6 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
 		// proxy connect to broker
 		proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
-		/*proxyConfig.setBrokerClientAuthenticationParameters(
-			"{\"saslJaasClientSectionName\": " + "\"PulsarProxy\"," +
-				"\"serverType\": " + "\"broker\"}");*/
 		proxyConfig.setBrokerClientAuthenticationParameters(
 			"{\"saslJaasClientSectionName\": " + "\"PulsarProxy\"," +
 				"\"serverType\": " + "\"broker\"}");

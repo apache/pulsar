@@ -79,8 +79,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         String principalServerNoRealm = "broker/" + localHostname;
         String principalServer = "broker/" + localHostname + "@" + kdc.getRealm();
         log.info("principalServer: " + principalServer);
-        String principalClientNoRealm = "client/" + localHostname;
+        String principalClientNoRealm = "client";
         String principalClient = principalClientNoRealm + "@" + kdc.getRealm();
+
         log.info("principalClient: " + principalClient);
 
         File keytabClient = new File(kerberosWorkDir, "pulsarclient.keytab");
@@ -89,7 +90,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         File keytabServer = new File(kerberosWorkDir, "pulsarbroker.keytab");
         kdc.createPrincipal(keytabServer, principalServerNoRealm);
 
-        File jaasFile = new File(kerberosWorkDir, "jaas.properties");
+        File jaasFile = new File(kerberosWorkDir, "jaas.conf");
         try (FileWriter writer = new FileWriter(jaasFile)) {
             writer.write("\n"
                 + "PulsarBroker {\n"
@@ -114,7 +115,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             );
         }
 
-        File krb5file = new File(kerberosWorkDir, "krb5.properties");
+        File krb5file = new File(kerberosWorkDir, "krb5.conf");
         try (FileWriter writer = new FileWriter(krb5file)) {
             String conf = "[libdefaults]\n"
                 + " default_realm = " + kdc.getRealm() + "\n"
@@ -126,11 +127,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
                 + "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
                 + " }";
             writer.write(conf);
-            log.info("krb5.properties:\n" + conf);
+            log.info("krb5.conf:\n" + conf);
         }
 
         System.setProperty("java.security.auth.login.config", jaasFile.getAbsolutePath());
-        System.setProperty("java.security.krb5.properties", krb5file.getAbsolutePath());
+        System.setProperty("java.security.krb5.conf", krb5file.getAbsolutePath());
         Configuration.getConfiguration().refresh();
 
         // Client config
@@ -145,7 +146,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @AfterClass
     public static void stopMiniKdc() {
         System.clearProperty("java.security.auth.login.config");
-        System.clearProperty("java.security.krb5.properties");
+        System.clearProperty("java.security.krb5.conf");
         if (kdc != null) {
             kdc.stop();
         }
@@ -164,13 +165,13 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
-        conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
+        conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
-        conf.setSuperUserRoles(ImmutableSet.of("client/" + localHostname + "@" + kdc.getRealm()));
+        conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
 
         super.init();
 
