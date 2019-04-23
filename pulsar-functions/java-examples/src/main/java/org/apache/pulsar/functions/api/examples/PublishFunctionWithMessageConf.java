@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -40,13 +41,14 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         properties.put("input_topic", context.getCurrentRecord().getTopicName().get());
         properties.putAll(context.getCurrentRecord().getProperties());
 
-        Map<String, Object> messageConf = new HashMap<>();
-        messageConf.put(TypedMessageBuilder.CONF_PROPERTIES, properties);
-        if (context.getCurrentRecord().getKey().isPresent()) {
-            messageConf.put(TypedMessageBuilder.CONF_KEY, context.getCurrentRecord().getKey().get());
+        try {
+            TypedMessageBuilder<String> msgBuilder = context.newOutputMessage(publishTopic, null);
+            msgBuilder.value(output).properties(properties).
+                    key(context.getCurrentRecord().getKey().get()).
+                    eventTime(System.currentTimeMillis()).sendAsync();
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
         }
-        messageConf.put(TypedMessageBuilder.CONF_EVENT_TIME, System.currentTimeMillis());
-        context.publish(publishTopic, output, null, messageConf);
         return null;
     }
 }
