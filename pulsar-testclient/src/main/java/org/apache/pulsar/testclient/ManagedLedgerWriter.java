@@ -93,7 +93,7 @@ public class ManagedLedgerWriter {
         @Parameter(names = { "--threads" }, description = "Number of threads writing")
         public int numThreads = 1;
 
-        @Parameter(names = { "-zk", "--zookeeperServers" }, description = "ZooKeeper connection string")
+        @Parameter(names = { "-zk", "--zookeeperServers" }, description = "ZooKeeper connection string", required = true)
         public String zookeeperServers;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
@@ -129,7 +129,7 @@ public class ManagedLedgerWriter {
 
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-producer");
+        jc.setProgramName("pulsar-perf managed-ledger");
 
         try {
             jc.parse(args);
