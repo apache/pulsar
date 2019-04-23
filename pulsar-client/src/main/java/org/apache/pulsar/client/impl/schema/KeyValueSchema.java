@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.ByteBuffer;
 
+import com.google.gson.Gson;
 import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
@@ -78,11 +79,29 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
             .setType(SchemaType.KEY_VALUE);
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
+        byte[] keySchemaName = keySchema.getSchemaInfo().getName().getBytes();
+        byte[] keySchemaType = String.valueOf(keySchema.getSchemaInfo().getType().getValue()).getBytes();
+        Gson keySchemaGson = new Gson();
+        byte[] keySchemaProperties = keySchemaGson.toJson(keySchema.getSchemaInfo().getProperties()).getBytes();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();
+        byte[] valueSchemaName = valueSchema.getSchemaInfo().getName().getBytes();
+        byte[] valueSchemaType = String.valueOf(valueSchema.getSchemaInfo().getType().getValue()).getBytes();
+        Gson valueSchemaGson = new Gson();
+        byte[] valueSchemaProperties = valueSchemaGson.toJson(valueSchema.getSchemaInfo().getProperties()).getBytes();
 
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keySchemaInfo.length + 4 + valueSchemaInfo.length);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(
+                4 + keySchemaInfo.length + 4 + keySchemaName.length + 4
+                        + keySchemaType.length + 4 + keySchemaProperties.length + 4
+                        + valueSchemaInfo.length + 4 + valueSchemaName.length + 4
+                        + valueSchemaType.length + 4 + valueSchemaProperties.length);
         byteBuffer.putInt(keySchemaInfo.length).put(keySchemaInfo)
-            .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
+                .putInt(keySchemaName.length).put(keySchemaName)
+                .putInt(keySchemaType.length).put(keySchemaType)
+                .putInt(keySchemaProperties.length).put(keySchemaProperties)
+                .putInt(valueSchemaInfo.length).put(valueSchemaInfo)
+                .putInt(valueSchemaName.length).put(valueSchemaName)
+                .putInt(valueSchemaType.length).put(valueSchemaType)
+                .putInt(valueSchemaProperties.length).put(valueSchemaProperties);
         this.schemaInfo.setSchema(byteBuffer.array());
     }
 
