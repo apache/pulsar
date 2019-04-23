@@ -27,12 +27,15 @@ import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
 import java.nio.file.Paths;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
+import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -44,12 +47,16 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
  * Kubernetes based function container factory implementation.
  */
 @Slf4j
 public class KubernetesRuntimeFactory implements RuntimeFactory {
+
+    static int NUM_RETRIES = 5;
+    static long SLEEP_BETWEEN_RETRIES_MS = 500;
 
     @Getter
     @Setter
@@ -85,6 +92,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
     private Resources functionInstanceMinResources;
+    private final boolean authenticationEnabled;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -107,7 +115,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
                                     Resources functionInstanceMinResources,
-                                    SecretsProviderConfigurator secretsProviderConfigurator) {
+                                    SecretsProviderConfigurator secretsProviderConfigurator,
+                                    boolean authenticationEnabled) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -158,6 +167,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.functionInstanceMinResources = functionInstanceMinResources;
+        this.authenticationEnabled = authenticationEnabled;
+        try {
+            setupClient();
+        } catch (Exception e) {
+            log.error("Failed to setup client", e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -169,7 +185,6 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
-        setupClient();
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -181,6 +196,12 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
+
+        // adjust the auth config to support auth
+        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
+            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        }
+
         return new KubernetesRuntime(
             appsClient,
             coreClient,
@@ -204,7 +225,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             authConfig,
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
-            this.kubernetesInfo.getPercentMemoryPadding());
+            this.kubernetesInfo.getPercentMemoryPadding(),
+            getAuthProvider(),
+            authenticationEnabled);
     }
 
     @Override
@@ -215,16 +238,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
         validateMinResourcesRequired(functionDetails);
-        try {
-            setupClient();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
         secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
     }
 
     @VisibleForTesting
-    void setupClient() throws Exception {
+    public void setupClient() throws Exception {
         if (appsClient == null) {
             if (this.kubernetesInfo.getK8Uri() == null) {
                 log.info("k8Uri is null thus going by defaults");
@@ -308,5 +326,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 }
             }
         }
+    }
+
+    @Override
+    public KubernetesFunctionAuthProvider getAuthProvider() {
+        return new KubernetesSecretsTokenAuthProvider(coreClient, kubernetesInfo.jobNamespace);
     }
 }

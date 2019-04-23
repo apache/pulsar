@@ -48,6 +48,10 @@ public class FunctionConfig {
         PYTHON
     }
 
+    // Any flags that you want to pass to the runtime.
+    // note that in thread mode, these flags will have no impact
+    private String runtimeFlags;
+
     private String tenant;
     private String namespace;
     private String name;
@@ -60,7 +64,7 @@ public class FunctionConfig {
     /**
      * A generalized way of specifying inputs
      */
-    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs;
 
     private String output;
 

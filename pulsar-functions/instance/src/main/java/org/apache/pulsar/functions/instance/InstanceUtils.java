@@ -20,9 +20,9 @@ package org.apache.pulsar.functions.instance;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SINK;
-import static org.apache.pulsar.functions.utils.Utils.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.utils.ComponentType.SINK;
+import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
 
 import lombok.experimental.UtilityClass;
 
@@ -31,11 +31,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -89,7 +89,7 @@ public class InstanceUtils {
         }
     }
 
-    public Utils.ComponentType calculateSubjectType(Function.FunctionDetails functionDetails) {
+    public ComponentType calculateSubjectType(Function.FunctionDetails functionDetails) {
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         Function.SinkSpec sinkSpec = functionDetails.getSink();
         if (sourceSpec.getInputSpecsCount() == 0) {
@@ -109,7 +109,7 @@ public class InstanceUtils {
     }
 
     public static String getDefaultSubscriptionName(String tenant, String namespace, String name) {
-        return FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name);
+        return FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
     }
 
     public static String getDefaultSubscriptionName(Function.FunctionDetails functionDetails) {
@@ -119,7 +119,7 @@ public class InstanceUtils {
                 functionDetails.getName());
     }
 
-    public static Map<String, String> getProperties(Utils.ComponentType componentType,
+    public static Map<String, String> getProperties(ComponentType componentType,
                                                     String fullyQualifiedName, int instanceId) {
         Map<String, String> properties = new HashMap<>();
         switch (componentType) {

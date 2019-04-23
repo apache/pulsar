@@ -67,6 +67,8 @@ import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
 import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.s3.reference.S3Constants;
+import org.jclouds.osgi.ApiRegistry;
+import org.jclouds.s3.S3ApiMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +122,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
 
+        ApiRegistry.registerApi(new S3ApiMetadata());
         ProviderRegistry.registerProvider(new AWSS3ProviderMetadata());
         ProviderRegistry.registerProvider(new GoogleCloudStorageProviderMetadata());
 
@@ -186,9 +189,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          OrderedScheduler scheduler)
             throws IOException {
         String driver = conf.getManagedLedgerOffloadDriver();
-        if ("s3".equals(driver.toLowerCase())) {
-            driver = "aws-s3";
-        }
         if (!driverSupported(driver)) {
             throw new IOException(
                 "Not support this kind of driver as offload backend: " + driver);

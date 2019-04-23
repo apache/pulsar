@@ -23,6 +23,7 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.batch.connectors.pulsar.PulsarOutputFormat
 import org.apache.flink.util.Collector
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled
 
 /**
   * Data type for words with count.
@@ -63,7 +64,7 @@ object FlinkPulsarBatchSinkScalaExample {
 
     // create PulsarOutputFormat instance
     val pulsarOutputFormat =
-      new PulsarOutputFormat[WordWithCount](serviceUrl, topic, new SerializationSchema[WordWithCount] {
+      new PulsarOutputFormat[WordWithCount](serviceUrl, topic, new AuthenticationDisabled(), new SerializationSchema[WordWithCount] {
         override def serialize(wordWithCount: WordWithCount): Array[Byte] = wordWithCount.toString.getBytes
       })
 

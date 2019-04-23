@@ -65,11 +65,8 @@ import com.google.common.collect.Lists;
  */
 public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
 
-    private static final int MaxReadBatchSize = 100;
-    private static final int MaxRoundRobinBatchSize = 20;
-
-    private final PersistentTopic topic;
-    private final ManagedCursor cursor;
+    protected final PersistentTopic topic;
+    protected final ManagedCursor cursor;
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToReplay = new ConcurrentSortedLongPairSet(128, 2);
@@ -78,9 +75,9 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
     private boolean shouldRewindBeforeReadingOrReplaying = false;
-    private final String name;
+    protected final String name;
 
-    private int totalAvailablePermits = 0;
+    protected int totalAvailablePermits = 0;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
@@ -90,8 +87,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
-    private final ServiceConfiguration serviceConfig;
-    private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+    protected final ServiceConfiguration serviceConfig;
+    protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     enum ReadType {
         Normal, Replay
@@ -105,7 +102,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
-        this.readBatchSize = MaxReadBatchSize;
+        this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -377,17 +374,14 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     @Override
     public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         ReadType readType = (ReadType) ctx;
-        int start = 0;
-        int entriesToDispatch = entries.size();
-
         if (readType == ReadType.Normal) {
             havePendingRead = false;
         } else {
             havePendingReplayRead = false;
         }
 
-        if (readBatchSize < MaxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
+        if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
+            int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Increasing read batch size from {} to {}", name, readBatchSize, newReadBatchSize);
             }
@@ -410,8 +404,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+        sendMessagesToConsumers(readType, entries);
+
+        readMoreEntries();
+    }
+
+    protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        int start = 0;
+        int entriesToDispatch = entries.size();
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
+
         while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
@@ -423,7 +426,9 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
 
             // round-robin dispatch batch size for this consumer
-            int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
+            int messagesForC = Math.min(
+                    Math.min(entriesToDispatch, c.getAvailablePermits()),
+                    serviceConfig.getDispatcherMaxRoundRobinBatchSize());
 
             if (messagesForC > 0) {
 
@@ -466,8 +471,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 entry.release();
             });
         }
-
-        readMoreEntries();
     }
 
     @Override
@@ -511,7 +514,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
         }
 
-        readBatchSize = 1;
+        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
@@ -532,7 +535,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
      *
      * @return
      */
-    private boolean isAtleastOneConsumerAvailable() {
+    protected boolean isAtleastOneConsumerAvailable() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return false;

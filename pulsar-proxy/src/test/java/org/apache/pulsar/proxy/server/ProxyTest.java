@@ -24,12 +24,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import org.apache.avro.reflect.Nullable;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -47,11 +52,14 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -64,6 +72,18 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class Foo {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+        private int field3;
+    }
 
     @Override
     @BeforeClass
@@ -206,6 +226,29 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    private void testGetSchema() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+                .build();
+        Producer<Foo> producer;
+        Schema schema = Schema.AVRO(Foo.class);
+        try {
+            producer = client.newProducer(schema).topic("persistent://sample/test/local/get-schema")
+                    .create();
+        } catch (Exception ex) {
+            Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
+        }
+        byte[] schemaVersion = new byte[8];
+        byte b = new Long(0l).byteValue();
+        for (int i = 0; i<8; i++){
+            schemaVersion[i] = b;
+        }
+        SchemaInfo schemaInfo = ((PulsarClientImpl)client).getLookup()
+                .getSchema(TopicName.get("persistent://sample/test/local/get-schema"), schemaVersion).get().orElse(null);
+        Assert.assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
+        client.close();
+    }
+
+    @Test
     private void testProtocolVersionAdvertisement() throws Exception {
         final String url = "pulsar://localhost:" + proxyConfig.getServicePort().get();
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
@@ -233,6 +276,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         client.close();
     }
+
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {

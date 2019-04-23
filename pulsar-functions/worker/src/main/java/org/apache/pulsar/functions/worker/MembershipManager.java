@@ -46,7 +46,8 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+
 import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
 
 /**
@@ -58,7 +59,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     private final String consumerName;
     private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
-    private PulsarAdmin pulsarAdminClient;
+    private PulsarAdmin pulsarAdmin;
     private final CompletableFuture<Void> firstConsumerEventFuture;
     private final AtomicBoolean isLeader = new AtomicBoolean();
 
@@ -71,9 +72,10 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerService service, PulsarClient client)
+    MembershipManager(WorkerService service, PulsarClient client, PulsarAdmin pulsarAdmin)
             throws PulsarClientException {
         this.workerConfig = service.getWorkerConfig();
+        this.pulsarAdmin = pulsarAdmin;
         consumerName = String.format(
             "%s:%s:%d",
             workerConfig.getWorkerId(),
@@ -120,9 +122,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
         List<WorkerInfo> workerIds = new LinkedList<>();
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -139,9 +140,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     public WorkerInfo getLeader() {
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -165,9 +165,6 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @Override
     public void close() throws PulsarClientException {
         consumer.close();
-        if (this.pulsarAdminClient != null) {
-            this.pulsarAdminClient.close();
-        }
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
@@ -179,7 +176,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         for (Function.FunctionMetaData entry : functionMetaDataList) {
-            functionMetaDataMap.put(FunctionDetailsUtils.getFullyQualifiedName(entry.getFunctionDetails()), entry);
+            functionMetaDataMap.put(FunctionCommon.getFullyQualifiedName(entry.getFunctionDetails()), entry);
         }
         Map<String, Map<String, Function.Assignment>> currentAssignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Function.Assignment> assignmentMap = new HashMap<>();
@@ -192,9 +189,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         Iterator<Map.Entry<Function.Instance, Long>> it = unsignedFunctionDurations.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Function.Instance, Long> entry = it.next();
-            String fullyQualifiedFunctionName = FunctionDetailsUtils.getFullyQualifiedName(
+            String fullyQualifiedFunctionName = FunctionCommon.getFullyQualifiedName(
                     entry.getKey().getFunctionMetaData().getFunctionDetails());
-            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(entry.getKey());
+            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(entry.getKey());
             //remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
                 it.remove();
@@ -262,7 +259,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
                 needSchedule.add(instance);
                 // remove assignment from failed node
-                Function.Assignment assignment = assignmentMap.get(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(instance));
+                Function.Assignment assignment = assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
                 if (assignment != null) {
                     needRemove.add(assignment);
                 }
@@ -281,15 +278,6 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     /**
      * Private methods
      */
-
-    private PulsarAdmin getPulsarAdminClient() {
-        if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
-        }
-        return this.pulsarAdminClient;
-    }
 
     private boolean checkLeader(WorkerService service, String consumerName) {
         try {

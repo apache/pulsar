@@ -108,6 +108,9 @@ static Result getResult(ServerError serverError) {
 
         case IncompatibleSchema:
             return ResultIncompatibleSchema;
+
+        case ConsumerAssignError:
+            return ResultConsumerAssignError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -1106,11 +1109,11 @@ void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t request
         return;
     }
     LookupRequestData requestData;
+    requestData.promise = promise;
     requestData.timer = executor_->createDeadlineTimer();
     requestData.timer->expires_from_now(operationsTimeout_);
     requestData.timer->async_wait(std::bind(&ClientConnection::handleLookupTimeout, shared_from_this(),
                                             std::placeholders::_1, requestData));
-    requestData.promise = promise;
 
     pendingLookupRequests_.insert(std::make_pair(requestId, requestData));
     numOfPendingLookupRequest_++;

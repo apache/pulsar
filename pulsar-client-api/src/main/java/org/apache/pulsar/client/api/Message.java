@@ -155,6 +155,21 @@ public interface Message<T> {
     byte[] getKeyBytes();
 
     /**
+     * Check whether the message has a ordering key
+     *
+     * @return true if the ordering key was set while creating the message
+     *         false if the ordering key was not set while creating the message
+     */
+    boolean hasOrderingKey();
+
+    /**
+     * Get the ordering key of the message
+     *
+     * @return the ordering key of the message
+     */
+    byte[] getOrderingKey();
+
+    /**
      * Get the topic the message was published to
      *
      * @return the topic the message was published to

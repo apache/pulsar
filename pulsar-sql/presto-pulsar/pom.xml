@@ -34,11 +34,6 @@
 
     <properties>
         <dep.airlift.version>0.170</dep.airlift.version>
-        <dep.slice.version>0.35</dep.slice.version>
-        <dep.guice.version>4.2.0</dep.guice.version>
-        <dep.javax-validation.version>1.1.0.Final</dep.javax-validation.version>
-        <dep.javax-inject.version>1</dep.javax-inject.version>
-        <dep.guava.version>24.1-jre</dep.guava.version>
         <jctools.version>2.1.2</jctools.version>
         <dslJson.verson>1.8.4</dslJson.verson>
     </properties>
@@ -57,24 +52,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
-            <version>${dep.guice.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>javax.validation</groupId>
-            <artifactId>validation-api</artifactId>
-            <version>${dep.javax-validation.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-            <version>${dep.javax-inject.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>${avro.version}</version>
@@ -82,13 +59,13 @@
 
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-client-admin</artifactId>
+            <artifactId>pulsar-client-admin-original</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger</artifactId>
+            <artifactId>managed-ledger-original</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -126,5 +103,82 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                            <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+
+                            <artifactSet>
+                                <includes>
+                                    <include>org.apache.pulsar:pulsar-client-original</include>
+                                    <include>org.apache.pulsar:pulsar-client-admin-original</include>
+                                    <include>org.apache.pulsar:managed-ledger-original</include>
+
+                                    <include>org.glassfish.jersey*:*</include>
+                                    <include>javax.ws.rs:*</include>
+                                    <include>javax.annotation:*</include>
+                                    <include>org.glassfish.hk2*:*</include>
+
+                                    <include>org.apache.httpcomponents:*</include>
+                                    <include>org.eclipse.jetty:*</include>
+
+                                </includes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                            </filters>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.glassfish</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.ws</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.annotation</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>jersey</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.eclipse.jetty</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.http</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
+                                </relocation>
+
+                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

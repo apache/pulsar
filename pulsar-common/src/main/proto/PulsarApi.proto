@@ -29,6 +29,17 @@ message Schema {
 		Json = 2;
 		Protobuf = 3;
 		Avro = 4;
+		Bool = 5;
+		Int8 = 6;
+		Int16 = 7;
+		Int32 = 8;
+		Int64 = 9;
+		Float = 10;
+		Double = 11;
+		Date = 12;
+		Time = 13;
+		Timestamp = 14;
+		KeyValue = 15;
 	}
 
     required string name = 1;
@@ -99,8 +110,9 @@ message MessageMetadata {
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
 	optional bytes schema_version = 16;
-
-        optional bool partition_key_b64_encoded = 17 [ default = false ];
+	optional bool partition_key_b64_encoded = 17 [ default = false ];
+	// Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 18;
 }
 
 
@@ -113,8 +125,9 @@ message SingleMessageMetadata {
 	// the timestamp that this event occurs. it is typically set by applications.
 	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
 	optional uint64 event_time = 5 [default = 0];
-
-        optional bool partition_key_b64_encoded = 6 [ default = false ];
+	optional bool partition_key_b64_encoded = 6 [ default = false ];
+    // Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 7;
 }
 
 enum ServerError {
@@ -141,6 +154,7 @@ enum ServerError {
     InvalidTopicName = 17; // The topic name is not valid
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
+	ConsumerAssignError = 19; // Dispatcher assign consumer error
 }
 
 enum AuthMethod {
@@ -168,6 +182,8 @@ enum ProtocolVersion {
 			 // Added CommandActiveConsumerChange
 			 // Added CommandGetTopicsOfNamespace
 	v13 = 13; // Schema-registry : added avro schema format for json
+	v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
+	          // Added Key_Shared subscription
 }
 
 message CommandConnect {
@@ -199,11 +215,30 @@ message CommandConnected {
 	optional int32 protocol_version = 2 [default = 0];
 }
 
+message CommandAuthResponse {
+	optional string client_version = 1;
+	optional AuthData response = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+message CommandAuthChallenge {
+	optional string server_version = 1;
+	optional AuthData challenge = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+// To support mutual authentication type, such as Sasl, reuse this command to mutual auth.
+message AuthData {
+	optional string auth_method_name = 1;
+	optional bytes auth_data = 2;
+}
+
 message CommandSubscribe {
 	enum SubType {
 		Exclusive = 0;
 		Shared    = 1;
 		Failover  = 2;
+		Key_Shared = 3;
 	}
 	required string topic        = 1;
 	required string subscription = 2;
@@ -598,6 +633,9 @@ message BaseCommand {
 
 		GET_SCHEMA = 34;
 		GET_SCHEMA_RESPONSE = 35;
+
+		AUTH_CHALLENGE = 36;
+		AUTH_RESPONSE = 37;
 	}
 
 
@@ -650,4 +688,8 @@ message BaseCommand {
 
 	optional CommandGetSchema getSchema = 34;
 	optional CommandGetSchemaResponse getSchemaResponse = 35;
+
+	optional CommandAuthChallenge authChallenge = 36;
+	optional CommandAuthResponse authResponse = 37;
+
 }

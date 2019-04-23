@@ -19,6 +19,7 @@
 #pragma once
 
 #include "consumer.h"
+#include "producer_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +82,10 @@ void pulsar_consumer_configuration_set_consumer_type(pulsar_consumer_configurati
 
 pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
     pulsar_consumer_configuration_t *consumer_configuration);
+
+void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties);
 
 /**
  * A message listener enables your application to configure how to process
@@ -157,6 +162,30 @@ void pulsar_consumer_set_unacked_messages_timeout_ms(pulsar_consumer_configurati
  * @return the configured timeout in milliseconds for unacked messages.
  */
 long pulsar_consumer_get_unacked_messages_timeout_ms(pulsar_consumer_configuration_t *consumer_configuration);
+
+/**
+ * Set the delay to wait before re-delivering messages that have failed to be process.
+ * <p>
+ * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
+ * will be redelivered after a fixed timeout. The default is 1 min.
+ *
+ * @param redeliveryDelay
+ *            redelivery delay for failed messages
+ * @param timeUnit
+ *            unit in which the timeout is provided.
+ * @return the consumer builder instance
+ */
+void pulsar_configure_set_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis);
+
+/**
+ * Get the configured delay to wait before re-delivering messages that have failed to be process.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @return redelivery delay for failed messages
+ */
+long pulsar_configure_get_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration);
 

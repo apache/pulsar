@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -44,8 +45,8 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -54,7 +55,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -75,8 +76,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
-
-    private final List<String> inputTopics;
 
     private final TopicSchema topicSchema;
 
@@ -100,15 +99,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
-    private final Utils.ComponentType componentType;
+    private final ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType, ComponentStatsManager statsManager) {
+                       ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
-        this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
 
@@ -169,7 +167,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputTopics;
+        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
     }
 
     @Override
@@ -261,46 +259,70 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return null;
         }
     }
-
+    
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
+    }
+
+    @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        ensureStateEnabled();
+        return stateContext.incrCounter(key, amount);
     }
 
     @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
         try {
-            stateContext.incr(key, amount);
+            result(stateContext.incrCounter(key, amount));
         } catch (Exception e) {
             throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
         }
     }
 
     @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.getCounter(key);
+    }
+
+    @Override
     public long getCounter(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getAmount(key);
+            return result(stateContext.getCounter(key));
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
         }
     }
 
     @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        return stateContext.put(key, value);
+    }
+
+    @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
         try {
-            stateContext.put(key, value);
+            result(stateContext.put(key, value));
         } catch (Exception e) {
             throw new RuntimeException("Failed to update the state value for key '" + key + "'");
         }
     }
 
     @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.get(key);
+    }
+
+    @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getValue(key);
+            return result(stateContext.get(key));
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
         }
@@ -315,11 +337,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+        return publish(topicName, object, schemaOrSerdeClassName, null);
     }
 
     @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
+    @Override
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName, Map<String, Object> messageConf) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false), messageConf);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema, Map<String, Object> messageConf) {
         Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
 
         if (producer == null) {
@@ -338,7 +366,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                         .sendTimeout(0, TimeUnit.SECONDS)
                         .topic(topicName)
                         .properties(InstanceUtils.getProperties(componentType,
-                                FunctionDetailsUtils.getFullyQualifiedName(
+                                FunctionCommon.getFullyQualifiedName(
                                         this.config.getFunctionDetails().getTenant(),
                                         this.config.getFunctionDetails().getNamespace(),
                                         this.config.getFunctionDetails().getName()),
@@ -361,7 +389,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
 
-        CompletableFuture<Void> future = producer.sendAsync(object).thenApply(msgId -> null);
+        TypedMessageBuilder<O> messageBuilder = producer.newMessage();
+        if (messageConf != null) {
+            messageBuilder.loadConf(messageConf);
+        }
+        CompletableFuture<Void> future = messageBuilder.value(object).sendAsync().thenApply(msgId -> null);
         future.exceptionally(e -> {
             this.statsManager.incrSysExceptions(e);
             logger.error("Failed to publish to topic {} with error {}", topicName, e);

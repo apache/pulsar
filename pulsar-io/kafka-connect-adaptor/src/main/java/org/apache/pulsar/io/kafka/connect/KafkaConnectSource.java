@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
+
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,6 +68,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private CompletableFuture<Void> flushFuture;
     private OffsetBackingStore offsetStore;
     private OffsetStorageReader offsetReader;
+    private String topicNamespace;
     @Getter
     private OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
@@ -85,6 +88,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             .asSubclass(SourceTask.class)
             .getDeclaredConstructor()
             .newInstance();
+
+        topicNamespace = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
 
         // initialize the key and value converter
         keyConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
@@ -193,7 +198,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 .stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
-            this.destinationTopic = Optional.of(srcRecord.topic());
+            this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
         }
 
         @Override

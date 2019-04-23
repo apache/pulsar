@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
@@ -38,13 +45,13 @@ import org.apache.pulsar.client.admin.internal.SourceImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.WorkerImpl;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.asynchttpclient.AsyncHttpClient;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -52,17 +59,6 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Pulsar client admin API client.
@@ -86,6 +82,7 @@ public class PulsarAdmin implements Closeable {
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
     private final Client client;
+    private final AsyncHttpClient httpAsyncClient;
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
@@ -151,10 +148,13 @@ public class PulsarAdmin implements Closeable {
             auth.start();
         }
 
+        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
+
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
+        httpConfig.connectorProvider(asyncConnectorProvider);
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
@@ -162,50 +162,16 @@ public class PulsarAdmin implements Closeable {
                 .readTimeout(this.readTimeout, this.readTimeoutUnit)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        boolean useTls = false;
-
-        if (clientConfigData != null && StringUtils.isNotBlank(clientConfigData.getServiceUrl())
-                && clientConfigData.getServiceUrl().startsWith("https://")) {
-            useTls = true;
-            try {
-                SSLContext sslCtx = null;
-
-                X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
-
-                // Set private key and certificate if available
-                AuthenticationDataProvider authData = auth.getAuthData();
-                if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
-                            trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
-                } else {
-                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
-                            trustCertificates);
-                }
-
-                clientBuilder.sslContext(sslCtx);
-                if (clientConfigData.isTlsHostnameVerificationEnable()) {
-                    clientBuilder.hostnameVerifier(new DefaultHostnameVerifier());
-                } else {
-                    // Disable hostname verification
-                    clientBuilder.hostnameVerifier(NoopHostnameVerifier.INSTANCE);
-                }
-            } catch (Exception e) {
-                try {
-                    if (auth != null) {
-                        auth.close();
-                    }
-                } catch (IOException ioe) {
-                    LOG.error("Failed to close the authentication service", ioe);
-                }
-                throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
-            }
-        }
+        boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
 
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
         root = client.target(serviceUrl);
+
+        this.httpAsyncClient = asyncConnectorProvider.getConnector(
+                Math.toIntExact(TimeUnit.SECONDS.toMillis(this.connectTimeout)),
+                Math.toIntExact(TimeUnit.SECONDS.toMillis(this.readTimeout))).getHttpClient();
 
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
@@ -217,9 +183,9 @@ public class PulsarAdmin implements Closeable {
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
-        this.functions = new FunctionsImpl(root, auth);
-        this.source = new SourceImpl(root, auth);
-        this.sink = new SinkImpl(root, auth);
+        this.functions = new FunctionsImpl(root, auth, httpAsyncClient);
+        this.source = new SourceImpl(root, auth, httpAsyncClient);
+        this.sink = new SinkImpl(root, auth, httpAsyncClient);
         this.worker = new WorkerImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
         this.bookies = new BookiesImpl(root, auth);
@@ -338,15 +304,6 @@ public class PulsarAdmin implements Closeable {
      * @deprecated Since 2.0. See {@link #topics()}
      */
     @Deprecated
-    public PersistentTopics persistentTopics() {
-        return topics;
-    }
-
-    /**
-     * @return the persistentTopics management object
-     * @deprecated Since 2.0. See {@link #topics()}
-     */
-    @Deprecated
     public NonPersistentTopics nonPersistentTopics() {
         return nonPersistentTopics;
     }
@@ -438,6 +395,11 @@ public class PulsarAdmin implements Closeable {
             LOG.error("Failed to close the authentication service", e);
         }
         client.close();
-    }
 
+        try {
+            httpAsyncClient.close();
+        } catch (IOException e) {
+           LOG.error("Failed to close http async client", e);
+        }
+    }
 }

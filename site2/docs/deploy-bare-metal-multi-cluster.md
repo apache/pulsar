@@ -280,7 +280,7 @@ Brokers can be configured using the [`conf/broker.conf`](reference-configuration
 
 The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
-You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
+You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter. In addition, you need to match the broker and web service ports provided when initializing the cluster's metadata (especially when using a different port from default).
 
 Here's an example configuration:
 
@@ -292,6 +292,18 @@ zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.u
 configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
+
+# Broker data port
+brokerServicePort=6650
+
+# Broker data port for TLS
+brokerServicePortTls=6651
+
+# Port to use to server HTTP request
+webServicePort=8080
+
+# Port to use to server HTTPS request
+webServicePortTls=8443
 ```
 
 ### Broker hardware

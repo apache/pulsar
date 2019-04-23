@@ -22,6 +22,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.util.function.Function;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -37,8 +38,11 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.util.SerializableObject;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +66,12 @@ public class FlinkPulsarProducer<IN>
     protected final String defaultTopicName;
 
     /**
+     * Pulsar client will use this authentication information, if required.
+     */
+    private final Authentication authentication;
+
+
+    /**
      * (Serializable) SerializationSchema for turning objects used with Flink into.
      * byte[] for Pulsar.
      */
@@ -71,6 +81,11 @@ public class FlinkPulsarProducer<IN>
      * User-provided key extractor for assigning a key to a pulsar message.
      */
     protected final PulsarKeyExtractor<IN> flinkPulsarKeyExtractor;
+
+    /**
+     * {@link Producer} configuration map (will be materialized as a {@link ProducerConfigurationData} instance)
+     */
+    protected final Map<String, Object> producerConfig;
 
     /**
      * Produce Mode.
@@ -113,15 +128,27 @@ public class FlinkPulsarProducer<IN>
 
     public FlinkPulsarProducer(String serviceUrl,
                                String defaultTopicName,
+                               Authentication authentication,
                                SerializationSchema<IN> serializationSchema,
                                PulsarKeyExtractor<IN> keyExtractor) {
+        this(serviceUrl, defaultTopicName, authentication, serializationSchema, keyExtractor, null);
+    }
+
+    public FlinkPulsarProducer(String serviceUrl,
+                               String defaultTopicName,
+                               Authentication authentication,
+                               SerializationSchema<IN> serializationSchema,
+                               PulsarKeyExtractor<IN> keyExtractor,
+                               Map<String, Object> producerConfig) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
         this.serviceUrl = serviceUrl;
         this.defaultTopicName = defaultTopicName;
+        this.authentication = authentication;
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
+        this.producerConfig = producerConfig;
     }
 
     // ---------------------------------- Properties --------------------------
@@ -173,8 +200,12 @@ public class FlinkPulsarProducer<IN>
     }
 
     private Producer<byte[]> createProducer() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-        return client.newProducer().topic(defaultTopicName).create();
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).authentication(authentication).build();
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer();
+        if (producerConfig != null) {
+            producerBuilder = producerBuilder.loadConf(producerConfig);
+        }
+        return producerBuilder.topic(defaultTopicName).create();
     }
 
     /**

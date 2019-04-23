@@ -37,7 +37,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,7 +85,7 @@ class ProcessRuntime implements Runtime {
                    Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.metricsPort = Utils.findAvailablePort();
+        this.metricsPort = FunctionCommon.findAvailablePort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.funcLogDir = RuntimeUtils.genFunctionLogFolder(logDirectory, instanceConfig);
@@ -201,7 +201,7 @@ class ProcessRuntime implements Runtime {
             // forcibly kill after timeout
             if (process.isAlive()) {
                 log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
-                        Utils.getFullyQualifiedInstanceId(
+                        FunctionCommon.getFullyQualifiedInstanceId(
                                 instanceConfig.getFunctionDetails().getTenant(),
                                 instanceConfig.getFunctionDetails().getNamespace(),
                                 instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));

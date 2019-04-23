@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
 
 import com.google.common.base.Preconditions;
 
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
@@ -71,6 +73,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
+        msgMetadataBuilder.setOrderingKey(ByteString.copyFrom(orderingKey));
         return this;
     }
 
@@ -127,6 +135,32 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public TypedMessageBuilder<T> disableReplication() {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
+        return this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
+        config.forEach((key, value) -> {
+            if (key.equals(CONF_KEY)) {
+                this.key(checkType(value, String.class));
+            } else if (key.equals(CONF_PROPERTIES)) {
+                this.properties(checkType(value, Map.class));
+            } else if (key.equals(CONF_EVENT_TIME)) {
+                this.eventTime(checkType(value, Long.class));
+            } else if (key.equals(CONF_SEQUENCE_ID)) {
+                this.sequenceId(checkType(value, Long.class));
+            } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
+                this.replicationClusters(checkType(value, List.class));
+            } else if (key.equals(CONF_DISABLE_REPLICATION)) {
+                boolean disableReplication = checkType(value, Boolean.class);
+                if (disableReplication) {
+                    this.disableReplication();
+                }
+            } else {
+                throw new RuntimeException("Invalid message config key '" + key + "'");
+            }
+        });
         return this;
     }
 

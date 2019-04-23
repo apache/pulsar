@@ -67,6 +67,7 @@ class NegativeAcksTracker {
         });
 
         messagesToRedeliver.forEach(nackedMessages::remove);
+        consumer.onNegativeAcksSend(messagesToRedeliver);
         consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
 
         this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
@@ -86,7 +87,7 @@ class NegativeAcksTracker {
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
-            // nack immedietaly following the current one will be batched into the same redelivery request.
+            // nack immediately following the current one will be batched into the same redeliver request.
             this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
         }
     }

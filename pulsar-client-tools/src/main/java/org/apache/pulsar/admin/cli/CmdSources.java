@@ -105,7 +105,15 @@ public class CmdSources extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
@@ -207,6 +215,7 @@ public class CmdSources extends CmdBase {
 
     @Parameters(commandDescription = "Update a Pulsar IO source connector")
     protected class UpdateSource extends SourceDetailsCommand {
+
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
@@ -218,7 +227,12 @@ public class CmdSources extends CmdBase {
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
-            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+            if (sourceConfig.getTenant() == null) {
+                sourceConfig.setTenant(PUBLIC_TENANT);
+            }
+            if (sourceConfig.getNamespace() == null) {
+                sourceConfig.setNamespace(DEFAULT_NAMESPACE);
+            }
         }
     }
 
@@ -376,8 +390,7 @@ public class CmdSources extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, String>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>(){}.getType();
             return new Gson().fromJson(str, type);
         }
 

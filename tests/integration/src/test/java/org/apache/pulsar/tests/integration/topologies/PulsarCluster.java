@@ -97,6 +97,7 @@ public class PulsarCluster {
                     .withNetworkAliases(PrestoWorkerContainer.NAME)
                     .withEnv("clusterName", clusterName)
                     .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         } else {
@@ -314,6 +315,7 @@ public class PulsarCluster {
                     .withNetworkAliases(PrestoWorkerContainer.NAME)
                     .withEnv("clusterName", clusterName)
                     .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         }

@@ -349,7 +349,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    public void start() throws Exception {
+    public void start(boolean enableStreamStorage) throws  Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();
         // Use minimal configuration requiring less memory for unit tests
@@ -363,10 +363,24 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("journalMaxGroupWaitMSec", 0L);
         conf.setAllowLoopback(true);
         conf.setGcWaitTime(60000);
+        conf.setNumAddWorkerThreads(0);
+        conf.setNumReadWorkerThreads(0);
+        conf.setNumHighPriorityWorkerThreads(0);
+        conf.setNumJournalCallbackThreads(0);
+        conf.setServerNumIOThreads(1);
+        conf.setNumLongPollWorkerThreads(1);
 
         runZookeeper(1000);
         initializeZookeper();
         runBookies(conf);
+
+        if (enableStreamStorage) {
+            runStreamStorage(new CompositeConfiguration());
+        }
+    }
+
+    public void start() throws Exception {
+        start(false);
     }
 
     public void startStandalone() throws Exception {

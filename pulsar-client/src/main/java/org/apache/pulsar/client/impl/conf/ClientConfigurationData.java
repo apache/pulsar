@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -59,6 +60,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
+    private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
+    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
 
     public ClientConfigurationData clone() {
         try {
