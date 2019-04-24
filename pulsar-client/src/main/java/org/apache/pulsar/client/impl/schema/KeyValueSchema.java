@@ -87,7 +87,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.length][value.bytes]
-    // if keyIsStoredToMessage is true, message.getKey() will be saved. Default keyIsStoredToMessage is null.
+    // keyIsStoredToMessage is a String or null, if keyIsStoredToMessage is equals true, message.getKey() will be saved.
+    // Default keyIsStoredToMessage is null.
     public byte[] encode(KeyValue<K, V> message) {
         byte [] keyBytes;
         byte [] valueBytes;
