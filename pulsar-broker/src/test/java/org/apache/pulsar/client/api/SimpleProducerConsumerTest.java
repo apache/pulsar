@@ -838,6 +838,80 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testDeactivatingBacklogConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final long batchMessageDelayMs = 100;
+        final int receiverSize = 10;
+        final String topicName = "cache-topic";
+        final String topic = "persistent://my-property/my-ns/" + topicName;
+        final String sub1 = "faster-sub1";
+        final String sub2 = "slower-sub2";
+
+        // 1. Subscriber Faster subscriber: let it consume all messages immediately
+        Consumer<byte[]> subscriber1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1)
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
+        // 1.b. Subscriber Slow subscriber:
+        Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub2)
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
+        if (batchMessageDelayMs != 0) {
+            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                    .batchingMaxMessages(5);
+        }
+        Producer<byte[]> producer = producerBuilder.create();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
+
+        // reflection to set/get cache-backlog fields value:
+        final long maxMessageCacheRetentionTimeMillis = conf.getManagedLedgerCacheEvictionTimeThresholdMillis();
+        final long maxActiveCursorBacklogEntries = conf.getManagedLedgerCursorBackloggedThreshold();
+
+        Message<byte[]> msg = null;
+        final int totalMsgs = (int) maxActiveCursorBacklogEntries + receiverSize + 1;
+        // 2. Produce messages
+        for (int i = 0; i < totalMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        // 3. Consume messages: at Faster subscriber
+        for (int i = 0; i < totalMsgs; i++) {
+            msg = subscriber1.receive(100, TimeUnit.MILLISECONDS);
+            subscriber1.acknowledge(msg);
+        }
+
+        // wait : so message can be eligible to to be evict from cache
+        Thread.sleep(maxMessageCacheRetentionTimeMillis);
+
+        // 4. deactivate subscriber which has built the backlog
+        ledger.checkBackloggedCursors();
+        Thread.sleep(100);
+
+        // 5. verify: active subscribers
+        Set<String> activeSubscriber = Sets.newHashSet();
+        ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
+        assertTrue(activeSubscriber.contains(sub1));
+        assertFalse(activeSubscriber.contains(sub2));
+
+        // 6. consume messages : at slower subscriber
+        for (int i = 0; i < totalMsgs; i++) {
+            msg = subscriber2.receive(100, TimeUnit.MILLISECONDS);
+            subscriber2.acknowledge(msg);
+        }
+
+        ledger.checkBackloggedCursors();
+
+        activeSubscriber.clear();
+        ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
+
+        assertTrue(activeSubscriber.contains(sub1));
+        assertTrue(activeSubscriber.contains(sub2));
+    }
 
     @Test(timeOut = 2000)
     public void testAsyncProducerAndConsumer() throws Exception {
