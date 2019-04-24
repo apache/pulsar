@@ -316,6 +316,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         case Failover:
             return SubType.Failover;
+
+        case Key_Shared:
+            return SubType.Key_Shared;
         }
 
         // Should not happen since we cover all cases above
@@ -383,6 +386,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onAcknowledgeCumulative(this, messageId, exception);
+        }
+    }
+
+    protected void onNegativeAcksSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors.onNegativeAcksSend(this, messageIds);
         }
     }
 

@@ -76,6 +76,7 @@ public final class PulsarApi {
     ProducerBusy(16, 16),
     InvalidTopicName(17, 17),
     IncompatibleSchema(18, 18),
+    ConsumerAssignError(19, 19),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -97,6 +98,7 @@ public final class PulsarApi {
     public static final int ProducerBusy_VALUE = 16;
     public static final int InvalidTopicName_VALUE = 17;
     public static final int IncompatibleSchema_VALUE = 18;
+    public static final int ConsumerAssignError_VALUE = 19;
     
     
     public final int getNumber() { return value; }
@@ -122,6 +124,7 @@ public final class PulsarApi {
         case 16: return ProducerBusy;
         case 17: return InvalidTopicName;
         case 18: return IncompatibleSchema;
+        case 19: return ConsumerAssignError;
         default: return null;
       }
     }
@@ -3085,6 +3088,10 @@ public final class PulsarApi {
     // optional bool partition_key_b64_encoded = 17 [default = false];
     boolean hasPartitionKeyB64Encoded();
     boolean getPartitionKeyB64Encoded();
+    
+    // optional bytes ordering_key = 18;
+    boolean hasOrderingKey();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3395,6 +3402,16 @@ public final class PulsarApi {
       return partitionKeyB64Encoded_;
     }
     
+    // optional bytes ordering_key = 18;
+    public static final int ORDERING_KEY_FIELD_NUMBER = 18;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString orderingKey_;
+    public boolean hasOrderingKey() {
+      return ((bitField0_ & 0x00002000) == 0x00002000);
+    }
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey() {
+      return orderingKey_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -3412,6 +3429,7 @@ public final class PulsarApi {
       encryptionParam_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       partitionKeyB64Encoded_ = false;
+      orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3502,6 +3520,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
         output.writeBool(17, partitionKeyB64Encoded_);
       }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        output.writeBytes(18, orderingKey_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -3578,6 +3599,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(17, partitionKeyB64Encoded_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(18, orderingKey_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -3724,6 +3749,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00004000);
         partitionKeyB64Encoded_ = false;
         bitField0_ = (bitField0_ & ~0x00008000);
+        orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00010000);
         return this;
       }
       
@@ -3825,6 +3852,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00001000;
         }
         result.partitionKeyB64Encoded_ = partitionKeyB64Encoded_;
+        if (((from_bitField0_ & 0x00010000) == 0x00010000)) {
+          to_bitField0_ |= 0x00002000;
+        }
+        result.orderingKey_ = orderingKey_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -3899,6 +3930,9 @@ public final class PulsarApi {
         }
         if (other.hasPartitionKeyB64Encoded()) {
           setPartitionKeyB64Encoded(other.getPartitionKeyB64Encoded());
+        }
+        if (other.hasOrderingKey()) {
+          setOrderingKey(other.getOrderingKey());
         }
         return this;
       }
@@ -4037,6 +4071,11 @@ public final class PulsarApi {
             case 136: {
               bitField0_ |= 0x00008000;
               partitionKeyB64Encoded_ = input.readBool();
+              break;
+            }
+            case 146: {
+              bitField0_ |= 0x00010000;
+              orderingKey_ = input.readBytes();
               break;
             }
           }
@@ -4621,6 +4660,30 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional bytes ordering_key = 18;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      public boolean hasOrderingKey() {
+        return ((bitField0_ & 0x00010000) == 0x00010000);
+      }
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey() {
+        return orderingKey_;
+      }
+      public Builder setOrderingKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00010000;
+        orderingKey_ = value;
+        
+        return this;
+      }
+      public Builder clearOrderingKey() {
+        bitField0_ = (bitField0_ & ~0x00010000);
+        orderingKey_ = getDefaultInstance().getOrderingKey();
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     
@@ -4660,6 +4723,10 @@ public final class PulsarApi {
     // optional bool partition_key_b64_encoded = 6 [default = false];
     boolean hasPartitionKeyB64Encoded();
     boolean getPartitionKeyB64Encoded();
+    
+    // optional bytes ordering_key = 7;
+    boolean hasOrderingKey();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey();
   }
   public static final class SingleMessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -4789,6 +4856,16 @@ public final class PulsarApi {
       return partitionKeyB64Encoded_;
     }
     
+    // optional bytes ordering_key = 7;
+    public static final int ORDERING_KEY_FIELD_NUMBER = 7;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString orderingKey_;
+    public boolean hasOrderingKey() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey() {
+      return orderingKey_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
@@ -4796,6 +4873,7 @@ public final class PulsarApi {
       compactedOut_ = false;
       eventTime_ = 0L;
       partitionKeyB64Encoded_ = false;
+      orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4842,6 +4920,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeBool(6, partitionKeyB64Encoded_);
       }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBytes(7, orderingKey_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4873,6 +4954,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(6, partitionKeyB64Encoded_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(7, orderingKey_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4999,6 +5084,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         partitionKeyB64Encoded_ = false;
         bitField0_ = (bitField0_ & ~0x00000020);
+        orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -5057,6 +5144,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000010;
         }
         result.partitionKeyB64Encoded_ = partitionKeyB64Encoded_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.orderingKey_ = orderingKey_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -5087,6 +5178,9 @@ public final class PulsarApi {
         }
         if (other.hasPartitionKeyB64Encoded()) {
           setPartitionKeyB64Encoded(other.getPartitionKeyB64Encoded());
+        }
+        if (other.hasOrderingKey()) {
+          setOrderingKey(other.getOrderingKey());
         }
         return this;
       }
@@ -5156,6 +5250,11 @@ public final class PulsarApi {
             case 48: {
               bitField0_ |= 0x00000020;
               partitionKeyB64Encoded_ = input.readBool();
+              break;
+            }
+            case 58: {
+              bitField0_ |= 0x00000040;
+              orderingKey_ = input.readBytes();
               break;
             }
           }
@@ -5369,6 +5468,30 @@ public final class PulsarApi {
       public Builder clearPartitionKeyB64Encoded() {
         bitField0_ = (bitField0_ & ~0x00000020);
         partitionKeyB64Encoded_ = false;
+        
+        return this;
+      }
+      
+      // optional bytes ordering_key = 7;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      public boolean hasOrderingKey() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey() {
+        return orderingKey_;
+      }
+      public Builder setOrderingKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000040;
+        orderingKey_ = value;
+        
+        return this;
+      }
+      public Builder clearOrderingKey() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        orderingKey_ = getDefaultInstance().getOrderingKey();
         
         return this;
       }
@@ -8331,11 +8454,13 @@ public final class PulsarApi {
       Exclusive(0, 0),
       Shared(1, 1),
       Failover(2, 2),
+      Key_Shared(3, 3),
       ;
       
       public static final int Exclusive_VALUE = 0;
       public static final int Shared_VALUE = 1;
       public static final int Failover_VALUE = 2;
+      public static final int Key_Shared_VALUE = 3;
       
       
       public final int getNumber() { return value; }
@@ -8345,6 +8470,7 @@ public final class PulsarApi {
           case 0: return Exclusive;
           case 1: return Shared;
           case 2: return Failover;
+          case 3: return Key_Shared;
           default: return null;
         }
       }

@@ -33,6 +33,10 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 @Beta
 public interface LedgerOffloader {
 
+    // TODO: improve the user metadata in subsequent changes
+    String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
+    String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+
     /**
      * Get offload driver name.
      *

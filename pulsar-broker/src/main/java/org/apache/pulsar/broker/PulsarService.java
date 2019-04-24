@@ -692,11 +692,6 @@ public class PulsarService implements AutoCloseable {
         return offloader;
     }
 
-    // TODO: improve the user metadata in subsequent changes
-    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
-    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
-
-
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         try {
@@ -711,8 +706,8 @@ public class PulsarService implements AutoCloseable {
                     return offloaderFactory.create(
                         conf.getProperties(),
                         ImmutableMap.of(
-                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
-                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
                         getOffloaderScheduler(conf));
                 } catch (IOException ioe) {

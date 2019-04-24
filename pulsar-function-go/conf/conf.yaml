@@ -29,7 +29,7 @@ killAfterIdleMs: 50000
 tenant: ""
 nameSpace: ""
 name: "go-function"
-logTopic: ""
+logTopic: "log-topic"
 processingGuarantees: 0
 secretsMap: ""
 runtime: 0

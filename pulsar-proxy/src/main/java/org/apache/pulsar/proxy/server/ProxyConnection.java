@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.slf4j.Logger;
@@ -370,6 +371,12 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
+    }
+    @Override
+    protected void handleGetSchema(CommandGetSchema commandGetSchema) {
+        checkArgument(state == State.ProxyLookupRequests);
+
+        lookupProxyHandler.handleGetSchema(commandGetSchema);
     }
 
     /**

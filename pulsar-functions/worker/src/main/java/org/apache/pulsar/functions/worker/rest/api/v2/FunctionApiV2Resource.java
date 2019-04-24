@@ -311,6 +311,10 @@ public class FunctionApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 408, message = "Request timeout")
     })
     @Path("/connectors")
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
+     */
+    @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }

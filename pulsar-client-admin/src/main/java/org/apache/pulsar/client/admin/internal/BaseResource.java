@@ -37,7 +37,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
 import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
-import org.apache.pulsar.client.admin.PulsarAdminException.HttpErrorException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -52,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
-    private final Authentication auth;
+    protected final Authentication auth;
 
     protected BaseResource(Authentication auth) {
         this.auth = auth;
@@ -200,5 +199,4 @@ public abstract class BaseResource {
             throw new WebApplicationException(response);
         }
     }
-
 }
