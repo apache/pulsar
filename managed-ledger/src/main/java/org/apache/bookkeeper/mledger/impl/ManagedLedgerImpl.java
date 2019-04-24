@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -826,12 +827,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         checkManagedLedgerIsOpen();
         checkFenced();
 
-        return new NonDurableCursorImpl(bookKeeper, config, this, null, (PositionImpl) startCursorPosition);
+        return new NonDurableCursorImpl(bookKeeper, config, this, null,
+                (PositionImpl) startCursorPosition);
     }
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName)
             throws ManagedLedgerException {
+        Objects.requireNonNull(cursorName, "cursor name can't be null");
         checkManagedLedgerIsOpen();
         checkFenced();
 
