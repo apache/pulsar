@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -33,8 +34,7 @@ public class PublishFunction implements Function<String, Void> {
         String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
         String output = String.format("%s!", input);
         try {
-            TypedMessageBuilder<String> msgBuilder = context.newOutputMessage(publishTopic, null);
-            msgBuilder.value(output).sendAsync();
+            context.newOutputMessage(publishTopic, Schema.STRING).value(output).sendAsync();
         } catch (PulsarClientException e) {
             e.printStackTrace();
         }

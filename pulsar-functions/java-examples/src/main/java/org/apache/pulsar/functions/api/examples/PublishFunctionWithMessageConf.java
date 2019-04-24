@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -42,8 +43,8 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         properties.putAll(context.getCurrentRecord().getProperties());
 
         try {
-            TypedMessageBuilder<String> msgBuilder = context.newOutputMessage(publishTopic, null);
-            msgBuilder.value(output).properties(properties).
+            context.newOutputMessage(publishTopic, Schema.STRING)
+                    .value(output).properties(properties).
                     key(context.getCurrentRecord().getKey().get()).
                     eventTime(System.currentTimeMillis()).sendAsync();
         } catch (PulsarClientException e) {
