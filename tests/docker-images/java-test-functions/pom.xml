@@ -31,6 +31,15 @@
     <name>Apache Pulsar :: Tests :: Docker Images :: Java Test Functions</name>
     <packaging>jar</packaging>
 
+    <profiles>
+    <profile>
+    <id>docker</id>
+    <activation>
+        <property>
+            <name>integrationTests</name>
+        </property>
+    </activation>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.pulsar</groupId>
@@ -51,6 +60,8 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <!--Don't create dependency reduced pom.  This causes maven to go into a infinite loop.  May be a maven bug-->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>>
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
@@ -64,6 +75,7 @@
             </plugin>
         </plugins>
     </build>
-
+    </profile>
+    </profiles>
 
 </project>
