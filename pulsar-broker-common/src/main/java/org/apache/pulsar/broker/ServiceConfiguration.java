@@ -269,9 +269,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "Enable Key_Shared subscription (default is disabled)"
+        doc = "Enable Key_Shared subscription (default is enabled)"
     )
-    private boolean subscriptionKeySharedEnable = false;
+    private boolean subscriptionKeySharedEnable = true;
 
     @FieldContext(
         category = CATEGORY_POLICIES,

@@ -150,7 +150,7 @@ In *Key_Shared* mode, multiple consumers can attach to the same subscription. Me
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
-**Key_Shared subscription is a beta feature and it will be disabled by default. If you want to use this feature, you can enable it at broker.config.**
+**Key_Shared subscription is a beta feature. You can disable it at broker.config.**
 
 ## Multi-topic subscriptions
 

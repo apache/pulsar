@@ -35,11 +35,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
 
-
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -327,5 +325,17 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer1ExpectMessages, consumer1Received);
         Assert.assertEquals(consumer2ExpectMessages, consumer2Received);
         Assert.assertEquals(consumer3ExpectMessages, consumer3Received);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testDisableKeySharedSubscription() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(false);
+        String topic = "persistent://public/default/key_shared_disabled";
+        pulsarClient.newConsumer()
+            .topic(topic)
+            .subscriptionName("key_shared")
+            .subscriptionType(SubscriptionType.Key_Shared)
+            .ackTimeout(10, TimeUnit.SECONDS)
+            .subscribe();
     }
 }
