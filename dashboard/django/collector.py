@@ -442,8 +442,8 @@ if __name__ == "__main__":
         http_proxyes['http'] = args.proxy
         http_proxyes['https'] = args.proxy
 
-    # Schedule a new collection every 1min
+    # Schedule a new collection every 5 seconds
     while True:
         p = multiprocessing.Process(target=collect_and_purge)
         p.start()
-        time.sleep(int(os.getenv("COLLECTION_INTERVAL", 60)))
+        time.sleep(int(os.getenv("COLLECTION_INTERVAL", 5)))
