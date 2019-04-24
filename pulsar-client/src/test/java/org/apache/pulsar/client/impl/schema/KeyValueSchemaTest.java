@@ -69,20 +69,20 @@ public class KeyValueSchemaTest {
 
         fooSchema.getSchemaInfo().setName("foo");
         fooSchema.getSchemaInfo().setType(SchemaType.AVRO);
-        Map<String, String> keyProperties = Maps.newHashMap();
+        Map<String, String> keyProperties = Maps.newTreeMap();
         keyProperties.put("foo.key1", "value");
         keyProperties.put("foo.key2", "value");
         fooSchema.getSchemaInfo().setProperties(keyProperties);
         barSchema.getSchemaInfo().setName("bar");
         barSchema.getSchemaInfo().setType(SchemaType.AVRO);
-        Map<String, String> valueProperties = Maps.newHashMap();
+        Map<String, String> valueProperties = Maps.newTreeMap();
         valueProperties.put("bar.key", "key");
         barSchema.getSchemaInfo().setProperties(valueProperties);
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
 
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.name"), "foo");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
-        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"), "{\"foo.key2\":\"value\",\"foo.key1\":\"value\"}");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"), "{\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.name"), "bar");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"), "{\"bar.key\":\"key\"}");
