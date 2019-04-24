@@ -281,6 +281,14 @@ public class TopicLookupBase extends PulsarWebResource {
         return lookupfuture;
     }
 
+    public static CompletableFuture<ByteBuf> batchLookupTopicAsync(PulsarService pulsarService, TopicName topicName,
+                                                                   boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
+        final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
+        final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
+
+        return lookupfuture;
+    }
+
     private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
         asyncResponse.resume(t);

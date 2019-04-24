@@ -34,6 +34,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +83,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
@@ -301,6 +303,60 @@ public class ServerCnx extends PulsarHandler {
             }
             ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
+        }
+    }
+
+    @Override
+    protected void handleBatchLookup(CommandBatchLookupTopic batchLookup) {
+        final long requestId = batchLookup.getRequestId();
+        final boolean authoritative = batchLookup.getAuthoritative();
+        List<String> topics = batchLookup.getTopicList();
+        List<TopicName> topicNames = new ArrayList<>();
+        List<TopicName> invalidTopicNames = new ArrayList<>();
+
+        topics.forEach(topic -> {
+            try {
+                topicNames.add(TopicName.get(topic));
+            } catch (Throwable t) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);
+                }
+            }
+        });
+
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+
+        if (lookupSemaphore.tryAcquire()) {
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String error = "Valid Proxy Client role should be provided for batch lookup ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on all topics {}", remoteAddress, error, authRole,
+                        originalPrincipal, StringUtils.join(topics, ", "));
+                //TODO: batch lookup error.
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, error, requestId));
+                lookupSemaphore.release();
+                return;
+            }
+            CompletableFuture<List<TopicName>> unauthorizedTopicNamesFuture;
+            if (service.isAuthorizationEnabled() && originalPrincipal != null) {
+                unauthorizedTopicNamesFuture = service.getAuthorizationService().canBatchLookupAsync(topicNames,
+                                                                                        authRole, authenticationData);
+            } else {
+                unauthorizedTopicNamesFuture = CompletableFuture.completedFuture(new ArrayList<>());
+            }
+            String finalOriginalPrincipal = originalPrincipal;
+
+            unauthorizedTopicNamesFuture.thenApply(unauthorizedTopicNames -> {
+                invalidTopicNames.addAll(unauthorizedTopicNames);
+                topicNames.removeAll(unauthorizedTopicNames);
+
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed batch lookup due to too many lookup-requests {}", remoteAddress, requestId);
+            }
+            //TODO: batch lookup error.
+            ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+                    "Failed batch lookup request due to too many pending lookup requests", requestId));
         }
     }
 

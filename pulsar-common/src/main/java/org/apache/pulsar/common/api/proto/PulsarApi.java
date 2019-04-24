@@ -13430,6 +13430,424 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandLookupTopicResponse)
   }
   
+  public interface CommandBatchLookupTopicResponseOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // repeated .pulsar.proto.CommandLookupTopicResponse lookupResponses = 1;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> 
+        getLookupResponsesList();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse getLookupResponses(int index);
+    int getLookupResponsesCount();
+  }
+  public static final class CommandBatchLookupTopicResponse extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements CommandBatchLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandBatchLookupTopicResponse.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private CommandBatchLookupTopicResponse(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandBatchLookupTopicResponse> RECYCLER = new io.netty.util.Recycler<CommandBatchLookupTopicResponse>() {
+            protected CommandBatchLookupTopicResponse newObject(Handle handle) {
+              return new CommandBatchLookupTopicResponse(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private CommandBatchLookupTopicResponse(boolean noInit) {}
+    
+    private static final CommandBatchLookupTopicResponse defaultInstance;
+    public static CommandBatchLookupTopicResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandBatchLookupTopicResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    // repeated .pulsar.proto.CommandLookupTopicResponse lookupResponses = 1;
+    public static final int LOOKUPRESPONSES_FIELD_NUMBER = 1;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> lookupResponses_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> getLookupResponsesList() {
+      return lookupResponses_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponseOrBuilder> 
+        getLookupResponsesOrBuilderList() {
+      return lookupResponses_;
+    }
+    public int getLookupResponsesCount() {
+      return lookupResponses_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse getLookupResponses(int index) {
+      return lookupResponses_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponseOrBuilder getLookupResponsesOrBuilder(
+        int index) {
+      return lookupResponses_.get(index);
+    }
+    
+    private void initFields() {
+      lookupResponses_ = java.util.Collections.emptyList();
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      for (int i = 0; i < getLookupResponsesCount(); i++) {
+        if (!getLookupResponses(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      for (int i = 0; i < lookupResponses_.size(); i++) {
+        output.writeMessage(1, lookupResponses_.get(i));
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      for (int i = 0; i < lookupResponses_.size(); i++) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(1, lookupResponses_.get(i));
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        lookupResponses_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse result = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        if (((bitField0_ & 0x00000001) == 0x00000001)) {
+          lookupResponses_ = java.util.Collections.unmodifiableList(lookupResponses_);
+          bitField0_ = (bitField0_ & ~0x00000001);
+        }
+        result.lookupResponses_ = lookupResponses_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance()) return this;
+        if (!other.lookupResponses_.isEmpty()) {
+          if (lookupResponses_.isEmpty()) {
+            lookupResponses_ = other.lookupResponses_;
+            bitField0_ = (bitField0_ & ~0x00000001);
+          } else {
+            ensureLookupResponsesIsMutable();
+            lookupResponses_.addAll(other.lookupResponses_);
+          }
+          
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        for (int i = 0; i < getLookupResponsesCount(); i++) {
+          if (!getLookupResponses(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addLookupResponses(subBuilder.buildPartial());
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // repeated .pulsar.proto.CommandLookupTopicResponse lookupResponses = 1;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> lookupResponses_ =
+        java.util.Collections.emptyList();
+      private void ensureLookupResponsesIsMutable() {
+        if (!((bitField0_ & 0x00000001) == 0x00000001)) {
+          lookupResponses_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse>(lookupResponses_);
+          bitField0_ |= 0x00000001;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> getLookupResponsesList() {
+        return java.util.Collections.unmodifiableList(lookupResponses_);
+      }
+      public int getLookupResponsesCount() {
+        return lookupResponses_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse getLookupResponses(int index) {
+        return lookupResponses_.get(index);
+      }
+      public Builder setLookupResponses(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.set(index, value);
+        
+        return this;
+      }
+      public Builder setLookupResponses(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.Builder builderForValue) {
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addLookupResponses(org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.add(value);
+        
+        return this;
+      }
+      public Builder addLookupResponses(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.add(index, value);
+        
+        return this;
+      }
+      public Builder addLookupResponses(
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.Builder builderForValue) {
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addLookupResponses(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.Builder builderForValue) {
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllLookupResponses(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse> values) {
+        ensureLookupResponsesIsMutable();
+        super.addAll(values, lookupResponses_);
+        
+        return this;
+      }
+      public Builder clearLookupResponses() {
+        lookupResponses_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        
+        return this;
+      }
+      public Builder removeLookupResponses(int index) {
+        ensureLookupResponsesIsMutable();
+        lookupResponses_.remove(index);
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandBatchLookupTopicResponse)
+    }
+    
+    static {
+      defaultInstance = new CommandBatchLookupTopicResponse(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandBatchLookupTopicResponse)
+  }
+  
   public interface CommandProducerOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
@@ -27295,6 +27713,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandBatchLookupTopic batchLookupTopic = 38;
     boolean hasBatchLookupTopic();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic getBatchLookupTopic();
+    
+    // optional .pulsar.proto.CommandBatchLookupTopicResponse batchLookupTopicResponse = 39;
+    boolean hasBatchLookupTopicResponse();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse getBatchLookupTopicResponse();
   }
   public static final class BaseCommand extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -27859,6 +28281,16 @@ public final class PulsarApi {
       return batchLookupTopic_;
     }
     
+    // optional .pulsar.proto.CommandBatchLookupTopicResponse batchLookupTopicResponse = 39;
+    public static final int BATCHLOOKUPTOPICRESPONSE_FIELD_NUMBER = 39;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse batchLookupTopicResponse_;
+    public boolean hasBatchLookupTopicResponse() {
+      return ((bitField1_ & 0x00000040) == 0x00000040);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse getBatchLookupTopicResponse() {
+      return batchLookupTopicResponse_;
+    }
+    
     private void initFields() {
       type_ = org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type.CONNECT;
       connect_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect.getDefaultInstance();
@@ -27898,6 +28330,7 @@ public final class PulsarApi {
       authChallenge_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge.getDefaultInstance();
       authResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse.getDefaultInstance();
       batchLookupTopic_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic.getDefaultInstance();
+      batchLookupTopicResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -28106,6 +28539,12 @@ public final class PulsarApi {
           return false;
         }
       }
+      if (hasBatchLookupTopicResponse()) {
+        if (!getBatchLookupTopicResponse().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -28231,6 +28670,9 @@ public final class PulsarApi {
       }
       if (((bitField1_ & 0x00000020) == 0x00000020)) {
         output.writeMessage(38, batchLookupTopic_);
+      }
+      if (((bitField1_ & 0x00000040) == 0x00000040)) {
+        output.writeMessage(39, batchLookupTopicResponse_);
       }
     }
     
@@ -28391,6 +28833,10 @@ public final class PulsarApi {
       if (((bitField1_ & 0x00000020) == 0x00000020)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(38, batchLookupTopic_);
+      }
+      if (((bitField1_ & 0x00000040) == 0x00000040)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(39, batchLookupTopicResponse_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -28581,6 +29027,8 @@ public final class PulsarApi {
         bitField1_ = (bitField1_ & ~0x00000010);
         batchLookupTopic_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic.getDefaultInstance();
         bitField1_ = (bitField1_ & ~0x00000020);
+        batchLookupTopicResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance();
+        bitField1_ = (bitField1_ & ~0x00000040);
         return this;
       }
       
@@ -28768,6 +29216,10 @@ public final class PulsarApi {
           to_bitField1_ |= 0x00000020;
         }
         result.batchLookupTopic_ = batchLookupTopic_;
+        if (((from_bitField1_ & 0x00000040) == 0x00000040)) {
+          to_bitField1_ |= 0x00000040;
+        }
+        result.batchLookupTopicResponse_ = batchLookupTopicResponse_;
         result.bitField0_ = to_bitField0_;
         result.bitField1_ = to_bitField1_;
         return result;
@@ -28888,6 +29340,9 @@ public final class PulsarApi {
         }
         if (other.hasBatchLookupTopic()) {
           mergeBatchLookupTopic(other.getBatchLookupTopic());
+        }
+        if (other.hasBatchLookupTopicResponse()) {
+          mergeBatchLookupTopicResponse(other.getBatchLookupTopicResponse());
         }
         return this;
       }
@@ -29091,6 +29546,12 @@ public final class PulsarApi {
         }
         if (hasBatchLookupTopic()) {
           if (!getBatchLookupTopic().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasBatchLookupTopicResponse()) {
+          if (!getBatchLookupTopicResponse().isInitialized()) {
             
             return false;
           }
@@ -29496,6 +29957,16 @@ public final class PulsarApi {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setBatchLookupTopic(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 314: {
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.newBuilder();
+              if (hasBatchLookupTopicResponse()) {
+                subBuilder.mergeFrom(getBatchLookupTopicResponse());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setBatchLookupTopicResponse(subBuilder.buildPartial());
               subBuilder.recycle();
               break;
             }
@@ -31118,6 +31589,49 @@ public final class PulsarApi {
         batchLookupTopic_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic.getDefaultInstance();
         
         bitField1_ = (bitField1_ & ~0x00000020);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandBatchLookupTopicResponse batchLookupTopicResponse = 39;
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse batchLookupTopicResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance();
+      public boolean hasBatchLookupTopicResponse() {
+        return ((bitField1_ & 0x00000040) == 0x00000040);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse getBatchLookupTopicResponse() {
+        return batchLookupTopicResponse_;
+      }
+      public Builder setBatchLookupTopicResponse(org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        batchLookupTopicResponse_ = value;
+        
+        bitField1_ |= 0x00000040;
+        return this;
+      }
+      public Builder setBatchLookupTopicResponse(
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.Builder builderForValue) {
+        batchLookupTopicResponse_ = builderForValue.build();
+        
+        bitField1_ |= 0x00000040;
+        return this;
+      }
+      public Builder mergeBatchLookupTopicResponse(org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse value) {
+        if (((bitField1_ & 0x00000040) == 0x00000040) &&
+            batchLookupTopicResponse_ != org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance()) {
+          batchLookupTopicResponse_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.newBuilder(batchLookupTopicResponse_).mergeFrom(value).buildPartial();
+        } else {
+          batchLookupTopicResponse_ = value;
+        }
+        
+        bitField1_ |= 0x00000040;
+        return this;
+      }
+      public Builder clearBatchLookupTopicResponse() {
+        batchLookupTopicResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.getDefaultInstance();
+        
+        bitField1_ = (bitField1_ & ~0x00000040);
         return this;
       }
       

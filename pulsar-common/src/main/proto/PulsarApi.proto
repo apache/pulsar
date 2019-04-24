@@ -345,6 +345,18 @@ message CommandLookupTopicResponse {
 	repeated string topics                = 9;
 }
 
+message CommandBatchLookupTopicResponse {
+	enum ResponseType {
+		Success 		= 0;
+		PartialSuccess 	= 1;
+		Error 			= 2;
+	}
+	repeated CommandLookupTopicResponse lookupResponses = 1;
+	optional ResponseType response                      = 2;
+	optional ServerError error            				= 3;
+	optional string message               				= 4;
+}
+
 /// Create a new Producer on a topic, assigning the given producer_id,
 /// all messages sent with this producer_id will be persisted on the topic
 message CommandProducer {
@@ -704,5 +716,5 @@ message BaseCommand {
 	optional CommandAuthResponse authResponse = 37;
 
 	optional CommandBatchLookupTopic batchLookupTopic = 38;
-
+	optional CommandBatchLookupTopicResponse batchLookupTopicResponse = 39;
 }

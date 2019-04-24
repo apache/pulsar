@@ -30,6 +30,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -303,6 +305,55 @@ public class AuthorizationService {
             });
         });
         return finalResult;
+    }
+
+    public CompletableFuture<List<TopicName>> canBatchLookupAsync(List<TopicName> topicNames, String role,
+                                                                  AuthenticationDataSource authenticationData) {
+        CompletableFuture<List<TopicName>> finalResult = new CompletableFuture<>();
+        List<TopicName> unAuthorizedTopicNames = new ArrayList<>();
+        List<CompletableFuture<Boolean>> results = new ArrayList<>();
+
+        topicNames.forEach(topicName -> {
+            results.add(canLookupAsync(topicName, role, authenticationData));
+        });
+
+        FutureUtil.waitForAll(results).thenRunAsync(() -> {
+            for(int i = 0; i < results.size(); i++) {
+                try {
+                    if (!results.get(i).get()) {
+                        unAuthorizedTopicNames.add(topicNames.get(i));
+                    }
+                } catch (Exception e) {
+                    log.warn("Error occurred while checking authorization on {}, retry needed. ",
+                                                                                    topicNames.get(i).toString());
+                    unAuthorizedTopicNames.add(topicNames.get(i));
+                }
+            };
+            finalResult.complete(unAuthorizedTopicNames);
+        });
+
+        return finalResult;
+    }
+
+    public List<TopicName> canBatchLookup(List<TopicName> topicNames, String role,
+                                          AuthenticationDataSource authenticationData) {
+        List<TopicName> unAuthorizedTopicNames = new ArrayList<>();
+        topicNames.forEach(topicName -> {
+            try {
+                if (canLookup(topicName, role, authenticationData)) {
+                    unAuthorizedTopicNames.add(topicName);
+                }
+            }  catch (InterruptedException e) {
+                log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                        topicName.toString());
+                unAuthorizedTopicNames.add(topicName);
+            } catch (Exception e) {
+                log.warn("Pulsar-client with Role - {} don't have permissions to do lookup for topic - {}. {}", role,
+                        topicName.toString(), e.getMessage());
+                unAuthorizedTopicNames.add(topicName);
+            }
+        });
+        return unAuthorizedTopicNames;
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,

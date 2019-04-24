@@ -44,6 +44,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
@@ -118,6 +119,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case LOOKUP_RESPONSE:
                 checkArgument(cmd.hasLookupTopicResponse());
                 handleLookupResponse(cmd.getLookupTopicResponse());
+                cmd.getLookupTopicResponse().recycle();
+                break;
+
+            case BATCH_LOOKUP:
+                checkArgument(cmd.hasBatchLookupTopic());
+                handleBatchLookup(cmd.getBatchLookupTopic());
+                cmd.getBatchLookupTopic().recycle();
+                break;
+
+            case BATCH_LOOKUP_RESPONSE:
+                checkArgument(cmd.hasLookupTopicResponse());
+                handleBatchLookupResponse(cmd.getBatchLookupTopicResponse());
                 cmd.getLookupTopicResponse().recycle();
                 break;
 
@@ -346,6 +359,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleLookupResponse(CommandLookupTopicResponse connection) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleBatchLookup(CommandBatchLookupTopic batchLookup) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleBatchLookupResponse(CommandBatchLookupTopicResponse connection) {
         throw new UnsupportedOperationException();
     }
 

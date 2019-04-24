@@ -62,6 +62,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceR
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -666,10 +667,11 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newBatchLookup(List<String> topics, long requestId) {
+    public static ByteBuf newBatchLookup(List<String> topics, boolean authoritative, long requestId) {
         CommandBatchLookupTopic.Builder batchLookupTopicBuilder = CommandBatchLookupTopic.newBuilder();
         batchLookupTopicBuilder.addAllTopic(topics);
         batchLookupTopicBuilder.setRequestId(requestId);
+        batchLookupTopicBuilder.setAuthoritative(authoritative);
         CommandBatchLookupTopic batchLookupBroker = batchLookupTopicBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.BATCH_LOOKUP).setBatchLookupTopic(batchLookupBroker));
         batchLookupTopicBuilder.recycle();
@@ -679,13 +681,20 @@ public class Commands {
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
             LookupType response, long requestId, boolean proxyThroughServiceUrl) {
-        return newBatchLookupResponse(brokerServiceUrl, brokerServiceUrlTls, authoritative, response, requestId,
-                                        proxyThroughServiceUrl, null);
+        CommandLookupTopicResponse commandLookupTopicResponse = newCommandLookupResponse(brokerServiceUrl,
+                                                                                    brokerServiceUrlTls, authoritative,
+                                                                                    response, requestId,
+                                                                                    proxyThroughServiceUrl);
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE)
+                .setLookupTopicResponse(commandLookupTopicResponse));
+        commandLookupTopicResponse.recycle();
+        return res;
     }
 
-    public static ByteBuf newBatchLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                                            LookupType response, long requestId, boolean proxyThroughServiceUrl,
-                                                 List<String> topics) {
+    public static CommandLookupTopicResponse newCommandLookupResponse(String brokerServiceUrl,
+                                                                      String brokerServiceUrlTls, boolean authoritative,
+                                                                      LookupType response, long requestId,
+                                                                      boolean proxyThroughServiceUrl) {
         CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
         commandLookupTopicResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
         if (brokerServiceUrlTls != null) {
@@ -695,31 +704,41 @@ public class Commands {
         commandLookupTopicResponseBuilder.setRequestId(requestId);
         commandLookupTopicResponseBuilder.setAuthoritative(authoritative);
         commandLookupTopicResponseBuilder.setProxyThroughServiceUrl(proxyThroughServiceUrl);
-        if(topics != null) {
-            commandLookupTopicResponseBuilder.addAllTopics(topics);
-        }
 
-        CommandLookupTopicResponse commandLookupTopicResponse = commandLookupTopicResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE)
-                .setLookupTopicResponse(commandLookupTopicResponse));
-        commandLookupTopicResponseBuilder.recycle();
+        CommandLookupTopicResponse commandLookupTopicResponse =  commandLookupTopicResponseBuilder.build();
+        commandLookupTopicResponse.recycle();
+        return commandLookupTopicResponse;
+    }
+
+    public static ByteBuf newLookupErrorResponse(ServerError error, String errorMsg, long requestId) {
+        CommandLookupTopicResponse commandLookupTopicResponse = newCommandLookupErrorResponse(error, errorMsg, requestId);
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(commandLookupTopicResponse));
         commandLookupTopicResponse.recycle();
         return res;
     }
 
-    public static ByteBuf newLookupErrorResponse(ServerError error, String errorMsg, long requestId) {
-        CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
-        connectionBuilder.setRequestId(requestId);
-        connectionBuilder.setError(error);
+    public static CommandLookupTopicResponse newCommandLookupErrorResponse(ServerError error, String errorMsg, long requestId) {
+        CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
+        commandLookupTopicResponseBuilder.setRequestId(requestId);
+        commandLookupTopicResponseBuilder.setError(error);
         if (errorMsg != null) {
-            connectionBuilder.setMessage(errorMsg);
+            commandLookupTopicResponseBuilder.setMessage(errorMsg);
         }
-        connectionBuilder.setResponse(LookupType.Failed);
+        commandLookupTopicResponseBuilder.setResponse(LookupType.Failed);
 
-        CommandLookupTopicResponse connectionBroker = connectionBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
-        connectionBuilder.recycle();
-        connectionBroker.recycle();
+        CommandLookupTopicResponse commandLookupTopicResponse = commandLookupTopicResponseBuilder.build();
+        commandLookupTopicResponseBuilder.recycle();
+        return commandLookupTopicResponse;
+    }
+
+    public static ByteBuf newBatchLookupResponse(List<CommandLookupTopicResponse> lookupTopicResponses) {
+        CommandBatchLookupTopicResponse.Builder commandBatchLookupTopicResponseBuilder = CommandBatchLookupTopicResponse.newBuilder();
+        commandBatchLookupTopicResponseBuilder.addAllLookupResponses(lookupTopicResponses);
+        CommandBatchLookupTopicResponse commandBatchLookupTopicResponse = commandBatchLookupTopicResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.BATCH_LOOKUP_RESPONSE).
+                                                        setBatchLookupTopicResponse(commandBatchLookupTopicResponse));
+        commandBatchLookupTopicResponseBuilder.recycle();
+        commandBatchLookupTopicResponse.recycle();
         return res;
     }
 
