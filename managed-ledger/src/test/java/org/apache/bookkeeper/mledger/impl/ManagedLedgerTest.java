@@ -2268,8 +2268,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         BookKeeper bk = mock(BookKeeper.class);
         doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
         AtomicReference<ManagedLedgerException> responseException1 = new AtomicReference<>();
-        CountDownLatch latch1 = new CountDownLatch(1);
-
+        String ctxStr = "timeoutCtx";
         CompletableFuture<LedgerEntries> entriesFuture = new CompletableFuture<>();
         ReadHandle ledgerHandle = mock(ReadHandle.class);
         doReturn(entriesFuture).when(ledgerHandle).readAsync(PositionImpl.earliest.getLedgerId(),
@@ -2280,27 +2279,27 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 responseException1.set(null);
-                latch1.countDown();
             }
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
                 responseException1.set(exception);
-                latch1.countDown();
             }
-        }, null);
+        }, ctxStr);
         ledger.asyncCreateLedger(bk, config, null, new CreateCallback() {
             @Override
             public void createComplete(int rc, LedgerHandle lh, Object ctx) {
 
             }
         }, Collections.emptyMap());
-        latch1.await(config.getReadEntryTimeoutSeconds() + 2, TimeUnit.SECONDS);
+        retryStrategically((test) -> {
+            return responseException1.get() != null;
+        }, 5, 1000);
         assertNotNull(responseException1.get());
         assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
 
         // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
-        CountDownLatch latch2 = new CountDownLatch(1);
         AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
         PositionImpl readPositionRef = PositionImpl.earliest;
         ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor1");
@@ -2308,19 +2307,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                latch2.countDown();
             }
 
             @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
                 responseException2.set(exception);
-                latch2.countDown();
             }
 
         }, null);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest.getEntryId(), PositionImpl.earliest.getEntryId(),
-                false, opReadEntry, null);
-        latch2.await(config.getReadEntryTimeoutSeconds() + 2, TimeUnit.SECONDS);
+                false, opReadEntry, ctxStr);
+        retryStrategically((test) -> {
+            return responseException2.get() != null;
+        }, 5, 1000);
         assertNotNull(responseException2.get());
         assertEquals(responseException2.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
 
@@ -2395,5 +2395,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
+    }
+    
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+            throws Exception {
+        for (int i = 0; i < retryCount; i++) {
+            if (predicate.test(null) || i == (retryCount - 1)) {
+                break;
+            }
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+        }
     }
 }
