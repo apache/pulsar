@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.golang;
+package org.apache.pulsar.tests.integration.go;
 
 import lombok.Cleanup;
 import lombok.Data;
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
 
-public class GolangSchemaTest extends PulsarTestSuite {
+public class GoSchemaTest extends PulsarTestSuite {
 
     @Data
     static class People {
@@ -58,16 +58,14 @@ public class GolangSchemaTest extends PulsarTestSuite {
                 withPojo(People.class).withAlwaysAllowNull(false).withJsonDef(string).build());
 
         @Cleanup
-        Producer<GolangSchemaTest.People> producer = client.newProducer(jsonSchema)
+        Producer<GoSchemaTest.People> producer = client.newProducer(jsonSchema)
                 .topic(topicName)
                 .create();
 
-        GolangSchemaTest.People p1 = new GolangSchemaTest.People();
+        GoSchemaTest.People p1 = new GoSchemaTest.People();
         p1.setId(100);
         p1.setName("pulsar");
         producer.send(p1);
-
-        // Verify Golang can receive the typed message
 
         ContainerExecResult res = pulsarCluster.getAnyBroker()
                 .execCmd("go run pulsar-client-go/examples/consumer/consumer_schema.go", "pulsar://localhost:6650", topicName);
@@ -94,18 +92,18 @@ public class GolangSchemaTest extends PulsarTestSuite {
         JSONSchema<People> jsonSchema = JSONSchema.of(SchemaDefinition.<People>builder().
                 withPojo(People.class).withAlwaysAllowNull(false).withJsonDef(string).build());
 
+        @Cleanup
         Consumer<People> consumer = client.newConsumer(jsonSchema)
                 .topic(topicName)
                 .subscriptionName("sub-1")
                 .subscribe();
-
-        // Verify Golang can receive the typed message
 
         ContainerExecResult res = pulsarCluster.getAnyBroker()
                 .execCmd("go run pulsar-client-go/examples/producer/producer_schema.go", "pulsar://localhost:6650", topicName);
         assertEquals(res.getExitCode(), 0);
 
 
+        // Verify Golang can receive the typed message
         Message<People> peopleMessage = consumer.receive();
         assertEquals(peopleMessage.getValue().id, 100);
         assertEquals(peopleMessage.getValue().name, "pulsar");

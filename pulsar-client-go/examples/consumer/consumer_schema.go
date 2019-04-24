@@ -58,12 +58,14 @@ func main() {
 
 	consumerJS := pulsar.NewJsonSchema(exampleSchemaDef, nil)
 	consumer, err := client.SubscribeWithSchema(pulsar.ConsumerOptions{
-		Topic:            topicName,
-		SubscriptionName: "sub-2",
+		Topic:               topicName,
+		SubscriptionName:    "sub-2",
+		SubscriptionInitPos: pulsar.Earliest,
 	}, consumerJS)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer consumer.Close()
 	msg, err := consumer.Receive(context.Background())
 	if err != nil {
 		log.Fatal(err)
@@ -73,6 +75,4 @@ func main() {
 	if err != nil && s.ID != 100 && s.Name != "pulsar" {
 		log.Fatalf("schema decode error:%v", err)
 	}
-
-	defer consumer.Close()
 }

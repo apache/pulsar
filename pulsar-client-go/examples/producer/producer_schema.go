@@ -35,9 +35,9 @@ type testJson struct {
 var exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
 	"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 
-var(
+var (
 	serviceURL = os.Args[1]
-	topicName = os.Args[2]
+	topicName  = os.Args[2]
 )
 
 func createClient() pulsar.Client {
@@ -58,6 +58,10 @@ func main() {
 	producer, err := client.CreateProducerWithSchema(pulsar.ProducerOptions{
 		Topic: topicName,
 	}, jsonSchema)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer producer.Close()
 	err = producer.Send(context.Background(), pulsar.ProducerMessage{
 		Value: &testJson{
 			ID:   100,
@@ -67,6 +71,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer producer.Close()
 }
-
