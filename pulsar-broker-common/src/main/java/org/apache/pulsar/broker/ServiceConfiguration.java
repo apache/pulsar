@@ -268,6 +268,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Enable Key_Shared subscription (default is disabled)"
+    )
+    private boolean subscriptionKeySharedEnable = false;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "Set the default behavior for message deduplication in the broker.\n\n"
             + "This can be overridden per-namespace. If enabled, broker will reject"
             + " messages that were already stored in the topic"

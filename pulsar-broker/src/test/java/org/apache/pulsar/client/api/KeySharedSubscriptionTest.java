@@ -39,6 +39,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
