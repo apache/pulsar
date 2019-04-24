@@ -131,7 +131,7 @@ public class EntryCacheImpl implements EntryCache {
     public void invalidateEntries(final PositionImpl lastPosition) {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
-        Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, true);
+        Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
@@ -342,8 +342,8 @@ public class EntryCacheImpl implements EntryCache {
 
     @Override
     public void invalidateEntriesBeforeTimestamp(long timestamp) {
-        Pair<Integer, Long> evicted = entries.evictLEntriesBeforeTimestamp(timestamp);
-        manager.entriesRemoved(evicted.getRight());
+        long evictedSize = entries.evictLEntriesBeforeTimestamp(timestamp);
+        manager.entriesRemoved(evictedSize);
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheImpl.class);

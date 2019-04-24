@@ -132,9 +132,8 @@ public class RangeCacheTest {
         assertEquals(cache.getSize(), 10);
         assertEquals(cache.getNumberOfEntries(), 4);
 
-        Pair<Integer, Long> p = cache.evictLEntriesBeforeTimestamp(3);
-        assertEquals(p.getLeft().intValue(), 3);
-        assertEquals(p.getRight().intValue(), 6);
+        long evictedSize = cache.evictLEntriesBeforeTimestamp(3);
+        assertEquals(evictedSize, 6);
 
         assertEquals(cache.getSize(), 4);
         assertEquals(cache.getNumberOfEntries(), 1);

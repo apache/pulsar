@@ -179,12 +179,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
 
     /**
     *
-    * @param minSize
-    * @return a pair containing the number of entries evicted and their total size
+    * @param maxTimestamp the max timestamp of the entries to be evicted
+    * @return the tota
     */
-   public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
+   public long evictLEntriesBeforeTimestamp(long maxTimestamp) {
        long removedSize = 0;
-       int removedEntries = 0;
 
        while (true) {
            Map.Entry<Key, Value> entry = entries.firstEntry();
@@ -198,13 +197,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
            }
 
            Value value = entry.getValue();
-           ++removedEntries;
            removedSize += weighter.getSize(value);
            value.release();
        }
 
        size.addAndGet(-removedSize);
-       return Pair.of(removedEntries, removedSize);
+       return removedSize;
    }
 
     /**
