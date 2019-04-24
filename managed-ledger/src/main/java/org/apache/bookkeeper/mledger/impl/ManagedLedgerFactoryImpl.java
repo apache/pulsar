@@ -88,9 +88,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final EntryCacheManager entryCacheManager;
 
     private long lastStatTimestamp = System.nanoTime();
-    private long lastCacheEvictionTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
     private final ScheduledFuture<?> cacheEvictionTask;
+
+    private final long cacheEvictionTimeThresholdNanos;
+
     private static final int StatsPeriodSeconds = 60;
 
     public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration) throws Exception {
@@ -143,6 +145,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
         this.cacheEvictionTask = scheduledExecutor.scheduleAtFixedRate(() -> cacheEviction(), 0,
                 (long) (1000 / Math.min(config.getCacheEvictionFrequency(), 1000.0)), TimeUnit.MILLISECONDS);
+        this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
+                .toNanos(config.getCacheEvictionTimeThresholdMillis());
     }
 
     private synchronized void refreshStats() {
@@ -163,16 +167,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private synchronized void cacheEviction() {
+        long maxTimestamp = System.nanoTime() - cacheEvictionTimeThresholdNanos;
+
         ledgers.values().forEach(mlfuture -> {
             if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
                 ManagedLedgerImpl ml = mlfuture.getNow(null);
                 if (ml != null) {
-                    ml.entryCache.invalidateEntriesBeforeTimestamp(lastCacheEvictionTimestamp);
+                    ml.doCacheEviction(maxTimestamp);
                 }
             }
         });
-
-        lastCacheEvictionTimestamp = System.nanoTime();
     }
 
     /**

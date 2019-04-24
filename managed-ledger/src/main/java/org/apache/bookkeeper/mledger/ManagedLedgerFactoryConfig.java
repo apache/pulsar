@@ -38,9 +38,14 @@ public class ManagedLedgerFactoryConfig {
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     /**
-     * Frequency of cache eviction triggering. Default is 10 times per second.
+     * Frequency of cache eviction triggering. Default is 100 times per second.
      */
-    private double cacheEvictionFrequency = 10;
+    private double cacheEvictionFrequency = 100;
+
+    /**
+     * All entries that have stayed in cache for more than the configured time, will be evicted
+     */
+    private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
      * Threshould to consider a cursor as "backlogged"
