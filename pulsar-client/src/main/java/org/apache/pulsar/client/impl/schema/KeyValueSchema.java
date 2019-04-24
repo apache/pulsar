@@ -86,26 +86,46 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfo.setSchema(byteBuffer.array());
     }
 
-    // encode as bytes: [key.length][key.bytes][value.length][value.bytes]
+    // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.length][value.bytes]
+    // if keyIsStoredToMessage is true, message.getKey() will be saved. Default keyIsStoredToMessage is null.
     public byte[] encode(KeyValue<K, V> message) {
-        byte[] keyBytes = keySchema.encode(message.getKey());
-        byte[] valueBytes = valueSchema.encode(message.getValue());
+        byte [] keyBytes;
+        byte [] valueBytes;
+        ByteBuffer byteBuffer;
+        String keyIsStoredToMessage = this.schemaInfo.getProperties().get("keyIsStoredToMessage");
+        if (keyIsStoredToMessage == null || keyIsStoredToMessage.equals("true")) {
+            keyBytes = keySchema.encode(message.getKey());
+            valueBytes = valueSchema.encode(message.getValue());
+            byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
+            byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
+        } else {
+            valueBytes = valueSchema.encode(message.getValue());
+            byteBuffer = ByteBuffer.allocate(4 + valueBytes.length);
+            byteBuffer.putInt(valueBytes.length).put(valueBytes);
+        }
 
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
-        byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
         return byteBuffer.array();
     }
 
     public KeyValue<K, V> decode(byte[] bytes) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        int keyLength = byteBuffer.getInt();
-        byte[] keyBytes = new byte[keyLength];
-        byteBuffer.get(keyBytes);
+        int keyLength;
+        byte [] keyBytes = {};
+        String keyIsStoredToMessage = this.schemaInfo.getProperties().get("keyIsStoredToMessage");
+        if (keyIsStoredToMessage == null || keyIsStoredToMessage.equals("true")) {
+            keyLength = byteBuffer.getInt();
+            keyBytes = new byte[keyLength];
+            byteBuffer.get(keyBytes);
+
+        }
 
         int valueLength = byteBuffer.getInt();
         byte[] valueBytes = new byte[valueLength];
         byteBuffer.get(valueBytes);
 
+        if (keyIsStoredToMessage != null && keyIsStoredToMessage.equals("false")) {
+            return new KeyValue<>(null, valueSchema.decode(valueBytes));
+        }
         return new KeyValue<>(keySchema.decode(keyBytes), valueSchema.decode(valueBytes));
     }
 
