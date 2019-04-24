@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.api.examples;
 import java.util.Optional;
 
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -34,7 +35,7 @@ public class UserPublishFunction implements Function<String, Void> {
         Optional<Object> topicToWrite = context.getUserConfigValue("topic");
         if (topicToWrite.isPresent()) {
             try {
-                context.newOutputMessage((String) topicToWrite.get(),null).value(input).sendAsync();
+                context.newOutputMessage((String) topicToWrite.get(), Schema.STRING).value(input).sendAsync();
             } catch (PulsarClientException e) {
                 e.printStackTrace();
             }
