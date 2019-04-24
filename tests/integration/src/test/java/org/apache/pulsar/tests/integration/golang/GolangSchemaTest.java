@@ -75,7 +75,7 @@ public class GolangSchemaTest extends PulsarTestSuite {
     }
 
     /**
-     * Publish from Java and consume from Python
+     * Publish from Golang and consume from Java
      */
     @Test(dataProvider = "ServiceUrls")
     public void testGolangPublishJavaConsume(String serviceUrl) throws Exception {
