@@ -745,7 +745,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             client.preProcessSchemaBeforeSubscribe(client, schema, topicName);
         } catch (Throwable t) {
-            throw new RuntimeException(t);
+            subscribeResult.completeExceptionally(t);
         }
 
         if (numPartitions > 1) {
