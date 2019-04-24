@@ -74,7 +74,7 @@ public class PerformanceClient {
         @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"", required = true)
         public String proxyURL;
 
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
+        @Parameter(description = "persistent://tenant/ns/my-topic", required = true)
         public List<String> topics;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
