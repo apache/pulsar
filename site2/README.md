@@ -214,3 +214,41 @@ to start contributing.
 Your contributed translations will be licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0).
 Pulsar Committers will review those translations. If your translations are not reviewed or approved by any committers,
 feel free to reach out to use via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.apache.org/contact/).
+
+### Download Translated Docs
+
+Sometimes you find display problems on the translated pages. You want to debug where the problems are from. You want
+to download the translated docs to your laptop to debug the issues. You can follow the instructions below.
+
+All the translated files are stored in Crowdin. If you want to download the translated markdown files, you can follow
+the instructions below.
+
+1. Install Crowdin CLI
+
+You need to [install crowdin cli](https://support.crowdin.com/cli-tool/#installation) before downloading the translated markdown files.
+
+2. Set environment variables
+
+You need to set following environment variables:
+
+```
+export CROWDIN_DOCUSAURUS_PROJECT_ID="apache-pulsar"
+export CROWDIN_DOCUSAURUS_API_KEY=<crowdin-pulsar-api-key>
+```
+
+The API Key of pulsar crowdin project can be found [here](https://crowdin.com/project/apache-pulsar/settings#api). Only PMC members and
+committers are able to retrieve the API key.
+
+3. Download the translated docs
+
+Now you are ready to download the translated docs from Crowdin.
+
+```
+$ cd ${PULSAR_HOME}/site2/website
+# download all translated docs
+$ yarn crowdin-download
+# download the translated docs for `zh-CN`
+$ yarn crowdin-download -l zh-CN
+```
+
+The translated docs will be downloaded in the directory `site2/website/translated_docs`.
