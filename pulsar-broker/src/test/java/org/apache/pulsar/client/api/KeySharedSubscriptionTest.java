@@ -50,7 +50,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
-
+        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared";
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
@@ -152,7 +152,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
-
+        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_none_key";
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
@@ -250,6 +250,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ordering_key";
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
