@@ -10,7 +10,7 @@ mode on your own machine within a Docker container.
 If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition)
 and follow the instructions for your OS.
 
-## Starting Pulsar inside Docker
+## Start Pulsar inside Docker
 
 ```shell
 $ docker run -it \
