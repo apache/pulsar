@@ -24,6 +24,8 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLed
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -82,6 +86,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     protected final OrderedScheduler scheduledExecutor;
     private final OrderedExecutor orderedExecutor;
 
+    private final ExecutorService cacheEvictionExecutor;
+
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
     protected final ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = new ConcurrentHashMap<>();
@@ -89,7 +95,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
-    private final ScheduledFuture<?> cacheEvictionTask;
 
     private final long cacheEvictionTimeThresholdNanos;
 
@@ -134,6 +139,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .numThreads(config.getNumManagedLedgerWorkerThreads())
                 .name("bookkeeper-ml-workers")
                 .build();
+        cacheEvictionExecutor = Executors
+                .newSingleThreadExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
 
         this.bookKeeper = bookKeeper;
         this.isBookkeeperManaged = isBookkeeperManaged;
@@ -144,11 +151,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
 
-        double evictionFrequency = Math.max(Math.min(config.getCacheEvictionFrequency(), 1000.0), 0.001);
-        this.cacheEvictionTask = scheduledExecutor.scheduleAtFixedRate(() -> cacheEviction(), 0,
-                (long) (1000 / evictionFrequency), TimeUnit.MILLISECONDS);
+
         this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
                 .toNanos(config.getCacheEvictionTimeThresholdMillis());
+
+
+        cacheEvictionExecutor.execute(this::cacheEvictionTask);
     }
 
     private synchronized void refreshStats() {
@@ -168,7 +176,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         lastStatTimestamp = now;
     }
 
-    private synchronized void cacheEviction() {
+    private void cacheEvictionTask() {
+        double evictionFrequency = Math.max(Math.min(config.getCacheEvictionFrequency(), 1000.0), 0.001);
+        long waitTimeMillis = (long) (1000 / evictionFrequency);
+
+        while (true) {
+            try {
+                doCacheEviction();
+
+                Thread.sleep(waitTimeMillis);
+            } catch (InterruptedException e) {
+                // Factory is shutting down
+                return;
+            } catch (Throwable t) {
+                log.warn("Exception while performing cache eviction: {}", t.getMessage(), t);
+            }
+        }
+    }
+
+    private synchronized void doCacheEviction() {
         long maxTimestamp = System.nanoTime() - cacheEvictionTimeThresholdNanos;
 
         ledgers.values().forEach(mlfuture -> {
@@ -348,7 +374,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
         statsTask.cancel(true);
-        cacheEvictionTask.cancel(true);
 
         int numLedgers = ledgers.size();
         final CountDownLatch latch = new CountDownLatch(numLedgers);
@@ -392,6 +417,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         scheduledExecutor.shutdown();
         orderedExecutor.shutdown();
+        cacheEvictionExecutor.shutdownNow();
 
         entryCacheManager.clear();
     }
