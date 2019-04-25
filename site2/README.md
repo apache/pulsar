@@ -20,8 +20,11 @@ cd website
 yarn install
 yarn start
 ```
-
-Note that the `/docs/en/` path shows the documentation for the latest stable release of Pulsar.  Change it to `/docs/en/next/` to show your local changes, with live refresh.
+> Notes
+> 
+> 1. If you have installed `yarn`, you can skip the `yarn install` command.
+> 2. After you enter the `yarn start` command, you will be navigated to a local address, for example, `http://localhost:3000`. Click `Docs` to see documentation for the latest release of Pulsar. 
+> 3. The `http://localhost:3000/en/versions` path shows the documentation for all versions. To view your local changes, click `Documentation` in the **Latest Version**, or enter `http://localhost:3000/docs/en/next/standalone` in a browser.
 
 ## Contribute
 
