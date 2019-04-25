@@ -114,7 +114,7 @@ public class PulsarSourceBuilderTest {
         pulsarSourceBuilder.subscriptionName(" ");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testSubscriptionInitialPosition() {
         pulsarSourceBuilder.subscriptionInitialPosition(null);
     }
