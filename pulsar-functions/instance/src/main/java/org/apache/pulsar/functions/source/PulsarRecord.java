@@ -54,7 +54,12 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
         }
     }
 
-    @Override
+
+    /**
+     * Retrieves message associated with this record.
+     *
+     * @return {@link Message}
+     */
     public Message<T> getActualMessage() {
         return message;
     }

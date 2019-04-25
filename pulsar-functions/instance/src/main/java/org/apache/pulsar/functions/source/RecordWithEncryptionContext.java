@@ -32,11 +32,4 @@ public interface RecordWithEncryptionContext<T> extends Record<T> {
      * @return {@link Optional}<{@link EncryptionContext}>
      */
     Optional<EncryptionContext> getEncryptionCtx();
-
-    /**
-     * Retrieves message associated with this record.
-     *
-     * @return {@link Message}
-     */
-    Message<T> getActualMessage();
 }
