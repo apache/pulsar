@@ -226,11 +226,8 @@ public class ServerCnx extends PulsarHandler {
      * - originalPrincipal is not blank
      * - originalPrincipal is not a proxy principal
      */
-    //TODO: for sasl proxy.
-    // github issue #3655 {@link: https://github.com/apache/pulsar/issues/3655}
     private boolean invalidOriginalPrincipal(String originalPrincipal) {
         return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
-            && !isSaslAuthenticationMethod()
             && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
     }
 
@@ -1483,10 +1480,6 @@ public class ServerCnx extends PulsarHandler {
 
             return null;
         }
-    }
-
-    private boolean isSaslAuthenticationMethod(){
-        return authMethod.equalsIgnoreCase(SaslConstants.AUTH_METHOD_NAME);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ServerCnx.class);
