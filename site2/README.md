@@ -168,8 +168,7 @@ When you want to add a page to sidebar, you can add the document `id` you used i
 
 To add links to the top navigation bar, you can add entries to the `headerLinks` of `siteConfig.js` under `website` directory.
 
-To learn different types of links
-you can add to the top navigation bar, refer to  [Navigation and Sidebars](https://docusaurus.io/docs/en/navigation).
+To learn different types of links you can add to the top navigation bar, refer to [Navigation and Sidebars](https://docusaurus.io/docs/en/navigation).
 
 ## Versioning
 
