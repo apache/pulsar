@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.BeforeClass;
@@ -100,15 +99,15 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.getSize(), 3);
         assertEquals(cache2.getSize(), 3);
 
-        // Should remove 2 entries
+        // Should remove 1 entry
         cache2.invalidateEntries(new PositionImpl(2, 1));
-        assertEquals(cacheManager.getSize(), 1);
-        assertEquals(cache2.getSize(), 1);
+        assertEquals(cacheManager.getSize(), 2);
+        assertEquals(cache2.getSize(), 2);
 
         cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
 
         assertEquals(cacheManager.mlFactoryMBean.getCacheMaxSize(), 10);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 1);
+        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 2);
         assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
         assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
         assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
@@ -265,7 +264,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 0);
+        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 7);
         assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
         assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
         assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
