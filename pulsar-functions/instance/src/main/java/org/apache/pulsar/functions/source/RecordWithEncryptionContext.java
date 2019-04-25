@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Optional;
 
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.api.Record;
 
