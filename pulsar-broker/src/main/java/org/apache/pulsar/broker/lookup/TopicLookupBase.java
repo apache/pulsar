@@ -26,6 +26,10 @@ import io.netty.buffer.ByteBuf;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -47,6 +51,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,12 +286,120 @@ public class TopicLookupBase extends PulsarWebResource {
         return lookupfuture;
     }
 
-    public static CompletableFuture<ByteBuf> batchLookupTopicAsync(PulsarService pulsarService, TopicName topicName,
-                                                                   boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
-        final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
-        final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
+    public static List<CompletableFuture<ByteBuf>> batchLookupTopicAsync(PulsarService pulsarService, List<TopicName> topicNames,
+                                                                   boolean authoritative, String clientAppId,
+                                                                   AuthenticationDataSource authenticationData,
+                                                                   long requestId, List<TopicName> unauthorizedTopicNames) {
+        final List<CompletableFuture<ByteBuf>> getNameSpaceBundleFutures = new ArrayList<>();
+        final List<CompletableFuture<ByteBuf>> resultFutures = new ArrayList<>();
+        final Map<NamespaceBundle, List<TopicName>> map = new HashMap<>();
 
-        return lookupfuture;
+        topicNames.forEach(topicName -> {
+            CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
+            CompletableFuture<ByteBuf> getNameSpaceBundleFuture = new CompletableFuture<>();
+            getNameSpaceBundleFutures.add(getNameSpaceBundleFuture);
+
+            //Cluster is deprecated, just do authorization check
+            try {
+                checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
+            } catch (RestException authException) {
+                log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
+                validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                        authException.getMessage(), requestId));
+            } catch (Exception e) {
+                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
+                validationFuture.completeExceptionally(e);
+            }
+            //Validate global namespace
+            checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
+                    .thenAccept(peerClusterData -> {
+                        if (peerClusterData == null) {
+                            // All validation passed.
+                            validationFuture.complete(null);
+                            return;
+                        }
+                        // If peer-cluster-data is present it means namespace is owned by that peer-cluster and
+                        // request should be redirect to the peer-cluster
+                        if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
+                                && StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())) {
+                            validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
+                                    "Redirected cluster's brokerService url is not configured", requestId));
+                            return;
+                        }
+                        validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
+                                false));
+
+                    }).exceptionally(ex -> {
+                validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
+                return null;
+            });
+
+            validationFuture.thenAccept(validationFailureResponse -> {
+                if(validationFailureResponse != null) {
+                    // Exception occurred during validation, return the response.
+                    getNameSpaceBundleFuture.complete(validationFailureResponse);
+                    return;
+                } else {
+                    pulsarService.getNamespaceService().getBundleAsync(topicName).thenAccept(bundle -> {
+                        map.get(bundle).add(topicName);
+                        getNameSpaceBundleFuture.complete(null);
+                        return;
+                    });
+                }
+            });
+        });
+
+        FutureUtil.waitForAll(getNameSpaceBundleFutures).thenRun(() -> {
+            CompletableFuture<ByteBuf> resultFuture = new CompletableFuture<>();
+            resultFutures.add(resultFuture);
+            map.entrySet().forEach((entry) -> {
+                NamespaceBundle namespaceBundle = entry.getKey();
+                pulsarService.getNamespaceService().findBrokerServiceUrl(namespaceBundle, authoritative, false)
+                .thenAccept(lookupResult -> {
+                    //Response will be address with success or redirect flag, and a list of topicnames in lookup request that belong to this bundle
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Lookup result for bundle {}", namespaceBundle.toString(), lookupResult);
+                    }
+
+                    if (!lookupResult.isPresent()) {
+                        resultFuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                "No broker was available to own " + namespaceBundle.toString(), requestId));
+                        return;
+                    }
+
+                    LookupData lookupData = lookupResult.get().getLookupData();
+                    if (lookupResult.get().isRedirect()) {
+                        boolean newAuthoritative = isLeaderBroker(pulsarService);
+                        resultFuture.complete(
+                                newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
+                                        newAuthoritative, LookupType.Redirect, requestId, false));
+                    } else {
+                        // When running in standalone mode we want to redirect the client through the service
+                        // url, so that the advertised address configuration is not relevant anymore.
+                        boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
+                                .isRunningStandalone();
+
+                        resultFuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
+                                lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
+                                requestId, redirectThroughServiceUrl));
+                    }
+                }).exceptionally(ex -> {
+                    if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                        log.info("Failed to lookup {} for namespace bundle {} with error {}", clientAppId,
+                                namespaceBundle.toString(), ex.getCause().getMessage());
+                    } else {
+                        log.warn("Failed to lookup {} for namespace bundle {} with error {}", clientAppId,
+                                namespaceBundle.toString(), ex.getMessage(), ex);
+                    }
+                    resultFuture.complete(
+                            newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                    return null;
+                });
+            });
+        });
+
+        return resultFutures;
     }
 
     private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {

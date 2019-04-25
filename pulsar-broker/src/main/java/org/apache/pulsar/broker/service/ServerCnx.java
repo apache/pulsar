@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
+import static org.apache.pulsar.broker.lookup.TopicLookupBase.batchLookupTopicAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
@@ -345,10 +346,39 @@ public class ServerCnx extends PulsarHandler {
             }
             String finalOriginalPrincipal = originalPrincipal;
 
-            unauthorizedTopicNamesFuture.thenApply(unauthorizedTopicNames -> {
+            unauthorizedTopicNamesFuture.thenAccept(unauthorizedTopicNames -> {
+                // Add unauthorized topic names to list client will retry.
                 invalidTopicNames.addAll(unauthorizedTopicNames);
+                // Remove unauthorized topic names from list of topic names need to be looked up.
                 topicNames.removeAll(unauthorizedTopicNames);
-
+                List<CompletableFuture<ByteBuf>> batchLookResults = batchLookupTopicAsync(getBrokerService().pulsar(),
+                        topicNames, authoritative, finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole,
+                        authenticationData, requestId, unauthorizedTopicNames);
+                FutureUtil.waitForAll(batchLookResults).handle((future, ex) -> {
+                    if (ex == null) {
+                        List<PulsarApi.CommandLookupTopicResponse> lookupTopicResponses = new ArrayList<>();
+                        batchLookResults.forEach(batchLookResult -> {
+                            lookupTopicResponses.add();
+                        });
+                        ctx.writeAndFlush();
+                    } else {
+                        // it should never happen
+                        log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topicName,
+                                ex.getMessage(), ex);
+                        //TODO: batch lookup error.
+                        ctx.writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                ex.getMessage(), requestId));
+                    }
+                    lookupSemaphore.release();
+                    return null;
+                    });
+            }).exceptionally(ex -> {
+                final String msg = "Exception occurred while trying to authorize batch lookup";
+                log.warn("[{}] {} with role {} ", remoteAddress, msg, authRole, ex);
+                //TODO: batch lookup error.
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                lookupSemaphore.release();
+                return null;
             });
         } else {
             if (log.isDebugEnabled()) {

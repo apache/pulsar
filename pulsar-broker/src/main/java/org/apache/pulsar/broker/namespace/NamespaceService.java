@@ -306,7 +306,7 @@ public class NamespaceService {
      * @return
      * @throws PulsarServerException
      */
-    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
+    public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
             boolean readOnly) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - read-only: {}", bundle, readOnly);
