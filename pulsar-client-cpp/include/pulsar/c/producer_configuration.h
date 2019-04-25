@@ -91,11 +91,12 @@ PULSAR_PUBLIC pulsar_compression_type
 pulsar_producer_configuration_get_compression_type(pulsar_producer_configuration_t *conf);
 
 PULSAR_PUBLIC void pulsar_producer_configuration_set_schema_info(pulsar_producer_configuration_t *conf,
-                                                   pulsar_schema_type schemaType, const char *name,
-                                                   const char *schema, pulsar_string_map_t *properties);
+                                                                 pulsar_schema_type schemaType,
+                                                                 const char *name, const char *schema,
+                                                                 pulsar_string_map_t *properties);
 
-PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages(pulsar_producer_configuration_t *conf,
-                                                            int maxPendingMessages);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages(
+    pulsar_producer_configuration_t *conf, int maxPendingMessages);
 PULSAR_PUBLIC int pulsar_producer_configuration_get_max_pending_messages(
     pulsar_producer_configuration_t *conf);
 
