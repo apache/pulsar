@@ -604,16 +604,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String anonymousUserRole = null;
 
-
-    @FieldContext(
-        category = CATEGORY_SASL_AUTH,
-        doc = "Whether Use SASL Authentication or not"
-    )
-    // TODO: isSaslAuthentication used to bypass web resource check.
-    //  will remove it after implementation the support.
-    //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
-    private boolean isSaslAuthentication = false;
-
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
