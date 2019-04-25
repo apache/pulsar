@@ -1717,13 +1717,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void doCacheEviction(long maxTimestamp) {
         // Always remove all entries already read by active cursors
-        PositionImpl slowestReaderPos = activeCursors.getSlowestReaderPosition();
+        PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
         if (slowestReaderPos != null) {
             entryCache.invalidateEntries(slowestReaderPos);
         }
 
         // Remove entries older than the cutoff threshold
         entryCache.invalidateEntriesBeforeTimestamp(maxTimestamp);
+    }
+
+    private PositionImpl getEarlierReadPositionForActiveCursors() {
+        PositionImpl smallest = null;
+        for (ManagedCursor cursor : activeCursors) {
+            PositionImpl p = (PositionImpl) cursor.getReadPosition();
+            if (smallest == null) {
+                smallest = p;
+            } else if (p.compareTo(smallest) < 0) {
+                smallest = p;
+            }
+        }
+
+        return smallest;
     }
 
     void updateCursor(ManagedCursorImpl cursor, PositionImpl newPosition) {
