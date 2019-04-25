@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "Backoff.h"
+#include <boost/random/uniform_int_distribution.hpp>
 
 namespace pulsar {
 
@@ -47,7 +48,8 @@ TimeDuration Backoff::next() {
         }
     }
     // Add Randomness
-    int randomNumber = rng_();
+    boost::random::uniform_int_distribution<int> dist;
+    int randomNumber = dist(rng_);
 
     current = current - (current * (randomNumber % 10) / 100);
     return std::max(initial_, current);
