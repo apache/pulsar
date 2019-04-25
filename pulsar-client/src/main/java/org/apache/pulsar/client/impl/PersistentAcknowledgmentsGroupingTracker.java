@@ -208,6 +208,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
+    public void flushAndClean() {
+        flush();
+        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+        pendingIndividualAcks.clear();
+    }
+
+    @Override
     public void close() {
         flush();
         if (scheduledTask != null) {

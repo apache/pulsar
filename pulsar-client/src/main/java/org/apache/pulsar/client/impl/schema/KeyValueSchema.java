@@ -24,12 +24,14 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+
 
 /**
  * [Key, Value] pair schema definition
@@ -101,8 +103,19 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfo.setSchema(byteBuffer.array());
 
         Map<String, String> properties = Maps.newHashMap();
+
+        properties.put("key.schema.name", keySchema.getSchemaInfo().getName());
+        properties.put("key.schema.type", String.valueOf(keySchema.getSchemaInfo().getType()));
+        Gson keySchemaGson = new Gson();
+        properties.put("key.schema.properties", keySchemaGson.toJson(keySchema.getSchemaInfo().getProperties()));
+        properties.put("value.schema.name", valueSchema.getSchemaInfo().getName());
+        properties.put("value.schema.type", String.valueOf(valueSchema.getSchemaInfo().getType()));
+        Gson valueSchemaGson = new Gson();
+        properties.put("value.schema.properties", valueSchemaGson.toJson(valueSchema.getSchemaInfo().getProperties()));
+
         properties.put("kv.encoding.type", "INLINE");
-        this.schemaInfo.setProperties(properties);
+
+        this.schemaInfo.setSchema(byteBuffer.array()).setProperties(properties);
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.length][value.bytes]

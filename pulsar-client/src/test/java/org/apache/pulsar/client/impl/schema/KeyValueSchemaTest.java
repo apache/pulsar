@@ -63,6 +63,32 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    public void testFillParametersToSchemainfo() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        fooSchema.getSchemaInfo().setName("foo");
+        fooSchema.getSchemaInfo().setType(SchemaType.AVRO);
+        Map<String, String> keyProperties = Maps.newTreeMap();
+        keyProperties.put("foo.key1", "value");
+        keyProperties.put("foo.key2", "value");
+        fooSchema.getSchemaInfo().setProperties(keyProperties);
+        barSchema.getSchemaInfo().setName("bar");
+        barSchema.getSchemaInfo().setType(SchemaType.AVRO);
+        Map<String, String> valueProperties = Maps.newTreeMap();
+        valueProperties.put("bar.key", "key");
+        barSchema.getSchemaInfo().setProperties(valueProperties);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
+
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.name"), "foo");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"), "{\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.name"), "bar");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"), "{\"bar.key\":\"key\"}");
+    }
+
+    @Test
     public void testNotAllowNullAvroSchemaCreate() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build());

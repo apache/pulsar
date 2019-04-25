@@ -122,6 +122,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
+                    consumer.negativeAcknowledge(message);
                 })
                 .build();
 
