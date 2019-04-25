@@ -209,9 +209,13 @@ public class KeyValueSchemaTest {
     }
 
     @Test
-    public void testKeyIsStoredToMessageSchemaEncodeAndDecode() {
-        Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build()),
-                JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build()));
+    public void testkeyValueEncodingTypeSchemaEncodeAndDecode() {
+
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -223,7 +227,7 @@ public class KeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(Color.RED);
 
-        // Check keyIsStoredToMessage is null
+        // Check kv.encoding.type default not set value
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
 
@@ -234,9 +238,9 @@ public class KeyValueSchemaTest {
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
 
-        // Check keyIsStoredToMessage is true
+        // Check kv.encoding.type INLINE
         Map<String, String> properties = Maps.newHashMap();
-        properties.put("keyIsStoredToMessage", "true");
+        properties.put("kv.encoding.type", "INLINE");
         keyValueSchema.getSchemaInfo().setProperties(properties);
         encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
@@ -246,17 +250,14 @@ public class KeyValueSchemaTest {
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
 
-        // Check keyIsStoredToMessage is false
-        properties.put("keyIsStoredToMessage", "false");
+        // Check kv.encoding.type SEPARATED
+        properties.put("kv.encoding.type", "SEPARATED");
         keyValueSchema.getSchemaInfo().setProperties(properties);
         encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
-        keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
-        fooBack = keyValue.getKey();
+        keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
         barBack = keyValue.getValue();
-        assertEquals(null, fooBack);
         assertEquals(bar, barBack);
-
     }
 
     @Test
