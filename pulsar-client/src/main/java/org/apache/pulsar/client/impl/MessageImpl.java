@@ -41,11 +41,13 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.SchemaType;
 
 public class MessageImpl<T> implements Message<T> {
 
@@ -243,7 +245,15 @@ public class MessageImpl<T> implements Message<T> {
         // this is an optimization to only get schema version when necessary
         if (schema.supportSchemaVersioning()) {
             return schema.decode(getData(), getSchemaVersion());
-        } else {
+        } else if (SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            if (kvSchema.getKeyValueEncodingType() == KeyValueSchema.KeyValueEncodingType.SEPARATED) {
+                return schema.decode(getKeyBytes(), getData());
+            } else {
+                return schema.decode(getData());
+            }
+        }
+        else {
             return schema.decode(getData());
         }
     }

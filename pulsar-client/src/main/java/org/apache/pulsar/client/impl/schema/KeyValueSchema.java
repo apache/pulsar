@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 
+import com.google.common.collect.Maps;
 import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
@@ -33,6 +35,14 @@ import org.apache.pulsar.common.schema.SchemaType;
  * [Key, Value] pair schema definition
  */
 public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
+
+    public enum KeyValueEncodingType {
+        // key is stored as message key, while value is stored as message payload
+         SEPARATED,
+        // key and value are stored as message payload
+        INLINE
+    }
+
     @Getter
     private final Schema<K> keySchema;
     @Getter
@@ -41,6 +51,9 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
     //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
     private final SchemaInfo schemaInfo;
+
+    @Getter
+    private KeyValueEncodingType keyValueEncodingType;
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
@@ -67,66 +80,60 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         return KV_BYTES;
     }
 
+
     private KeyValueSchema(Schema<K> keySchema,
                            Schema<V> valueSchema) {
+
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
-            .setName("KeyValue")
-            .setType(SchemaType.KEY_VALUE);
+                .setName("KeyValue")
+                .setType(SchemaType.KEY_VALUE);
 
         byte[] keySchemaInfo = keySchema.getSchemaInfo().getSchema();
         byte[] valueSchemaInfo = valueSchema.getSchemaInfo().getSchema();
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keySchemaInfo.length + 4 + valueSchemaInfo.length);
         byteBuffer.putInt(keySchemaInfo.length).put(keySchemaInfo)
-            .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
+                .putInt(valueSchemaInfo.length).put(valueSchemaInfo);
         this.schemaInfo.setSchema(byteBuffer.array());
+
+        Map<String, String> properties = Maps.newHashMap();
+        properties.put("kv.encoding.type", "INLINE");
+        this.schemaInfo.setProperties(properties);
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.length][value.bytes]
-    // keyIsStoredToMessage is a String or null, if keyIsStoredToMessage is equals true, message.getKey() will be saved.
-    // Default keyIsStoredToMessage is null.
     public byte[] encode(KeyValue<K, V> message) {
-        byte [] keyBytes;
-        byte [] valueBytes;
-        ByteBuffer byteBuffer;
-        String keyIsStoredToMessage = this.schemaInfo.getProperties().get("keyIsStoredToMessage");
-        if (keyIsStoredToMessage == null || keyIsStoredToMessage.equals("true")) {
-            keyBytes = keySchema.encode(message.getKey());
-            valueBytes = valueSchema.encode(message.getValue());
-            byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
+        this.keyValueEncodingType = KeyValueEncodingType.valueOf(this.schemaInfo.getProperties().get("kv.encoding.type"));
+        if (keyValueEncodingType != null && keyValueEncodingType == KeyValueEncodingType.INLINE) {
+            byte [] keyBytes = keySchema.encode(message.getKey());
+            byte [] valueBytes = valueSchema.encode(message.getValue());
+            ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
             byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
+            return byteBuffer.array();
         } else {
-            valueBytes = valueSchema.encode(message.getValue());
-            byteBuffer = ByteBuffer.allocate(4 + valueBytes.length);
-            byteBuffer.putInt(valueBytes.length).put(valueBytes);
+            return valueSchema.encode(message.getValue());
         }
 
-        return byteBuffer.array();
     }
 
     public KeyValue<K, V> decode(byte[] bytes) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        int keyLength;
-        byte [] keyBytes = {};
-        String keyIsStoredToMessage = this.schemaInfo.getProperties().get("keyIsStoredToMessage");
-        if (keyIsStoredToMessage == null || keyIsStoredToMessage.equals("true")) {
-            keyLength = byteBuffer.getInt();
-            keyBytes = new byte[keyLength];
-            byteBuffer.get(keyBytes);
-
-        }
+        int keyLength = byteBuffer.getInt();
+        byte [] keyBytes = new byte[keyLength];
+        byteBuffer.get(keyBytes);
 
         int valueLength = byteBuffer.getInt();
         byte[] valueBytes = new byte[valueLength];
         byteBuffer.get(valueBytes);
 
-        if (keyIsStoredToMessage != null && keyIsStoredToMessage.equals("false")) {
-            return new KeyValue<>(null, valueSchema.decode(valueBytes));
-        }
+        return decode(keyBytes, valueBytes);
+    }
+
+    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes) {
         return new KeyValue<>(keySchema.decode(keyBytes), valueSchema.decode(valueBytes));
     }
 

@@ -34,8 +34,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.SchemaType;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
@@ -77,7 +79,21 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
+
         checkArgument(value != null, "Need Non-Null content value");
+        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
+            if (kvSchema.getKeyValueEncodingType() == KeyValueSchema.KeyValueEncodingType.SEPARATED) {
+                // set key as the message key
+                msgMetadataBuilder.setPartitionKey(
+                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                // set value as the payload
+                this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                return this;
+            }
+        }
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
