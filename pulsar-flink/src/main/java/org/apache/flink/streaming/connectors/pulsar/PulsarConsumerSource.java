@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.Authentication;
 import org.slf4j.Logger;
@@ -71,6 +72,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private final long acknowledgementBatchSize;
     private long batchCount;
+    private final SubscriptionInitialPosition initialPosition;
 
     private transient volatile boolean isRunning;
 
@@ -83,6 +85,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         this.deserializer = builder.deserializationSchema;
         this.subscriptionName = builder.subscriptionName;
         this.acknowledgementBatchSize = builder.acknowledgementBatchSize;
+        this.initialPosition = builder.initialPosition;
     }
 
     @Override
@@ -203,12 +206,14 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
             return client.newConsumer().topicsPattern(topicsPattern)
                     .subscriptionName(subscriptionName)
                     .subscriptionType(SubscriptionType.Failover)
+                    .subscriptionInitialPosition(initialPosition)
                     .subscribe();
         } else {
             return client.newConsumer()
                     .topics(Lists.newArrayList(topicNames))
                     .subscriptionName(subscriptionName)
                     .subscriptionType(SubscriptionType.Failover)
+                    .subscriptionInitialPosition(initialPosition)
                     .subscribe();
         }
     }
