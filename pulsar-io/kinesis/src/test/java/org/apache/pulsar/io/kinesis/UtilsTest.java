@@ -227,6 +227,11 @@ public class UtilsTest {
         }
 
         @Override
+        public Message<T> getActualMessage() {
+            return null;
+        }
+
+        @Override
         public byte[] getValue() {
             return data;
         }

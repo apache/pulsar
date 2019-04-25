@@ -55,6 +55,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
+    public Message<T> getActualMessage() {
+        return message;
+    }
+
+    @Override
     public Optional<String> getTopicName() {
         return Optional.of(topicName);
     }
