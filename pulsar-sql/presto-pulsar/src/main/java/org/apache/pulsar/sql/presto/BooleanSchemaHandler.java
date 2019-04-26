@@ -18,18 +18,30 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
 
-public class BooleanSchemaHandler extends PrimitiveSchemaHandler {
-    private static final Logger log = Logger.get(BooleanSchemaHandler.class);
-    private static BooleanSchema booleanSchema = new BooleanSchema();
+public class BooleanSchemaHandler implements SchemaHandler {
+    protected static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1];
+        }
+    };
 
     public BooleanSchemaHandler() {
     }
 
     @Override
-    public Object deserialize(byte[] byteArray, int size) {
-        return booleanSchema.decode(byteArray);
+    public Object deserialize(ByteBuf payload) {
+        byte[] buffer = tmpBuffer.get();
+        payload.readBytes(buffer, 0, 1);
+        return BooleanSchema.of().decode(buffer);
+    }
+
+    @Override
+    public Object extractField(int index, Object currentRecord) {
+        return currentRecord;
     }
 }

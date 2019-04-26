@@ -18,20 +18,28 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.impl.schema.TimestampSchema;
 
 import java.sql.Timestamp;
 
-public class TimestampSchemaHandler extends PrimitiveSchemaHandler {
-    private static final Logger log = Logger.get(TimestampSchemaHandler.class);
+public class TimestampSchemaHandler implements SchemaHandler {
+    protected static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[8];
+        }
+    };
 
     public TimestampSchemaHandler() {
     }
 
     @Override
-    public Object deserialize(byte[] byteArray, int size) {
-        return TimestampSchema.of().decode(byteArray);
+    public Object deserialize(ByteBuf payload) {
+        byte[] buffer = tmpBuffer.get();
+        payload.readBytes(buffer, 0, 8);
+        return TimestampSchema.of().decode(buffer);
     }
 
     @Override

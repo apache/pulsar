@@ -18,18 +18,25 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class StringSchemaHandler extends PrimitiveSchemaHandler {
-    private static final Logger log = Logger.get(StringSchemaHandler.class);
-
+public class StringSchemaHandler implements SchemaHandler {
     public StringSchemaHandler() {
     }
 
     @Override
-    public Object deserialize(byte[] byteArray, int size) {
-        return new String(byteArray, 0, size, UTF_8);
+    public Object deserialize(ByteBuf payload) {
+        // we need to convert a direct mem buffer into a byte[].
+        int size = payload.readableBytes();
+        byte[] buffer = new byte[size];
+        payload.readBytes(buffer, 0, size);
+        return new String(buffer, 0, size, UTF_8);
+    }
+
+    @Override
+    public Object extractField(int index, Object currentRecord) {
+        return currentRecord;
     }
 }
