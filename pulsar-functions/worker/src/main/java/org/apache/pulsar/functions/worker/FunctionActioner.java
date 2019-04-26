@@ -154,11 +154,13 @@ public class FunctionActioner {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
-        // check to make sure functionAuthenticationSpec has any data. If not set to null, since for protobuf,
+        // check to make sure functionAuthenticationSpec has any data and authentication is enabled.
+        // If not set to null, since for protobuf,
         // even if the field is not set its not going to be null. Have to use the "has" method to check
-        Function.FunctionAuthenticationSpec functionAuthenticationSpec
-                = instance.getFunctionMetaData().hasFunctionAuthSpec()
-                ? instance.getFunctionMetaData().getFunctionAuthSpec() : null;
+        Function.FunctionAuthenticationSpec functionAuthenticationSpec = null;
+        if (workerConfig.isAuthenticationEnabled() && instance.getFunctionMetaData().hasFunctionAuthSpec()) {
+            functionAuthenticationSpec = instance.getFunctionMetaData().getFunctionAuthSpec();
+        }
 
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
                 functionAuthenticationSpec,
@@ -283,7 +285,7 @@ public class FunctionActioner {
             functionRuntimeInfo.getRuntimeSpawner().close();
 
             // cleanup any auth data cached
-            if (functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
+            if (workerConfig.isAuthenticationEnabled() && functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
                 try {
                     log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
                     functionRuntimeInfo.getRuntimeSpawner()

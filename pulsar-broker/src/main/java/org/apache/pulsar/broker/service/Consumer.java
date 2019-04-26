@@ -145,7 +145,7 @@ public class Consumer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
-        if (subType == SubType.Shared) {
+        if (subType == SubType.Shared || subType == SubType.Key_Shared) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 
 /**
  * Base type of exception thrown by Pulsar Broker Service
@@ -146,6 +147,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ConsumerAssignException extends BrokerServiceException {
+        public ConsumerAssignException(String msg) {
+            super(msg);
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
@@ -166,6 +173,8 @@ public class BrokerServiceException extends Exception {
             return PulsarApi.ServerError.ServiceNotReady;
         } else if (t instanceof IncompatibleSchemaException) {
             return PulsarApi.ServerError.IncompatibleSchema;
+        } else if (t instanceof ConsumerAssignException) {
+            return ServerError.ConsumerAssignError;
         } else {
             return PulsarApi.ServerError.UnknownError;
         }

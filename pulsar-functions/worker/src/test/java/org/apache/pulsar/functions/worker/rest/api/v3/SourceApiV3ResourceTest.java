@@ -722,28 +722,23 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
+    @Test
     public void testUpdateSourceChangedTopic() throws Exception {
-        try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
 
-            testUpdateSourceMissingArguments(
-                    tenant,
-                    namespace,
-                    source,
-                    null,
-                    mockedFormData,
-                    "DifferentTopic",
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
-                    "Destination topics differ");
-        } catch (RestException re){
-            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
-            throw re;
-        }
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                "DifferentTopic",
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a positive number")

@@ -114,10 +114,10 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
-import static org.apache.pulsar.functions.utils.FunctionCommon.extractFileFromPkgURL;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public abstract class ComponentImpl {
@@ -1435,6 +1435,8 @@ public abstract class ComponentImpl {
                     }
                 }
             }
+        } catch (RestException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
@@ -1671,11 +1673,6 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
-    }
-
-    protected static void throwUnavailableException() {
-        throw new RestException(Status.SERVICE_UNAVAILABLE,
-                "Function worker service is not done initializing. " + "Please try again in a little while.");
     }
 
     private void throwStateStoreUnvailableResponse() {

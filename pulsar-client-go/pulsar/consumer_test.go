@@ -83,7 +83,7 @@ func TestConsumer(t *testing.T) {
 	assert.Nil(t, err)
 	defer consumer.Close()
 
-	assert.Equal(t, consumer.Topic(), "persistent://public/default/" + topic)
+	assert.Equal(t, consumer.Topic(), "persistent://public/default/"+topic)
 	assert.Equal(t, consumer.Subscription(), "my-sub")
 
 	ctx := context.Background()
@@ -102,7 +102,7 @@ func TestConsumer(t *testing.T) {
 		assert.NotNil(t, msg)
 
 		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
-		assert.Equal(t, msg.Topic(), "persistent://public/default/" + topic)
+		assert.Equal(t, msg.Topic(), "persistent://public/default/"+topic)
 		fmt.Println("Send time: ", sendTime)
 		fmt.Println("Publish time: ", msg.PublishTime())
 		fmt.Println("Receive time: ", recvTime)
@@ -405,7 +405,7 @@ func TestConsumerRegex(t *testing.T) {
 	}
 
 	for i := 0; i < 20; i++ {
-		ctx, _ = context.WithTimeout(context.Background(), 1 * time.Second)
+		ctx, _ = context.WithTimeout(context.Background(), 1*time.Second)
 		msg, err := consumer.Receive(ctx)
 		assert.Nil(t, err)
 		assert.NotNil(t, msg)
@@ -584,7 +584,6 @@ func TestConsumerNegativeAcks(t *testing.T) {
 		// This time acks successfully
 		consumer.Ack(msg)
 	}
-
 
 	consumer.Unsubscribe()
 }

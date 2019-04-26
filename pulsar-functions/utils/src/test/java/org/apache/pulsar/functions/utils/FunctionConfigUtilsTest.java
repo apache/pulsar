@@ -183,13 +183,6 @@ public class FunctionConfigUtilsTest {
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newFunctionConfig.getInputSpecs().get("test-input"));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output topics differ")
-    public void testMergeDifferentOutput() {
-        FunctionConfig functionConfig = createFunctionConfig();
-        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("output", "Different");
-        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
-    }
-
     @Test
     public void testMergeDifferentLogTopic() {
         FunctionConfig functionConfig = createFunctionConfig();

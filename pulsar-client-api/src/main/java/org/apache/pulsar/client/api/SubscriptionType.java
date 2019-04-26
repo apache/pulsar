@@ -47,5 +47,14 @@ public enum SubscriptionType {
      * be split across the available consumers. On each partition, at most one consumer will be active at a given point
      * in time.
      */
-    Failover
+    Failover,
+
+    /**
+     * Multiple consumer will be able to use the same subscription and all messages with the same key
+     * will be dispatched to only one consumer
+     *
+     * Use ordering_key to overwrite the message key for message ordering.
+     *
+     */
+    Key_Shared
 }

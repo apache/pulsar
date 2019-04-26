@@ -1,6 +1,36 @@
 
 ## Apache
 
+### 2.3.1 &mdash; 2019-04-12 <a id="2.3.1"></a>
+
+#### Fixes
+
+ * Fixed C++ batch acks tracker to evict message from sendList array. This was causing a slowdown in
+   C++ consumers [#3618](https://github.com/apache/pulsar/pull/3618)
+ * Allow publishing messages >5MB with batching (when they compress to <5MB) [#3673](https://github.com/apache/pulsar/pull/3673) and [#3718](https://github.com/apache/pulsar/pull/3718)
+ * Use at least 8 threads in Jetty thread pool. This fixed deadlocks in Jetty requests handling [#3776](https://github.com/apache/pulsar/pull/3776)
+ * Fixed Reader.HasNext() in Go client [#3764](https://github.com/apache/pulsar/pull/3764)
+ * Fixed increasing consumer permits after ack dedup operation. [#3787](https://github.com/apache/pulsar/pull/3787)
+ * Set the dedup cursor as "inactive" after recovery [#3612](https://github.com/apache/pulsar/pull/3612)
+ * Fix read batching message by pulsar reader [#3830](https://github.com/apache/pulsar/pull/3830)
+ * Fix submit function with code specified via URL [#3934](https://github.com/apache/pulsar/pull/3934)
+ * Fixed reader reading from a partition [#3960](https://github.com/apache/pulsar/pull/3960)
+ * Fixed issue with Authorization header missing after client gets redirected [#3869](https://github.com/apache/pulsar/pull/3869)
+
+#### Enhancements
+ * Added `producer.flush()` on Python [#3685](https://github.com/apache/pulsar/pull/3685)
+ * Introduced schema builder to define schema [#3682](https://github.com/apache/pulsar/pull/3682)
+ * Support passing schema definition for JSON and AVRO schemas [#3766](https://github.com/apache/pulsar/pull/3766)
+ * Exposing InitialPosition setting in Python consumer [#3714](https://github.com/apache/pulsar/pull/3714)
+
+
+ For a complete list of issues fixed, see
+
+ https://github.com/apache/pulsar/milestone/21?closed=1
+
+ https://github.com/apache/pulsar/releases/tag/v2.3.1
+
+
 ### 2.3.0 &mdash; 2019-02-20 <a id="2.3.0"></a>
 
 #### General

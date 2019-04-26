@@ -116,6 +116,12 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
     public static void main(String args[]) throws Exception {
         // Start standalone
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
-        standalone.start();
+        try {
+            standalone.start();
+        } catch (Throwable th) {
+            log.error("Failed to start pulsar service.", th);
+            Runtime.getRuntime().exit(1);
+        }
+
     }
 }

@@ -116,6 +116,16 @@ In the diagram above, only **Consumer-A** is allowed to consume messages.
 
 ![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
+### Failover
+
+In *failover* mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the *master consumer*.
+
+When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
+
+In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.
+
+![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
+
 ### Shared
 
 In *shared* or *round robin* mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
@@ -129,15 +139,18 @@ In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscrib
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
-### Failover
+### Key_shared
 
-In *failover* mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the *master consumer*.
+In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
-When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
+> #### Limitations of Key_Shared mode
+> There are two important things to be aware of when using Key_Shared mode:
+> * You need to specify a key or orderingKey for messages
+> * You cannot use cumulative acknowledgment with Key_Shared mode.
 
-In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.
+![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
-![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
+**Key_Shared subscription is a beta feature. You can disable it at broker.config.**
 
 ## Multi-topic subscriptions
 

@@ -23,23 +23,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-
-import com.google.common.primitives.UnsignedBytes;
 
 public class Murmur3_32Hash implements Hash {
     private static final Murmur3_32Hash instance = new Murmur3_32Hash();
-
-    private static final int CHUNK_SIZE = 4;
-    private static final int C1 = 0xcc9e2d51;
-    private static final int C2 = 0x1b873593;
-    private final int seed;
-
-    private Murmur3_32Hash() {
-        seed = 0;
-    }
 
     public static Hash getInstance() {
         return instance;
@@ -47,56 +34,12 @@ public class Murmur3_32Hash implements Hash {
 
     @Override
     public int makeHash(String s) {
-        return makeHash(s.getBytes(StandardCharsets.UTF_8)) & Integer.MAX_VALUE;
+        return org.apache.pulsar.common.util.Murmur3_32Hash.getInstance()
+            .makeHash(s.getBytes(StandardCharsets.UTF_8)) & Integer.MAX_VALUE;
     }
 
-    private int makeHash(byte[] bytes) {
-        int len = bytes.length;
-        int reminder = len % CHUNK_SIZE;
-        int h1 = seed;
-
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        while (byteBuffer.remaining() >= CHUNK_SIZE) {
-            int k1 = byteBuffer.getInt();
-
-            k1 = mixK1(k1);
-            h1 = mixH1(h1, k1);
-        }
-
-        int k1 = 0;
-        for (int i = 0; i < reminder; i++) {
-            k1 ^= UnsignedBytes.toInt(byteBuffer.get()) << (i * 8);
-        }
-
-        h1 ^= mixK1(k1);
-        h1 ^= len;
-        h1 = fmix(h1);
-
-        return h1;
-    }
-
-    private int fmix(int h) {
-        h ^= h >>> 16;
-        h *= 0x85ebca6b;
-        h ^= h >>> 13;
-        h *= 0xc2b2ae35;
-        h ^= h >>> 16;
-
-        return h;
-    }
-
-    private int mixK1(int k1) {
-        k1 *= C1;
-        k1 = Integer.rotateLeft(k1, 15);
-        k1 *= C2;
-        return k1;
-    }
-
-    private int mixH1(int h1, int k1) {
-        h1 ^= k1;
-        h1 = Integer.rotateLeft(h1, 13);
-        return h1 * 5 + 0xe6546b64;
+    @Override
+    public int makeHash(byte[] b) {
+        return org.apache.pulsar.common.util.Murmur3_32Hash.getInstance().makeHash(b) & Integer.MAX_VALUE;
     }
 }

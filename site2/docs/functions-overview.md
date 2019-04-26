@@ -69,7 +69,7 @@ If you were to implement the classic word count example using Pulsar Functions, 
 
 ![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
-If you were writing the function in [Java](functions-api.md#functions-for-java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you could write the function like this...
+If you were writing the function in [Java](functions-api.md#functions-for-java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you could write the function like below:
 
 ```java
 package org.example.functions;
@@ -82,17 +82,18 @@ import java.util.Arrays;
 public class WordCountFunction implements Function<String, Void> {
     // This function is invoked every time a message is published to the input topic
     @Override
-    public Void process(String input, Context context) {
+    public Void process(String input, Context context) throws Exception {
         Arrays.asList(input.split(" ")).forEach(word -> {
             String counterKey = word.toLowerCase();
-            context.incrCounter(counterKey, 1)
+            context.incrCounter(counterKey, 1);
         });
         return null;
     }
 }
 ```
 
-...and then [deploy it](#cluster-run-mode) in your Pulsar cluster using the [command line](#command-line-interface) like this:
+Next, you need to bundle and build the jar file to be deployed, the approaches can be found in ["Creating an Uber JAR"](#creating-an-uber-jar) and ["Creating a NAR package"](#creating-a-nar-package).
+Then [deploy it](#cluster-run-mode) in your Pulsar cluster using the [command line](#command-line-interface) like below:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -144,7 +145,7 @@ class RoutingFunction(Function):
 Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). Here's an example command that would run a function in [local run mode](#local-run-mode):
 
 ```bash
-$ bin/pulsar-functions localrun \
+$ bin/pulsar-admin functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \

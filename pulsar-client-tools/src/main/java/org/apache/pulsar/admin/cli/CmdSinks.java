@@ -222,7 +222,12 @@ public class CmdSinks extends CmdBase {
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
-            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+            if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
+            }
+            if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+            }
         }
     }
 
@@ -293,7 +298,7 @@ public class CmdSinks extends CmdBase {
         protected String DEPRECATED_sinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
         protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
@@ -319,7 +324,6 @@ public class CmdSinks extends CmdBase {
 
             if (null != sinkConfigFile) {
                 this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
-                log.info("The sinkConfig read from file is {}", sinkConfig);
             } else {
                 this.sinkConfig = new SinkConfig();
             }

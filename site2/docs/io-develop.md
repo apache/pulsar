@@ -182,14 +182,14 @@ You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-pl
       <goals>
         <goal>shade</goal>
       </goals>
+      <configuration>
+        <filters>
+          <filter>
+            <artifact>*:*</artifact>
+          </filter>
+        </filters>
+      </configuration>
     </execution>
-    <configuration>
-      <filters>
-        <filter>
-          <artifact>*:*</artifact>
-        </filter>
-      </filters>
-    </configuration>
   </executions>
 </plugin>
 ```

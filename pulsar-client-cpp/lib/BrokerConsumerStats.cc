@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <lib/BrokerConsumerStatsImplBase.h>
 
@@ -28,8 +29,7 @@ std::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() cons
 
 bool BrokerConsumerStats::isValid() const { return impl_->isValid(); }
 
-#pragma GCC visibility push(default)
-std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
     os << "\nBrokerConsumerStats ["
        << "validTill_ = " << obj.isValid() << ", msgRateOut_ = " << obj.getMsgRateOut()
        << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
@@ -43,7 +43,6 @@ std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
        << ", msgBacklog_ = " << obj.getMsgBacklog() << "]";
     return os;
 }
-#pragma GCC visibility pop
 
 double BrokerConsumerStats::getMsgRateOut() const { return impl_->getMsgRateOut(); }
 

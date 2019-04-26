@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +52,7 @@ public class PulsarSourceBuilder<T> {
     Pattern topicsPattern;
     String subscriptionName = "flink-sub";
     long acknowledgementBatchSize = ACKNOWLEDGEMENT_BATCH_SIZE;
+    SubscriptionInitialPosition initialPosition = SubscriptionInitialPosition.Latest;
 
     private PulsarSourceBuilder(DeserializationSchema<T> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
@@ -150,6 +152,18 @@ public class PulsarSourceBuilder<T> {
         Preconditions.checkArgument(StringUtils.isNotBlank(subscriptionName),
                 "subscriptionName cannot be blank");
         this.subscriptionName = subscriptionName;
+        return this;
+    }
+
+    /**
+     * Sets the subscription initial position for the topic consumer. Default is {@link SubscriptionInitialPosition#Latest}
+     *
+     * @param initialPosition the subscription initial position.
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition initialPosition) {
+        Preconditions.checkNotNull(initialPosition,"subscription initial position cannot be null");
+        this.initialPosition = initialPosition;
         return this;
     }
 
