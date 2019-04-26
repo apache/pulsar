@@ -217,26 +217,22 @@ feel free to reach out to use via [slack channel](https://apache-pulsar.herokuap
 
 ### Download Translated Docs
 
-Sometimes you find display problems on the translated pages. You want to debug where the problems are from. You want
-to download the translated docs to your laptop to debug the issues. You can follow the instructions below.
-
-All the translated files are stored in Crowdin. If you want to download the translated markdown files, you can follow
-the instructions below.
+When you find display issues on the translated pages, you can download the translated docs from Crowdin, and follow the instructions below to debug and fix issues.
 
 1. Install Crowdin CLI
 
-You need to [install crowdin cli](https://support.crowdin.com/cli-tool/#installation) before downloading the translated markdown files.
+To download the translated markdown files, you need to install [Crowdin CLI](https://support.crowdin.com/cli-tool/#installation) first.
 
 2. Set environment variables
 
-You need to set following environment variables:
+You need to set the following environment variables:
 
 ```
 export CROWDIN_DOCUSAURUS_PROJECT_ID="apache-pulsar"
 export CROWDIN_DOCUSAURUS_API_KEY=<crowdin-pulsar-api-key>
 ```
 
-The API Key of pulsar crowdin project can be found [here](https://crowdin.com/project/apache-pulsar/settings#api). Only PMC members and
+You can find the API Key of Pulsar Crowdin project [here](https://crowdin.com/project/apache-pulsar/settings#api). Only PMC members and
 committers are able to retrieve the API key.
 
 3. Download the translated docs
@@ -251,4 +247,4 @@ $ yarn crowdin-download
 $ yarn crowdin-download -l zh-CN
 ```
 
-The translated docs will be downloaded in the directory `site2/website/translated_docs`.
+The translated docs are downloaded to the `site2/website/translated_docs` directory.
