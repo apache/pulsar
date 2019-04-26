@@ -163,7 +163,7 @@ public class PerformanceProducer {
 
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-producer");
+        jc.setProgramName("pulsar-perf produce");
 
         try {
             jc.parse(args);

@@ -36,4 +36,5 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
     @Override
     void close();
 
+    void flushAndClean();
 }

@@ -222,7 +222,12 @@ public class CmdSinks extends CmdBase {
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
-            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+            if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
+            }
+            if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+            }
         }
     }
 
@@ -319,7 +324,6 @@ public class CmdSinks extends CmdBase {
 
             if (null != sinkConfigFile) {
                 this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
-                log.info("The sinkConfig read from file is {}", sinkConfig);
             } else {
                 this.sinkConfig = new SinkConfig();
             }

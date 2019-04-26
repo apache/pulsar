@@ -112,9 +112,11 @@ message MessageMetadata {
 	optional bytes schema_version = 16;
 
 	optional bool partition_key_b64_encoded = 17 [ default = false ];
-
+	// Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 18;
+    
 	// Mark the message to be delivered at or after the specified timestamp
-	optional int64 deliver_at_time = 18;
+	optional int64 deliver_at_time = 19;
 }
 
 
@@ -127,8 +129,9 @@ message SingleMessageMetadata {
 	// the timestamp that this event occurs. it is typically set by applications.
 	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
 	optional uint64 event_time = 5 [default = 0];
-
-        optional bool partition_key_b64_encoded = 6 [ default = false ];
+	optional bool partition_key_b64_encoded = 6 [ default = false ];
+    // Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 7;
 }
 
 enum ServerError {
@@ -155,6 +158,7 @@ enum ServerError {
     InvalidTopicName = 17; // The topic name is not valid
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
+	ConsumerAssignError = 19; // Dispatcher assign consumer error
 }
 
 enum AuthMethod {
@@ -183,6 +187,7 @@ enum ProtocolVersion {
 			 // Added CommandGetTopicsOfNamespace
 	v13 = 13; // Schema-registry : added avro schema format for json
 	v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
+	          // Added Key_Shared subscription
 }
 
 message CommandConnect {
@@ -237,6 +242,7 @@ message CommandSubscribe {
 		Exclusive = 0;
 		Shared    = 1;
 		Failover  = 2;
+		Key_Shared = 3;
 	}
 	required string topic        = 1;
 	required string subscription = 2;

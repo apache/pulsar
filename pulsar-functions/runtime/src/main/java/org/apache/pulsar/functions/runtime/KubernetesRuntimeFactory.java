@@ -92,6 +92,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
     private Resources functionInstanceMinResources;
+    private final boolean authenticationEnabled;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -114,7 +115,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
                                     Resources functionInstanceMinResources,
-                                    SecretsProviderConfigurator secretsProviderConfigurator) {
+                                    SecretsProviderConfigurator secretsProviderConfigurator,
+                                    boolean authenticationEnabled) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -165,6 +167,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.functionInstanceMinResources = functionInstanceMinResources;
+        this.authenticationEnabled = authenticationEnabled;
         try {
             setupClient();
         } catch (Exception e) {
@@ -195,7 +198,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         // adjust the auth config to support auth
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
             getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
 
@@ -223,7 +226,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
             this.kubernetesInfo.getPercentMemoryPadding(),
-            getAuthProvider());
+            getAuthProvider(),
+            authenticationEnabled);
     }
 
     @Override

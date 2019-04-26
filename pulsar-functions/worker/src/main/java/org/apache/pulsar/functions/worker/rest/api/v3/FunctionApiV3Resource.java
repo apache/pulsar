@@ -306,6 +306,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
 
     @GET
     @Path("/connectors")
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
+     */
+    @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }

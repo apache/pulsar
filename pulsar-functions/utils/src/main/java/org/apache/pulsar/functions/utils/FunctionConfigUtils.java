@@ -607,6 +607,15 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
+
+        if (newConfig.getInputSpecs() == null) {
+            newConfig.setInputSpecs(new HashMap<>());
+        }
+
+        if (mergedConfig.getInputSpecs() == null) {
+            mergedConfig.setInputSpecs(new HashMap<>());
+        }
+        
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
                 newConfig.getInputSpecs().put(topicName,
@@ -648,9 +657,6 @@ public class FunctionConfigUtils {
                 mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
-        if (!StringUtils.isEmpty(newConfig.getOutput()) && !newConfig.getOutput().equals(existingConfig.getOutput())) {
-            throw new IllegalArgumentException("Output topics differ");
-        }
         if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
             throw new IllegalArgumentException("Output Serde mismatch");
         }
@@ -665,6 +671,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Orderning cannot be altered");
+        }
+        if (!StringUtils.isEmpty(newConfig.getOutput())) {
+            mergedConfig.setOutput(newConfig.getOutput());
         }
         if (newConfig.getUserConfig() != null) {
             mergedConfig.setUserConfig(newConfig.getUserConfig());
