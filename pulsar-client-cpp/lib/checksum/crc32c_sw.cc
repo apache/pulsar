@@ -34,10 +34,6 @@
  */
 
 #include "crc32c_sw.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
 #include <mutex>
 
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */

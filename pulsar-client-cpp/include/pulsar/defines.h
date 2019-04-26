@@ -16,36 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_ENCRYPTIONKEYINFOIMPL_H_
-#define LIB_ENCRYPTIONKEYINFOIMPL_H_
+#ifndef PULSAR_DEFINES_H_
+#define PULSAR_DEFINES_H_
 
-#include <iostream>
-#include <map>
-#include <pulsar/defines.h>
+#ifdef PULSAR_STATIC
 
-namespace pulsar {
+#define PULSAR_PUBLIC
 
-class PULSAR_PUBLIC EncryptionKeyInfoImpl {
-   public:
-    typedef std::map<std::string, std::string> StringMap;
+#else
 
-    EncryptionKeyInfoImpl();
+#ifdef _WIN32
 
-    EncryptionKeyInfoImpl(std::string key, StringMap& metadata);
+#ifdef BUILDING_PULSAR
+#define PULSAR_PUBLIC __declspec(dllexport)
+#else
+#define PULSAR_PUBLIC __declspec(dllimport)
+#endif /*BUILDING_PULSAR*/
 
-    std::string& getKey();
+#else
 
-    void setKey(std::string key);
+#define PULSAR_PUBLIC __attribute__((visibility("default")))
 
-    StringMap& getMetadata(void);
+#endif /*_WIN32*/
 
-    void setMetadata(StringMap& metadata);
+#endif /*PULSAR_STATIC*/
 
-   private:
-    StringMap metadata_;
-    std::string key_;
-};
-
-} /* namespace pulsar */
-
-#endif /* LIB_ENCRYPTIONKEYINFOIMPL_H_ */
+#endif /* PULSAR_DEFINES_H_ */
