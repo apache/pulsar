@@ -25,6 +25,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A variant `Bytes` schema that takes {@link io.netty.buffer.ByteBuf}.
  */
@@ -33,12 +35,13 @@ public class ByteBufSchema implements Schema<ByteBuf> {
     public static ByteBufSchema of() {
         return INSTANCE;
     }
+    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
 
     private static final ByteBufSchema INSTANCE = new ByteBufSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("ByteBuf")
         .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
+        .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public byte[] encode(ByteBuf message) {

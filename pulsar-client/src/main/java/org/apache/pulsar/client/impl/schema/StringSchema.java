@@ -25,6 +25,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * Schema definition for Strings encoded in UTF-8 format.
  */
@@ -34,11 +36,13 @@ public class StringSchema implements Schema<String> {
         return UTF8;
     }
 
+    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING);
+
     private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("String")
         .setType(SchemaType.STRING)
-        .setSchema(new byte[0]);
+        .setSchema(schema.toString().getBytes(UTF_8));
 
     private final Charset charset;
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;

@@ -23,6 +23,8 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A schema for `Double`.
  */
@@ -31,12 +33,13 @@ public class DoubleSchema implements Schema<Double> {
     public static DoubleSchema of() {
         return INSTANCE;
     }
+    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE);
 
     private static final DoubleSchema INSTANCE = new DoubleSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("Double")
         .setType(SchemaType.DOUBLE)
-        .setSchema(new byte[0]);
+        .setSchema(schema.toString().getBytes(UTF_8));
 
     @Override
     public void validate(byte[] message) {

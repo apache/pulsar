@@ -24,6 +24,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Date;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A schema for `java.util.Date` or `java.sql.Date`.
  */
@@ -31,12 +33,13 @@ public class DateSchema implements Schema<Date> {
    public static DateSchema of() {
       return INSTANCE;
    }
+   private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
    private static final DateSchema INSTANCE = new DateSchema();
    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
          .setName("Date")
          .setType(SchemaType.DATE)
-         .setSchema(new byte[0]);
+         .setSchema(schema.toString().getBytes(UTF_8));
 
    @Override
    public byte[] encode(Date message) {
