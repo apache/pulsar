@@ -219,11 +219,19 @@ feel free to reach out to use via [slack channel](https://apache-pulsar.herokuap
 
 When you find display issues on the translated pages, you can download the translated docs from Crowdin, and follow the instructions below to debug and fix issues.
 
-1. Install Crowdin CLI
+1. Install Java (optional)
+If you have installed Java, skip this step. If you have not installed [Java](https://java.com/en/), install the latest version.
+If you are using Mac OS, you can use the following command to install Java:  
 
-To download the translated markdown files, you need to install [Crowdin CLI](https://support.crowdin.com/cli-tool/#installation) first.
+```
+brew cask install java
+```
 
-2. Set environment variables
+2. Install Crowdin CLI
+
+To download the translated markdown files, you need to install [Crowdin CLI](https://support.crowdin.com/cli-tool/#installation).
+
+3. Set environment variables
 
 You need to set the following environment variables:
 
@@ -233,9 +241,9 @@ export CROWDIN_DOCUSAURUS_API_KEY=<crowdin-pulsar-api-key>
 ```
 
 You can find the API Key of Pulsar Crowdin project [here](https://crowdin.com/project/apache-pulsar/settings#api). Only PMC members and
-committers are able to retrieve the API key.
+committers are able to retrieve the API key. If the API key is invalid, regenerate.
 
-3. Download the translated docs
+4. Download the translated docs
 
 Now you are ready to download the translated docs from Crowdin.
 
@@ -248,3 +256,8 @@ $ yarn crowdin-download -l zh-CN
 ```
 
 The translated docs are downloaded to the `site2/website/translated_docs` directory.
+
+### Check issues, fix and verify
+
+After download the translated documents, you can open the target markdown file, check issues and fix them.
+To verify if you have fixed the issues correctly, [run the site locally](#running-the-site-locally).
