@@ -235,9 +235,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "readOpCount");
     private volatile long readOpCount = 0;
-    // last read-operation's callback to check read-timeout on it.
-    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, ReadEntryCallbackWrapper> LAST_READ_CALLBACK = AtomicReferenceFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, ReadEntryCallbackWrapper.class, "lastReadCallback");
+    // last read-operation's callback to check read-timeout on it. 
     private volatile ReadEntryCallbackWrapper lastReadCallback = null;
 
     /**
@@ -1596,7 +1594,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long createdTime = System.nanoTime();
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, position.getLedgerId(),
                     position.getEntryId(), callback, readOpCount, createdTime, ctx);
-            LAST_READ_CALLBACK.set(this, readCallback);
+            lastReadCallback = readCallback;
             entryCache.asyncReadEntry(ledger, position, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, position, callback, ctx);
@@ -1611,7 +1609,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long createdTime = System.nanoTime();
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
                     opReadEntry, readOpCount, createdTime, ctx);
-            LAST_READ_CALLBACK.set(this, readCallback);
+            lastReadCallback = readCallback;
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, isSlowestReader, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, isSlowestReader, opReadEntry, ctx);
@@ -3132,12 +3130,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (timeoutSec < 1) {
             return;
         }
-        ReadEntryCallbackWrapper callback = LAST_READ_CALLBACK.get(this);
-        if (callback != null && callback.isTimedOut(timeoutSec)) {
-            log.warn("[{}]-{} read entry timeout for {} after {} sec", this.name, callback.ledgerId, callback.entryId,
-                    timeoutSec);
-            callback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException), callback.readOpCount);
-            LAST_READ_CALLBACK.set(this, null);
+        if (this.lastReadCallback != null && this.lastReadCallback.isTimedOut(timeoutSec)) {
+            log.warn("[{}]-{} read entry timeout for {} after {} sec", this.name, this.lastReadCallback.ledgerId,
+                    this.lastReadCallback.entryId, timeoutSec);
+            this.lastReadCallback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException),
+                    this.lastReadCallback.readOpCount);
+            lastReadCallback = null;
         }
     }
 
