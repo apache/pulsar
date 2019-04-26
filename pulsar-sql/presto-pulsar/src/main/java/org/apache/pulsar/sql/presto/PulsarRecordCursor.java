@@ -160,7 +160,7 @@ public class PulsarRecordCursor implements RecordCursor {
         SchemaHandler schemaHandler;
         switch (schemaType) {
             case JSON:
-                schemaHandler = new JSONSchemaHandler(columnHandles);
+                schemaHandler = new JSONSchemaHandler(schema, columnHandles);
                 break;
             case AVRO:
                 schemaHandler = new AvroSchemaHandler(schema, columnHandles);

@@ -25,11 +25,14 @@ import io.airlift.log.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.avro.Schema;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -45,8 +48,54 @@ public class JSONSchemaHandler implements SchemaHandler {
             return new byte[1024];
         }
     };
+    private Schema schema;
+    private Class objectClass;
 
-    public JSONSchemaHandler(List<PulsarColumnHandle> columnHandles) {
+    public JSONSchemaHandler(Schema schema, List<PulsarColumnHandle> columnHandles) {
+        this.schema = schema;
+        switch (schema.getType()) {
+            case RECORD:
+                objectClass = Map.class;
+                break;
+            case ENUM:
+                objectClass = Enum.class;
+                break;
+            case ARRAY:
+                objectClass = Collection.class;
+                break;
+            case MAP:
+                objectClass = Map.class;
+                break;
+            case UNION:
+                objectClass = Map.class;
+                break;
+            case STRING:
+                objectClass = String.class;
+                break;
+            case BYTES:
+                objectClass = ByteBuffer.class;
+                break;
+            case INT:
+                objectClass = Integer.class;
+                break;
+            case LONG:
+                objectClass = Long.class;
+                break;
+            case FLOAT:
+                objectClass = Float.class;
+                break;
+            case DOUBLE:
+                objectClass = Double.class;
+                break;
+            case BOOLEAN:
+                objectClass = Boolean.class;
+                break;
+            case NULL:
+                objectClass = Void.class;
+                break;
+            default:
+                objectClass = Map.class;
+        }
         this.columnHandles = columnHandles;
     }
 
@@ -66,7 +115,7 @@ public class JSONSchemaHandler implements SchemaHandler {
         payload.readBytes(buffer, 0, size);
 
         try {
-            return dslJson.deserialize(Map.class, buffer, size);
+            return dslJson.deserialize(objectClass, buffer, size);
         } catch (IOException e) {
             log.error("Failed to deserialize Json object", e);
             return null;
@@ -75,6 +124,9 @@ public class JSONSchemaHandler implements SchemaHandler {
 
     @Override
     public Object extractField(int index, Object currentRecord) {
+        if (PulsarMetadata.isPrimitiveType(schema.getType())) {
+            return currentRecord;
+        }
         try {
             Map jsonObject = (Map) currentRecord;
             PulsarColumnHandle pulsarColumnHandle = columnHandles.get(index);
