@@ -39,9 +39,9 @@ public class AvroWriter<T> implements SchemaWriter<T> {
     }
 
     @Override
-    public synchronized byte[] write(T pojo) {
+    public synchronized byte[] write(T message) {
         try {
-            writer.write(pojo, this.encoder);
+            writer.write(message, this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {

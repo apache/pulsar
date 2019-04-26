@@ -21,10 +21,10 @@ package org.apache.pulsar.client.api.schema;
 public interface SchemaWriter<T> {
 
     /**
-     * serialize the object into bytes
+     * serialize the message into bytes
      *
-     * @param pojo the pojo
+     * @param message the message for encode
      * @return the serialized bytes
      */
-    byte[] write(T pojo);
+    byte[] write(T message);
 }

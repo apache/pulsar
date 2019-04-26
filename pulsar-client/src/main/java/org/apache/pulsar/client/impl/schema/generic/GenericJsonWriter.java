@@ -34,9 +34,9 @@ public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
     }
 
     @Override
-    public byte[] write(GenericRecord pojo) {
+    public byte[] write(GenericRecord message) {
         try {
-            return objectMapper.writeValueAsBytes(((GenericJsonRecord)pojo).getJsonNode().toString());
+            return objectMapper.writeValueAsBytes(((GenericJsonRecord)message).getJsonNode().toString());
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }

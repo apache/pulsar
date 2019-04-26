@@ -23,7 +23,7 @@ import org.apache.pulsar.client.api.schema.SchemaWriter;
 public class ProtobufWriter<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaWriter<T> {
 
     @Override
-    public byte[] write(T pojo) {
-        return pojo.toByteArray();
+    public byte[] write(T message) {
+        return message.toByteArray();
     }
 }

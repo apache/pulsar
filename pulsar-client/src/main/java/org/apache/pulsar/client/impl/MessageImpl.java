@@ -230,7 +230,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public byte[] getSchemaVersion() {
-        if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion() ) {
+        if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion()) {
             return msgMetadataBuilder.getSchemaVersion().toByteArray();
         } else {
             return null;

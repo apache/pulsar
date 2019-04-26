@@ -32,9 +32,9 @@ public class JsonWriter<T> implements SchemaWriter<T> {
     }
 
     @Override
-    public byte[] write(T pojo) {
+    public byte[] write(T message) {
         try {
-            return objectMapper.writeValueAsBytes(pojo);
+            return objectMapper.writeValueAsBytes(message);
         } catch (JsonProcessingException e) {
             throw new SchemaSerializationException(e);
         }
