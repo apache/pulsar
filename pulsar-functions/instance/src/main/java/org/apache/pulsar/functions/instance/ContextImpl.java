@@ -27,7 +27,6 @@ import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -167,7 +166,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
      *
      * @return current message
      */
-    public Message<?> getCurrentMessage() {
+    public Object getCurrentMessage() {
         return ((PulsarRecord<?>) record).getActualMessage();
     }
 
