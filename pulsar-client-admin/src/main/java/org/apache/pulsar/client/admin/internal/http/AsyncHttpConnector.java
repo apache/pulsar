@@ -37,6 +37,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,16 +64,23 @@ import org.glassfish.jersey.client.spi.Connector;
 @Slf4j
 public class AsyncHttpConnector implements Connector {
 
+    @Getter
     private final AsyncHttpClient httpClient;
     private final PulsarServiceNameResolver serviceNameResolver;
 
-    @SneakyThrows
     public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
+        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
+                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
+                conf);
+    }
+
+    @SneakyThrows
+    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs, ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout((int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT));
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
+        confBuilder.setConnectTimeout(connectTimeoutMs);
+        confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override

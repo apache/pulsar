@@ -116,6 +116,7 @@ public class KubernetesRuntime implements Runtime {
             )
     );
     private static final long GRPC_TIMEOUT_SECS = 5;
+    private final boolean authenticationEnabled;
 
     // The thread that invokes the function
     @Getter
@@ -160,7 +161,8 @@ public class KubernetesRuntime implements Runtime {
                       SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsCollectionInterval,
                       int percentMemoryPadding,
-                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider) throws Exception {
+                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider,
+                      boolean authenticationEnabled) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -174,6 +176,7 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
+        this.authenticationEnabled = authenticationEnabled;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -439,7 +442,7 @@ public class KubernetesRuntime implements Runtime {
     private void submitStatefulSet() throws Exception {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
             functionAuthDataCacheProvider.configureAuthDataStatefulSet(
                     statefulSet, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
@@ -755,7 +758,7 @@ public class KubernetesRuntime implements Runtime {
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
 
         // add auth plugin and parameters if necessary
-        if (authConfig != null) {
+        if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
                 return Arrays.asList(

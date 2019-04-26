@@ -32,7 +32,8 @@ import (
 )
 
 type message struct {
-	ptr *C.pulsar_message_t
+	ptr    *C.pulsar_message_t
+	schema Schema
 }
 
 type messageID struct {
@@ -97,14 +98,18 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 
 ////////////// Message
 
-func newMessageWrapper(ptr *C.pulsar_message_t) Message {
-	msg := &message{ptr: ptr}
+func newMessageWrapper(schema Schema, ptr *C.pulsar_message_t) Message {
+	msg := &message{schema: schema, ptr: ptr}
 	runtime.SetFinalizer(msg, messageFinalizer)
 	return msg
 }
 
 func messageFinalizer(msg *message) {
 	C.pulsar_message_free(msg.ptr)
+}
+
+func (m *message) GetValue(v interface{}) error {
+	return m.schema.Decode(m.Payload(), v)
 }
 
 func (m *message) Properties() map[string]string {

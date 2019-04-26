@@ -48,3 +48,5 @@ COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-exam
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
 COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
+COPY python-examples/exception_function.py /pulsar/examples/python-examples/
+COPY target/java-test-functions.jar /pulsar/examples/

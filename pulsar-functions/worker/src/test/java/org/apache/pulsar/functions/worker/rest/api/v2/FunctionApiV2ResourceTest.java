@@ -837,30 +837,25 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topics differ")
+    @Test
     public void testUpdateFunctionChangedInputs() throws Exception {
-        try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+        mockStatic(WorkerUtils.class);
+        doNothing().when(WorkerUtils.class);
+        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
-            testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
-                    null,
-                    topicsToSerDeClassName,
-                    mockedFormData,
-                    "DifferentOutput",
-                    outputSerdeClassName,
-                    null,
-                    parallelism,
-                    "Output topics differ");
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
-            throw re;
-        }
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                topicsToSerDeClassName,
+                mockedFormData,
+                "DifferentOutput",
+                outputSerdeClassName,
+                null,
+                parallelism,
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")

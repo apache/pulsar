@@ -21,13 +21,12 @@
 
 #include <stdint.h>
 
+#include <pulsar/defines.h>
 #include <pulsar/c/message_router.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#pragma GCC visibility push(default)
 
 typedef enum {
     pulsar_UseSinglePartition,
@@ -43,36 +42,63 @@ typedef enum {
     pulsar_CompressionZLib = 2
 } pulsar_compression_type;
 
+typedef enum {
+    pulsar_None = 0,
+    pulsar_String = 1,
+    pulsar_Json = 2,
+    pulsar_Protobuf = 3,
+    pulsar_Avro = 4,
+    pulsar_Boolean = 5,
+    pulsar_Int8 = 6,
+    pulsar_Int16 = 7,
+    pulsar_Int32 = 8,
+    pulsar_Int64 = 9,
+    pulsar_Float32 = 10,
+    pulsar_Float64 = 11,
+    pulsar_KeyValue = 15,
+    pulsar_Bytes = -1,
+    pulsar_AutoConsume = -3,
+    pulsar_AutoPublish = -4,
+} pulsar_schema_type;
+
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
 
-pulsar_producer_configuration_t *pulsar_producer_configuration_create();
+PULSAR_PUBLIC pulsar_producer_configuration_t *pulsar_producer_configuration_create();
 
-void pulsar_producer_configuration_free(pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC void pulsar_producer_configuration_free(pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_producer_name(pulsar_producer_configuration_t *conf,
-                                                     const char *producerName);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_producer_name(pulsar_producer_configuration_t *conf,
+                                                                   const char *producerName);
 
-const char *pulsar_producer_configuration_get_producer_name(pulsar_producer_configuration_t *conf);
-
-void pulsar_producer_configuration_set_send_timeout(pulsar_producer_configuration_t *conf, int sendTimeoutMs);
-
-int pulsar_producer_configuration_get_send_timeout(pulsar_producer_configuration_t *conf);
-
-void pulsar_producer_configuration_set_initial_sequence_id(pulsar_producer_configuration_t *conf,
-                                                           int64_t initialSequenceId);
-
-int64_t pulsar_producer_configuration_get_initial_sequence_id(pulsar_producer_configuration_t *conf);
-
-void pulsar_producer_configuration_set_compression_type(pulsar_producer_configuration_t *conf,
-                                                        pulsar_compression_type compressionType);
-
-pulsar_compression_type pulsar_producer_configuration_get_compression_type(
+PULSAR_PUBLIC const char *pulsar_producer_configuration_get_producer_name(
     pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_max_pending_messages(pulsar_producer_configuration_t *conf,
-                                                            int maxPendingMessages);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_send_timeout(pulsar_producer_configuration_t *conf,
+                                                                  int sendTimeoutMs);
 
-int pulsar_producer_configuration_get_max_pending_messages(pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC int pulsar_producer_configuration_get_send_timeout(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_initial_sequence_id(
+    pulsar_producer_configuration_t *conf, int64_t initialSequenceId);
+
+PULSAR_PUBLIC int64_t
+pulsar_producer_configuration_get_initial_sequence_id(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_compression_type(
+    pulsar_producer_configuration_t *conf, pulsar_compression_type compressionType);
+
+PULSAR_PUBLIC pulsar_compression_type
+pulsar_producer_configuration_get_compression_type(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_schema_info(pulsar_producer_configuration_t *conf,
+                                                                 pulsar_schema_type schemaType,
+                                                                 const char *name, const char *schema,
+                                                                 pulsar_string_map_t *properties);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages(
+    pulsar_producer_configuration_t *conf, int maxPendingMessages);
+PULSAR_PUBLIC int pulsar_producer_configuration_get_max_pending_messages(
+    pulsar_producer_configuration_t *conf);
 
 /**
  * Set the number of max pending messages across all the partitions
@@ -82,60 +108,63 @@ int pulsar_producer_configuration_get_max_pending_messages(pulsar_producer_confi
  *
  * @param maxPendingMessagesAcrossPartitions
  */
-void pulsar_producer_configuration_set_max_pending_messages_across_partitions(
+PULSAR_PUBLIC void pulsar_producer_configuration_set_max_pending_messages_across_partitions(
     pulsar_producer_configuration_t *conf, int maxPendingMessagesAcrossPartitions);
 
 /**
  *
  * @return the maximum number of pending messages allowed across all the partitions
  */
-int pulsar_producer_configuration_get_max_pending_messages_across_partitions(
+PULSAR_PUBLIC int pulsar_producer_configuration_get_max_pending_messages_across_partitions(
     pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_partitions_routing_mode(pulsar_producer_configuration_t *conf,
-                                                               pulsar_partitions_routing_mode mode);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_partitions_routing_mode(
+    pulsar_producer_configuration_t *conf, pulsar_partitions_routing_mode mode);
 
-pulsar_partitions_routing_mode pulsar_producer_configuration_get_partitions_routing_mode(
+PULSAR_PUBLIC pulsar_partitions_routing_mode
+pulsar_producer_configuration_get_partitions_routing_mode(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
+                                                                    pulsar_message_router router, void *ctx);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_hashing_scheme(pulsar_producer_configuration_t *conf,
+                                                                    pulsar_hashing_scheme scheme);
+
+PULSAR_PUBLIC pulsar_hashing_scheme
+pulsar_producer_configuration_get_hashing_scheme(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_block_if_queue_full(
+    pulsar_producer_configuration_t *conf, int blockIfQueueFull);
+
+PULSAR_PUBLIC int pulsar_producer_configuration_get_block_if_queue_full(
     pulsar_producer_configuration_t *conf);
-
-void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
-                                                      pulsar_message_router router, void *ctx);
-
-void pulsar_producer_configuration_set_hashing_scheme(pulsar_producer_configuration_t *conf,
-                                                      pulsar_hashing_scheme scheme);
-
-pulsar_hashing_scheme pulsar_producer_configuration_get_hashing_scheme(pulsar_producer_configuration_t *conf);
-
-void pulsar_producer_configuration_set_block_if_queue_full(pulsar_producer_configuration_t *conf,
-                                                           int blockIfQueueFull);
-
-int pulsar_producer_configuration_get_block_if_queue_full(pulsar_producer_configuration_t *conf);
 
 // Zero queue size feature will not be supported on consumer end if batching is enabled
-void pulsar_producer_configuration_set_batching_enabled(pulsar_producer_configuration_t *conf,
-                                                        int batchingEnabled);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_batching_enabled(pulsar_producer_configuration_t *conf,
+                                                                      int batchingEnabled);
 
-int pulsar_producer_configuration_get_batching_enabled(pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC int pulsar_producer_configuration_get_batching_enabled(pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_batching_max_messages(pulsar_producer_configuration_t *conf,
-                                                             unsigned int batchingMaxMessages);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_batching_max_messages(
+    pulsar_producer_configuration_t *conf, unsigned int batchingMaxMessages);
 
-unsigned int pulsar_producer_configuration_get_batching_max_messages(pulsar_producer_configuration_t *conf);
+PULSAR_PUBLIC unsigned int pulsar_producer_configuration_get_batching_max_messages(
+    pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_batching_max_allowed_size_in_bytes(
+PULSAR_PUBLIC void pulsar_producer_configuration_set_batching_max_allowed_size_in_bytes(
     pulsar_producer_configuration_t *conf, unsigned long batchingMaxAllowedSizeInBytes);
 
-unsigned long pulsar_producer_configuration_get_batching_max_allowed_size_in_bytes(
+PULSAR_PUBLIC unsigned long pulsar_producer_configuration_get_batching_max_allowed_size_in_bytes(
     pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_batching_max_publish_delay_ms(pulsar_producer_configuration_t *conf,
-                                                                     unsigned long batchingMaxPublishDelayMs);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_batching_max_publish_delay_ms(
+    pulsar_producer_configuration_t *conf, unsigned long batchingMaxPublishDelayMs);
 
-unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
+PULSAR_PUBLIC unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
     pulsar_producer_configuration_t *conf);
 
-void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf, const char *name,
-                                                const char *value);
+PULSAR_PUBLIC void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf,
+                                                              const char *name, const char *value);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader() const;
 // ProducerConfiguration &setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
@@ -146,8 +175,6 @@ void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t 
 // std::set <std::string> &getEncryptionKeys();
 // int isEncryptionEnabled() const;
 // ProducerConfiguration &addEncryptionKey(std::string key);
-
-#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

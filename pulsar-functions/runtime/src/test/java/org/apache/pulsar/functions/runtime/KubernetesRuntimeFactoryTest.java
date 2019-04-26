@@ -145,7 +145,7 @@ public class KubernetesRuntimeFactoryTest {
             null,
             null,
                 minResources,
-                new TestSecretProviderConfigurator()));
+                new TestSecretProviderConfigurator(), false));
         doNothing().when(factory).setupClient();
         return factory;
     }

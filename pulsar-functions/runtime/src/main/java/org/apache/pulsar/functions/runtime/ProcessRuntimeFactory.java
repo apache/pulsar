@@ -39,6 +39,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private final String pulsarServiceUrl;
     private final String stateStorageServiceUrl;
+    private final boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
@@ -54,7 +55,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String pythonInstanceFile,
                                  String logDirectory,
                                  String extraDependenciesDir,
-                                 SecretsProviderConfigurator secretsProviderConfigurator) {
+                                 SecretsProviderConfigurator secretsProviderConfigurator,
+                                 boolean authenticationEnabled) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
@@ -63,6 +65,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.pythonInstanceFile = pythonInstanceFile;
         this.extraDependenciesDir = extraDependenciesDir;
         this.logDirectory = logDirectory;
+        this.authenticationEnabled = authenticationEnabled;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
@@ -129,7 +132,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         }
 
         // configure auth if necessary
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
             getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
         }
 

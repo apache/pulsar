@@ -191,9 +191,6 @@ public class SinkStatsManager extends ComponentStatsManager {
 
         statTotalWritten1min.clear();
         _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
-
-        latestSystemExceptions.clear();
-        latestSinkExceptions.clear();
     }
 
     @Override

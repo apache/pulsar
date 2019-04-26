@@ -23,10 +23,13 @@ import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 
 @SuppressWarnings("serial")
+@Slf4j
 public class PulsarAdminException extends Exception {
     private static final int DEFAULT_STATUS_CODE = 500;
 
@@ -34,15 +37,20 @@ public class PulsarAdminException extends Exception {
     private final int statusCode;
 
     private static String getReasonFromServer(WebApplicationException e) {
-        if (MediaType.APPLICATION_JSON.equals(e.getResponse().getHeaderString("Content-Type"))) {
+        try {
+            return e.getResponse().readEntity(ErrorData.class).reason;
+        } catch (Exception ex) {
             try {
-                return e.getResponse().readEntity(ErrorData.class).reason;
-            } catch (Exception ex) {
-                // could not parse output to ErrorData class
-                return e.getMessage();
+                return ObjectMapperFactory.getThreadLocal().readValue(e.getResponse().getEntity().toString(), ErrorData.class).reason;
+            } catch (Exception ex1) {
+                try {
+                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                } catch (Exception ex2) {
+                    // could not parse output to ErrorData class
+                    return e.getMessage();
+                }
             }
         }
-        return e.getMessage();
     }
 
     public PulsarAdminException(ClientErrorException e) {
