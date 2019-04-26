@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -59,7 +60,7 @@ public class MultiVersionGenericSchemaTest {
 
     @Test
     public void testGetSchemaInfo() {
-        assertEquals(new byte[0], schema.getSchemaInfo().getSchema());
+        assertEquals(BytesSchema.of().getSchemaInfo().getSchema(), schema.getSchemaInfo().getSchema());
     }
 
     @Test
