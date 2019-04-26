@@ -19,7 +19,6 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import org.apache.pulsar.client.impl.schema.TimeSchema;
 import org.apache.pulsar.client.impl.schema.TimestampSchema;
 
 import java.sql.Timestamp;

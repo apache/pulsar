@@ -21,8 +21,6 @@ package org.apache.pulsar.sql.presto;
 import io.airlift.log.Logger;
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class BooleanSchemaHandler extends PrimitiveSchemaHandler {
     private static final Logger log = Logger.get(BooleanSchemaHandler.class);
     private static BooleanSchema booleanSchema = new BooleanSchema();

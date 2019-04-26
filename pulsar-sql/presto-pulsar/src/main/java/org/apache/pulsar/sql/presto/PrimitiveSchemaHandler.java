@@ -19,8 +19,8 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 
 public abstract class PrimitiveSchemaHandler implements SchemaHandler {
     private static final Logger log = Logger.get(PrimitiveSchemaHandler.class);

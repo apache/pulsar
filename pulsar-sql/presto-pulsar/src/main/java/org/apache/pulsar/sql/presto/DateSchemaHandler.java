@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
 import org.apache.pulsar.client.impl.schema.DateSchema;
-import org.apache.pulsar.client.impl.schema.DoubleSchema;
 
 import java.util.Date;
 

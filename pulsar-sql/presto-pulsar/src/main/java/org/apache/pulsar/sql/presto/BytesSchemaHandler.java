@@ -19,7 +19,7 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
 
 public class BytesSchemaHandler implements SchemaHandler {

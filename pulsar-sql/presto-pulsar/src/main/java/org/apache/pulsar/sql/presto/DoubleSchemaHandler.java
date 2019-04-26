@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
 import org.apache.pulsar.client.impl.schema.DoubleSchema;
-import org.apache.pulsar.client.impl.schema.LongSchema;
 
 public class DoubleSchemaHandler extends PrimitiveSchemaHandler {
     private static final Logger log = Logger.get(DoubleSchemaHandler.class);
