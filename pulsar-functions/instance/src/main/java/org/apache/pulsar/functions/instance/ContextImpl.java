@@ -27,6 +27,7 @@ import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -44,6 +45,7 @@ import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -158,6 +160,15 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     public void setCurrentMessageContext(Record<?> record) {
         this.record = record;
+    }
+
+    /**
+     * Retrieves the current message associated with input value.
+     *
+     * @return current message
+     */
+    public Message<?> getCurrentMessage() {
+        return ((PulsarRecord<?>) record).getActualMessage();
     }
 
     @Override
