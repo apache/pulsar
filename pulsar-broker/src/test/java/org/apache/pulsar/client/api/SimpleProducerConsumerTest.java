@@ -3007,13 +3007,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         final String topic = "persistent://my-property/my-ns/my-topic";
         final String subName = "my-subscription";
+        final String consumerName = "my-consumer";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -3043,13 +3046,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         final String topic = "persistent://my-property/my-ns/my-topic";
         final String subName = "my-subscription";
+        final String consumerName = "my-consumer";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -3057,6 +3063,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // even though has the same subscription name.
         Consumer<byte[]> consumerC = pulsarClient.newConsumer().topic(topic + "-different-topic")
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -3086,17 +3093,48 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumerC.close();
     }
 
-    @Test
-    public void testRefCount_OnCloseConsumer() throws Exception {
+
+    @Test()
+    public void testConsumersWithNotEqualsConsumerName() throws Exception {
         final String topic = "persistent://my-property/my-ns/my-topic";
         final String subName = "my-subscription";
+        final String consumerName = "my-consumer";
 
         Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
+                .consumerName(consumerName + "-different")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Assert.assertNotEquals(consumerA, consumerB);
+
+        consumerA.close();
+        assertFalse(consumerA.isConnected());
+        assertTrue(consumerB.isConnected());
+
+        consumerB.close();
+        assertFalse(consumerB.isConnected());
+    }
+
+    @Test
+    public void testRefCount_OnCloseConsumer() throws Exception {
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String subName = "my-subscription";
+        final String consumerName = "my-consumer";
+
+        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 

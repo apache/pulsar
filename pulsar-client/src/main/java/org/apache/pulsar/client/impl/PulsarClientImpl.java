@@ -682,6 +682,7 @@ public class PulsarClientImpl implements PulsarClient {
             Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
                     .filter(c -> c.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
                     .filter(c -> conf.getTopicNames().contains(c.getTopic()))
+                    .filter(c -> c.getConsumerName().equals(conf.getConsumerName()))
                     .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
                     .filter(Consumer::isConnected)
                     .findFirst();
