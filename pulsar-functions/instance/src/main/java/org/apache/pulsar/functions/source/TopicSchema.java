@@ -20,9 +20,10 @@ package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -31,7 +32,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.schema.*;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -81,6 +84,11 @@ public class TopicSchema {
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericRecord.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
+        } else if (byte[].class.equals(clazz)
+                || ByteBuf.class.equals(clazz)
+                || ByteBuffer.class.equals(clazz)) {
+            // if function uses bytes, we should ignore
+            return SchemaType.NONE;
         } else {
             Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
             if (schema.isPresent()) {
@@ -96,41 +104,20 @@ public class TopicSchema {
     }
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
-        if (byte[].class.equals(clazz)) {
-            return BytesSchema.SCHEMA_INFO.getType();
-        } else if (ByteBuf.class.equals(clazz)) {
-            return ByteBufSchema.SCHEMA_INFO.getType();
-        } else if (ByteBuffer.class.equals(clazz)) {
-            return ByteBufferSchema.SCHEMA_INFO.getType();
-        } else if (Byte.class.equals(clazz)) {
-            return ByteSchema.SCHEMA_INFO.getType();
+        if (byte[].class.equals(clazz)
+            || ByteBuf.class.equals(clazz)
+            || ByteBuffer.class.equals(clazz)) {
+            return SchemaType.NONE;
         } else if (GenericRecord.class.isAssignableFrom(clazz)) {
             // the function is taking generic record, so we do auto schema detection
             return SchemaType.AUTO_CONSUME;
         } else if (String.class.equals(clazz)) {
-            return StringSchema.SCHEMA_INFO.getType();
+            // If type is String, then we use schema type string, otherwise we fallback on default schema
+            return SchemaType.STRING;
         } else if (isProtobufClass(clazz)) {
             return SchemaType.PROTOBUF;
         } else if (KeyValue.class.equals(clazz)) {
             return SchemaType.KEY_VALUE;
-        } else if (Date.class.equals(clazz)) {
-            return DateSchema.SCHEMA_INFO.getType();
-        } else if (Double.class.equals(clazz)) {
-            return DoubleSchema.SCHEMA_INFO.getType();
-        } else if (Float.class.equals(clazz)) {
-            return FloatSchema.SCHEMA_INFO.getType();
-        } else if (Integer.class.equals(clazz)) {
-            return IntSchema.SCHEMA_INFO.getType();
-        } else if (Long.class.equals(clazz)) {
-            return LongSchema.SCHEMA_INFO.getType();
-        } else if (Short.class.equals(clazz)) {
-            return ShortSchema.SCHEMA_INFO.getType();
-        } else if (Boolean.class.equals(clazz)) {
-            return BooleanSchema.SCHEMA_INFO.getType();
-        } else if (Time.class.equals(clazz)) {
-            return TimeSchema.SCHEMA_INFO.getType();
-        } else if (Timestamp.class.equals(clazz)) {
-            return TimestampSchema.SCHEMA_INFO.getType();
         } else {
             return DEFAULT_SCHEMA_TYPE;
         }
@@ -139,66 +126,30 @@ public class TopicSchema {
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type) {
         switch (type) {
-            case NONE:
-                return (Schema<T>) Schema.BYTES;
+        case NONE:
+            return (Schema<T>) Schema.BYTES;
 
-            case AUTO_CONSUME:
-            case AUTO:
-                return (Schema<T>) Schema.AUTO_CONSUME();
+        case AUTO_CONSUME:
+        case AUTO:
+            return (Schema<T>) Schema.AUTO_CONSUME();
 
-            case STRING:
-                return (Schema<T>) Schema.STRING;
+        case STRING:
+            return (Schema<T>) Schema.STRING;
 
-            case AVRO:
-                return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
+        case AVRO:
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
-            case JSON:
-                return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
+        case JSON:
+            return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
-            case BOOLEAN:
-                return (Schema<T>) Schema.BOOL;
+        case KEY_VALUE:
+            return (Schema<T>)Schema.KV_BYTES();
 
-            case INT8:
-                return (Schema<T>) Schema.INT8;
+        case PROTOBUF:
+            return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
 
-            case INT16:
-                return (Schema<T>) Schema.INT16;
-
-            case INT32:
-                return (Schema<T>) Schema.INT32;
-
-            case INT64:
-                return (Schema<T>) Schema.INT64;
-
-            case FLOAT:
-                return (Schema<T>) Schema.FLOAT;
-
-            case DOUBLE:
-                return (Schema<T>) Schema.DOUBLE;
-
-            case DATE:
-                return (Schema<T>) Schema.DATE;
-
-            case TIME:
-                return (Schema<T>) Schema.TIME;
-
-            case TIMESTAMP:
-                return (Schema<T>) Schema.TIMESTAMP;
-
-            case KEY_VALUE:
-                return (Schema<T>)Schema.KV_BYTES();
-
-            case PROTOBUF:
-                return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
-
-            case BYTES:
-                return (Schema<T>) Schema.BYTES;
-
-            case AUTO_PUBLISH:
-                return (Schema<T>) Schema.AUTO_PRODUCE_BYTES();
-
-            default:
-                throw new RuntimeException("Unsupported schema type" + type);
+        default:
+            throw new RuntimeException("Unsupported schema type" + type);
         }
     }
 
