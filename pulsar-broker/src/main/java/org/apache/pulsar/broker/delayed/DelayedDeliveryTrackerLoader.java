@@ -41,7 +41,6 @@ public class DelayedDeliveryTrackerLoader {
             DelayedDeliveryTrackerFactory factory = (DelayedDeliveryTrackerFactory) obj;
             factory.initialize(conf);
             return factory;
-
         } catch (Exception e) {
             throw new IOException(e);
         }

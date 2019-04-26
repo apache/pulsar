@@ -281,7 +281,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void start() throws Exception {
-        this.delayedDeliveryTrackerFactory.initialize(pulsar.getConfiguration());
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), producerNameGeneratorPath,
                 pulsar.getConfiguration().getClusterName());
 

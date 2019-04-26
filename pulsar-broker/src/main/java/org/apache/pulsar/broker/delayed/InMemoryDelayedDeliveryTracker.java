@@ -22,6 +22,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 
+import java.time.Clock;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -50,15 +51,22 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     private final long tickTimeMillis;
 
+    private final Clock clock;
+
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis) {
+        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC());
+    }
+
+    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis, Clock clock) {
         this.dispatcher = dispatcher;
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
+        this.clock = clock;
     }
 
     @Override
     public boolean addMessage(long ledgerId, long entryId, long deliveryAt) {
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
                     deliveryAt - now);
@@ -78,7 +86,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      */
     @Override
     public boolean hasMessageAvailable() {
-        return !priorityQueue.isEmpty() && priorityQueue.peekN1() <= System.currentTimeMillis();
+        return !priorityQueue.isEmpty() && priorityQueue.peekN1() <= clock.millis();
     }
 
     /**
@@ -88,7 +96,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     public Set<PositionImpl> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         Set<PositionImpl> positions = new TreeSet<>();
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         // Pick all the messages that will be ready within the tick time period.
         // This is to avoid keeping rescheduling the timer for each message at
         // very short delay
@@ -105,6 +113,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             positions.add(new PositionImpl(ledgerId, entryId));
 
             priorityQueue.pop();
+            --n;
         }
 
         if (log.isDebugEnabled()) {
@@ -139,7 +148,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             timeout.cancel();
         }
 
-        long delayMillis = timestamp - System.currentTimeMillis();
+        long delayMillis = timestamp - clock.millis();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Start timer in {} millis", dispatcher.getName(), delayMillis);
         }

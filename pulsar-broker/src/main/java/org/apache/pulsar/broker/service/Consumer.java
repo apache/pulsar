@@ -283,6 +283,18 @@ public class Consumer {
         }
     }
 
+    public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, Subscription subscription,
+            long consumerId) {
+        MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+        if (msgMetadata == null) {
+            return -1;
+        } else {
+            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
+            msgMetadata.recycle();
+            return numMessagesInBatch;
+        }
+    }
+
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, Subscription subscription,
             long consumerId) {
         try {
@@ -307,25 +319,32 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
             PositionImpl pos = (PositionImpl) entry.getPosition();
-            if (msgMetadata == null) {
-                // Message metadata was corrupted
-                iter.remove();
-                entry.release();
-                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual, Collections.emptyMap());
-                continue;
-            } else if (msgMetadata.hasDeliverAtTime()
-                    && subscription.getDispatcher()
-                        .trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
-                // The message is marked for delayed delivery. Ignore for now.
-                iter.remove();
-                entry.release();
-                continue;
-            }
 
-            int batchSize = msgMetadata.getNumMessagesInBatch();
-            msgMetadata.recycle();
+            int batchSize;
+            MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+
+            try {
+                if (msgMetadata == null) {
+                    // Message metadata was corrupted
+                    iter.remove();
+                    entry.release();
+                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                            Collections.emptyMap());
+                    continue;
+                } else if (msgMetadata.hasDeliverAtTime()
+                        && subscription.getDispatcher()
+                                .trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                    // The message is marked for delayed delivery. Ignore for now.
+                    iter.remove();
+                    entry.release();
+                    continue;
+                }
+
+                batchSize = msgMetadata.getNumMessagesInBatch();
+            } finally {
+                msgMetadata.recycle();
+            }
 
             if (pendingAcks != null) {
                 pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
