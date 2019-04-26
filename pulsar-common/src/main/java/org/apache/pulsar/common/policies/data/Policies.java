@@ -151,6 +151,6 @@ public class Policies {
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
-                .add("is_schema_validation_enforce", schema_validation_enforced).toString();
+                .add("schema_validation_enforced", schema_validation_enforced).toString();
     }
 }
