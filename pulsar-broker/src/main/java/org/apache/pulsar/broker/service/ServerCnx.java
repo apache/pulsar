@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -100,6 +101,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfoUtil;
@@ -902,8 +904,19 @@ public class ServerCnx extends PulsarHandler {
                                 schemaVersionFuture = topic.addSchema(schema);
                             } else {
                                 schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
+                                        boolean schemaValidationEnforcedForNamespace = false;
+                                        try {
+                                            String namespace = TopicName.get(topic.getName()).getNamespace();
+                                            schemaValidationEnforcedForNamespace = this.service.pulsar()
+                                                    .getAdminClient().namespaces()
+                                                    .getSchemaValidationEnforced(namespace);
+                                        } catch (PulsarServerException e) {
+                                            log.error("Failed to connect broker {}", e.getMessage(), e);
+                                        } catch (PulsarAdminException e) {
+                                            log.error("Failed to get schema_validation_enforced {}", e.getMessage(), e);
+                                        }
                                         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if (hasSchema && schemaValidationEnforced) {
+                                        if ((hasSchema && schemaValidationEnforced) || (hasSchema && schemaValidationEnforcedForNamespace)) {
                                             result.completeExceptionally(new IncompatibleSchemaException(
                                                 "Producers cannot connect without a schema to topics with a schema"));
                                         } else {

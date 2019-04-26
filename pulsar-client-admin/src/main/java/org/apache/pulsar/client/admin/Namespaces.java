@@ -1362,14 +1362,38 @@ public interface Namespaces {
                                                   SchemaAutoUpdateCompatibilityStrategy strategy)
             throws PulsarAdminException;
 
-
     /**
+     * Get schema validation enforced for namespace.
+     * @param namespace
+     * @param
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    boolean getSchemaValidationEnforced(String namespace)
+        throws PulsarAdminException;
+    /**
+     * Set schema validation enforced for namespace.
+     * if a producer without a schema attempts to produce to a topic with schema in this the namespace, the
+     * producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't
+     * support schema. if you enable this setting, it will cause non-java clients failed to produce.
      *
      * @param namespace
      * @param enable
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
      * @throws PulsarAdminException
+     *             Unexpected error
      */
 
-    void setIsSchemaValidationEnforced(String namespace, boolean enable)
+    void setSchemaValidationEnforced(String namespace, boolean enable)
         throws PulsarAdminException;
 }

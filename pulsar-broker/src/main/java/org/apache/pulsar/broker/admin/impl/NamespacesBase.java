@@ -1787,7 +1787,7 @@ public abstract class NamespacesBase extends AdminResource {
             "schemaAutoUpdateCompatibilityStrategy");
     }
 
-    protected void internalSetIsSchemaValidationEnforced(boolean isSchemaValidationEnforced) {
+    protected boolean internalGetSchemaValidationEnforced() {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
@@ -1796,24 +1796,55 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.is_schema_validation_enforced = isSchemaValidationEnforced;
-            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated isSchemaValidationEnforced configuration: namespace={}, value={}",
-                    clientAppId(), namespaceName, policies.is_schema_validation_enforced);
+            log.info("[{}] Successfully get schemaValidationEnforced configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.schema_validation_enforced);
+            return policies.schema_validation_enforced;
+
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update isSchemaValidationEnforced configuration for namespace {}: does not exist",
+            log.warn("[{}] Failed to get schemaValidationEnforced configuration for namespace {}: does not exist",
                     clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update isSchemaValidationEnforced configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to get schemaValidationEnforced configuration for namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update isSchemaValidationEnforced configuration for namespace {}",
+            log.error("[{}] Failed to get schemaValidationEnforced configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            policies.schema_validation_enforced = schemaValidationEnforced;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated schemaValidationEnforced configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.schema_validation_enforced);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update schemaValidationEnforced configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update schemaValidationEnforced configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update schemaValidationEnforced configuration for namespace {}",
                     clientAppId(), namespaceName, e);
             throw new RestException(e);
         }

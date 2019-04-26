@@ -843,17 +843,29 @@ public class Namespaces extends NamespacesBase {
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
-    @POST
-    @Path("/{tenant}/{namespace}/isSchemavalidationEnforced")
+    @GET
+    @Path("/{tenant}/{namespace}/schemaValidationEnforced")
     @ApiOperation(value = "")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setIsSchemaValidtionEnforced(@PathParam("tenant") String tenant,
-                                             @PathParam("namespace") String namespace,
-                                             boolean isSchemaValidationEnforced) {
+    public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetIsSchemaValidationEnforced(isSchemaValidationEnforced);
+        return internalGetSchemaValidationEnforced();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/schemaValidationEnforced")
+    @ApiOperation(value = "")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             boolean schemaValidationEnforced) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSchemaValidationEnforced(schemaValidationEnforced);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

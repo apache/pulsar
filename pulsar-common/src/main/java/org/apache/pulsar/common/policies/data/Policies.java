@@ -65,7 +65,7 @@ public class Policies {
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
-    public boolean is_schema_validation_enforced = false;
+    public boolean schema_validation_enforced = false;
 
     @Override
     public int hashCode() {
@@ -80,7 +80,7 @@ public class Policies {
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
-                is_schema_validation_enforced);
+                schema_validation_enforced);
     }
 
     @Override
@@ -108,7 +108,7 @@ public class Policies {
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
-                    && is_schema_validation_enforced == other.is_schema_validation_enforced;
+                    && schema_validation_enforced == other.schema_validation_enforced;
         }
 
         return false;
@@ -151,6 +151,6 @@ public class Policies {
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
-                .add("is_schema_validation_enforce", is_schema_validation_enforced).toString();
+                .add("is_schema_validation_enforce", schema_validation_enforced).toString();
     }
 }

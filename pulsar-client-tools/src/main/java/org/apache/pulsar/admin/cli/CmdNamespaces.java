@@ -1013,18 +1013,38 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the schema validation enforced")
+    private class GetSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            System.out.println(admin.namespaces().getSchemaValidationEnforced(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Set the schema whether open schema validation enforced")
-    private class SetIsSchemaValidationEnforced extends CliCommand {
+    private class SetSchemaValidationEnforced extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
         private boolean enable = false;
 
+        @Parameter(names = { "--disable", "-d" }, description = "Disable schema validation enforced")
+        private boolean disable = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().setIsSchemaValidationEnforced(namespace, enable);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setSchemaValidationEnforced(namespace, enable);
         }
     }
 
@@ -1109,6 +1129,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
 
-        jcommander.addCommand("set-is-schema-validation-enforce", new SetIsSchemaValidationEnforced());
+        jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
+        jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
     }
 }
