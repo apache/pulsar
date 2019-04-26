@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -234,6 +235,16 @@ public interface Schema<T> {
     }
 
     /**
+     * Key Value Schema using passed in schema type and encoding type, support JSON and AVRO currently.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key,
+                                                  Class<V> value,
+                                                  SchemaType type,
+                                                  KeyValueEncodingType keyValueEncodingType) {
+        return DefaultImplementation.newKeyValueSchema(key, value, type, keyValueEncodingType);
+    }
+
+    /**
      * Schema that can be used to encode/decode KeyValue.
      */
     static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {
@@ -252,6 +263,13 @@ public interface Schema<T> {
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
         return DefaultImplementation.newKeyValueSchema(key, value);
+    }
+
+    /**
+     * Key Value Schema using passed in key, value and encoding type schemas.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value, KeyValueEncodingType keyValueEncodingType) {
+        return DefaultImplementation.newKeyValueSchema(key, value, keyValueEncodingType);
     }
 
     @Deprecated

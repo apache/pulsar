@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
@@ -91,7 +92,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
-            if (kvSchema.getKeyValueEncodingType() == KeyValueSchema.KeyValueEncodingType.SEPARATED) {
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
                 msgMetadataBuilder.setPartitionKey(
                         Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));

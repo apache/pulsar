@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public class MessageImpl<T> implements Message<T> {
@@ -247,7 +248,7 @@ public class MessageImpl<T> implements Message<T> {
             return schema.decode(getData(), getSchemaVersion());
         } else if (SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
-            if (kvSchema.getKeyValueEncodingType() == KeyValueSchema.KeyValueEncodingType.SEPARATED) {
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 return schema.decode(getKeyBytes(), getData());
             } else {
                 return schema.decode(getData());

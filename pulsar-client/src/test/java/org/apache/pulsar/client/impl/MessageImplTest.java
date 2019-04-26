@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.Schema;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
@@ -79,11 +81,7 @@ public class MessageImplTest {
     }
 
     @Test
-    public void testGetProducerDataAssigned() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
-                .setProducerName("test-producer");
-
-//        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+    public void testDefaultGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
@@ -94,32 +92,68 @@ public class MessageImplTest {
         foo.setField3(3);
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
-        Map<String, String> properties = Maps.newHashMap();
 
         // // Check kv.encoding.type default, not set value
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+                .setProducerName("default");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
+        System.out.println(builder.getPartitionKey());
+        System.out.println(builder.getPartitionKey());
+        assertEquals(builder.getPartitionKey().length(), 0);
+    }
+
+    @Test
+    public void testInlineGetProducerDataAssigned() {
+
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
+        bar.setField1(true);
 
         // Check kv.encoding.type INLINE
-        properties.put("kv.encoding.type", "INLINE");
-        keyValueSchema.getSchemaInfo().setProperties(properties);
-        encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
-        keyValue = msg.getValue();
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+                .setProducerName("inline");
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
+        assertEquals(builder.getPartitionKey().length(), 0);
+    }
+
+    @Test
+    public void testSpraerateGetProducerDataAssigned() {
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
+        bar.setField1(true);
 
         // Check kv.encoding.type SPRAERATE
-        properties.put("kv.encoding.type", "SEPARATED");
-        keyValueSchema.getSchemaInfo().setProperties(properties);
-        encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
-        builder.setPartitionKey(new String(fooSchema.encode(foo)));
-        keyValue = msg.getValue();
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+                .setProducerName("spraerate");
+        builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
+        builder.setPartitionKeyB64Encoded(true);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
+        assertEquals(builder.getPartitionKey(), Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
     }
 }

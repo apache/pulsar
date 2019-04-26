@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -235,13 +236,11 @@ public class KeyValueSchemaTest {
     }
 
     @Test
-    public void testkeyValueEncodingTypeSchemaEncodeAndDecode() {
-
+    public void testDefaultKeyValueEncodingTypeSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
-
 
         Bar bar = new Bar();
         bar.setField1(true);
@@ -263,26 +262,63 @@ public class KeyValueSchemaTest {
 
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
+    }
+
+    @Test
+    public void testInlineKeyValueEncodingTypeSchemaEncodeAndDecode() {
+
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
 
         // Check kv.encoding.type INLINE
-        Map<String, String> properties = Maps.newHashMap();
-        properties.put("kv.encoding.type", "INLINE");
-        keyValueSchema.getSchemaInfo().setProperties(properties);
-        encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
-        keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
-        fooBack = keyValue.getKey();
-        barBack = keyValue.getValue();
+        KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
+        Foo fooBack = keyValue.getKey();
+        Bar barBack = keyValue.getValue();
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
 
+    }
+
+    @Test
+    public void testSeparatedKeyValueEncodingTypeSchemaEncodeAndDecode() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
+
         // Check kv.encoding.type SEPARATED
-        properties.put("kv.encoding.type", "SEPARATED");
-        keyValueSchema.getSchemaInfo().setProperties(properties);
-        encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
-        keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
-        barBack = keyValue.getValue();
+        KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
+        Foo fooBack = keyValue.getKey();
+        Bar barBack = keyValue.getValue();
+        assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
     }
 
