@@ -1361,4 +1361,15 @@ public interface Namespaces {
     void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
                                                   SchemaAutoUpdateCompatibilityStrategy strategy)
             throws PulsarAdminException;
+
+
+    /**
+     *
+     * @param namespace
+     * @param enable
+     * @throws PulsarAdminException
+     */
+
+    void setIsSchemaValidationEnforced(String namespace, boolean enable)
+        throws PulsarAdminException;
 }

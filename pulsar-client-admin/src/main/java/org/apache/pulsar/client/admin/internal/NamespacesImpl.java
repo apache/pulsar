@@ -810,6 +810,18 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         }
     }
 
+    @Override
+    public void setIsSchemaValidationEnforced(String namespace, boolean isSchemaValidationEnforced)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "isSchemaValidationEnforced");
+            request(path).post(Entity.entity(isSchemaValidationEnforced, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2Namespaces : adminNamespaces;
         WebTarget namespacePath = base.path(namespace.toString());

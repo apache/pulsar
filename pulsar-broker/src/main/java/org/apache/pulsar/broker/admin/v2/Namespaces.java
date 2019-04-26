@@ -843,5 +843,18 @@ public class Namespaces extends NamespacesBase {
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/isSchemavalidationEnforced")
+    @ApiOperation(value = "")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setIsSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             boolean isSchemaValidationEnforced) {
+        validateNamespaceName(tenant, namespace);
+        internalSetIsSchemaValidationEnforced(isSchemaValidationEnforced);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

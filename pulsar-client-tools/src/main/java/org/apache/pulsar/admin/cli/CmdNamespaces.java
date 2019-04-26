@@ -1013,6 +1013,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set the schema whether open schema validation enforced")
+    private class SetIsSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setIsSchemaValidationEnforced(namespace, enable);
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -1093,5 +1108,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
+
+        jcommander.addCommand("set-is-schema-validation-enforce", new SetIsSchemaValidationEnforced());
     }
 }
