@@ -3085,29 +3085,4 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(consumerC.isConnected());
         consumerC.close();
     }
-
-    @Test
-    public void testRefCount_OnCloseConsumer() throws Exception {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
-
-        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        Assert.assertEquals(consumerA, consumerB);
-
-        consumerA.close();
-        Assert.assertTrue(consumerA.isConnected());
-        Assert.assertTrue(consumerB.isConnected());
-
-        consumerB.close();
-        Assert.assertFalse(consumerA.isConnected());
-        Assert.assertFalse(consumerB.isConnected());
-    }
 }
