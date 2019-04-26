@@ -145,7 +145,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfo.setSchema(byteBuffer.array()).setProperties(properties);
     }
 
-    // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.length][value.bytes]
+    // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
     public byte[] encode(KeyValue<K, V> message) {
         if (keyValueEncodingType != null && keyValueEncodingType == KeyValueEncodingType.INLINE) {
             byte [] keyBytes = keySchema.encode(message.getKey());
