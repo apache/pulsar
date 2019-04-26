@@ -24,13 +24,8 @@ import io.netty.handler.ssl.SslContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -77,6 +72,7 @@ public class AsyncHttpConnector implements Connector {
         confBuilder.setFollowRedirect(true);
         confBuilder.setConnectTimeout((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT));
         confBuilder.setReadTimeout((int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT));
+        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
@@ -111,39 +107,37 @@ public class AsyncHttpConnector implements Connector {
 
     public ClientResponse apply(ClientRequest jerseyRequest) {
 
-        List<InetSocketAddress> addresses = serviceNameResolver.getAddressList();
-        CompletableFuture<ClientResponse> future = null;
-        int lastTry = addresses.size() - 1;
-        for (int i = 0; i < addresses.size() * 3; i++) {
-            InetSocketAddress address = addresses.get(i % 3);
+        CompletableFuture<ClientResponse> future = new CompletableFuture<>();
+        long startTime = System.currentTimeMillis();
+        while (true) {
+            InetSocketAddress address = serviceNameResolver.resolveHost();
             URI requestUri = replaceWithNew(address, jerseyRequest.getUri());
             jerseyRequest.setUri(requestUri);
             CompletableFuture<ClientResponse> tempFuture = new CompletableFuture<>();
             try {
-                resolveRequest(tempFuture, jerseyRequest);
-            } catch (InterruptedException e) {
-                throw new ProcessingException(e.getMessage(), e);
+                boolean requestSuccess = resolveRequest(tempFuture, jerseyRequest);
+                if (requestSuccess) {
+                    future = tempFuture;
+                    break;
+                }
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    throw new ProcessingException(
+                        "Request timeout, the last try service url is : " + jerseyRequest.getUri().toString());
+                }
             } catch (ExecutionException ex) {
-                if (i != lastTry && ex.getCause() instanceof ConnectException) {
-                    log.error("Connection refused.", ex);
-                    continue;
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    Throwable e = ex.getCause() == null ? ex : ex.getCause();
+                    throw new ProcessingException((e.getMessage()), e);
                 }
-                Throwable e = ex.getCause() == null ? ex : ex.getCause();
-                throw new ProcessingException(e.getMessage(), e);
-            } catch (TimeoutException e) {
-                if (i == lastTry) {
-                    throw new ProcessingException("Request timeout.", e);
+            } catch (Exception e) {
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    throw new ProcessingException(e.getMessage(), e);
                 }
-                log.error("Request timeout. Next trying...", e);
-                continue;
             }
-            future = tempFuture;
-            break;
         }
+
         return future.join();
     }
-
-
 
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
         String originalUri = uri.toString();
@@ -159,7 +153,7 @@ public class AsyncHttpConnector implements Connector {
 
 
 
-    private void resolveRequest(CompletableFuture<ClientResponse> future,
+    private boolean resolveRequest(CompletableFuture<ClientResponse> future,
                                 ClientRequest jerseyRequest)
         throws InterruptedException, ExecutionException, TimeoutException {
         Future<?> resultFuture = apply(jerseyRequest, new AsyncConnectorCallback() {
@@ -175,13 +169,19 @@ public class AsyncHttpConnector implements Connector {
 
         Integer timeout = ClientProperties.getValue(
             jerseyRequest.getConfiguration().getProperties(),
-            ClientProperties.READ_TIMEOUT, 0);
+            ClientProperties.READ_TIMEOUT, 0) / 3;
 
+        Object result = null;
         if (timeout != null && timeout > 0) {
-            resultFuture.get(timeout, TimeUnit.MILLISECONDS);
+            result = resultFuture.get(timeout, TimeUnit.MILLISECONDS);
         } else {
-            resultFuture.get();
+            result = resultFuture.get();
         }
+
+        if (result != null && result instanceof Throwable) {
+            return false;
+        }
+        return true;
     }
 
     @Override

@@ -101,8 +101,4 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private static int randomIndex(int numAddresses) {
         return numAddresses == 1 ? 0 : PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
-
-    public List<InetSocketAddress> getAddressList() {
-        return addressList;
-    }
 }
