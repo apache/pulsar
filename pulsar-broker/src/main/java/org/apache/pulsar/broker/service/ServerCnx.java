@@ -660,8 +660,13 @@ public class ServerCnx extends PulsarHandler {
                                 // creation request either complete or fails.
                                 log.warn("[{}][{}][{}] Consumer with id {} is already present on the connection", remoteAddress,
                                         topicName, subscriptionName, consumerId);
-                                ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady
-                                        : getErrorCode(existingConsumerFuture);
+                                ServerError error = null;
+                                if(!existingConsumerFuture.isDone()) {
+                                    error = ServerError.ServiceNotReady;
+                                }else {
+                                    error = getErrorCode(existingConsumerFuture);
+                                    consumers.remove(consumerId, consumerFuture);
+                                }
                                 ctx.writeAndFlush(Commands.newError(requestId, error,
                                         "Consumer is already present on the connection"));
                                 return null;
@@ -892,6 +897,7 @@ public class ServerCnx extends PulsarHandler {
                                 String msg = String.format("Encryption is required in %s", topicName);
                                 log.warn("[{}] {}", remoteAddress, msg);
                                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                                producers.remove(producerId, producerFuture);
                                 return;
                             }
 
