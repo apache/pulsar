@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.pulsar;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -47,6 +48,7 @@ public class PulsarSourceBuilderTest {
                 .serviceUrl("testServiceUrl")
                 .topic("testTopic")
                 .subscriptionName("testSubscriptionName")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .build();
         Assert.assertNotNull(sourceFunction);
     }
@@ -110,6 +112,11 @@ public class PulsarSourceBuilderTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSubscriptionNameWithBlank() {
         pulsarSourceBuilder.subscriptionName(" ");
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testSubscriptionInitialPosition() {
+        pulsarSourceBuilder.subscriptionInitialPosition(null);
     }
 
     private class TestDeserializationSchema<T> implements DeserializationSchema<T> {
