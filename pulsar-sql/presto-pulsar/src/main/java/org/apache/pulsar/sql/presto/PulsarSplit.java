@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.List;
 
@@ -39,8 +39,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final String schemaName;
     private final String tableName;
     private final long splitSize;
-    private final String schema;
-    private final SchemaType schemaType;
+    private final SchemaInfo schemaInfo;
     private final long startPositionEntryId;
     private final long endPositionEntryId;
     private final long startPositionLedgerId;
@@ -57,8 +56,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("splitSize") long splitSize,
-            @JsonProperty("schema") String schema,
-            @JsonProperty("schemaType") SchemaType schemaType,
+            @JsonProperty("schema") SchemaInfo schemaInfo,
             @JsonProperty("startPositionEntryId") long startPositionEntryId,
             @JsonProperty("endPositionEntryId") long endPositionEntryId,
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
@@ -69,8 +67,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
         this.splitSize = splitSize;
-        this.schema = schema;
-        this.schemaType = schemaType;
+        this.schemaInfo = schemaInfo;
         this.startPositionEntryId = startPositionEntryId;
         this.endPositionEntryId = endPositionEntryId;
         this.startPositionLedgerId = startPositionLedgerId;
@@ -96,11 +93,6 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public SchemaType getSchemaType() {
-        return schemaType;
-    }
-
-    @JsonProperty
     public String getTableName() {
         return tableName;
     }
@@ -111,8 +103,8 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public String getSchema() {
-        return schema;
+    public SchemaInfo getSchemaInfo() {
+        return schemaInfo;
     }
 
     @JsonProperty
@@ -171,8 +163,7 @@ public class PulsarSplit implements ConnectorSplit {
                 ", schemaName='" + schemaName + '\'' +
                 ", tableName='" + tableName + '\'' +
                 ", splitSize=" + splitSize +
-                ", schema='" + schema + '\'' +
-                ", schemaType=" + schemaType +
+                ", schemaInfo='" + schemaInfo + '\'' +
                 ", startPositionEntryId=" + startPositionEntryId +
                 ", endPositionEntryId=" + endPositionEntryId +
                 ", startPositionLedgerId=" + startPositionLedgerId +

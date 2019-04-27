@@ -31,7 +31,7 @@ import java.util.Map;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 
-public class JSONSchemaHandler implements SchemaHandler {
+class JSONSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(JSONSchemaHandler.class);
 

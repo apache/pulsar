@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import io.airlift.log.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
@@ -33,8 +34,9 @@ import org.apache.avro.io.DecoderFactory;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
-public class AvroSchemaHandler implements SchemaHandler {
+class AvroSchemaHandler implements SchemaHandler {
 
     private final DatumReader<GenericRecord> datumReader;
 
@@ -45,8 +47,11 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
-    public AvroSchemaHandler(Schema schema, List<PulsarColumnHandle> columnHandles) {
-        this.datumReader = new GenericDatumReader<>(schema);
+    public AvroSchemaHandler(SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) {
+        this.datumReader = new GenericDatumReader<>(
+            PulsarConnectorUtils.parseSchema(
+                new String(schemaInfo.getSchema(), UTF_8))
+        );
         this.columnHandles = columnHandles;
     }
 

@@ -209,7 +209,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               ManagedLedgerFactory managedLedgerFactory,
                                               int numSplits,
                                               PulsarTableHandle tableHandle,
-                                              SchemaInfo schemaInfo, String tableName,
+                                              SchemaInfo schemaInfo,
+                                              String tableName,
                                               TupleDomain<ColumnHandle> tupleDomain)
             throws ManagedLedgerException, InterruptedException {
 
@@ -260,8 +261,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         tableHandle.getSchemaName(),
                         tableName,
                         entriesForSplit,
-                        new String(schemaInfo.getSchema()),
-                        schemaInfo.getType(),
+                        schemaInfo,
                         startPosition.getEntryId(),
                         endPosition.getEntryId(),
                         startPosition.getLedgerId(),

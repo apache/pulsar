@@ -19,7 +19,6 @@
 package org.apache.pulsar.sql.presto;
 
 import org.apache.avro.Schema;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;

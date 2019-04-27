@@ -152,27 +152,69 @@ public enum SchemaType {
 
     public static SchemaType valueOf(int value) {
         switch (value) {
-          case 0: return NONE;
-          case 1: return STRING;
-          case 2: return JSON;
-          case 3: return PROTOBUF;
-          case 4: return AVRO;
-          case 5: return BOOLEAN;
-          case 6: return INT8;
-          case 7: return INT16;
-          case 8: return INT32;
-          case 9: return INT64;
-          case 10: return FLOAT;
-          case 11: return DOUBLE;
-          case 12: return DATE;
-          case 13: return TIME;
-          case 14: return TIMESTAMP;
-          case 15: return KEY_VALUE;
-          case -1: return BYTES;
-          case -2: return AUTO;
-          case -3: return AUTO_CONSUME;
-          case -4: return AUTO_PUBLISH;
-          default: return NONE;
+            case 0: return NONE;
+            case 1: return STRING;
+            case 2: return JSON;
+            case 3: return PROTOBUF;
+            case 4: return AVRO;
+            case 5: return BOOLEAN;
+            case 6: return INT8;
+            case 7: return INT16;
+            case 8: return INT32;
+            case 9: return INT64;
+            case 10: return FLOAT;
+            case 11: return DOUBLE;
+            case 12: return DATE;
+            case 13: return TIME;
+            case 14: return TIMESTAMP;
+            case 15: return KEY_VALUE;
+            case -1: return BYTES;
+            case -2: return AUTO;
+            case -3: return AUTO_CONSUME;
+            case -4: return AUTO_PUBLISH;
+            default: return NONE;
         }
-      }
+    }
+
+    public boolean isPrimitive() {
+        return isPrimitiveType(this);
+    }
+
+    public boolean isStruct() {
+        return isStructType(this);
+    }
+
+    public static boolean isPrimitiveType(SchemaType type) {
+        switch (type) {
+            case STRING:
+            case BOOLEAN:
+            case INT8:
+            case INT16:
+            case INT32:
+            case INT64:
+            case FLOAT:
+            case DOUBLE:
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+            case BYTES:
+            case NONE:
+                return true;
+            default:
+                return false;
+        }
+
+    }
+
+    public static boolean isStructType(SchemaType type) {
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return true;
+            default:
+                return false;
+        }
+    }
+
 }
