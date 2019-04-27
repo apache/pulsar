@@ -753,6 +753,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (cursor == null) {
             callback.deleteCursorFailed(new ManagedLedgerException("ManagedCursor not found: " + consumerName), ctx);
             return;
+        } else if (!cursor.isDurable()) {
+            cursors.removeCursor(consumerName);
+            callback.deleteCursorComplete(ctx);
+            return;
         }
 
         // First remove the consumer form the MetaStore. If this operation succeeds and the next one (removing the
