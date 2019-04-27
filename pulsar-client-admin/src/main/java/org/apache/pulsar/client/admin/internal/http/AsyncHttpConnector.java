@@ -123,11 +123,7 @@ public class AsyncHttpConnector implements Connector {
             jerseyRequest.setUri(requestUri);
             CompletableFuture<ClientResponse> tempFuture = new CompletableFuture<>();
             try {
-                boolean requestSuccess = resolveRequest(tempFuture, jerseyRequest);
-                if (requestSuccess) {
-                    future = tempFuture;
-                    break;
-                }
+                resolveRequest(tempFuture, jerseyRequest);
                 if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
                     throw new ProcessingException(
                         "Request timeout, the last try service url is : " + jerseyRequest.getUri().toString());
@@ -137,11 +133,15 @@ public class AsyncHttpConnector implements Connector {
                     Throwable e = ex.getCause() == null ? ex : ex.getCause();
                     throw new ProcessingException((e.getMessage()), e);
                 }
+                continue;
             } catch (Exception e) {
                 if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
                     throw new ProcessingException(e.getMessage(), e);
                 }
+                continue;
             }
+            future = tempFuture;
+            break;
         }
 
         return future.join();
@@ -161,7 +161,7 @@ public class AsyncHttpConnector implements Connector {
 
 
 
-    private boolean resolveRequest(CompletableFuture<ClientResponse> future,
+    private void resolveRequest(CompletableFuture<ClientResponse> future,
                                 ClientRequest jerseyRequest)
         throws InterruptedException, ExecutionException, TimeoutException {
         Future<?> resultFuture = apply(jerseyRequest, new AsyncConnectorCallback() {
@@ -175,9 +175,7 @@ public class AsyncHttpConnector implements Connector {
             }
         });
 
-        Integer timeout = ClientProperties.getValue(
-            jerseyRequest.getConfiguration().getProperties(),
-            ClientProperties.READ_TIMEOUT, 0) / 3;
+        Integer timeout = httpClient.getConfig().getRequestTimeout() / 3;
 
         Object result = null;
         if (timeout != null && timeout > 0) {
@@ -187,9 +185,8 @@ public class AsyncHttpConnector implements Connector {
         }
 
         if (result != null && result instanceof Throwable) {
-            return false;
+            throw new ExecutionException((Throwable) result);
         }
-        return true;
     }
 
     @Override
