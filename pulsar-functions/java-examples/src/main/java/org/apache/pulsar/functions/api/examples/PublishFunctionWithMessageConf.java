@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.client.api.Message;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +46,8 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         if (context.getCurrentRecord().getKey().isPresent()) {
             messageConf.put(TypedMessageBuilder.CONF_KEY, context.getCurrentRecord().getKey().get());
         }
-        messageConf.put(TypedMessageBuilder.CONF_EVENT_TIME, context.getCurrentRecord().getActualMessage().getEventTime());
+        messageConf.put(TypedMessageBuilder.CONF_EVENT_TIME,
+            ((Message<String>) context.getCurrentRecord().getRawMessage()).getEventTime());
         context.publish(publishTopic, output, null, messageConf);
         return null;
     }

@@ -56,7 +56,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
 
     @Override
-    public Message<T> getActualMessage() {
+    public Object getRawMessage() {
         return message;
     }
 

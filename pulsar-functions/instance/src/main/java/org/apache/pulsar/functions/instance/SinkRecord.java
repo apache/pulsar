@@ -84,7 +84,7 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
-    public Message<T> getActualMessage() {
-        return sourceRecord.getActualMessage();
+    public Object getRawMessage() {
+        return sourceRecord.getRawMessage();
     }
 }
