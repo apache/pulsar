@@ -622,5 +622,16 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    void deleteNonDurableCursorWithName() throws Exception {
+        ManagedLedger ledger = factory.open("deleteManagedLedgerWithNonDurableCursor");
+
+        ManagedCursor c = ledger.newNonDurableCursor(PositionImpl.earliest, "custom-name");
+        assertEquals(Iterables.size(ledger.getCursors()), 1);
+
+        ledger.deleteCursor(c.getName());
+        assertEquals(Iterables.size(ledger.getCursors()), 0);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonDurableCursorTest.class);
 }
