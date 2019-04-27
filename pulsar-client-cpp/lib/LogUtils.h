@@ -23,11 +23,16 @@
 #include <sstream>
 #include <memory>
 
+#include <pulsar/defines.h>
 #include <pulsar/Logger.h>
 
 namespace pulsar {
 
+#ifdef __GNUC__
 #define PULSAR_UNLIKELY(expr) __builtin_expect(expr, 0)
+#else
+#define PULSAR_UNLIKELY(expr) (expr)
+#endif
 
 #define DECLARE_LOG_OBJECT()                                                                     \
     static pulsar::Logger* logger() {                                                            \
@@ -77,9 +82,7 @@ namespace pulsar {
         }                                                             \
     }
 
-#pragma GCC visibility push(default)
-
-class LogUtils {
+class PULSAR_PUBLIC LogUtils {
    public:
     static void init(const std::string& logConfFilePath);
 
@@ -90,5 +93,4 @@ class LogUtils {
     static std::string getLoggerName(const std::string& path);
 };
 
-#pragma GCC visibility pop
 }  // namespace pulsar

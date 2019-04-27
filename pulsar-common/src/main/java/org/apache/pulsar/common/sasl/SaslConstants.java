@@ -60,6 +60,32 @@ public class SaslConstants {
     // Stand for the start of mutual auth between Client and Broker
     public static final String INIT_PROVIDER_DATA = "isInit";
 
+
+    // Sasl token name that contained auth role
+    public static final String SASL_AUTH_ROLE_TOKEN = "SaslAuthRoleToken";
+    public static final String SASL_AUTH_ROLE_TOKEN_EXPIRED = "SaslAuthRoleTokenExpired";
+
+    /**
+     * HTTP header used by the SASL client/server during an authentication sequence.
+     */
+    // auth type
+    public static final String SASL_HEADER_TYPE = "SASL-Type";
+    public static final String SASL_TYPE_VALUE = "Kerberos";
+
+    // header name for token auth between client and server
+    public static final String SASL_AUTH_TOKEN = "SASL-Token";
+
+    // header name for state
+    public static final String SASL_HEADER_STATE = "State";
+    // header value for state
+    public static final String SASL_STATE_CLIENT_INIT = "Init";
+    public static final String SASL_STATE_NEGOTIATE = "ING";
+    public static final String SASL_STATE_COMPLETE = "Done";
+    public static final String SASL_STATE_SERVER_CHECK_TOKEN = "ServerCheckToken";
+
+    // server side track the server
+    public static final String SASL_STATE_SERVER = "SASL-Server-ID";
+
     public static boolean isUsingTicketCache(String configurationEntry) {
         AppConfigurationEntry[] entries = Configuration.getConfiguration()
             .getAppConfigurationEntry(configurationEntry);
