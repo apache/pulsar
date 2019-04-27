@@ -35,11 +35,6 @@ import java.util.concurrent.CompletableFuture;
 public interface Context {
 
     /**
-     * Access the message associated with current input value.
-     */
-    Object getCurrentMessage();
-
-    /**
      * Access the record associated with the current input value.
      *
      * @return

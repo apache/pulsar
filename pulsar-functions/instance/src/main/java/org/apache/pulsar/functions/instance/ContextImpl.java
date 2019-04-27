@@ -162,11 +162,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
-    public Object getCurrentMessage() {
-        return ((PulsarRecord<?>) record).getActualMessage();
-    }
-
-    @Override
     public Record<?> getCurrentRecord() {
         return record;
     }

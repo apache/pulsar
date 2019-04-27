@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.pulsar.client.api.Message;
+
 /**
  * Pulsar Connect's Record interface. Record encapsulates the information about a record being read from a Source.
  */
@@ -103,5 +105,14 @@ public interface Record<T> {
      */
     default Optional<String> getDestinationTopic() {
         return Optional.empty();
+    }
+
+    /**
+     * Retrieves message metadata associated with this message
+     *
+     * @return the record this message contains
+     */
+    default Message<T> getActualMessage() {
+        return null;
     }
 }
