@@ -23,8 +23,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A schema for `Boolean`.
  */
@@ -33,18 +31,17 @@ public class BooleanSchema implements Schema<Boolean> {
     public static BooleanSchema of() {
         return INSTANCE;
     }
-    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN);
 
     private static final BooleanSchema INSTANCE = new BooleanSchema();
-    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
             .setName("Boolean")
             .setType(SchemaType.BOOLEAN)
-            .setSchema(schema.toString().getBytes(UTF_8));
+            .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
-        if (message.length < 1) {
-            throw new SchemaSerializationException("Size of data received by BooleanSchema is less than 1");
+        if (message.length != 1) {
+            throw new SchemaSerializationException("Size of data received by BooleanSchema is not 1");
         }
     }
 

@@ -23,8 +23,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A schema for `Float`.
  */
@@ -33,18 +31,17 @@ public class FloatSchema implements Schema<Float> {
     public static FloatSchema of() {
         return INSTANCE;
     }
-    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT);
 
     private static final FloatSchema INSTANCE = new FloatSchema();
-    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("Float")
         .setType(SchemaType.FLOAT)
-        .setSchema(schema.toString().getBytes(UTF_8));
+        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
-        if (message.length < 4) {
-            throw new SchemaSerializationException("Size of data received by FloatSchema is less than 4");
+        if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
         }
     }
 
@@ -70,9 +67,9 @@ public class FloatSchema implements Schema<Float> {
         }
         validate(bytes);
         int value = 0;
-        for (int i = 0; i < 4; ++i) {
+        for (byte b : bytes) {
             value <<= 8;
-            value |= bytes[i] & 0xFF;
+            value |= b & 0xFF;
         }
         return Float.intBitsToFloat(value);
     }

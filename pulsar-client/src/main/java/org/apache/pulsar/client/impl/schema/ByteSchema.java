@@ -33,15 +33,15 @@ public class ByteSchema implements Schema<Byte> {
     }
 
     private static final ByteSchema INSTANCE = new ByteSchema();
-    public static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT8")
         .setType(SchemaType.INT8)
         .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
-        if (message.length < 1) {
-            throw new SchemaSerializationException("Size of data received by ByteSchema is less than 1");
+        if (message.length != 1) {
+            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
         }
     }
 
