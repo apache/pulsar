@@ -161,11 +161,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.record = record;
     }
 
-    /**
-     * Retrieves the current message associated with input value.
-     *
-     * @return current message
-     */
+    @Override
     public Object getCurrentMessage() {
         return ((PulsarRecord<?>) record).getActualMessage();
     }
