@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -60,7 +59,7 @@ public class MultiVersionGenericSchemaTest {
 
     @Test
     public void testGetSchemaInfo() {
-        assertEquals(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES).toString().getBytes(UTF_8), schema.getSchemaInfo().getSchema());
+        assertEquals(new byte[0], schema.getSchemaInfo().getSchema());
     }
 
     @Test
