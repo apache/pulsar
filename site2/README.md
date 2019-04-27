@@ -212,3 +212,50 @@ before contributing.
 Translation you contribute is licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0).
 Pulsar Committers will review translation. If your translation is not reviewed or approved by any committer,
 feel free to reach out via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.apache.org/contact/).
+
+### Download Translated Docs
+
+When you find display issues on the translated pages, you can download the translated docs from Crowdin, and follow the instructions below to debug and fix issues.
+
+1. Install Java (optional)
+If you have installed Java, skip this step. If you have not installed [Java](https://java.com/en/), install the latest version.
+If you are using Mac OS, you can use the following command to install Java:  
+
+```
+brew cask install java
+```
+
+2. Install Crowdin CLI
+
+To download the translated markdown files, you need to install [Crowdin CLI](https://support.crowdin.com/cli-tool/#installation).
+
+3. Set environment variables
+
+You need to set the following environment variables:
+
+```
+export CROWDIN_DOCUSAURUS_PROJECT_ID="apache-pulsar"
+export CROWDIN_DOCUSAURUS_API_KEY=<crowdin-pulsar-api-key>
+```
+
+You can find the API Key of Pulsar Crowdin project [here](https://crowdin.com/project/apache-pulsar/settings#api). Only PMC members and
+committers are able to retrieve the API key. If the API key is invalid, regenerate.
+
+4. Download the translated docs
+
+Now you are ready to download the translated docs from Crowdin.
+
+```
+$ cd ${PULSAR_HOME}/site2/website
+# download all translated docs
+$ yarn crowdin-download
+# download the translated docs for `zh-CN`
+$ yarn crowdin-download -l zh-CN
+```
+
+The translated docs are downloaded to the `site2/website/translated_docs` directory.
+
+### Check issues, fix and verify
+
+After download the translated documents, you can open the target markdown file, check issues and fix them.
+To verify if you have fixed the issues correctly, [run the site locally](#running-the-site-locally).
