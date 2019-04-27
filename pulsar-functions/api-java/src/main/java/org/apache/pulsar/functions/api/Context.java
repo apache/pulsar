@@ -33,7 +33,6 @@ import java.util.concurrent.CompletableFuture;
  * executing function
  */
 public interface Context {
-
     /**
      * Access the record associated with the current input value.
      *
