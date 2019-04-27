@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.lookup;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.common.api.Commands.newCommandLookupErrorResponse;
+import static org.apache.pulsar.common.api.Commands.newCommandLookupResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
@@ -27,12 +29,15 @@ import io.netty.buffer.ByteBuf;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
@@ -45,6 +50,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -286,17 +292,17 @@ public class TopicLookupBase extends PulsarWebResource {
         return lookupfuture;
     }
 
-    public static List<CompletableFuture<ByteBuf>> batchLookupTopicAsync(PulsarService pulsarService, List<TopicName> topicNames,
+    public static List<CompletableFuture<CommandLookupTopicResponse>> batchLookupTopicAsync(PulsarService pulsarService, List<TopicName> topicNames,
                                                                    boolean authoritative, String clientAppId,
                                                                    AuthenticationDataSource authenticationData,
-                                                                   long requestId, List<TopicName> unauthorizedTopicNames) {
-        final List<CompletableFuture<ByteBuf>> getNameSpaceBundleFutures = new ArrayList<>();
-        final List<CompletableFuture<ByteBuf>> resultFutures = new ArrayList<>();
+                                                                   long requestId) {
+        final List<CompletableFuture<CommandLookupTopicResponse>> getNameSpaceBundleFutures = new ArrayList<>();
+        final List<CompletableFuture<CommandLookupTopicResponse>> resultFutures = new ArrayList<>();
         final Map<NamespaceBundle, List<TopicName>> map = new HashMap<>();
 
         topicNames.forEach(topicName -> {
-            CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
-            CompletableFuture<ByteBuf> getNameSpaceBundleFuture = new CompletableFuture<>();
+            CompletableFuture<CommandLookupTopicResponse> validationFuture = new CompletableFuture<>();
+            CompletableFuture<CommandLookupTopicResponse> getNameSpaceBundleFuture = new CompletableFuture<>();
             getNameSpaceBundleFutures.add(getNameSpaceBundleFuture);
 
             //Cluster is deprecated, just do authorization check
@@ -304,17 +310,17 @@ public class TopicLookupBase extends PulsarWebResource {
                 checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
             } catch (RestException authException) {
                 log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
-                validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                        authException.getMessage(), requestId));
+                validationFuture.complete(newCommandLookupErrorResponse(ServerError.AuthorizationError,
+                        authException.getMessage(), requestId, Arrays.asList(topicName.toString())));
             } catch (Exception e) {
-                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
+                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString(), e);
                 validationFuture.completeExceptionally(e);
             }
             //Validate global namespace
             checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
                     .thenAccept(peerClusterData -> {
                         if (peerClusterData == null) {
-                            // All validation passed.
+                            // All validation passed, will perform look.
                             validationFuture.complete(null);
                             return;
                         }
@@ -322,16 +328,18 @@ public class TopicLookupBase extends PulsarWebResource {
                         // request should be redirect to the peer-cluster
                         if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
                                 && StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())) {
-                            validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
-                                    "Redirected cluster's brokerService url is not configured", requestId));
+                            validationFuture.complete(newCommandLookupErrorResponse(ServerError.MetadataError,
+                                    "Redirected cluster's brokerService url is not configured", requestId,
+                                                                            Arrays.asList(topicName.toString())));
                             return;
                         }
-                        validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
-                                false));
+                        validationFuture.complete(newCommandLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
+                                requestId,false, Arrays.asList(topicName.toString())));
 
                     }).exceptionally(ex -> {
-                validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
+                validationFuture.complete(newCommandLookupErrorResponse(ServerError.MetadataError, ex.getMessage(),
+                                                            requestId, Arrays.asList(topicName.toString())));
                 return null;
             });
 
@@ -351,9 +359,29 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         FutureUtil.waitForAll(getNameSpaceBundleFutures).thenRun(() -> {
-            CompletableFuture<ByteBuf> resultFuture = new CompletableFuture<>();
-            resultFutures.add(resultFuture);
+            getNameSpaceBundleFutures.forEach(getNameSpaceBundleFuture -> {
+                try {
+                    CommandLookupTopicResponse lookupTopicResponse = getNameSpaceBundleFuture.get();
+                    // Error or redirect happen when doing authorization check or getting namespace bundle data
+                    // for some topics.
+                    // Complete the future with whatever result we have, error or redirect.
+                    if (lookupTopicResponse != null) {
+                        CompletableFuture<CommandLookupTopicResponse> resultFuture = new CompletableFuture<>();
+                        resultFutures.add(resultFuture);
+                        resultFuture.complete(lookupTopicResponse);
+                    }
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        // This case the topics won't be included in response, caller will check if a topic is contained
+                        // in take proper action if not.
+                        log.warn("Unknown error while getting validation result ", e);
+                    }
+                }
+            });
+
             map.entrySet().forEach((entry) -> {
+                CompletableFuture<CommandLookupTopicResponse> resultFuture = new CompletableFuture<>();
+                resultFutures.add(resultFuture);
                 NamespaceBundle namespaceBundle = entry.getKey();
                 pulsarService.getNamespaceService().findBrokerServiceUrl(namespaceBundle, authoritative, false)
                 .thenAccept(lookupResult -> {
@@ -363,8 +391,9 @@ public class TopicLookupBase extends PulsarWebResource {
                     }
 
                     if (!lookupResult.isPresent()) {
-                        resultFuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
-                                "No broker was available to own " + namespaceBundle.toString(), requestId));
+                        resultFuture.complete(newCommandLookupErrorResponse(ServerError.ServiceNotReady,
+                                "No broker was available to own " + namespaceBundle.toString(), requestId,
+                                entry.getValue().stream().map(topicName -> topicName.toString()).collect(Collectors.toList())));
                         return;
                     }
 
@@ -372,17 +401,19 @@ public class TopicLookupBase extends PulsarWebResource {
                     if (lookupResult.get().isRedirect()) {
                         boolean newAuthoritative = isLeaderBroker(pulsarService);
                         resultFuture.complete(
-                                newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                        newAuthoritative, LookupType.Redirect, requestId, false));
+                                newCommandLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
+                                        newAuthoritative, LookupType.Redirect, requestId, false,
+                                        entry.getValue().stream().map(topicName -> topicName.toString()).collect(Collectors.toList())));
                     } else {
                         // When running in standalone mode we want to redirect the client through the service
                         // url, so that the advertised address configuration is not relevant anymore.
                         boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
                                 .isRunningStandalone();
 
-                        resultFuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
+                        resultFuture.complete(newCommandLookupResponse(lookupData.getBrokerUrl(),
                                 lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
-                                requestId, redirectThroughServiceUrl));
+                                requestId, redirectThroughServiceUrl,
+                                entry.getValue().stream().map(topicName -> topicName.toString()).collect(Collectors.toList())));
                     }
                 }).exceptionally(ex -> {
                     if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
@@ -393,7 +424,8 @@ public class TopicLookupBase extends PulsarWebResource {
                                 namespaceBundle.toString(), ex.getMessage(), ex);
                     }
                     resultFuture.complete(
-                            newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                            newCommandLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId,
+                                    entry.getValue().stream().map(topicName -> topicName.toString()).collect(Collectors.toList())));
                     return null;
                 });
             });

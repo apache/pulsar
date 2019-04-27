@@ -349,12 +349,15 @@ message CommandBatchLookupTopicResponse {
 	enum ResponseType {
 		Success 		= 0;
 		PartialSuccess 	= 1;
-		Error 			= 2;
+		Failed 			= 2;
 	}
 	repeated CommandLookupTopicResponse lookupResponses = 1;
-	optional ResponseType response                      = 2;
-	optional ServerError error            				= 3;
-	optional string message               				= 4;
+	repeated string unauthorizedTopics                  = 2;
+	optional ResponseType response                      = 3;
+	optional ServerError error            				= 4;
+	optional string message               				= 5;
+	required uint64 request_id            				= 6;
+	optional bool authoritative           				= 7 [default = false];
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,
@@ -659,6 +662,7 @@ message BaseCommand {
 		AUTH_RESPONSE = 37;
 
 		BATCH_LOOKUP = 38;
+		BATCH_LOOKUP_RESPONSE = 39;
 	}
 
 

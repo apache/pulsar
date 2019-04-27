@@ -26,25 +26,36 @@ import io.netty.buffer.ByteBuf;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopicResponse.ResponseType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +89,10 @@ public class BinaryProtoLookupService implements LookupService {
      */
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
         return findBroker(serviceNameResolver.resolveHost(), false, topicName);
+    }
+
+    public CompletableFuture<BatchLookupResult> getBrokers(List<TopicName> topicNames) {
+        return findBrokers(serviceNameResolver.resolveHost(), false, topicNames, true);
     }
 
     /**
@@ -152,6 +167,115 @@ public class BinaryProtoLookupService implements LookupService {
             return null;
         });
         return addressFuture;
+    }
+
+    private CompletableFuture<BatchLookupResult> findBrokers(InetSocketAddress socketAddress,
+                                                                boolean authoritative, List<TopicName> topicNames,
+                                                                boolean doRedirectLookup) {
+        CompletableFuture<BatchLookupResult> batchLookupFuture = new CompletableFuture<>();
+        Map<Pair<InetSocketAddress, InetSocketAddress>, List<TopicName>> succeedLookup = new HashMap<>();
+        List<CompletableFuture<BatchLookupResult>> redirectedLookupFutures = new ArrayList<>();
+        List<TopicName> failedTopicNames = new ArrayList<>();
+        List<TopicName> unauthorizedTopicNames = new ArrayList<>();
+
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
+            ByteBuf batchLookupRequest = Commands.newBatchLookup(
+                    topicNames.stream().map(topicName -> topicName.toString()). collect(Collectors.toList()), authoritative, requestId);
+            clientCnx.newBatchLookup(batchLookupRequest, requestId).thenAccept(batchLookupDataResult -> {
+                // For succeeded lookup add them to final result.
+                batchLookupDataResult.lookupResults.entrySet().forEach(batchLookupResult -> {
+                    URI uri = null;
+                    try {
+                        if (useTls) {
+                            uri = new URI(batchLookupResult.getKey().getLeft().getLeft());
+                        } else {
+                            uri = new URI(batchLookupResult.getKey().getLeft().getRight());
+                        }
+
+                        InetSocketAddress responseBrokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+
+                            if (batchLookupResult.getKey().getRight()) {
+                                // Connect through proxy
+                                succeedLookup.put(Pair.of(responseBrokerAddress, socketAddress),
+                                        batchLookupResult.getValue().stream().map(topic -> TopicName.get(topic))
+                                                .collect(Collectors.toList()));
+                            } else {
+                                // Normal result with direct connection to broker
+                                succeedLookup.put(Pair.of(responseBrokerAddress, responseBrokerAddress),
+                                        batchLookupResult.getValue().stream().map(topic -> TopicName.get(topic))
+                                                .collect(Collectors.toList()));
+                            }
+                        } catch (Exception parseUrlException) {
+                        // Failed to parse url, caller have to retry.
+                        log.warn("Get invalid url when trying to construct lookup result {} : {}",
+                                uri, parseUrlException.getMessage(), parseUrlException);
+                        failedTopicNames.addAll(batchLookupResult.getValue().stream().map(topic -> TopicName.get(topic))
+                                .collect(Collectors.toList()));
+                    }
+                });
+                if (doRedirectLookup) {
+                    batchLookupDataResult.redirectTopics.entrySet().forEach(redirectTopics -> {
+                        URI uri = null;
+                        try {
+                            if (useTls) {
+                                uri = new URI(redirectTopics.getKey().getLeft());
+                            } else {
+                                uri = new URI(redirectTopics.getKey().getRight());
+                            }
+                            InetSocketAddress responseBrokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                            redirectedLookupFutures.add(findBrokers(responseBrokerAddress, true,
+                                    redirectTopics.getValue().stream().map(topic -> TopicName.get(topic)).
+                                            collect(Collectors.toList()), false));
+
+                        } catch (Exception parseUrlException) {
+                            // Failed to parse url, caller have to retry.
+                            log.warn("Get invalid url when trying to construct lookup result {} : {}",
+                                    uri, parseUrlException.getMessage(), parseUrlException);
+                            failedTopicNames.addAll(redirectTopics.getValue().stream().map(topic -> TopicName.get(topic))
+                                    .collect(Collectors.toList()));
+                        }
+                    });
+                } else {
+                    // Already try lookup for topics with redirect response, and still getting
+                    // redirect response. Let caller to do retry as this method can not do recursive
+                    // lookup till succeed.
+                    failedTopicNames.addAll(batchLookupDataResult.redirectTopics.values().stream()
+                            .flatMap(redirectTopics -> redirectTopics.stream().map(topic -> TopicName.get(topic)))
+                            .collect(Collectors.toList()));
+                }
+
+                // Handle retried lookup response for redirect.
+                FutureUtil.waitForAll(redirectedLookupFutures).thenRun(() -> {
+                    redirectedLookupFutures.forEach(redirectedLookupFuture -> {
+                        try {
+                            BatchLookupResult redirectLookupResult = redirectedLookupFuture.get();
+                            succeedLookup.putAll(redirectLookupResult.getLookupResult());
+                            failedTopicNames.addAll(redirectLookupResult.getFailedTopics());
+                            unauthorizedTopicNames.addAll(redirectLookupResult.getUnauthorizedTopics());
+                        } catch (Exception e) {
+                            log.warn("Redirected lookup request failed ", e);
+                        }
+                    });
+                });
+
+                unauthorizedTopicNames.addAll(batchLookupDataResult.unauthorizedTopics.stream().
+                        map(topic -> TopicName.get(topic)).collect(Collectors.toList()));
+
+                batchLookupFuture.complete(new BatchLookupResult(succeedLookup, failedTopicNames, unauthorizedTopicNames));
+
+            }).exceptionally((sendException) -> {
+                // lookup failed
+                log.warn("Failed to send batch lookup request : {}", sendException.getMessage(),
+                        sendException instanceof ClosedChannelException ? null : sendException);
+                batchLookupFuture.completeExceptionally(sendException);
+                return null;
+            });
+        }).exceptionally(connectionException -> {
+            batchLookupFuture.completeExceptionally(connectionException);
+            return null;
+        });
+        return batchLookupFuture;
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
@@ -302,6 +426,38 @@ public class BinaryProtoLookupService implements LookupService {
             this.redirect = false;
         }
 
+    }
+
+    public static class BatchLookupDataResult {
+        public final Map<Pair<Pair<String, String>, Boolean>, List<String>> lookupResults = new HashMap<>();
+        public final Map<Pair<String, String>, List<String>> redirectTopics = new HashMap<>();
+        public final List<String> unauthorizedTopics;
+        public final ResponseType response;
+        public final boolean authoritative;
+
+        public BatchLookupDataResult(CommandBatchLookupTopicResponse result) {
+            this.unauthorizedTopics = result.getUnauthorizedTopicsList();
+            this.authoritative = result.getAuthoritative();
+            result.getLookupResponsesList().forEach(lookupResult -> {
+                if (LookupType.Connect.equals(lookupResult.getResponse())) {
+                    lookupResults.put(Pair.of(Pair.of(lookupResult.getBrokerServiceUrl(),
+                            lookupResult.getBrokerServiceUrlTls()), lookupResult.getProxyThroughServiceUrl()),
+                            lookupResult.getTopicsList());
+                } else if (LookupType.Redirect.equals(lookupResult.getResponse())) {
+                    redirectTopics.put(Pair.of(lookupResult.getBrokerServiceUrl(), lookupResult.getBrokerServiceUrlTls()),
+                            lookupResult.getTopicsList());
+                }
+            });
+            response = (0 == redirectTopics.size()) ? ResponseType.Success : ResponseType.PartialSuccess;
+        }
+    }
+
+    @AllArgsConstructor
+    @Getter
+    private static class BatchLookupResult {
+        private final Map<Pair<InetSocketAddress, InetSocketAddress>, List<TopicName>> lookupResult;
+        private List<TopicName> failedTopics;
+        private List<TopicName> unauthorizedTopics;
     }
 
     private static final Logger log = LoggerFactory.getLogger(BinaryProtoLookupService.class);
