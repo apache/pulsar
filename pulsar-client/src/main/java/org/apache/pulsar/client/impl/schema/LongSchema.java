@@ -23,8 +23,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A schema for `Long`.
  */
@@ -33,13 +31,12 @@ public class LongSchema implements Schema<Long> {
     public static LongSchema of() {
         return INSTANCE;
     }
-    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
     private static final LongSchema INSTANCE = new LongSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT64")
         .setType(SchemaType.INT64)
-        .setSchema(schema.toString().getBytes(UTF_8));
+        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

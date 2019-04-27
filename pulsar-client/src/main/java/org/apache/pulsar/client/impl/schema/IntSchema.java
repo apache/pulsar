@@ -23,8 +23,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A schema for `Integer`.
  */
@@ -33,13 +31,12 @@ public class IntSchema implements Schema<Integer> {
     public static IntSchema of() {
         return INSTANCE;
     }
-    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT);
 
     private static final IntSchema INSTANCE = new IntSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("INT32")
         .setType(SchemaType.INT32)
-        .setSchema(schema.toString().getBytes(UTF_8));
+        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

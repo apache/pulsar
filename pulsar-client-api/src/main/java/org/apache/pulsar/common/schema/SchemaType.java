@@ -175,23 +175,4 @@ public enum SchemaType {
           default: return NONE;
         }
       }
-
-    public static boolean isPrimitiveSchemaType(SchemaType schemaType) {
-        switch (schemaType) {
-            case STRING:
-            case BOOLEAN:
-            case INT8:
-            case INT16:
-            case INT32:
-            case INT64:
-            case FLOAT:
-            case DOUBLE:
-            case DATE:
-            case TIME:
-            case TIMESTAMP:
-                return true;
-            default:
-                return false;
-        }
-    }
 }

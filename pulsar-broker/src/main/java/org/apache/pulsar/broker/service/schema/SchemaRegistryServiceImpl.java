@@ -146,12 +146,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
                                  SchemaCompatibilityStrategy strategy) {
-        if (SchemaType.isPrimitiveSchemaType(existingSchema.schema.getType())) {
-            // for primitive data types, only schema type check is needed
-            return existingSchema.schema.getType() == newSchema.getType() ||
-                    compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                            .isCompatible(existingSchema.schema, newSchema, strategy);
-        }
         HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
         HashCode newHash = hashFunction.hashBytes(newSchema.getData());
         return newHash.equals(existingHash) ||

@@ -24,8 +24,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 import java.sql.Timestamp;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A schema for `java.sql.Timestamp`.
  */
@@ -33,13 +31,12 @@ public class TimestampSchema implements Schema<Timestamp> {
    public static TimestampSchema of() {
       return INSTANCE;
    }
-   private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
 
    private static final TimestampSchema INSTANCE = new TimestampSchema();
    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
          .setName("Timestamp")
          .setType(SchemaType.TIMESTAMP)
-         .setSchema(schema.toString().getBytes(UTF_8));
+         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Timestamp message) {

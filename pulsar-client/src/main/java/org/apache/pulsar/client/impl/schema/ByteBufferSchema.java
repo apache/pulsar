@@ -23,8 +23,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * A bytebuffer schema is effectively a `BYTES` schema.
  */
@@ -33,13 +31,12 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
     public static ByteBufferSchema of() {
         return INSTANCE;
     }
-    private static final org.apache.avro.Schema schema = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
 
     private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("ByteBuffer")
         .setType(SchemaType.BYTES)
-        .setSchema(schema.toString().getBytes(UTF_8));
+        .setSchema(new byte[0]);
 
     @Override
     public byte[] encode(ByteBuffer data) {
