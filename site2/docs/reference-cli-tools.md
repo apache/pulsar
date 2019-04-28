@@ -407,6 +407,7 @@ $ pulsar-perf consume options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
@@ -437,6 +438,7 @@ $ pulsar-perf produce options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
@@ -449,6 +451,7 @@ Options
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
+|`-p`, `--max-multiPartition-outstanding`|Max sum number of outstanding messages , When topic partitioned|50000|
 |`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-t`, `--num-topic`|The number of topics|1|
