@@ -16,40 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.impl.schema.writer;
 
-import java.util.Collections;
-import java.util.Map;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
+public class JsonWriter<T> implements SchemaWriter<T> {
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Accessors(chain = true)
-@Builder
-public class SchemaInfo {
+    private final ObjectMapper objectMapper;
 
-    @EqualsAndHashCode.Exclude
-    private String name;
+    public JsonWriter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
-    /**
-     * The schema data in AVRO JSON format
-     */
-    private byte[] schema;
-
-    /**
-     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
-     */
-    private SchemaType type;
-
-    /**
-     * Additional properties of the schema definition (implementation defined)
-     */
-    private Map<String, String> properties = Collections.emptyMap();
+    @Override
+    public byte[] write(T message) {
+        try {
+            return objectMapper.writeValueAsBytes(message);
+        } catch (JsonProcessingException e) {
+            throw new SchemaSerializationException(e);
+        }
+    }
 }

@@ -20,46 +20,32 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.pulsar.client.api.Schema;
+
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A generic schema representation.
  */
-public abstract class GenericSchemaImpl implements GenericSchema {
+public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
-    protected final org.apache.avro.Schema schema;
     protected final List<Field> fields;
-    protected final SchemaInfo schemaInfo;
 
     protected GenericSchemaImpl(SchemaInfo schemaInfo) {
-        this.schemaInfo = schemaInfo;
-        this.schema = new org.apache.avro.Schema.Parser().parse(
-            new String(schemaInfo.getSchema(), UTF_8)
-        );
-        this.fields = schema.getFields()
-            .stream()
-            .map(f -> new Field(f.name(), f.pos()))
-            .collect(Collectors.toList());
-    }
+        super(schemaInfo);
 
-    public org.apache.avro.Schema getAvroSchema() {
-        return schema;
+        this.fields = schema.getFields()
+                .stream()
+                .map(f -> new Field(f.name(), f.pos()))
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<Field> getFields() {
         return fields;
-    }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return schemaInfo;
     }
 
     /**
@@ -75,7 +61,7 @@ public abstract class GenericSchemaImpl implements GenericSchema {
             case JSON:
                 return new GenericJsonSchema(schemaInfo);
             default:
-                throw new UnsupportedOperationException("Generic schema is not supported on schema type '"
+                throw new UnsupportedOperationException("Generic schema is not supported on schema type "
                     + schemaInfo.getType() + "'");
         }
     }

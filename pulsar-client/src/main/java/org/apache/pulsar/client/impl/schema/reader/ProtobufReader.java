@@ -16,40 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.impl.schema.reader;
 
-import java.util.Collections;
-import java.util.Map;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Parser;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
+public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
+    private Parser<T> tParser;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Accessors(chain = true)
-@Builder
-public class SchemaInfo {
+    public ProtobufReader(T protoMessageInstance) {
+        tParser = (Parser<T>) (protoMessageInstance).getParserForType();
+    }
 
-    @EqualsAndHashCode.Exclude
-    private String name;
+    @Override
+    public T read(byte[] bytes) {
+        try {
+            return this.tParser.parseFrom(bytes);
+        } catch (InvalidProtocolBufferException e) {
+            throw new SchemaSerializationException(e);
+        }
+    }
 
-    /**
-     * The schema data in AVRO JSON format
-     */
-    private byte[] schema;
-
-    /**
-     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
-     */
-    private SchemaType type;
-
-    /**
-     * Additional properties of the schema definition (implementation defined)
-     */
-    private Map<String, String> properties = Collections.emptyMap();
 }

@@ -18,43 +18,42 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.io.IOException;
+import java.util.List;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-/**
- * A generic json schema.
- */
-class GenericJsonSchema extends GenericSchemaImpl {
+public class GenericJsonReader implements SchemaReader<GenericRecord> {
 
-    public GenericJsonSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
-        setWriter(new GenericJsonWriter());
-        setReader(new GenericJsonReader(fields));
+    private final ObjectMapper objectMapper;
+    private final byte[] schemaVersion;
+    private final List<Field> fields;
+    public GenericJsonReader(List<Field> fields){
+        this.fields = fields;
+        this.schemaVersion = null;
+        this.objectMapper = new ObjectMapper();
     }
 
+    public GenericJsonReader(byte[] schemaVersion, List<Field> fields){
+        this.objectMapper = new ObjectMapper();
+        this.fields = fields;
+        this.schemaVersion = schemaVersion;
+    }
     @Override
-    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
-        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
-        if (schemaInfo != null) {
-            return new GenericJsonReader(schemaVersion,
-                    (parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)).getFields()
-                            .stream()
-                            .map(f -> new Field(f.name(), f.pos()))
-                            .collect(Collectors.toList())));
-        } else {
-            return reader;
+    public GenericJsonRecord read(byte[] bytes) {
+        try {
+            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
+            return new GenericJsonRecord(schemaVersion, fields, jn);
+        } catch (IOException ioe) {
+            throw new SchemaSerializationException(ioe);
         }
-    }
-
-    @Override
-    public GenericRecordBuilder newRecordBuilder() {
-        throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
 }
