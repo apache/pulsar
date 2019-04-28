@@ -845,10 +845,12 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")
-    @ApiOperation(value = "")
+    @ApiOperation(value = "Get schema validation enforced flag for namespace. if a producer without a schema attempts to"
+                            + " produce to a topic with schema in this the namespace, the producer will be failed to"
+                            + " connect. PLEASE be carefully on using this, since non-java clients don't support schema."
+                            + " if you enable this setting, it will cause non-java clients failed to produce.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+                            @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
@@ -857,10 +859,13 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")
-    @ApiOperation(value = "")
+    @ApiOperation(value = "if a producer without a schema attempts to produce to a topic with schema in this the"
+                            + " namespace, the producer will be failed to connect. PLEASE be carefully on using"
+                            + " this, since non-java clients don't support schema."
+                            + " if you enable this setting, it will cause non-java clients failed to produce.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+                            @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
+                            @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid") })
     public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
                                              @PathParam("namespace") String namespace,
                                              boolean schemaValidationEnforced) {

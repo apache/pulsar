@@ -905,7 +905,7 @@ public class ServerCnx extends PulsarHandler {
                             } else {
                                 schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
                                         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if ((hasSchema && schemaValidationEnforced) || (hasSchema && topic.getSchemaValidationEnforced())) {
+                                        if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                                             result.completeExceptionally(new IncompatibleSchemaException(
                                                 "Producers cannot connect without a schema to topics with a schema"));
                                         } else {

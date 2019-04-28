@@ -50,17 +50,9 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
     public void setup() throws Exception {
         super.internalSetup();
 
-        // Setup namespaces
         admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
-        admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
-        admin.namespaces().createNamespace("schema-validation-enforced/default-has-schema");
-        admin.namespaces().createNamespace("schema-validation-enforced/disable-no-schema");
-        admin.namespaces().createNamespace("schema-validation-enforced/disable-has-schema");
-        admin.namespaces().createNamespace("schema-validation-enforced/enable-no-schema");
-        admin.namespaces().createNamespace("schema-validation-enforced/enable-has-schema-mismatch");
-        admin.namespaces().createNamespace("schema-validation-enforced/enable-has-schema-match");
     }
 
     @AfterMethod
@@ -71,6 +63,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     @Test
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
+        admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
         String namespace = "schema-validation-enforced/default-no-schema";
         String topicName = "persistent://schema-validation-enforced/default-no-schema/test";
         Assert.assertEquals(admin.namespaces().getSchemaValidationEnforced(namespace), false);
@@ -87,6 +80,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     @Test
     public void testDisableSchemaValidationEnforcedHasSchema() throws Exception {
+        admin.namespaces().createNamespace("schema-validation-enforced/default-has-schema");
         String namespace = "schema-validation-enforced/default-has-schema";
         String topicName = "persistent://schema-validation-enforced/default-has-schema/test";
         Assert.assertEquals(admin.namespaces().getSchemaValidationEnforced(namespace), false);
@@ -113,6 +107,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     @Test
     public void testEnableSchemaValidationEnforcedNoSchema() throws Exception {
+        admin.namespaces().createNamespace("schema-validation-enforced/enable-no-schema");
         String namespace = "schema-validation-enforced/enable-no-schema";
         String topicName = "persistent://schema-validation-enforced/enable-no-schema/test";
         Assert.assertEquals(admin.namespaces().getSchemaValidationEnforced(namespace), false);
@@ -129,6 +124,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     @Test
     public void testEnableSchemaValidationEnforcedHasSchemaMismatch() throws Exception {
+        admin.namespaces().createNamespace("schema-validation-enforced/enable-has-schema-mismatch");
         String namespace = "schema-validation-enforced/enable-has-schema-mismatch";
         String topicName = "persistent://schema-validation-enforced/enable-has-schema-mismatch/test";
         Assert.assertEquals(admin.namespaces().getSchemaValidationEnforced(namespace), false);
@@ -161,6 +157,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     @Test
     public void testEnableSchemaValidationEnforcedHasSchemaMatch() throws Exception {
+        admin.namespaces().createNamespace("schema-validation-enforced/enable-has-schema-match");
         String namespace = "schema-validation-enforced/enable-has-schema-match";
         String topicName = "persistent://schema-validation-enforced/enable-has-schema-match/test";
         Assert.assertEquals(admin.namespaces().getSchemaValidationEnforced(namespace), false);
