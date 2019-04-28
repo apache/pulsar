@@ -26,6 +26,7 @@ import java.util.Date;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -79,6 +80,9 @@ public interface Schema<T> {
      */
     default boolean supportSchemaVersioning() {
         return false;
+    }
+
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
 
     /**
@@ -184,7 +188,17 @@ public interface Schema<T> {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.newProtobufSchema(clazz);
+        return DefaultImplementation.newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+    }
+
+    /**
+     * Create a Protobuf schema type with schema definition.
+     *
+     * @param schemaDefinition schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newProtobufSchema(schemaDefinition);
     }
 
     /**
@@ -308,7 +322,7 @@ public interface Schema<T> {
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
-    static GenericSchema generic(SchemaInfo schemaInfo) {
+    static GenericSchema<GenericRecord> generic(SchemaInfo schemaInfo) {
         return DefaultImplementation.getGenericSchema(schemaInfo);
     }
 }

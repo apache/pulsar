@@ -215,10 +215,10 @@ public class DefaultImplementation {
                         .invoke(null,schemaDefinition));
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
+    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", Class.class)
-                        .invoke(null, clazz));
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
     }
 
     public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
@@ -271,7 +271,7 @@ public class DefaultImplementation {
                         "getSchema", SchemaInfo.class).invoke(null, schemaInfo));
     }
 
-    public static GenericSchema getGenericSchema(SchemaInfo schemaInfo) {
+    public static GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
         return catchExceptions(
             () -> (GenericSchema) getStaticMethod("org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
                 "of", SchemaInfo.class).invoke(null, schemaInfo));

@@ -27,7 +27,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -42,6 +41,10 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,7 +52,11 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.common.naming.*;
+import org.apache.pulsar.common.naming.Constants;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundles;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -57,12 +64,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 
 /**
  * Base class for Web resources in Pulsar. It provides basic authorization functions.
@@ -166,10 +167,7 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     protected void validateSuperUserAccess() {
-        // TODO: isSaslAuthentication used to bypass web resource check.
-        //  will remove it after implementation the support.
-        //  github issue #3653 {@link: https://github.com/apache/pulsar/issues/3653}
-        if (config().isAuthenticationEnabled() && !config().isSaslAuthentication()) {
+        if (config().isAuthenticationEnabled()) {
             String appId = clientAppId();
             if(log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
@@ -245,7 +243,7 @@ public abstract class PulsarWebResource {
             throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
         }
 
-        if (pulsar.getConfiguration().isAuthenticationEnabled() && !pulsar.getConfiguration().isSaslAuthentication() && pulsar.getConfiguration().isAuthorizationEnabled()) {
+        if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId)) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }

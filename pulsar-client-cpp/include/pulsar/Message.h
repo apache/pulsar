@@ -24,9 +24,8 @@
 
 #include <memory>
 
+#include <pulsar/defines.h>
 #include "MessageId.h"
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 namespace proto {
@@ -40,7 +39,7 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
-class Message {
+class PULSAR_PUBLIC Message {
    public:
     typedef std::map<std::string, std::string> StringMap;
 
@@ -148,10 +147,9 @@ class Message {
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
 
-    friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
-    friend std::ostream& operator<<(std::ostream& s, const Message& msg);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);
 };
 }  // namespace pulsar
 
-#pragma GCC visibility pop
 #endif /* MESSAGE_HPP_ */

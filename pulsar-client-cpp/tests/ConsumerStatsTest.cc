@@ -31,6 +31,7 @@
 #include <lib/TopicName.h>
 
 #include <functional>
+#include <thread>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
@@ -101,7 +102,7 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
         producer.send(msg);
     }
 
-    usleep(3.5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
     BrokerConsumerStats consumerStats;
     Result res = consumer.getBrokerConsumerStats(consumerStats);
     ASSERT_EQ(res, ResultOk);
@@ -212,7 +213,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Still Expecting cached results");
-    usleep(1 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     ASSERT_TRUE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
@@ -220,7 +221,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Now expecting new results");
-    usleep(3 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     ASSERT_FALSE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
@@ -296,7 +297,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     consumer.getBrokerConsumerStatsAsync(
         std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
 
-    usleep(4.5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(4500));
     // Expecting fresh results
     consumer.getBrokerConsumerStatsAsync(
         std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 2));

@@ -47,6 +47,14 @@ public class SchemaTestUtils {
         @AvroDefault("\"defaultValue\"")
         private String fieldUnableNull;
     }
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class FooV2 {
+        @Nullable
+        private String field1;
+        private int field3;
+    }
 
     @Data
     @ToString
@@ -125,5 +133,9 @@ public class SchemaTestUtils {
             "color",
             "fieldUnableNull"
     };
+
+    public static String TEST_MULTI_VERSION_SCHEMA_STRING = "TEST";
+
+    public static String TEST_MULTI_VERSION_SCHEMA_DEFAULT_STRING = "defaultValue";
 
 }

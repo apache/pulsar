@@ -402,10 +402,10 @@ int main(int argc, char** argv) {
         thread.join();
     }
     // Waiting for the sendCallbacks To Complete
-    usleep(2 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     for (int i = 0; i < producerList.size(); i++) {
         producerList[i].close();
     }
     // Waiting for 2 seconds
-    usleep(2 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 }
