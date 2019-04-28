@@ -34,17 +34,17 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import scala.Tuple2;
 
 /**
- * Implements a streaming wordcount program on pulsar topics.
+ * Implements a streaming wordCount program on pulsar topics.
  *
  * <p>Example usage:
  *   pulsar://localhost:6650 test_src test_sub
  */
-public class PulsarSparkReceiverWordCount {
+public class SparkStreamingPulsarReceiverExample {
 
   public static void main(String[] args) throws Exception {
     if (args.length < 3) {
-      System.out.println("Missing parameters!");
-      System.out.println("Usage: <pulsar-service-url> <topic> <sub>");
+      System.err.println("Missing parameters!");
+      System.err.println("Usage: <pulsar-service-url> <topic> <sub>");
       return;
     }
 
@@ -56,7 +56,7 @@ public class PulsarSparkReceiverWordCount {
     System.out.println("\tTopic:\t" + inputTopic);
     System.out.println("\tSubscription:\t" + subscription);
 
-    SparkConf sparkConf = new SparkConf().setAppName("Pulsar Stream WordCount");
+    SparkConf sparkConf = new SparkConf().setAppName("Pulsar Spark Example");
 
     JavaStreamingContext jsc = new JavaStreamingContext(sparkConf, Durations.seconds(60));
 
@@ -74,7 +74,7 @@ public class PulsarSparkReceiverWordCount {
 
     JavaReceiverInputDStream<byte[]> lineDStream = jsc.receiverStream(pulsarReceiver);
     JavaPairDStream<String, Integer> result = lineDStream.flatMap(x -> {
-        String line = new String(x, Charset.defaultCharset());
+        String line = new String(x, Charset.forName("UTF-8"));
         List<String> list = Arrays.asList(line.split(" "));
         return list.iterator();
       })

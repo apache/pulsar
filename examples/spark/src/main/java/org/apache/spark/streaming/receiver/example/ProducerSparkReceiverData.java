@@ -25,14 +25,15 @@ import org.apache.pulsar.client.api.PulsarClient;
 /**
  * producer data to spark streaming receiver.
  *
- * pulsar://localhost:6650 test_src
+ * <p>Example usage:
+ *   pulsar://localhost:6650 test_src
  */
 public class ProducerSparkReceiverData {
 
   public static void main(String[] args) throws Exception {
     if (args.length < 2) {
-      System.out.println("Missing parameters!");
-      System.out.println("Usage: <pulsar-service-url> <topic>");
+      System.err.println("Missing parameters!");
+      System.err.println("Usage: <pulsar-service-url> <topic>");
       return;
     }
 
@@ -40,15 +41,14 @@ public class ProducerSparkReceiverData {
     System.out.println("\tServiceUrl:\t" + args[0]);
     System.out.println("\tTopic:\t" + args[1]);
 
-    PulsarClient client = PulsarClient.builder().serviceUrl(args[0]).build();
-    Producer<byte[]> producer = client.newProducer().topic(args[1]).create();
-
-    for (int i = 0; i < 100; i++) {
-       producer.send(("producer spark streaming msg").getBytes(Charset.defaultCharset()));
+    try (PulsarClient client = PulsarClient.builder().serviceUrl(args[0]).build()) {
+      try (Producer<byte[]> producer = client.newProducer().topic(args[1]).create()) {
+        for (int i = 0; i < 100; i++) {
+          producer.send(("producer spark streaming msg").getBytes(Charset.forName("UTF-8")));
+        }
+      }
     }
 
-    producer.close();
-    client.close();
     System.out.println("producer spark streaming msg end ...");
   }
 }
