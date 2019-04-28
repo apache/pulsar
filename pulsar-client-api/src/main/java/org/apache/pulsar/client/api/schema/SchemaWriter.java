@@ -16,40 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.api.schema;
 
-import java.util.Collections;
-import java.util.Map;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
-
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Accessors(chain = true)
-@Builder
-public class SchemaInfo {
-
-    @EqualsAndHashCode.Exclude
-    private String name;
+public interface SchemaWriter<T> {
 
     /**
-     * The schema data in AVRO JSON format
+     * serialize the message into bytes
+     *
+     * @param message the message for encode
+     * @return the serialized bytes
      */
-    private byte[] schema;
-
-    /**
-     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
-     */
-    private SchemaType type;
-
-    /**
-     * Additional properties of the schema definition (implementation defined)
-     */
-    private Map<String, String> properties = Collections.emptyMap();
+    byte[] write(T message);
 }

@@ -16,40 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.api.schema;
 
-import java.util.Collections;
-import java.util.Map;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
-
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Accessors(chain = true)
-@Builder
-public class SchemaInfo {
-
-    @EqualsAndHashCode.Exclude
-    private String name;
+/**
+ * Schema Provider.
+ */
+public interface SchemaInfoProvider {
 
     /**
-     * The schema data in AVRO JSON format
+     * Retrieve the schema info of a given <tt>schemaVersion</tt>.
+     *
+     * @param schemaVersion schema version
+     * @return schema info of the provided <tt>schemaVersion</tt>
      */
-    private byte[] schema;
+    SchemaInfo getSchemaByVersion(byte[] schemaVersion);
 
     /**
-     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
+     * Retrieve the latest schema info.
+     *
+     * @return the latest schema
      */
-    private SchemaType type;
+    SchemaInfo getLatestSchema();
 
     /**
-     * Additional properties of the schema definition (implementation defined)
+     * Retrieve the topic name.
+     *
+     * @return the topic name
      */
-    private Map<String, String> properties = Collections.emptyMap();
+    public String getTopicName();
+
 }

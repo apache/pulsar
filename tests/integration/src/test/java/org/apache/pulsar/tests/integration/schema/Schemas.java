@@ -36,6 +36,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.avro.reflect.AvroDefault;
 
 /**
  * Keep a list of schemas for testing.
@@ -54,6 +55,23 @@ public final class Schemas {
 
         private String name;
         private int age;
+
+    }
+
+    /**
+     * A Person Struct.
+     */
+    @Data
+    @Getter
+    @Setter
+    @ToString
+    @EqualsAndHashCode
+    public static class PersonConsumeSchema {
+
+        private String name;
+        private int age;
+        @AvroDefault("\"male\"")
+        private String gender;
 
     }
 
