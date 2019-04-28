@@ -32,6 +32,7 @@
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images</name>
   <modules>
+    <module>java-test-functions</module>
     <module>latest-version-image</module>
   </modules>
 </project>

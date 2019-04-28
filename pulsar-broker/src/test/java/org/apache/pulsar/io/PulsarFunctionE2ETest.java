@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -383,7 +384,7 @@ public class PulsarFunctionE2ETest {
         sinkConfig.setName(functionName);
         sinkConfig.setParallelism(1);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sinkConfig.setInputs(Collections.singleton(sourceTopic));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().build()));
         sinkConfig.setSourceSubscriptionName(subName);
         sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
@@ -514,7 +515,7 @@ public class PulsarFunctionE2ETest {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
-        final String functionName = "PulsarSink-test";
+        final String sinkName = "PulsarSink-test";
         final String propertyKey = "key";
         final String propertyValue = "value";
         final String subscriptionName = "test-sub";
@@ -525,20 +526,34 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, functionName, sourceTopic, subscriptionName);
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+
         admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(523).build()));
 
         admin.sink().updateSinkWithUrl(sinkConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+
+                return topicStats.subscriptions.containsKey(subscriptionName)
+                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
+                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 523;
+
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-        // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
+        assertEquals(topicStats.subscriptions.size(), 1);
+        assertTrue(topicStats.subscriptions.containsKey(subscriptionName));
+        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits, 523);
 
         // validate prometheus metrics empty
         String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
@@ -548,65 +563,65 @@ public class PulsarFunctionE2ETest {
         Metric m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_received_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_written_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_written_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_sink_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_system_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_system_exceptions_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_last_invocation");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
 
         int totalMsgs = 10;
@@ -631,70 +646,70 @@ public class PulsarFunctionE2ETest {
         m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
         m = metrics.get("pulsar_sink_received_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
         m = metrics.get("pulsar_sink_written_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
         m = metrics.get("pulsar_sink_written_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
         m = metrics.get("pulsar_sink_sink_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_system_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_system_exceptions_total_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_sink_last_invocation");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("name"), sinkName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertTrue(m.value > 0.0);
 
 
         // delete functions
-        admin.sink().deleteSink(tenant, namespacePortion, functionName);
+        admin.sink().deleteSink(tenant, namespacePortion, sinkName);
 
         retryStrategically((test) -> {
             try {
@@ -740,6 +755,7 @@ public class PulsarFunctionE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
+
         admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {

@@ -111,7 +111,7 @@ public class PerformanceReader {
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-reader");
+        jc.setProgramName("pulsar-perf read");
 
         try {
             jc.parse(args);

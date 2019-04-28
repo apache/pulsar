@@ -61,4 +61,11 @@ public interface SchemaDefinition<T> {
      * @return pojo schema
      */
     public Class<T> getPojo();
+
+    /**
+     * Get supportSchemaVersioning schema definition
+     *
+     * @return the flag of supportSchemaVersioning
+     */
+    public boolean getSupportSchemaVersioning();
 }

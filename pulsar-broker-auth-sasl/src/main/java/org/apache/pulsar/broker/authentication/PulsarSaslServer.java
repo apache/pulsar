@@ -186,18 +186,6 @@ public class PulsarSaslServer {
             ac.setAuthorized(true);
             log.info("Successfully authenticated client: authenticationID: {};  authorizationID: {}.",
                 authenticationID, authorizationID);
-
-            KerberosName kerberosName = new KerberosName(authenticationID);
-            try {
-                StringBuilder userNameBuilder = new StringBuilder(kerberosName.getShortName());
-                userNameBuilder.append("/").append(kerberosName.getHostName());
-                userNameBuilder.append("@").append(kerberosName.getRealm());
-
-                log.info("Setting authorizedID: {} ", userNameBuilder);
-                ac.setAuthorizedID(userNameBuilder.toString());
-            } catch (IOException e) {
-                log.error("Failed to set name based on Kerberos authentication rules.");
-            }
         }
     }
 }

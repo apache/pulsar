@@ -41,6 +41,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 @Slf4j
 public class SourceImpl extends ComponentImpl {
     private class GetSourceStatus extends GetStatus<SourceStatus, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> {

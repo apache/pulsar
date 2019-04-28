@@ -502,6 +502,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
             return future;
         }
+
+        if (subType == SubType.Key_Shared
+            && !brokerService.pulsar().getConfiguration().isSubscriptionKeySharedEnable()) {
+            future.completeExceptionally(
+                new NotAllowedException("Key_Shared subscription is disabled by broker.")
+            );
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);

@@ -27,6 +27,7 @@
 - [Compilation](#compilation)
 	- [Compile on Ubuntu Server 16.04](#compile-on-ubuntu-server-1604)
 	- [Compile on Mac OS X](#compile-on-mac-os-x)
+	- [Compile on Windows (Visual Studio)](#compile-on-windows)
 - [Tests](#tests)
 - [Requirements for Contributors](#requirements-for-contributors)
 
@@ -163,6 +164,36 @@ ${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.a
 ${PULSAR_PATH}/pulsar-client-cpp/perf/perfProducer
 ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 ```
+
+### Compile on Windows
+
+#### Install all dependencies:
+
+Clone and build all dependencies from source if a binary distro can't be found.
+
+- [Boost](https://github.com/boostorg/boost)
+- [LibCurl](https://github.com/curl/curl)
+- [zlib](https://github.com/madler/zlib)
+- [OpenSSL](https://github.com/openssl/openssl)
+- [ProtoBuf](https://github.com/protocolbuffers/protobuf)
+- [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32)
+- [LLVM](https://llvm.org/builds/) (for clang-tidy and clang-format)
+
+If you want to build and run the tests, then also install
+- [GTest and GMock](https://github.com/google/googletest)
+
+#### Compile Pulsar client library:
+
+```shell
+#If all dependencies are in your path, all that is necessary is
+${PULSAR_PATH}/pulsar-client-cpp/cmake .
+
+#if all dependencies are not in your path, then passing in a PROTOC_PATH and CMAKE_PREFIX_PATH is necessary
+${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCMAKE_PREFIX_PATH="C:/boost;C:/openssl;C:/zlib;C:/curl;C:/protobuf;C:/googletest;C:/dlfcn-win32" .
+
+#This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
+```
+
 
 ## Tests
 ```shell

@@ -18,47 +18,38 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A generic json schema.
  */
 class GenericJsonSchema extends GenericSchemaImpl {
 
-    private final ObjectMapper objectMapper;
-
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
-        this.objectMapper = new ObjectMapper();
+        setWriter(new GenericJsonWriter());
+        setReader(new GenericJsonReader(fields));
     }
 
     @Override
-    public byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericJsonRecord gjr = (GenericJsonRecord) message;
-        try {
-            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
-    }
-
-    @Override
-    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(schemaVersion, fields, jn);
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
+    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
+        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        if (schemaInfo != null) {
+            return new GenericJsonReader(schemaVersion,
+                    (parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)).getFields()
+                            .stream()
+                            .map(f -> new Field(f.name(), f.pos()))
+                            .collect(Collectors.toList())));
+        } else {
+            return reader;
         }
     }
 

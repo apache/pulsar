@@ -379,30 +379,39 @@ public interface Functions {
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
 
     /**
+     * Deprecated in favor of getting sources and sinks for their own APIs
+     *
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
      *
      * @throws PulsarAdminException
      *             Unexpected error
      *
      */
+    @Deprecated
     List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException;
 
     /**
+     * Deprecated in favor of getting sources and sinks for their own APIs
+     *
      * Fetches a list of supported Pulsar IO sources currently running in cluster mode
      *
      * @throws PulsarAdminException
      *             Unexpected error
      *
      */
+    @Deprecated
     Set<String> getSources() throws PulsarAdminException;
 
     /**
+     * Deprecated in favor of getting sources and sinks for their own APIs
+     *
      * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
      *
      * @throws PulsarAdminException
      *             Unexpected error
      *
      */
+    @Deprecated
     Set<String> getSinks() throws PulsarAdminException;
 
     /**
