@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
@@ -315,6 +316,12 @@ public class KeyValueSchemaTest {
         // Check kv.encoding.type SEPARATED
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
+        try {
+            keyValueSchema.decode(encodeBytes);
+            Assert.fail("This method cannot be used under this SEPARATED encoding type");
+        } catch (SchemaSerializationException e) {
+            Assert.assertTrue(e.getMessage().contains("This method cannot be used under this SEPARATED encoding type"));
+        }
         KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
         Foo fooBack = keyValue.getKey();
         Bar barBack = keyValue.getValue();

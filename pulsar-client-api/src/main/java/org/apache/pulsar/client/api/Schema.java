@@ -235,16 +235,6 @@ public interface Schema<T> {
     }
 
     /**
-     * Key Value Schema using passed in schema type and encoding type, support JSON and AVRO currently.
-     */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key,
-                                                  Class<V> value,
-                                                  SchemaType type,
-                                                  KeyValueEncodingType keyValueEncodingType) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type, keyValueEncodingType);
-    }
-
-    /**
      * Schema that can be used to encode/decode KeyValue.
      */
     static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {

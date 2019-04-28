@@ -20,8 +20,6 @@ package org.apache.pulsar.common.schema;
 
 /**
  * Encoding types of supported KeyValueSchema for Pulsar messages
- *
- * github https://github.com/apache/pulsar/pull/4117
  */
 public enum KeyValueEncodingType {
     // key is stored as message key, while value is stored as message payload

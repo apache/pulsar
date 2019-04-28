@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Map;
@@ -34,6 +31,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
+
+import static org.testng.Assert.*;
 
 /**
  * Unit test of {@link MessageImpl}.
@@ -101,9 +100,7 @@ public class MessageImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
-        System.out.println(builder.getPartitionKey());
-        System.out.println(builder.getPartitionKey());
-        assertEquals(builder.getPartitionKey().length(), 0);
+        assertFalse(builder.hasPartitionKey());
     }
 
     @Test
@@ -128,7 +125,7 @@ public class MessageImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
-        assertEquals(builder.getPartitionKey().length(), 0);
+        assertFalse(builder.hasPartitionKey());
     }
 
     @Test
@@ -154,6 +151,6 @@ public class MessageImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
-        assertEquals(builder.getPartitionKey(), Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
+        assertTrue(builder.hasPartitionKey());
     }
 }

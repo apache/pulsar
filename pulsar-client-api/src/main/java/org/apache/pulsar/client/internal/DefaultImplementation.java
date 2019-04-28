@@ -265,14 +265,6 @@ public class DefaultImplementation {
                         "of", Class.class, Class.class, SchemaType.class).invoke(null, key, value, type));
     }
 
-    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type,
-                                                                  KeyValueEncodingType keyValueEncodingType) {
-        return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
-                        "of", Class.class, Class.class, SchemaType.class, KeyValueEncodingType.class)
-                        .invoke(null, key, value, type, keyValueEncodingType));
-    }
-
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return catchExceptions(
                 () -> (Schema<?>) getStaticMethod("org.apache.pulsar.client.impl.schema.AutoConsumeSchema",
