@@ -904,19 +904,8 @@ public class ServerCnx extends PulsarHandler {
                                 schemaVersionFuture = topic.addSchema(schema);
                             } else {
                                 schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
-                                        boolean schemaValidationEnforcedForNamespace = false;
-                                        try {
-                                            String namespace = TopicName.get(topic.getName()).getNamespace();
-                                            schemaValidationEnforcedForNamespace = this.service.pulsar()
-                                                    .getAdminClient().namespaces()
-                                                    .getSchemaValidationEnforced(namespace);
-                                        } catch (PulsarServerException e) {
-                                            log.error("Failed to connect broker {}", e.getMessage(), e);
-                                        } catch (PulsarAdminException e) {
-                                            log.error("Failed to get schema_validation_enforced {}", e.getMessage(), e);
-                                        }
                                         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if ((hasSchema && schemaValidationEnforced) || (hasSchema && schemaValidationEnforcedForNamespace)) {
+                                        if ((hasSchema && schemaValidationEnforced) || (hasSchema && topic.getSchemaValidationEnforced())) {
                                             result.completeExceptionally(new IncompatibleSchemaException(
                                                 "Producers cannot connect without a schema to topics with a schema"));
                                         } else {
