@@ -647,7 +647,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        new ArrayIndexOutOfBoundsException().printStackTrace();
         if (!shouldTearDown()) {
             return CompletableFuture.completedFuture(null);
         }
