@@ -325,6 +325,7 @@ public class PulsarFunctionPublishTest {
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "foo";
+            System.out.println("Sending key for producer from index: " + i);
             producer.newMessage().property(propertyKey, propertyValue).key(String.valueOf(i)).value(data).send();
         }
         retryStrategically((test) -> {
@@ -346,6 +347,7 @@ public class PulsarFunctionPublishTest {
         }, 5, 150);
 
         for (int i = 0; i < 5; i++) {
+            log.warn("We are index: " + i);
             Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedPropertyValue = msg.getProperty(propertyKey);
             assertEquals(propertyValue, receivedPropertyValue);
