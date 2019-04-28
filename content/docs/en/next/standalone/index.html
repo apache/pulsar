@@ -1,5 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Setting up a local standalone cluster · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.&lt;/p&gt;
-"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Setting up a local standalone cluster · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;p&gt;For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.&lt;/p&gt;
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Setting up a local standalone cluster · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;For local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.&lt;/p&gt;
+"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Setting up a local standalone cluster · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;p&gt;For local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.&lt;/p&gt;
 "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -70,16 +70,16 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/getting-started-standalone.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">Setting up a local standalone cluster</h1></header><article><div><span><p>For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.</p>
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/getting-started-standalone.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">Setting up a local standalone cluster</h1></header><article><div><span><p>For local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-in-production"></a><a href="#pulsar-in-production" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar in production?</h4>
 <p>If you're looking to run a full production Pulsar installation, see the <a href="/docs/en/next/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="run-pulsar-standalone-manually"></a><a href="#run-pulsar-standalone-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Pulsar Standalone Manually</h2>
 <h3><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h3>
-<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. In order to use Pulsar, you'll need to install <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">Java 8</a>.</p>
+<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. In order to use Pulsar, you need to install <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">Java 8</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="installing-pulsar"></a><a href="#installing-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Pulsar</h3>
-<p>To get started running Pulsar, download a binary tarball release in one of the following ways:</p>
+<p>To get started with Pulsar, download a binary tarball release in one of the following ways:</p>
 <ul>
 <li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
 <ul>
@@ -91,7 +91,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.3.1/apache-pulsar-2.3.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
-<p>Once the tarball is downloaded, untar it and <code>cd</code> into the resulting directory:</p>
+<p>After you download the tarball, untar it and use the <code>cd</code> command to navigate to the resulting directory:</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.3.1-bin.tar.gz
 $ <span class="hljs-built_in">cd</span> apache-pulsar-2.3.1
 </code></pre>
@@ -102,27 +102,27 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.3.1
 <tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/docs/en/next/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="/docs/en/next/pulsar-admin"><code>pulsar-admin</code></a></td></tr>
-<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Configuration files for Pulsar, including for <a href="/docs/en/next/reference-configuration#broker">broker configuration</a>, <a href="/docs/en/next/reference-configuration#zookeeper">ZooKeeper configuration</a>, and more</td></tr>
-<tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">A Java JAR file containing example <a href="/docs/en/next/functions-overview">Pulsar Functions</a></td></tr>
-<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar</td></tr>
-<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">License files, in <code>.txt</code> form, for various components of the Pulsar <a href="https://github.com/apache/pulsar">codebase</a></td></tr>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/docs/en/next/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="/docs/en/next/pulsar-admin"><code>pulsar-admin</code></a>.</td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Configuration files for Pulsar, including <a href="/docs/en/next/reference-configuration#broker">broker configuration</a>, <a href="/docs/en/next/reference-configuration#zookeeper">ZooKeeper configuration</a>, and more.</td></tr>
+<tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">A Java JAR file containing <a href="/docs/en/next/functions-overview">Pulsar Functions</a> example.</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">License files, in the<code>.txt</code> form, for various components of the Pulsar <a href="https://github.com/apache/pulsar">codebase</a>.</td></tr>
 </tbody>
 </table>
-<p>These directories will be created once you begin running Pulsar:</p>
+<p>These directories are created once you begin running Pulsar.</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">The data storage directory used by ZooKeeper and BookKeeper</td></tr>
-<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">Artifacts created for <a href="/docs/en/next/functions-overview">Pulsar Functions</a></td></tr>
-<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">Logs created by the installation</td></tr>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">The data storage directory used by ZooKeeper and BookKeeper.</td></tr>
+<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">Artifacts created for <a href="/docs/en/next/functions-overview">Pulsar Functions</a>.</td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">Logs created by the installation.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="installing-builtin-connectors-optional"></a><a href="#installing-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Builtin Connectors (optional)</h3>
-<p>Since release <code>2.1.0-incubating</code>, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors.
-If you would like to enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
+<p>Since <code>2.1.0-incubating</code> release, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors.
+To enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
 <ul>
 <li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
 <ul>
@@ -134,8 +134,8 @@ If you would like to enable those <code>builtin</code> connectors, you can downl
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.3.1/connectors/{connector}-2.3.1.nar</span>
 </code></pre></li>
 </ul>
-<p>Once the nar file is downloaded, copy the file to directory <code>connectors</code> in the pulsar directory,
-for example, if the connector file <code>pulsar-io-aerospike-2.3.1.nar</code> is downloaded:</p>
+<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory.
+For example, if you download the <code>pulsar-io-aerospike-2.3.1.nar</code> connector file, enter the following commands:</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
 $ mv pulsar-io-aerospike-2.3.1.nar connectors
 
@@ -145,18 +145,17 @@ pulsar-io-aerospike-2.3.1.nar
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="notes"></a><a href="#notes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NOTES</h4>
-<p>If you are running Pulsar in a bare metal cluster, you need to make sure <code>connectors</code> tarball is unzipped in every broker's pulsar directory
-(or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).</p>
+<p>If you are running Pulsar in a bare metal cluster, make sure <code>connectors</code> tarball is unzipped in every pulsar directory of the broker
+(or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).</p>
 <p>If you are <a href="/docs/en/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/en/next/deploy-kubernetes">K8S</a> or <a href="/docs/en/next/deploy-dcos">DCOS</a>),
-you can use <code>apachepulsar/pulsar-all</code> image instead of <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/en/next/io-overview#working-with-connectors">all builtin connectors</a>.</p>
+you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/en/next/io-overview#working-with-connectors">all builtin connectors</a>.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="installing-tiered-storage-offloaders-optional"></a><a href="#installing-tiered-storage-offloaders-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Tiered Storage Offloaders (optional)</h2>
 <blockquote>
-<p>Since release <code>2.2.0</code>, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
-If you would like to enable tiered storage feature, you can follow the instructions as below; otherwise you can
-skip this section for now.</p>
+<p>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
+To enable tiered storage feature, follow the instructions below; otherwise skip this section.</p>
 </blockquote>
-<p>To get started using <a href="/docs/en/next/concepts-tiered-storage">tiered storage offloaders</a>, you'll need to download the offloaders tarball release on every broker node in
+<p>To get started with <a href="/docs/en/next/concepts-tiered-storage">tiered storage offloaders</a>, you need to download the offloaders tarball release on every broker node in
 one of the following ways:</p>
 <ul>
 <li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
@@ -169,7 +168,7 @@ one of the following ways:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.3.1/apache-pulsar-offloaders-2.3.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
-<p>Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code>
+<p>After you download the tarball, untar the offloaders package and copy the offloaders as <code>offloaders</code>
 in the pulsar directory:</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.3.1-bin.tar.gz
 
@@ -181,67 +180,67 @@ $ mv apache-pulsar-offloaders-2.3.1/offloaders offloaders
 $ ls offloaders
 tiered-storage-jcloud-2.3.1.nar
 </code></pre>
-<p>For more details of how to configure tiered storage feature, you could reference this <a href="/docs/en/next/cookbooks-tiered-storage">Tiered storage cookbook</a></p>
+<p>For more details on how to configure tiered storage feature, refer to <a href="/docs/en/next/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="notes-1"></a><a href="#notes-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NOTES</h4>
-<p>If you are running Pulsar in a bare metal cluster, you need to make sure <code>offloaders</code> tarball is unzipped in every broker's pulsar directory</p>
+<p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's  pulsar directory.</p>
 <p>If you are <a href="/docs/en/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/en/next/deploy-kubernetes">K8S</a> or <a href="/docs/en/next/deploy-dcos">DCOS</a>),
-you can use <code>apachepulsar/pulsar-all</code> image instead of <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p>
+you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="starting-the-cluster"></a><a href="#starting-the-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the cluster</h3>
-<p>Once you have an up-to-date local copy of the release, you can start up a local cluster using the <a href="/docs/en/next/reference-cli-tools#pulsar"><code>pulsar</code></a> command, which is stored in the <code>bin</code> directory, and specifying that you want to start up Pulsar in standalone mode:</p>
+<p>Once you have an up-to-date local copy of the release, you can start a local cluster using the <a href="/docs/en/next/reference-cli-tools#pulsar"><code>pulsar</code></a> command, which is stored in the <code>bin</code> directory, and specifying that you want to start Pulsar in standalone mode.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>If Pulsar has been successfully started, you should see <code>INFO</code>-level log messages like this:</p>
+<p>If you have started Pulsar successfully, you will see <code>INFO</code>-level log messages like this:</p>
 <pre><code class="hljs css language-bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="automatically-created-namespace"></a><a href="#automatically-created-namespace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Automatically created namespace</h4>
-<p>When you start a local standalone cluster, Pulsar will automatically create a <code>public/default</code> <a href="/docs/en/next/concepts-messaging#namespaces">namespace</a> that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see <a href="/docs/en/next/concepts-messaging#topics">Topics</a>.</p>
+<p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/en/next/concepts-messaging#namespaces">namespace</a> is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see <a href="/docs/en/next/concepts-messaging#topics">Topics</a>.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="run-pulsar-standalone-in-docker"></a><a href="#run-pulsar-standalone-in-docker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Pulsar Standalone in Docker</h2>
-<p>Alternatively, you can run pulsar standalone locally in docker.</p>
+<p>Alternatively, you can run a Pulsar standalone locally in docker.</p>
 <pre><code class="hljs css language-bash">docker run -it -p 80:80 -p 8080:8080 -p 6650:6650 apachepulsar/pulsar-standalone
 </code></pre>
-<p>The command forwards following port to localhost:</p>
+<p>The command forwards the following port to localhost:</p>
 <ul>
-<li>80: the port for pulsar dashboard</li>
-<li>8080: the http service url for pulsar service</li>
-<li>6650: the binary protocol service url for pulsar service</li>
+<li>80: the port for Pulsar dashboard</li>
+<li>8080: the HTTP service URL for Pulsar service</li>
+<li>6650: the binary protocol service URL for Pulsar service</li>
 </ul>
-<p>After the docker container is running, you can access the dashboard under <a href="http://localhost">http://localhost</a> .</p>
+<p>After the docker container is running, you can access the dashboard at <a href="http://localhost">http://localhost</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="testing-your-cluster-setup"></a><a href="#testing-your-cluster-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing your cluster setup</h2>
-<p>Pulsar provides a CLI tool called <a href="/docs/en/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> that enables you to do things like send messages to a Pulsar topic in a running cluster. This command will send a simple message saying <code>hello-pulsar</code> to the <code>my-topic</code> topic:</p>
+<p>Pulsar provides a CLI tool called <a href="/docs/en/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>. The pulsar-client enables you to send messages to a Pulsar topic in a running cluster. The following command sends a message saying <code>hello-pulsar</code> to the <code>my-topic</code> topic:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
 </code></pre>
-<p>If the message has been successfully published to the topic, you should see a confirmation like this in the <code>pulsar-client</code> logs:</p>
+<p>If the message has been successfully published to the topic, you will see a confirmation like this in the <code>pulsar-client</code> logs:</p>
 <pre><code class="hljs">13<span class="hljs-selector-pseudo">:09</span><span class="hljs-selector-pseudo">:39.356</span> <span class="hljs-selector-attr">[main]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.cli</span><span class="hljs-selector-class">.PulsarClientTool</span> <span class="hljs-selector-tag">-</span> 1 <span class="hljs-selector-tag">messages</span> <span class="hljs-selector-tag">successfully</span> <span class="hljs-selector-tag">produced</span>
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="no-need-to-explicitly-create-new-topics"></a><a href="#no-need-to-explicitly-create-new-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No need to explicitly create new topics</h4>
-<p>You may have noticed that we did not explicitly create the <code>my-topic</code> topic to which we sent the <code>hello-pulsar</code> message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.</p>
+<h4><a class="anchor" aria-hidden="true" id="no-need-to-create-new-topics-explicitly"></a><a href="#no-need-to-create-new-topics-explicitly" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No need to create new topics explicitly</h4>
+<p>As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we sent the <code>hello-pulsar</code> message. When you write a message to a topic that does not yet exist, Pulsar creates that topic for you automatically.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="using-pulsar-clients-locally"></a><a href="#using-pulsar-clients-locally" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using Pulsar clients locally</h2>
-<p>Pulsar currently offers client libraries for <a href="/docs/en/next/client-libraries-java">Java</a>,  <a href="/docs/en/next/client-libraries-go">Go</a>, <a href="/docs/en/next/client-libraries-python">Python</a> and <a href="/docs/en/next/client-libraries-cpp">C++</a>. If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:</p>
+<p>Pulsar currently offers client libraries for <a href="/docs/en/next/client-libraries-java">Java</a>,  <a href="/docs/en/next/client-libraries-go">Go</a>, <a href="/docs/en/next/client-libraries-python">Python</a> and <a href="/docs/en/next/client-libraries-cpp">C++</a>. If you run a local standalone cluster, you can use one of these root URLs to interact with your cluster:</p>
 <ul>
 <li><code>http://localhost:8080</code></li>
 <li><code>pulsar://localhost:6650</code></li>
 </ul>
-<p>Here's an example producer for a Pulsar topic using the <a href="/docs/en/next/client-libraries-java">Java</a> client:</p>
+<p>The following is an example of producer for a Pulsar topic using the <a href="/docs/en/next/client-libraries-java">Java</a> client:</p>
 <pre><code class="hljs css language-java">String localClusterUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
 
 PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer().topic(<span class="hljs-string">"my-topic"</span>).create();
 </code></pre>
-<p>Here's an example <a href="/docs/en/next/client-libraries-python">Python</a> producer:</p>
+<p>The following is an example of <a href="/docs/en/next/client-libraries-python">Python</a> producer:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
 
 client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
 producer = client.create_producer(<span class="hljs-string">'my-topic'</span>)
 </code></pre>
-<p>Finally, here's an example <a href="/docs/en/next/client-libraries-cpp">C++</a> producer:</p>
+<p>The following is an example of <a href="/docs/en/next/client-libraries-cpp">C++</a> producer:</p>
 <pre><code class="hljs css language-cpp"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 Producer producer;
 Result result = client.createProducer(<span class="hljs-string">"my-topic"</span>, producer);
