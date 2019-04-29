@@ -114,7 +114,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = 1000;
 
-        @Parameter(names = { "-p", "--max-multiPartition-outstanding" }, description = "Max sum number of outstanding messages , When topic partitioned")
+        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
         public int maxPendingMessagesAcrossPartitions = 50000;
 
         @Parameter(names = { "-c",
