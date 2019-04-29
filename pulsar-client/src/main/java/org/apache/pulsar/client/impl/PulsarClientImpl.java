@@ -311,11 +311,6 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        Optional<ConsumerBase<T>> subscriber = subscriptionExist(conf);
-        if (subscriber.isPresent()) {
-            return CompletableFuture.completedFuture(subscriber.get());
-        }
-
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
@@ -672,20 +667,6 @@ public class PulsarClientImpl implements PulsarClient {
                 return Collections.singletonList(topic);
             }
         });
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> Optional<ConsumerBase<T>> subscriptionExist(ConsumerConfigurationData<?> conf) {
-        synchronized (consumers) {
-            Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
-                    .filter(c -> c.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
-                    .filter(c -> conf.getTopicNames().contains(c.getTopic()))
-                    .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
-                    .filter(Consumer::isConnected)
-                    .findFirst();
-            subscriber.ifPresent(ConsumerBase::incrRefCount);
-            return subscriber.map(ConsumerBase.class::cast);
-        }
     }
 
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {

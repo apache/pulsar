@@ -681,10 +681,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (!shouldTearDown()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
         if (getState() == State.Closing || getState() == State.Closed) {
             unAckedMessageTracker.close();
             if (possibleSendToDeadLetterTopicMessages != null) {

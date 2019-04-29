@@ -109,10 +109,6 @@ Future<Result, ConsumerImplBaseWeakPtr> ConsumerImpl::getConsumerCreatedFuture()
     return consumerCreatedPromise_.getFuture();
 }
 
-void ConsumerImpl::incrRefCount() { ++refCount_; }
-
-unsigned int ConsumerImpl::safeDecrRefCount() { return refCount_ > 0 ? refCount_-- : refCount_; }
-
 const std::string& ConsumerImpl::getSubscriptionName() const { return originalSubscriptionName_; }
 
 const std::string& ConsumerImpl::getTopic() const { return topic_; }
@@ -811,14 +807,6 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
-        }
-        return;
-    }
-
-    if (safeDecrRefCount() != 0) {
-        lock.unlock();
-        if (callback) {
-            callback(ResultOk);
         }
         return;
     }

@@ -61,7 +61,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected int maxReceiverQueueSize;
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
-    private int refCount = 0;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -379,13 +378,5 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (interceptors != null) {
             interceptors.onAcknowledgeCumulative(this, messageId, exception);
         }
-    }
-
-    protected synchronized void incrRefCount() {
-        ++refCount;
-    }
-
-    protected synchronized boolean shouldTearDown() {
-        return refCount > 0 ? refCount-- == 0 : refCount == 0;
     }
 }
