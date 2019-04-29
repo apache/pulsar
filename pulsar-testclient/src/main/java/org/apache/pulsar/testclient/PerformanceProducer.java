@@ -89,7 +89,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size(byte)")
+        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
