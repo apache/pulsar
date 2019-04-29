@@ -531,4 +531,18 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetLastMessageId(authoritative);
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageCount")
+    @ApiOperation(value = "Return the available message count of topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+        @ApiResponse(code = 404, message = "Topic does not exist")})
+    public long getMessageCount(@PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalGetMessageCount(authoritative);
+    }
 }

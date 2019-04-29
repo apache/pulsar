@@ -42,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.WebApplicationException;
@@ -83,8 +84,10 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -1521,5 +1524,39 @@ public class PersistentTopicsBase extends AdminResource {
         MessageId messageId = new MessageIdImpl(((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId(), partitionIndex);
 
         return messageId;
+    }
+
+    protected long internalGetMessageCount(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                "GetMessageCount on a non-persistent topic is not allowed");
+        }
+
+        Reader<byte[]> reader = null;
+        final AtomicLong count = new AtomicLong();
+
+        try {
+            reader = pulsar().getClient().newReader()
+                .topic(topicName.toString())
+                .startMessageId(MessageId.earliest)
+                .create();
+            while (reader.hasMessageAvailable()) {
+                Message msg = reader.readNext(1000, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    count.incrementAndGet();
+                }
+            }
+        } catch (PulsarClientException | PulsarServerException e) {
+            log.error("[{}] Failed to create Reader while getting message count of topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        } finally {
+            if (reader != null) {
+                reader.closeAsync();
+            }
+        }
+        return count.longValue();
     }
 }
