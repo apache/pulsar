@@ -845,11 +845,11 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")
-    @ApiOperation(value = "Get schema validation enforced flag for namespace. If the flag is set to true, when "
-                            + " a producer without a schema attempts to produce to a topic with schema in this"
-                            + " the namespace, the producer will be failed to connect. PLEASE be carefully on"
-                            + " using this, since non-java clients don't support schema.if you enable this setting,"
-                            + " it will cause non-java clients failed to produce.")
+    @ApiOperation(value = "Get schema validation enforced flag for namespace.",
+                  notes = "If the flag is set to true, when a producer without a schema attempts to produce to a topic"
+                          + " with schema in this namespace, the producer will be failed to connect. PLEASE be"
+                          + " carefully on using this, since non-java clients don't support schema.if you enable"
+                          + " this setting, it will cause non-java clients failed to produce.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
@@ -860,12 +860,12 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")
-    @ApiOperation(value = "Set schema validation enforced flag on namespace. If the flag is set to true, when"
-                            + " a producer without a schema attempts to produce to a topic with schema in this the"
-                            + " namespace, the producer will be failed to connect. PLEASE be carefully on using"
-                            + " this, since non-java clients don't support schema."
-                            + " if you enable this setting, it will cause non-java clients failed to produce.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiOperation(value = "Set schema validation enforced flag on namespace.",
+                  notes = "If the flag is set to true, when a producer without a schema attempts to produce to a topic"
+                          + " with schema in this namespace, the producer will be failed to connect. PLEASE be"
+                          + " carefully on using this, since non-java clients don't support schema.if you enable"
+                          + " this setting, it will cause non-java clients failed to produce.")
+            @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
                             @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid") })
     public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
