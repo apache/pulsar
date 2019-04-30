@@ -21,6 +21,7 @@
 
 #include <functional>
 #include <memory>
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
@@ -29,7 +30,6 @@
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/InitialPosition.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 
 class Consumer;
@@ -42,12 +42,12 @@ typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
 
-class ConsumerConfigurationImpl;
+struct ConsumerConfigurationImpl;
 
 /**
  * Class specifying the configuration of a consumer.
  */
-class ConsumerConfiguration {
+class PULSAR_PUBLIC ConsumerConfiguration {
    public:
     ConsumerConfiguration();
     ~ConsumerConfiguration();
@@ -244,5 +244,4 @@ class ConsumerConfiguration {
     std::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */

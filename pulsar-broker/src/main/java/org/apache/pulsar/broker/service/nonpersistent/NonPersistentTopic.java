@@ -139,6 +139,8 @@ public class NonPersistentTopic implements Topic {
     private volatile boolean isEncryptionRequired = false;
     private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
         SchemaCompatibilityStrategy.FULL;
+    // schema validation enforced flag
+    private volatile boolean schemaValidationEnforced = false;
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -183,6 +185,7 @@ public class NonPersistentTopic implements Topic {
             isEncryptionRequired = policies.encryption_required;
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                     policies.schema_auto_update_compatibility_strategy);
+            schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
@@ -955,6 +958,7 @@ public class NonPersistentTopic implements Topic {
         isEncryptionRequired = data.encryption_required;
         schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                 data.schema_auto_update_compatibility_strategy);
+        schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {
             producer.checkPermissions();
@@ -988,6 +992,9 @@ public class NonPersistentTopic implements Topic {
     public boolean isEncryptionRequired() {
         return isEncryptionRequired;
     }
+
+    @Override
+    public boolean getSchemaValidationEnforced() { return schemaValidationEnforced; }
 
     @Override
     public boolean isReplicated() {

@@ -19,7 +19,6 @@
 #ifndef PULSAR_CPP_INITIAL_POSITION_H
 #define PULSAR_CPP_INITIAL_POSITION_H
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 enum InitialPosition
 {
@@ -27,5 +26,5 @@ enum InitialPosition
     InitialPositionEarliest
 };
 }
-#pragma GCC visibility pop
+
 #endif  // PULSAR_CPP_INITIAL_POSITION_H

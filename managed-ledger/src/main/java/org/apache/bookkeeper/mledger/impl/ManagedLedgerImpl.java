@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -231,8 +232,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final long backloggedCursorThresholdEntries;
 
     // last read-operation's callback to check read-timeout on it.
-    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, ReadEntryCallbackWrapper> LAST_READ_CALLBACK = AtomicReferenceFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, ReadEntryCallbackWrapper.class, "lastReadCallback");
     private volatile ReadEntryCallbackWrapper lastReadCallback = null;
 
     /**
@@ -750,6 +749,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (cursor == null) {
             callback.deleteCursorFailed(new ManagedLedgerException("ManagedCursor not found: " + consumerName), ctx);
             return;
+        } else if (!cursor.isDurable()) {
+            cursors.removeCursor(consumerName);
+            callback.deleteCursorComplete(ctx);
+            return;
         }
 
         // First remove the consumer form the MetaStore. If this operation succeeds and the next one (removing the
@@ -822,12 +825,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         checkManagedLedgerIsOpen();
         checkFenced();
 
-        return new NonDurableCursorImpl(bookKeeper, config, this, null, (PositionImpl) startCursorPosition);
+        return new NonDurableCursorImpl(bookKeeper, config, this, null,
+                (PositionImpl) startCursorPosition);
     }
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName)
             throws ManagedLedgerException {
+        Objects.requireNonNull(cursorName, "cursor name can't be null");
         checkManagedLedgerIsOpen();
         checkFenced();
 
@@ -1529,7 +1534,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long createdTime = System.nanoTime();
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, position.getLedgerId(),
                     position.getEntryId(), callback, readOpCount, createdTime, ctx);
-            LAST_READ_CALLBACK.set(this, readCallback);
+            lastReadCallback = readCallback;
             entryCache.asyncReadEntry(ledger, position, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, position, callback, ctx);
@@ -1544,7 +1549,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long createdTime = System.nanoTime();
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
                     opReadEntry, readOpCount, createdTime, ctx);
-            LAST_READ_CALLBACK.set(this, readCallback);
+            lastReadCallback = readCallback;
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, isSlowestReader, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, isSlowestReader, opReadEntry, ctx);
@@ -3090,13 +3095,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (timeoutSec < 1) {
             return;
         }
-        ReadEntryCallbackWrapper callback = LAST_READ_CALLBACK.get(this);
-        if (callback != null && callback.isTimedOut(timeoutSec)) {
-            log.warn("[{}]-{} read entry timeout for {} after {} sec", this.name, callback.ledgerId, callback.entryId,
-                    timeoutSec);
-            callback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException), callback.readOpCount);
-            LAST_READ_CALLBACK.set(this, null);
+        if (this.lastReadCallback != null && this.lastReadCallback.isTimedOut(timeoutSec)) {
+            log.warn("[{}]-{} read entry timeout for {} after {} sec", this.name, this.lastReadCallback.ledgerId,
+                    this.lastReadCallback.entryId, timeoutSec);
+            this.lastReadCallback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException),
+                    this.lastReadCallback.readOpCount);
+            lastReadCallback = null;
         }
+    }
+
+    @Override
+    public long getOffloadedSize() {
+        long offloadedSize = 0;
+        for (LedgerInfo li : ledgers.values()) {
+            if (li.hasOffloadContext() && li.getOffloadContext().getComplete()) {
+                offloadedSize += li.getSize();
+            }
+        }
+
+        return offloadedSize;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);

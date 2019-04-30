@@ -117,6 +117,8 @@ public interface Topic {
 
     boolean isEncryptionRequired();
 
+    boolean getSchemaValidationEnforced();
+
     boolean isReplicated();
 
     BacklogQuota getBacklogQuota();

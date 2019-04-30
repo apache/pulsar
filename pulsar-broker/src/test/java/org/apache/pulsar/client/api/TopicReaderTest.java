@@ -40,21 +40,21 @@ import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class TopicReaderTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -407,6 +407,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         // readNext should return null, after reach the end of topic.
         assertNull(reader.readNext(1, TimeUnit.SECONDS));
 
+        reader.close();
         producer.close();
     }
 
@@ -448,6 +449,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         assertFalse(reader.hasMessageAvailable());
+
+        reader.close();
         producer.close();
     }
 
@@ -487,10 +490,10 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
-        final String topicName = "persistent://my-property/my-ns/ReaderSeek";
+        final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName).create();
@@ -503,7 +506,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .startMessageId(MessageId.earliest).create();
         assertTrue(reader.hasMessageAvailable());
 
-        ((ReaderImpl) reader).getConsumer().seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
+        reader.seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
 
         assertTrue(reader.hasMessageAvailable());
 
@@ -529,9 +532,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertTrue(reader.hasMessageAvailable());
 
         // Read all messages the first time
+        Set<String> messageSetA = Sets.newHashSet();
         for (int i = 0; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
-            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetA, receivedMessage, expectedMessage);
         }
 
         assertFalse(reader.hasMessageAvailable());
@@ -540,9 +546,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
 
         // Read all messages a second time after seek()
+        Set<String> messageSetB = Sets.newHashSet();
         for (int i = 0; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
-            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
         }
 
         // Reader should be finished
@@ -574,9 +583,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         // Read all messages the first time
         MessageId midmessageToSeek = null;
+        Set<String> messageSetA = Sets.newHashSet();
         for (int i = 0; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
-            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetA, receivedMessage, expectedMessage);
 
             if (i == halfMessages) {
                 midmessageToSeek = message.getMessageId();
@@ -589,9 +601,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.seek(midmessageToSeek);
 
         // Read all halved messages after seek()
+        Set<String> messageSetB = Sets.newHashSet();
         for (int i = halfMessages + 1; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
-            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
         }
 
         // Reader should be finished
@@ -624,9 +639,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         int plusTime = (halfMessages + 1) * 100;
         reader.seek(l + plusTime);
 
+        Set<String> messageSet = Sets.newHashSet();
         for (int i = halfMessages; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
-            Assert.assertEquals(message.getData(), String.format("msg num %d", i).getBytes());
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
         reader.close();

@@ -65,6 +65,8 @@ public class Policies {
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
+    public boolean schema_validation_enforced = false;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -77,7 +79,8 @@ public class Policies {
                 max_consumers_per_topic, max_consumers_per_subscription,
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
-                schema_auto_update_compatibility_strategy);
+                schema_auto_update_compatibility_strategy,
+                schema_validation_enforced);
     }
 
     @Override
@@ -104,7 +107,8 @@ public class Policies {
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
-                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy;
+                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
+                    && schema_validation_enforced == other.schema_validation_enforced;
         }
 
         return false;
@@ -146,6 +150,7 @@ public class Policies {
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
-                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy).toString();
+                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
+                .add("schema_validation_enforced", schema_validation_enforced).toString();
     }
 }

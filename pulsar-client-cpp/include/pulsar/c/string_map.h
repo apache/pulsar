@@ -19,27 +19,25 @@
 
 #pragma once
 
+#include <pulsar/defines.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#pragma GCC visibility push(default)
-
 typedef struct _pulsar_string_map pulsar_string_map_t;
 
-pulsar_string_map_t *pulsar_string_map_create();
-void pulsar_string_map_free(pulsar_string_map_t *map);
+PULSAR_PUBLIC pulsar_string_map_t *pulsar_string_map_create();
+PULSAR_PUBLIC void pulsar_string_map_free(pulsar_string_map_t *map);
 
-int pulsar_string_map_size(pulsar_string_map_t *map);
+PULSAR_PUBLIC int pulsar_string_map_size(pulsar_string_map_t *map);
 
-void pulsar_string_map_put(pulsar_string_map_t *map, const char *key, const char *value);
+PULSAR_PUBLIC void pulsar_string_map_put(pulsar_string_map_t *map, const char *key, const char *value);
 
-const char *pulsar_string_map_get(pulsar_string_map_t *map, const char *key);
+PULSAR_PUBLIC const char *pulsar_string_map_get(pulsar_string_map_t *map, const char *key);
 
-const char *pulsar_string_map_get_key(pulsar_string_map_t *map, int idx);
-const char *pulsar_string_map_get_value(pulsar_string_map_t *map, int idx);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC const char *pulsar_string_map_get_key(pulsar_string_map_t *map, int idx);
+PULSAR_PUBLIC const char *pulsar_string_map_get_value(pulsar_string_map_t *map, int idx);
 
 #ifdef __cplusplus
 }

@@ -53,7 +53,6 @@ class ConsumerImplBase {
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
     virtual void negativeAcknowledge(const MessageId& msgId) = 0;
-    virtual void incrRefCount(){};
 };
 }  // namespace pulsar
 #endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER
