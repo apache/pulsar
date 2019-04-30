@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
-import java.util.Map;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -30,9 +29,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link MessageImpl}.
@@ -129,7 +129,7 @@ public class MessageImplTest {
     }
 
     @Test
-    public void testSpraerateGetProducerDataAssigned() {
+    public void testSeparatedGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
@@ -144,7 +144,7 @@ public class MessageImplTest {
         // Check kv.encoding.type SPRAERATE
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         MessageMetadata.Builder builder = MessageMetadata.newBuilder()
-                .setProducerName("spraerate");
+                .setProducerName("separated");
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);

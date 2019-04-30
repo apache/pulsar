@@ -67,6 +67,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
+        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                "This method is not allowed to set keys when in encoding type is SEPARATED");
         msgMetadataBuilder.setPartitionKey(key);
         msgMetadataBuilder.setPartitionKeyB64Encoded(false);
         return this;
@@ -74,6 +77,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                "This method is not allowed to set keys when in encoding type is SEPARATED");
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);
         return this;

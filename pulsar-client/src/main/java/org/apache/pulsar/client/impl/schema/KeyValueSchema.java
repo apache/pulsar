@@ -88,7 +88,6 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     private KeyValueSchema(Schema<K> keySchema,
                            Schema<V> valueSchema) {
-
         this(keySchema, valueSchema, KeyValueEncodingType.INLINE);
     }
 
