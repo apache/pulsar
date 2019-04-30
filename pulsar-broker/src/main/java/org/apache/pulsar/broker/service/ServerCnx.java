@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -911,7 +912,7 @@ public class ServerCnx extends PulsarHandler {
                                         log.info("[{}]-{} {} configured with schema {}", remoteAddress, producerId,
                                                 topicName, hasSchema);
                                         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if (hasSchema && schemaValidationEnforced) {
+                                        if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                                             result.completeExceptionally(new IncompatibleSchemaException(
                                                 "Producers cannot connect without a schema to topics with a schema"));
                                         } else {
