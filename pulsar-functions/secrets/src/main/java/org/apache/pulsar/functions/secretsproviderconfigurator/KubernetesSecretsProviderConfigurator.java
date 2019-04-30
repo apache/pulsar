@@ -47,6 +47,8 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                 return EnvironmentBasedSecretsProvider.class.getName();
             case PYTHON:
                 return "secretsprovider.EnvironmentBasedSecretsProvider";
+            case GO:
+                return "";
             default:
                 throw new RuntimeException("Unknown function runtime " + functionDetails.getRuntime());
         }

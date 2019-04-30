@@ -262,7 +262,7 @@ func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
-	if timeoutMilliSecond < 0 {
+	if timeoutMilliSecond <= 0 {
 		return time.Duration(math.MaxInt64)
 	}
 	return timeoutMilliSecond

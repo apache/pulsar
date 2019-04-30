@@ -45,6 +45,7 @@ type Conf struct {
 	Tenant               string `yaml:"tenant"`
 	NameSpace            string `yaml:"nameSpace"`
 	Name                 string `yaml:"name"`
+	ClassName            string `yaml:"className"`
 	LogTopic             string `yaml:"logTopic"`
 	ProcessingGuarantees int32  `yaml:"processingGuarantees"`
 	SecretsMap           string `yaml:"secretsMap"`

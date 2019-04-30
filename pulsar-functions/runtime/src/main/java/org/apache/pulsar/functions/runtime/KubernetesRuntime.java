@@ -190,6 +190,8 @@ public class KubernetesRuntime implements Runtime {
             case PYTHON:
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
+            case GO:
+                break;
         }
 
         this.authConfig = authConfig;

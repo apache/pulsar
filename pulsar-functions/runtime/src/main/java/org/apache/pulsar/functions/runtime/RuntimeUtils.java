@@ -21,9 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
@@ -34,9 +32,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.functionforgo.FunctionConverGoConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.Tag;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -89,31 +91,180 @@ public class RuntimeUtils {
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
             }
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            //no-op
         }
 
         return args;
     }
 
-    public static List<String> getCmd(InstanceConfig instanceConfig,
-                                          String instanceFile,
-                                          String extraDependenciesDir, /* extra dependencies for running instances */
-                                           String logDirectory,
-                                          String originalCodeFileName,
-                                          String pulsarServiceUrl,
-                                          String stateStorageServiceUrl,
-                                          AuthenticationConfig authConfig,
-                                          String shardId,
-                                          Integer grpcPort,
-                                          Long expectedHealthCheckInterval,
-                                          String logConfigFile,
-                                          String secretsProviderClassName,
-                                          String secretsProviderConfig,
-                                          Boolean installUserCodeDependencies,
-                                          String pythonDependencyRepository,
-                                          String pythonExtraDependencyRepository,
-                                          int metricsPort) throws Exception {
+    /**
+     *
+     * Different from python and java function, Go function uploads a complete executable file(including:
+     * instance file + user code file). Its parameter list is provided to the broker in the form of a yaml file,
+     * the advantage of this approach is that backward compatibility is guaranteed.
+     *
+     * When we run the go function, we only need to specify the location of the go-function file and the yaml file.
+     * The content of the yaml file will be automatically generated according to the content provided by instanceConfig.
+     *
+     */
+
+    public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                String originalCodeFileName,
+                                                String pulsarServiceUrl) {
         final List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
+        FunctionConverGoConfig functionConverGoConfig = new FunctionConverGoConfig();
+
+        if (instanceConfig.getClusterName() != null) {
+            functionConverGoConfig.setClusterName(instanceConfig.getClusterName());
+        }
+
+        if (instanceConfig.getInstanceId() != 0) {
+            functionConverGoConfig.setInstanceID(instanceConfig.getInstanceId());
+        }
+
+        if (instanceConfig.getFunctionId() != null) {
+            functionConverGoConfig.setFuncID(instanceConfig.getFunctionId());
+        }
+
+        if (instanceConfig.getFunctionVersion() != null) {
+            functionConverGoConfig.setFuncVersion(instanceConfig.getFunctionVersion());
+        }
+
+        if (instanceConfig.getFunctionDetails().getAutoAck()) {
+            functionConverGoConfig.setAutoAck(instanceConfig.getFunctionDetails().getAutoAck());
+        }
+
+        if (instanceConfig.getFunctionDetails().getTenant() != null) {
+            functionConverGoConfig.setTenant(instanceConfig.getFunctionDetails().getTenant());
+        }
+
+        if (instanceConfig.getFunctionDetails().getNamespace() != null) {
+            functionConverGoConfig.setNameSpace(instanceConfig.getFunctionDetails().getNamespace());
+        }
+
+        if (instanceConfig.getFunctionDetails().getName() != null) {
+            functionConverGoConfig.setName(instanceConfig.getFunctionDetails().getName());
+        }
+
+        if (instanceConfig.getFunctionDetails().getClassName() != null) {
+            functionConverGoConfig.setClassName(instanceConfig.getFunctionDetails().getClassName());
+        }
+        if (instanceConfig.getFunctionDetails().getLogTopic() != null) {
+            functionConverGoConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
+        }
+        if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
+            functionConverGoConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+        }
+        if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
+            functionConverGoConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
+        }
+        if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
+            functionConverGoConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+        }
+
+        if (instanceConfig.getMaxBufferedTuples() != 0) {
+            functionConverGoConfig.setMaxBufTuples(instanceConfig.getMaxBufferedTuples());
+        }
+
+        if (pulsarServiceUrl != null) {
+            functionConverGoConfig.setPulsarServiceURL(pulsarServiceUrl);
+        }
+        if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
+            functionConverGoConfig.setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+        }
+        if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
+            functionConverGoConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
+        }
+
+        if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
+            for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
+                functionConverGoConfig.setSourceSpecsTopic(inputTopic);
+            }
+        }
+
+        if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
+            functionConverGoConfig.setTimeoutMs(instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
+        }
+
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
+            functionConverGoConfig.setSinkSpecsTopic(instanceConfig.getFunctionDetails().getSink().getTopic());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getCpu() != 0) {
+            functionConverGoConfig.setCpu(instanceConfig.getFunctionDetails().getResources().getCpu());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getRam() != 0) {
+            functionConverGoConfig.setRam(instanceConfig.getFunctionDetails().getResources().getRam());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getDisk() != 0) {
+            functionConverGoConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
+        }
+
+        if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
+            functionConverGoConfig.setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+        }
+
+        if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
+            functionConverGoConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+        }
+
+        functionConverGoConfig.setKillAfterIdleMs(0);
+
+        DumperOptions dumperOptions = new DumperOptions();
+        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        Yaml yaml = new Yaml(dumperOptions);
+        String output = yaml.dumpAs(functionConverGoConfig, Tag.MAP, null);
+        String pathName = "pulsar-functions/runtime/src/main/resources";
+        String fileName = String.format("%s_%s_%s.yml", functionConverGoConfig.getTenant(), functionConverGoConfig.getNameSpace(),
+                functionConverGoConfig.getName());
+        File ymlFile = new File(pathName + "/" + fileName);
+        try {
+            FileWriter fileWriter = new FileWriter(ymlFile);
+            fileWriter.write(output);
+            fileWriter.flush();
+            fileWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        args.add("go");
+        args.add("run");
+        args.add(originalCodeFileName);
+
+        args.add("-instance-conf");
+        args.add(ymlFile.getAbsolutePath());
+        return args;
+    }
+
+
+    public static List<String> getCmd(InstanceConfig instanceConfig,
+                                      String instanceFile,
+                                      String extraDependenciesDir, /* extra dependencies for running instances */
+                                      String logDirectory,
+                                      String originalCodeFileName,
+                                      String pulsarServiceUrl,
+                                      String stateStorageServiceUrl,
+                                      AuthenticationConfig authConfig,
+                                      String shardId,
+                                      Integer grpcPort,
+                                      Long expectedHealthCheckInterval,
+                                      String logConfigFile,
+                                      String secretsProviderClassName,
+                                      String secretsProviderConfig,
+                                      Boolean installUserCodeDependencies,
+                                      String pythonDependencyRepository,
+                                      String pythonExtraDependencyRepository,
+                                      int metricsPort) throws Exception {
+        final List<String> args = new LinkedList<>();
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl);
+        }
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
 
@@ -245,7 +396,7 @@ public class RuntimeUtils {
                 FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
     }
 
-    public static String getPrometheusMetrics(int metricsPort) throws IOException{
+    public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();

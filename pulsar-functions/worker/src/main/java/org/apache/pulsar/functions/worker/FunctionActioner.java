@@ -474,6 +474,8 @@ public class FunctionActioner {
                 return fileName + ".jar";
             case PYTHON:
                 return fileName + ".py";
+            case GO:
+                return fileName + ".go";
             default:
                 throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }
