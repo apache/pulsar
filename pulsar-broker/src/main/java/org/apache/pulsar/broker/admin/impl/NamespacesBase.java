@@ -1787,6 +1787,23 @@ public abstract class NamespacesBase extends AdminResource {
             "schemaAutoUpdateCompatibilityStrategy");
     }
 
+    protected boolean internalGetSchemaValidationEnforced() {
+        validateSuperUserAccess();
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).schema_validation_enforced;
+    }
+
+    protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                policies. schema_validation_enforced = schemaValidationEnforced;
+                return policies;
+            }, (policies) -> policies. schema_validation_enforced,
+            "schemaValidationEnforced");
+    }
+
 
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,
