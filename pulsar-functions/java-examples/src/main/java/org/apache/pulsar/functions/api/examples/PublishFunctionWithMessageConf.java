@@ -43,10 +43,12 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         properties.putAll(context.getCurrentRecord().getProperties());
 
         try {
-            context.newOutputMessage(publishTopic, Schema.STRING)
-                    .value(output).properties(properties).
-                    key(context.getCurrentRecord().getKey().get()).
-                    eventTime(System.currentTimeMillis()).sendAsync();
+            TypedMessageBuilder messageBuilder = context.newOutputMessage(publishTopic, Schema.STRING).
+                    value(output).properties(properties);
+            if (context.getCurrentRecord().getKey().isPresent()){
+                messageBuilder.key(context.getCurrentRecord().getKey().get());
+            }
+            messageBuilder.eventTime(System.currentTimeMillis()).sendAsync();
         } catch (PulsarClientException e) {
             e.printStackTrace();
         }
