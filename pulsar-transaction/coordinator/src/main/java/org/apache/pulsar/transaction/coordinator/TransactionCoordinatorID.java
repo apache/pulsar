@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import com.google.common.annotations.Beta;
 import lombok.Data;
 
 /**
  * A class for representing the identifier for a transaction coordinator.
  */
+@Beta
 @Data
 public class TransactionCoordinatorID {
 

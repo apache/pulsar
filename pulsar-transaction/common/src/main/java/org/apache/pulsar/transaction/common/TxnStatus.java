@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.transaction.common;
 
+import com.google.common.annotations.Beta;
+
 /**
  * A enum represents the status of a transaction.
  */
+@Beta
 public enum TxnStatus {
 
     // A new transaction is open.

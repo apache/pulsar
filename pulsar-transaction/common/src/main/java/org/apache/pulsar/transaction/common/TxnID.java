@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.transaction.common;
 
+import com.google.common.annotations.Beta;
 import java.io.Serializable;
 import lombok.Data;
 
 /**
  * An identifier for representing a transaction.
  */
+@Beta
 @Data
 public class TxnID implements Serializable {
 
