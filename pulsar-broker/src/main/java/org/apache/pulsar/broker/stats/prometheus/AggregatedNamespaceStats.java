@@ -37,6 +37,10 @@ public class AggregatedNamespaceStats {
     public long storageSize;
     public long msgBacklog;
 
+    long backlogSize;
+    long offloadedStorageUsed;
+    long backlogQuotaLimit;
+
     public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
             ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     public StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
@@ -61,6 +65,8 @@ public class AggregatedNamespaceStats {
         throughputOut += stats.throughputOut;
 
         storageSize += stats.storageSize;
+        backlogSize += stats.backlogSize;
+        offloadedStorageUsed += stats.offloadedStorageUsed;
 
         storageWriteRate += stats.storageWriteRate;
         storageReadRate += stats.storageReadRate;
