@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.fail;
 
 import org.testng.annotations.Test;
 
@@ -29,13 +31,14 @@ public class TripleLongPriorityQueueTest {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
 
-        final int N = 20;
+        final int N = 1000;
 
         for (int i = N; i > 0; i--) {
             pq.add(i, i * 2, i * 3);
         }
 
         assertEquals(pq.size(), N);
+        assertFalse(pq.isEmpty());
 
         for (int i = 1; i <= N; i++) {
             assertEquals(pq.peekN1(), i);
@@ -46,6 +49,88 @@ public class TripleLongPriorityQueueTest {
 
             assertEquals(pq.size(), N - i);
         }
+
+        pq.close();
+    }
+
+    @Test
+    public void testCheckForEmpty() {
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
+        assertEquals(pq.size(), 0);
+        assertEquals(pq.isEmpty(), true);
+
+        try {
+            pq.peekN1();
+            fail("Should fail");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        try {
+            pq.peekN2();
+            fail("Should fail");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        try {
+            pq.peekN3();
+            fail("Should fail");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        try {
+            pq.pop();
+            fail("Should fail");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        pq.close();
+    }
+
+    @Test
+    public void testCompareWithSamePrefix() {
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
+        assertEquals(pq.size(), 0);
+        assertEquals(pq.isEmpty(), true);
+
+        pq.add(10, 20, 30);
+        pq.add(20, 10, 10);
+        pq.add(10, 20, 10);
+        pq.add(10, 30, 10);
+        pq.add(10, 20, 5);
+
+        assertEquals(pq.size(), 5);
+
+        assertEquals(pq.peekN1(), 10);
+        assertEquals(pq.peekN2(), 20);
+        assertEquals(pq.peekN3(), 5);
+        pq.pop();
+
+        assertEquals(pq.peekN1(), 10);
+        assertEquals(pq.peekN2(), 20);
+        assertEquals(pq.peekN3(), 10);
+        pq.pop();
+
+        assertEquals(pq.peekN1(), 10);
+        assertEquals(pq.peekN2(), 20);
+        assertEquals(pq.peekN3(), 30);
+        pq.pop();
+
+        assertEquals(pq.peekN1(), 10);
+        assertEquals(pq.peekN2(), 30);
+        assertEquals(pq.peekN3(), 10);
+        pq.pop();
+
+        assertEquals(pq.peekN1(), 20);
+        assertEquals(pq.peekN2(), 10);
+        assertEquals(pq.peekN3(), 10);
+        pq.pop();
+
+        assertEquals(pq.size(), 0);
+        assertEquals(pq.isEmpty(), true);
 
         pq.close();
     }
