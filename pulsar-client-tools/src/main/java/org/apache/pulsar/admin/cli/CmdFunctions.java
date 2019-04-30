@@ -200,7 +200,7 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(
                 names = "--go",
-                description = "Path to the main Go file for the function (if the function is written in Go)")
+                description = "Path to the main Go executable binary for the function (if the function is written in Go)")
         protected String goFile;
         @Parameter(names = {"-i",
                 "--inputs"}, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
@@ -498,8 +498,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getClassName())) {
-                throw new IllegalArgumentException("No Function Classname specified");
+            // go doesn't need className
+            if (isNotBlank(functionConfig.getJar()) || isNotBlank(functionConfig.getPy())) {
+                if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                    throw new IllegalArgumentException("No Function Classname specified");
+                }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
@@ -512,12 +515,12 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy()) && isNotBlank(functionConfig.getGo())) {
-                throw new ParameterException("Either a Java jar or a Python file or a Go file needs to"
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
             if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy()) && isBlank(functionConfig.getGo())) {
-                throw new ParameterException("Either a Java jar or a Python file or a Go file needs to"
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Please specify one.");
             }
 
@@ -531,7 +534,7 @@ public class CmdFunctions extends CmdBase {
             }
             if (!isBlank(functionConfig.getGo()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getGo()) &&
                     !new File(functionConfig.getGo()).exists()) {
-                throw new ParameterException("The specified go file does not exist");
+                throw new ParameterException("The specified go executable binary does not exist");
             }
         }
     }

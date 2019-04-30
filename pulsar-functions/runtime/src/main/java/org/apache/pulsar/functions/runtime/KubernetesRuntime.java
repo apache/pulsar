@@ -191,7 +191,7 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
             case GO:
-                break;
+                throw new UnsupportedOperationException();
         }
 
         this.authConfig = authConfig;

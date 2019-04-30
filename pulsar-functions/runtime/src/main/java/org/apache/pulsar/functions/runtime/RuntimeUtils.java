@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.instance.functionforgo.FunctionConverGoConfig;
+import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
@@ -84,7 +84,7 @@ public class RuntimeUtils {
     public static List<String> getArgsBeforeCmd(InstanceConfig instanceConfig, String extraDependenciesDir) {
 
         final List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             //no-op
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             // add `extraDependenciesDir` to python package searching path
@@ -99,139 +99,135 @@ public class RuntimeUtils {
     }
 
     /**
-     *
      * Different from python and java function, Go function uploads a complete executable file(including:
      * instance file + user code file). Its parameter list is provided to the broker in the form of a yaml file,
      * the advantage of this approach is that backward compatibility is guaranteed.
      *
+     * In Java and Python the instance is managed by broker (or function worker) so the changes in command line
+     * is under control; but in Go the instance is compiled with the user function, so pulsar doesn't have the
+     * control what instance is used in the function. Hence in order to support BC for go function, we can't
+     * dynamically add more commandline arguments. Using an instance config to pass the parameters from function
+     * worker to go instance is the best way for maintaining the BC.
+     * <p>
      * When we run the go function, we only need to specify the location of the go-function file and the yaml file.
      * The content of the yaml file will be automatically generated according to the content provided by instanceConfig.
-     *
      */
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
-                                                String pulsarServiceUrl) {
+                                                String pulsarServiceUrl) throws IOException {
         final List<String> args = new LinkedList<>();
-        FunctionConverGoConfig functionConverGoConfig = new FunctionConverGoConfig();
+        GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
         if (instanceConfig.getClusterName() != null) {
-            functionConverGoConfig.setClusterName(instanceConfig.getClusterName());
+            goInstanceConfig.setClusterName(instanceConfig.getClusterName());
         }
 
         if (instanceConfig.getInstanceId() != 0) {
-            functionConverGoConfig.setInstanceID(instanceConfig.getInstanceId());
+            goInstanceConfig.setInstanceID(instanceConfig.getInstanceId());
         }
 
         if (instanceConfig.getFunctionId() != null) {
-            functionConverGoConfig.setFuncID(instanceConfig.getFunctionId());
+            goInstanceConfig.setFuncID(instanceConfig.getFunctionId());
         }
 
         if (instanceConfig.getFunctionVersion() != null) {
-            functionConverGoConfig.setFuncVersion(instanceConfig.getFunctionVersion());
+            goInstanceConfig.setFuncVersion(instanceConfig.getFunctionVersion());
         }
 
         if (instanceConfig.getFunctionDetails().getAutoAck()) {
-            functionConverGoConfig.setAutoAck(instanceConfig.getFunctionDetails().getAutoAck());
+            goInstanceConfig.setAutoAck(instanceConfig.getFunctionDetails().getAutoAck());
         }
 
         if (instanceConfig.getFunctionDetails().getTenant() != null) {
-            functionConverGoConfig.setTenant(instanceConfig.getFunctionDetails().getTenant());
+            goInstanceConfig.setTenant(instanceConfig.getFunctionDetails().getTenant());
         }
 
         if (instanceConfig.getFunctionDetails().getNamespace() != null) {
-            functionConverGoConfig.setNameSpace(instanceConfig.getFunctionDetails().getNamespace());
+            goInstanceConfig.setNameSpace(instanceConfig.getFunctionDetails().getNamespace());
         }
 
         if (instanceConfig.getFunctionDetails().getName() != null) {
-            functionConverGoConfig.setName(instanceConfig.getFunctionDetails().getName());
+            goInstanceConfig.setName(instanceConfig.getFunctionDetails().getName());
         }
 
-        if (instanceConfig.getFunctionDetails().getClassName() != null) {
-            functionConverGoConfig.setClassName(instanceConfig.getFunctionDetails().getClassName());
-        }
         if (instanceConfig.getFunctionDetails().getLogTopic() != null) {
-            functionConverGoConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
+            goInstanceConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
         }
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
-            functionConverGoConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+            goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
         }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
-            functionConverGoConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
+            goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
         }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
-            functionConverGoConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+            goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {
-            functionConverGoConfig.setMaxBufTuples(instanceConfig.getMaxBufferedTuples());
+            goInstanceConfig.setMaxBufTuples(instanceConfig.getMaxBufferedTuples());
         }
 
         if (pulsarServiceUrl != null) {
-            functionConverGoConfig.setPulsarServiceURL(pulsarServiceUrl);
+            goInstanceConfig.setPulsarServiceURL(pulsarServiceUrl);
         }
         if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
-            functionConverGoConfig.setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+            goInstanceConfig.setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
         }
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
-            functionConverGoConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
+            goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
-                functionConverGoConfig.setSourceSpecsTopic(inputTopic);
+                goInstanceConfig.setSourceSpecsTopic(inputTopic);
             }
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
-            functionConverGoConfig.setTimeoutMs(instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
+            goInstanceConfig.setTimeoutMs(instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
         }
 
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
-            functionConverGoConfig.setSinkSpecsTopic(instanceConfig.getFunctionDetails().getSink().getTopic());
+            goInstanceConfig.setSinkSpecsTopic(instanceConfig.getFunctionDetails().getSink().getTopic());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getCpu() != 0) {
-            functionConverGoConfig.setCpu(instanceConfig.getFunctionDetails().getResources().getCpu());
+            goInstanceConfig.setCpu(instanceConfig.getFunctionDetails().getResources().getCpu());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getRam() != 0) {
-            functionConverGoConfig.setRam(instanceConfig.getFunctionDetails().getResources().getRam());
+            goInstanceConfig.setRam(instanceConfig.getFunctionDetails().getResources().getRam());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getDisk() != 0) {
-            functionConverGoConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
+            goInstanceConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
-            functionConverGoConfig.setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+            goInstanceConfig.setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
-            functionConverGoConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+            goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
-        functionConverGoConfig.setKillAfterIdleMs(0);
+        goInstanceConfig.setKillAfterIdleMs(0);
 
         DumperOptions dumperOptions = new DumperOptions();
         dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         Yaml yaml = new Yaml(dumperOptions);
-        String output = yaml.dumpAs(functionConverGoConfig, Tag.MAP, null);
-        String pathName = "pulsar-functions/runtime/src/main/resources";
-        String fileName = String.format("%s_%s_%s.yml", functionConverGoConfig.getTenant(), functionConverGoConfig.getNameSpace(),
-                functionConverGoConfig.getName());
-        File ymlFile = new File(pathName + "/" + fileName);
-        try {
-            FileWriter fileWriter = new FileWriter(ymlFile);
-            fileWriter.write(output);
-            fileWriter.flush();
-            fileWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        String output = yaml.dumpAs(goInstanceConfig, Tag.MAP, null);
+        String fileName = String.format("%s_%s_%s", goInstanceConfig.getTenant(), goInstanceConfig.getNameSpace(),
+                goInstanceConfig.getName());
+        File ymlFile = File.createTempFile(fileName, ".yml");
+        FileWriter fileWriter = new FileWriter(ymlFile);
+        fileWriter.write(output);
+        fileWriter.flush();
+        fileWriter.close();
 
-        args.add("go");
-        args.add("run");
+        // Nit: at present, the implementation of go function depends on pulsar-client-go,
+        // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
 
         args.add("-instance-conf");
@@ -409,5 +405,5 @@ public class RuntimeUtils {
         rd.close();
         return result.toString();
     }
-  
+
 }

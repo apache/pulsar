@@ -435,15 +435,15 @@ public class FunctionConfigUtils {
 
     private static void doGolangChecks(FunctionConfig functionConfig) {
         if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-            throw new RuntimeException("Effectively-once processing guarantees not yet supported in Golang");
+            throw new RuntimeException("Effectively-once processing guarantees not yet supported in Go function");
         }
 
         if (functionConfig.getWindowConfig() != null) {
-            throw new IllegalArgumentException("There is currently no support windowing in golang");
+            throw new IllegalArgumentException("Windowing is not supported in Go function yet");
         }
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
-            throw new IllegalArgumentException("Message retries not yet supported in golang");
+            throw new IllegalArgumentException("Message retries not yet supported in Go function");
         }
     }
 
@@ -465,8 +465,11 @@ public class FunctionConfigUtils {
         if (isEmpty(functionConfig.getName())) {
             throw new IllegalArgumentException("Function name cannot be null");
         }
-        if (isEmpty(functionConfig.getClassName())) {
-            throw new IllegalArgumentException("Function classname cannot be null");
+        // go doesn't need className
+        if (isNotBlank(functionConfig.getJar()) || isNotBlank(functionConfig.getPy())){
+            if (isEmpty(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("Function classname cannot be null");
+            }
         }
 
         Collection<String> allInputTopics = collectAllInputTopics(functionConfig);
