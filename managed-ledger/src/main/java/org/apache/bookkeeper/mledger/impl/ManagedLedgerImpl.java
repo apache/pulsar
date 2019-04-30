@@ -235,7 +235,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "readOpCount");
     private volatile long readOpCount = 0;
-    // last read-operation's callback to check read-timeout on it. 
+    // last read-operation's callback to check read-timeout on it.
     private volatile ReadEntryCallbackWrapper lastReadCallback = null;
 
     /**
@@ -3137,6 +3137,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     this.lastReadCallback.readOpCount);
             lastReadCallback = null;
         }
+    }
+
+    @Override
+    public long getOffloadedSize() {
+        long offloadedSize = 0;
+        for (LedgerInfo li : ledgers.values()) {
+            if (li.hasOffloadContext() && li.getOffloadContext().getComplete()) {
+                offloadedSize += li.getSize();
+            }
+        }
+
+        return offloadedSize;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);

@@ -38,6 +38,11 @@ class TopicStats {
     long storageSize;
     public long msgBacklog;
 
+    long backlogSize;
+    long offloadedStorageUsed;
+
+    long backlogQuotaLimit;
+
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
     double storageWriteRate;
@@ -59,6 +64,9 @@ class TopicStats {
         msgBacklog = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        backlogSize = 0;
+        offloadedStorageUsed = 0;
+        backlogQuotaLimit = 0;
 
         replicationStats.clear();
         subscriptionStats.clear();
@@ -79,6 +87,9 @@ class TopicStats {
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
 
         long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
