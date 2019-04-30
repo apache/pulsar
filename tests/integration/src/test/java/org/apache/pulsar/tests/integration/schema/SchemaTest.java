@@ -141,18 +141,20 @@ public class SchemaTest extends PulsarTestSuite {
             log.info("Successfully published person : {}", person);
         }
 
-        //Create a consumer for MultiVersionSchema
+        // Create a consumer for MultiVersionSchema
         try (Consumer<PersonConsumeSchema> consumer = client.newConsumer(Schema.AVRO(
                 SchemaDefinition.<PersonConsumeSchema>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(PersonConsumeSchema.class).build()))
                 .topic(fqtn)
-                .subscribe();
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()
         ) {
             PersonConsumeSchema personConsumeSchema = consumer.receive().getValue();
             assertEquals("Tom Hanks", personConsumeSchema.getName());
             assertEquals(60, personConsumeSchema.getAge());
-            assertEquals("man", personConsumeSchema.getGender());
+            assertEquals("male", personConsumeSchema.getGender());
             log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
         }
     }

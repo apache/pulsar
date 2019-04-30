@@ -19,16 +19,21 @@
 package org.apache.pulsar.tests.integration.cli;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
 
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -99,6 +104,34 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                 p.send(new V2Data("test2"));
             }
         }
+
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
+            try (Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                 .topic(topicName)
+                 .subscriptionName("sub")
+                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                 .subscribe()) {
+
+                Message<GenericRecord> msg1 = consumer.receive();
+                GenericRecord record1 = msg1.getValue();
+                assertEquals(2, record1.getFields().size());
+                assertEquals("test1", record1.getField("foo"));
+                assertEquals(Integer.valueOf(1), record1.getField("bar"));
+
+                Message<GenericRecord> msg2 = consumer.receive();
+                GenericRecord record2 = msg2.getValue();
+                assertEquals(3, record2.getFields().size());
+                assertEquals("test3", record2.getField("foo"));
+                assertEquals(Integer.valueOf(1), record2.getField("bar"));
+                assertEquals(Long.valueOf(1), record2.getField("baz"));
+
+                Message<GenericRecord> msg3 = consumer.receive();
+                GenericRecord record3 = msg3.getValue();
+                assertEquals(1, record3.getFields().size());
+                assertEquals("test2", record3.getField("foo"));
+            }
+        }
     }
 
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
@@ -127,10 +160,6 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                 p.send(new V3Data("test2", 1, 2));
             }
 
-            log.info("try with fully compat, should succeed");
-            try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-                p.send(new V4Data("test2", 1, (short)100));
-            }
         }
 
     }
