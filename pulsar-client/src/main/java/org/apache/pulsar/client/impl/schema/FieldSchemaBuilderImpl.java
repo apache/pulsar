@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.HashMap;
@@ -142,6 +143,9 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
                 baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
                 break;
             case AVRO:
+                checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.AVRO,
+                        "The field is expected to be using AVRO schema but "
+                                + genericSchema.getSchemaInfo().getType() + " schema is found");
                 GenericAvroSchema genericAvroSchema = (GenericAvroSchema) genericSchema;
                 baseSchema = genericAvroSchema.getAvroSchema();
                 break;

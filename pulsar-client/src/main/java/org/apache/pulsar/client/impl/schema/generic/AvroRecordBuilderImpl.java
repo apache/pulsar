@@ -48,8 +48,11 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
     @Override
     public GenericRecordBuilder set(String fieldName, Object value) {
         if (value instanceof GenericRecord) {
-            List<Field> fields = ((GenericRecord) value).getFields();
-            fields.stream().forEach(field -> avroRecordBuilder.set(fieldName, ((GenericAvroRecord)value).getAvroRecord()));
+            if (value instanceof GenericAvroRecord) {
+                avroRecordBuilder.set(fieldName, ((GenericAvroRecord)value).getAvroRecord());
+            } else {
+                throw new IllegalArgumentException("Avro Record Builder doesn't support non-avro record as a field");
+            }
         } else {
             avroRecordBuilder.set(fieldName, value);
         }
@@ -78,11 +81,12 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
      */
     protected GenericRecordBuilder set(int index, Object value) {
         if (value instanceof GenericRecord) {
-            List<Field> fields = ((GenericRecord) value).getFields();
-            fields.stream().forEach(field -> {
+            if (value instanceof GenericAvroRecord) {
                 avroRecordBuilder.set(genericSchema.getAvroSchema().getFields().get(index),
                         ((GenericAvroRecord) value).getAvroRecord());
-            });
+            } else {
+                throw new IllegalArgumentException("Avro Record Builder doesn't support non-avro record as a field");
+            }
         } else {
             avroRecordBuilder.set(
                     genericSchema.getAvroSchema().getFields().get(index),
