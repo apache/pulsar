@@ -785,7 +785,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             closeClientFuture.thenAccept(delete -> {
                 if (USAGE_COUNT_UPDATER.get(this) == 0) {
                     isFenced = true;
-
                     List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
                     if (failIfHasSubscriptions) {
@@ -814,9 +813,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
                                 @Override
                                 public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                    isFenced = false;
-                                    log.error("[{}] Error deleting topic", topic, exception);
-                                    deleteFuture.completeExceptionally(new PersistenceException(exception));
+                                    if (exception.getCause() instanceof KeeperException.NoNodeException) {
+                                        log.info("[{}] Topic is already deleted {}", topic, exception.getMessage());
+                                        deleteLedgerComplete(ctx);
+                                    } else {
+                                        isFenced = false;
+                                        log.error("[{}] Error deleting topic", topic, exception);
+                                        deleteFuture.completeExceptionally(new PersistenceException(exception));
+                                    }
                                 }
                             }, null);
                         }
@@ -974,7 +978,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // doesn't serve global topic without local repl-cluster configured.
         if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
             log.info("Deleting topic [{}] because local cluster is not part of global namespace repl list {}",
-                    configuredClusters);
+                    topic, configuredClusters);
             return deleteForcefully();
         }
 
