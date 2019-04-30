@@ -28,6 +28,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.SchemaBuilder;
 import org.apache.pulsar.client.api.schema.FieldSchemaBuilder;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
@@ -44,8 +46,15 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
     private String doc;
     private String[] aliases;
 
+    private GenericSchema genericSchema;
+
     FieldSchemaBuilderImpl(String fieldName) {
+        this(fieldName, null);
+    }
+
+    FieldSchemaBuilderImpl(String fieldName, GenericSchema genericSchema) {
         this.fieldName = fieldName;
+        this.genericSchema = genericSchema;
     }
 
     @Override
@@ -131,6 +140,10 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
                 break;
             case TIMESTAMP:
                 baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
+                break;
+            case AVRO:
+                GenericAvroSchema genericAvroSchema = (GenericAvroSchema) genericSchema;
+                baseSchema = genericAvroSchema.getAvroSchema();
                 break;
             default:
                 throw new RuntimeException("Schema `" + type + "` is not supported to be used as a field for now");

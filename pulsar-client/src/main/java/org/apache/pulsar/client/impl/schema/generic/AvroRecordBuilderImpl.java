@@ -22,6 +22,8 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
+import java.util.List;
+
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.
  */
@@ -45,7 +47,12 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
      */
     @Override
     public GenericRecordBuilder set(String fieldName, Object value) {
-        avroRecordBuilder.set(fieldName, value);
+        if (value instanceof GenericRecord) {
+            List<Field> fields = ((GenericRecord) value).getFields();
+            fields.stream().forEach(field -> avroRecordBuilder.set(fieldName, ((GenericAvroRecord)value).getAvroRecord()));
+        } else {
+            avroRecordBuilder.set(fieldName, value);
+        }
         return this;
     }
 
@@ -70,10 +77,18 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
      * @return a reference to the RecordBuilder.
      */
     protected GenericRecordBuilder set(int index, Object value) {
-        avroRecordBuilder.set(
-            genericSchema.getAvroSchema().getFields().get(index),
-            value
-        );
+        if (value instanceof GenericRecord) {
+            List<Field> fields = ((GenericRecord) value).getFields();
+            fields.stream().forEach(field -> {
+                avroRecordBuilder.set(genericSchema.getAvroSchema().getFields().get(index),
+                        ((GenericAvroRecord) value).getAvroRecord());
+            });
+        } else {
+            avroRecordBuilder.set(
+                    genericSchema.getAvroSchema().getFields().get(index),
+                    value
+            );
+        }
         return this;
     }
 

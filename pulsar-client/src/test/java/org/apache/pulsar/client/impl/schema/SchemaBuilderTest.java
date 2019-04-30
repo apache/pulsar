@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
@@ -199,5 +200,135 @@ public class SchemaBuilderTest {
         assertEquals(true, fields.boolField);
         assertEquals(0.7f, fields.floatField);
         assertEquals(1.34d, fields.doubleField);
+    }
+
+    @Test
+    public void testGenericRecordBuilderAvroByFilename() {
+        RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
+        people1SchemaBuilder.field("age").type(SchemaType.INT32);
+        people1SchemaBuilder.field("height").type(SchemaType.INT32);
+        people1SchemaBuilder.field("name").type(SchemaType.STRING);
+
+
+        SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema people1Schema = Schema.generic(people1SchemaInfo);
+
+
+        GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
+        people1RecordBuilder.set("age", 20);
+        people1RecordBuilder.set("height", 180);
+        people1RecordBuilder.set("name", "people1");
+        GenericRecord people1GenericRecord = people1RecordBuilder.build();
+
+        RecordSchemaBuilder people2SchemaBuilder = SchemaBuilder.record("People2");
+        people2SchemaBuilder.field("age").type(SchemaType.INT32);
+        people2SchemaBuilder.field("height").type(SchemaType.INT32);
+        people2SchemaBuilder.field("name").type(SchemaType.STRING);
+
+        SchemaInfo people2SchemaInfo = people2SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema people2Schema = Schema.generic(people2SchemaInfo);
+
+        GenericRecordBuilder people2RecordBuilder = people2Schema.newRecordBuilder();
+        people2RecordBuilder.set("age", 20);
+        people2RecordBuilder.set("height", 180);
+        people2RecordBuilder.set("name", "people2");
+        GenericRecord people2GenericRecord = people2RecordBuilder.build();
+
+        RecordSchemaBuilder peopleSchemaBuilder = SchemaBuilder.record("People");
+        peopleSchemaBuilder.field("people1", people1Schema).type(SchemaType.AVRO);
+        peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
+
+
+        SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
+
+        GenericSchema peopleSchema = Schema.generic(schemaInfo);
+        GenericRecordBuilder peopleRecordBuilder = peopleSchema.newRecordBuilder();
+        peopleRecordBuilder.set("people1", people1GenericRecord);
+        peopleRecordBuilder.set("people2", people2GenericRecord);
+        GenericRecord peopleRecord = peopleRecordBuilder.build();
+
+        byte[] peopleEncode = peopleSchema.encode(peopleRecord);
+
+        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
+
+        assertEquals(people.getFields(), peopleRecord.getFields());
+        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
+                people1GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
+                people1GenericRecord.getField("heigth"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
+                people1GenericRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
+                people2GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+                people2GenericRecord.getField("height"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
+                people2GenericRecord.getField("name"));
+
+    }
+
+    @Test
+    public void testGenericRecordBuilderAvroByFiled() {
+        RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
+        people1SchemaBuilder.field("age").type(SchemaType.INT32);
+        people1SchemaBuilder.field("height").type(SchemaType.INT32);
+        people1SchemaBuilder.field("name").type(SchemaType.STRING);
+
+
+        SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema<GenericRecord> people1Schema = Schema.generic(people1SchemaInfo);
+
+
+        GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
+        people1RecordBuilder.set(people1Schema.getFields().get(0), 20);
+        people1RecordBuilder.set(people1Schema.getFields().get(1), 180);
+        people1RecordBuilder.set(people1Schema.getFields().get(2), "people1");
+        GenericRecord people1GenericRecord = people1RecordBuilder.build();
+
+        RecordSchemaBuilder people2SchemaBuilder = SchemaBuilder.record("People2");
+        people2SchemaBuilder.field("age").type(SchemaType.INT32);
+        people2SchemaBuilder.field("height").type(SchemaType.INT32);
+        people2SchemaBuilder.field("name").type(SchemaType.STRING);
+
+        SchemaInfo people2SchemaInfo = people2SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema<GenericRecord> people2Schema = Schema.generic(people2SchemaInfo);
+
+        GenericRecordBuilder people2RecordBuilder = people2Schema.newRecordBuilder();
+        people2RecordBuilder.set(people2Schema.getFields().get(0), 20);
+        people2RecordBuilder.set(people2Schema.getFields().get(1), 180);
+        people2RecordBuilder.set(people2Schema.getFields().get(2), "people2");
+        GenericRecord people2GenericRecord = people2RecordBuilder.build();
+
+        RecordSchemaBuilder peopleSchemaBuilder = SchemaBuilder.record("People");
+        peopleSchemaBuilder.field("people1", people1Schema).type(SchemaType.AVRO);
+        peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
+
+
+        SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
+
+        GenericSchema<GenericRecord> peopleSchema = Schema.generic(schemaInfo);
+        GenericRecordBuilder peopleRecordBuilder = peopleSchema.newRecordBuilder();
+        peopleRecordBuilder.set(peopleSchema.getFields().get(0), people1GenericRecord);
+        peopleRecordBuilder.set(peopleSchema.getFields().get(1), people2GenericRecord);
+        GenericRecord peopleRecord = peopleRecordBuilder.build();
+
+        byte[] peopleEncode = peopleSchema.encode(peopleRecord);
+
+        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
+
+        assertEquals(people.getFields(), peopleRecord.getFields());
+        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
+                people1GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
+                people1GenericRecord.getField("heigth"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
+                people1GenericRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
+                people2GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+                people2GenericRecord.getField("height"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
+                people2GenericRecord.getField("name"));
+
     }
 }
