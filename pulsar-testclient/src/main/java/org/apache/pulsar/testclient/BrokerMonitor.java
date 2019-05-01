@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.beust.jcommander.ParameterException;
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -428,6 +429,9 @@ public class BrokerMonitor {
 
     // JCommander arguments class.
     private static class Arguments {
+        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        boolean help;
+
         @Parameter(names = { "--connect-string" }, description = "Zookeeper connect string", required = true)
         public String connectString = null;
     }
@@ -465,16 +469,20 @@ public class BrokerMonitor {
      * @param args
      *            Arguments for the monitor.
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        final Arguments arguments = new Arguments();
+        final JCommander jc = new JCommander(arguments);
+        jc.setProgramName("pulsar-perf monitor-brokers");
+
         try {
-            final Arguments arguments = new Arguments();
-            final JCommander jc = new JCommander(arguments);
             jc.parse(args);
-            final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
-            final BrokerMonitor monitor = new BrokerMonitor(zkClient);
-            monitor.start();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        } catch (ParameterException e) {
+            System.out.println(e.getMessage());
+            jc.usage();
+            System.exit(-1);
         }
+        final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
+        final BrokerMonitor monitor = new BrokerMonitor(zkClient);
+        monitor.start();
     }
 }

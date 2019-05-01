@@ -236,16 +236,14 @@ public class FunctionStatsManager extends ComponentStatsManager{
         sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
     }
 
-    public void addUserException(Exception ex) {
+    public void addUserException(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestUserExceptions.add(info);
 
         // report exception throw prometheus
         if (userExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex, ts);
             userExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
     }
@@ -257,11 +255,16 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         // report exception throw prometheus
         if (sysExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex, ts);
             sysExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
+    }
+
+    private String[] getExceptionMetricsLabels(Throwable ex, long ts) {
+        String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
+        exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
+        exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+        return exceptionMetricsLabels;
     }
 
     @Override
@@ -284,19 +287,19 @@ public class FunctionStatsManager extends ComponentStatsManager{
     }
 
     @Override
-    public void incrUserExceptions(Exception userException) {
+    public void incrUserExceptions(Throwable userException) {
         _statTotalUserExceptions.inc();
         _statTotalUserExceptions1min.inc();
         addUserException(userException);
     }
 
     @Override
-    public void incrSourceExceptions(Exception ex) {
+    public void incrSourceExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSinkExceptions(Exception ex) {
+    public void incrSinkExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
@@ -434,8 +437,5 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         statTotalRecordsReceived1min.clear();
         _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
-
-        latestUserExceptions.clear();
-        latestSystemExceptions.clear();
     }
 }

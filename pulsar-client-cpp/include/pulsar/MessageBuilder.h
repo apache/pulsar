@@ -20,14 +20,13 @@
 #define MESSAGE_BUILDER_H
 
 #include <vector>
+#include <pulsar/defines.h>
 #include "Message.h"
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 class PulsarWrapper;
 
-class MessageBuilder {
+class PULSAR_PUBLIC MessageBuilder {
    public:
     MessageBuilder();
 
@@ -126,7 +125,5 @@ class MessageBuilder {
     friend class PulsarWrapper;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif

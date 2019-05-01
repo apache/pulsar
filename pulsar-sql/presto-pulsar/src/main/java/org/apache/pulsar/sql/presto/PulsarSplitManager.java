@@ -47,8 +47,8 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.shade.com.google.common.base.Predicate;
-import org.apache.pulsar.shade.org.apache.bookkeeper.conf.ClientConfiguration;
+import com.google.common.base.Predicate;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 
 import javax.inject.Inject;
 import java.util.Collection;
@@ -126,9 +126,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     ManagedLedgerFactory getManagedLedgerFactory() throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
-                .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
                 .setClientTcpNoDelay(false)
+                .setStickyReadsEnabled(true)
                 .setUseV2WireProtocol(true);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
@@ -350,10 +349,10 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             // Just use a close bound since presto can always filter out the extra entries even if
                             // the bound
                             // should be open or a mixture of open and closed
-                            org.apache.pulsar.shade.com.google.common.collect.Range<PositionImpl> posRange
-                                    = org.apache.pulsar.shade.com.google.common.collect.Range.range(overallStartPos,
-                                    org.apache.pulsar.shade.com.google.common.collect.BoundType.CLOSED,
-                                    overallEndPos, org.apache.pulsar.shade.com.google.common.collect.BoundType.CLOSED);
+                            com.google.common.collect.Range<PositionImpl> posRange
+                                    = com.google.common.collect.Range.range(overallStartPos,
+                                    com.google.common.collect.BoundType.CLOSED,
+                                    overallEndPos, com.google.common.collect.BoundType.CLOSED);
 
                             long numOfEntries = readOnlyCursor.getNumberOfEntries(posRange) - 1;
 

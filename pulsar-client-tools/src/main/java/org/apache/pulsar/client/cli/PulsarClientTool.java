@@ -22,11 +22,12 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
-import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -45,7 +46,11 @@ public class PulsarClientTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
@@ -59,7 +64,7 @@ public class PulsarClientTool {
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
 
-    public PulsarClientTool(Properties properties) throws MalformedURLException {
+    public PulsarClientTool(Properties properties) {
         this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
                 ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
@@ -84,16 +89,18 @@ public class PulsarClientTool {
         commandParser.addCommand("consume", consumeCommand);
     }
 
-    private void updateConfig() throws UnsupportedAuthenticationException, MalformedURLException {
+    private void updateConfig() throws UnsupportedAuthenticationException {
         ClientBuilder clientBuilder = PulsarClient.builder();
+        Authentication authentication = null;
         if (isNotBlank(this.authPluginClassName)) {
-            clientBuilder.authentication(authPluginClassName, authParams);
+            authentication = AuthenticationFactory.create(authPluginClassName, authParams);
+            clientBuilder.authentication(authentication);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
         clientBuilder.serviceUrl(serviceURL);
-        this.produceCommand.updateConfig(clientBuilder);
-        this.consumeCommand.updateConfig(clientBuilder);
+        this.produceCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
+        this.consumeCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
     }
 
     public int run(String[] args) {
@@ -113,10 +120,6 @@ public class PulsarClientTool {
             try {
                 this.updateConfig(); // If the --url, --auth-plugin, or --auth-params parameter are not specified,
                                      // it will default to the values passed in by the constructor
-            } catch (MalformedURLException mue) {
-                System.out.println("Unable to parse URL " + this.serviceURL);
-                commandParser.usage();
-                return -1;
             } catch (UnsupportedAuthenticationException exp) {
                 System.out.println("Failed to load an authentication plugin");
                 commandParser.usage();

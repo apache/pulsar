@@ -31,6 +31,7 @@ import com.google.common.collect.Sets;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -902,5 +903,16 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             Assert.fail("should have failed due to Namespace does not have any clusters configured");
         } catch (PulsarAdminException.PreconditionFailedException e) {
         }
+    }
+
+    @Test
+    public void testCreateNamespaceWithNoClusters() throws PulsarAdminException {
+        String localCluster = pulsar.getConfiguration().getClusterName();
+        String namespace = "prop-xyz/test-ns-with-no-clusters";
+        admin.namespaces().createNamespace(namespace);
+
+        // Global cluster, if there, should be omitted from the results
+        assertEquals(admin.namespaces().getNamespaceReplicationClusters(namespace),
+                Collections.singletonList(localCluster));
     }
 }

@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 
+import java.util.Optional;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 
@@ -103,6 +104,18 @@ public class AuthenticationService implements Closeable {
             // No authentication required
             return "<none>";
         }
+    }
+
+    public AuthenticationProvider getAuthenticationProvider(String authMethodName) {
+        return providers.get(authMethodName);
+    }
+
+    // called when authn enabled, but no authentication provided
+    public Optional<String> getAnonymousUserRole() {
+        if (StringUtils.isNotBlank(anonymousUserRole)) {
+            return Optional.of(anonymousUserRole);
+        }
+        return Optional.empty();
     }
 
     @Override

@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
+ * <p>
+ * All the operations on the consumer instance are thread safe.
  */
 public interface Consumer<T> extends Closeable {
 
@@ -45,15 +47,22 @@ public interface Consumer<T> extends Closeable {
      * Unsubscribe the consumer
      * <p>
      * This call blocks until the consumer is unsubscribed.
+     * <p>
+     * Unsubscribing will the subscription to be deleted and all the
+     * data retained can potentially be deleted as well.
+     * <p>
+     * The operation will fail when performed on a shared subscription
+     * where multiple consumers are currently connected.
      *
-     * @throws PulsarClientException
+     * @throws PulsarClientException if the operation fails
      */
     void unsubscribe() throws PulsarClientException;
 
     /**
      * Asynchronously unsubscribe the consumer
      *
-     * @return {@link CompletableFuture} for this operation
+     * @see Consumer#unsubscribe()
+     * @return {@link CompletableFuture} to track the operation
      */
     CompletableFuture<Void> unsubscribeAsync();
 
@@ -111,14 +120,65 @@ public interface Consumer<T> extends Closeable {
     void acknowledge(Message<?> message) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of a single message, identified by its MessageId
+     * Acknowledge the consumption of a single message, identified by its {@link MessageId}.
      *
      * @param messageId
-     *            The {@code MessageId} to be acknowledged
+     *            The {@link MessageId} to be acknowledged
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */
     void acknowledge(MessageId messageId) throws PulsarClientException;
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message&lt;String&gt; msg = consumer.receive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(Message<?> message);
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     * <p>
+     * This call is not blocking.
+     * <p>
+     * This variation allows to pass a {@link MessageId} rather than a {@link Message}
+     * object, in order to avoid keeping the payload in memory for extended amount
+     * of time
+     *
+     * @see #negativeAcknowledge(Message)
+     *
+     * @param messageId
+     *            The {@code MessageId} to be acknowledged
+     */
+    void negativeAcknowledge(MessageId messageId);
 
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
@@ -265,6 +325,17 @@ public interface Consumer<T> extends Closeable {
     void seek(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    void seek(long timestamp) throws PulsarClientException;
+
+    /**
      * Reset the subscription associated with this consumer to a specific message id.
      * <p>
      *
@@ -283,6 +354,18 @@ public interface Consumer<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
      * @return Whether the consumer is connected to the broker

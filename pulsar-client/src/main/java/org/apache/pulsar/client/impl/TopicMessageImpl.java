@@ -129,6 +129,16 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public boolean hasOrderingKey() {
+        return msg.hasOrderingKey();
+    }
+
+    @Override
+    public byte[] getOrderingKey() {
+        return msg.getOrderingKey();
+    }
+
+    @Override
     public T getValue() {
         return msg.getValue();
     }
@@ -141,6 +151,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     @Override
     public int getRedeliveryCount() {
         return msg.getRedeliveryCount();
+    }
+
+    @Override
+    public byte[] getSchemaVersion() {
+        return msg.getSchemaVersion();
     }
 
     public Message<T> getMessage() {

@@ -48,6 +48,7 @@ void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len) {
     messageId->messageId.serialize(str);
     void *p = malloc(str.length());
     memcpy(p, str.c_str(), str.length());
+    *len = str.length();
     return p;
 }
 
@@ -63,7 +64,15 @@ char *pulsar_message_id_str(pulsar_message_id_t *messageId) {
     ss << messageId->messageId;
     std::string s = ss.str();
 
+#ifdef _MSC_VER
+    // strndup is not available in MSVC
+    char *sdup = (char *)malloc(s.length() + 1);
+    memcpy(sdup, s.c_str(), s.length());
+    sdup[s.length()] = '\0';
+    return sdup;
+#else
     return strndup(s.c_str(), s.length());
+#endif
 }
 
 void pulsar_message_id_free(pulsar_message_id_t *messageId) { delete messageId; }

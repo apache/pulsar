@@ -44,6 +44,33 @@ int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
 
+## Nonpartitioned topics resources
+
+### Create
+
+Nonpartitioned topics in Pulsar must be explicitly created if allowAutoTopicCreation or createIfMissing is disabled.
+When creating a non-partitioned topic, you need to provide a topic name.
+
+#### pulsar-admin
+
+You can create non-partitioned topics using the [`create`](reference-pulsar-admin.md#create)
+command and specifying the topic name as an argument. This is an example command:
+
+```shell
+$ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
+``` 
+
+#### REST API
+
+{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+
+#### Java
+
+```java
+String topicName = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().createNonPartitionedTopic(topicName);
+```
+
 ### Get metadata
 
 Partitioned topics have metadata associated with them that you can fetch as a JSON object.
@@ -86,10 +113,7 @@ than the existing number.
 
 Decrementing the number of partitions would deleting the topic, which is not supported in Pulsar.
 
-Already created partitioned producers and consumers can’t see newly created partitions and
-it requires to recreate them at application so, newly created producers and consumers can connect
-to newly added partitions as well. Therefore, it can violate partition ordering at producers until
-all producers are restarted at application.
+Already created partitioned producers and consumers will automatically find the newly created partitions.
 
 #### pulsar-admin
 

@@ -89,7 +89,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
+        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
@@ -104,12 +104,18 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = {
-                "--auth_params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
+        @Parameter(
+            names = { "--auth-params" },
+            description = "Authentication parameters, whose format is determined by the implementation " +
+                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = 1000;
+
+        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
+        public int maxPendingMessagesAcrossPartitions = 50000;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -156,7 +162,7 @@ public class PerformanceProducer {
 
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-producer");
+        jc.setProgramName("pulsar-perf produce");
 
         try {
             jc.parse(args);
@@ -261,6 +267,7 @@ public class PerformanceProducer {
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .compressionType(arguments.compression) //
                 .maxPendingMessages(arguments.maxOutstanding) //
+                .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                 // enable round robin message routing if it is a partitioned topic
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 

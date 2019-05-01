@@ -18,30 +18,37 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.bookkeeper.mledger.Position;
-
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 
 public class InMemoryRedeliveryTracker implements RedeliveryTracker {
 
-    private ConcurrentHashMap<Position, AtomicInteger> trackerCache = new ConcurrentHashMap<>(16);
+    private ConcurrentLongLongPairHashMap trackerCache = new ConcurrentLongLongPairHashMap(256, 1);
 
     @Override
     public int incrementAndGetRedeliveryCount(Position position) {
-        trackerCache.putIfAbsent(position, new AtomicInteger(0));
-        return trackerCache.get(position).incrementAndGet();
+        PositionImpl positionImpl = (PositionImpl) position;
+        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
+        int newCount = (int) (count != null ? count.first + 1 : 1);
+        trackerCache.put(positionImpl.getLedgerId(), positionImpl.getEntryId(), newCount, 0L);
+        return newCount;
     }
 
     @Override
     public int getRedeliveryCount(Position position) {
-        return trackerCache.getOrDefault(position, new AtomicInteger(0)).get();
+        PositionImpl positionImpl = (PositionImpl) position;
+        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
+        return (int) (count!=null ? count.first : 0);
     }
 
     @Override
     public void remove(Position position) {
-        trackerCache.remove(position);
+        PositionImpl positionImpl = (PositionImpl) position;
+        trackerCache.remove(positionImpl.getLedgerId(), positionImpl.getEntryId());
     }
 
     @Override

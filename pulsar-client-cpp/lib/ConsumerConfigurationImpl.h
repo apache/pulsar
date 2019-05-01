@@ -21,10 +21,14 @@
 
 #include <pulsar/ConsumerConfiguration.h>
 
+#include <chrono>
+
 namespace pulsar {
 struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
+
+    std::chrono::milliseconds negativeAckRedeliveryDelay;
     ConsumerType consumerType;
     MessageListener messageListener;
     bool hasMessageListener;
@@ -35,6 +39,7 @@ struct ConsumerConfigurationImpl {
     CryptoKeyReaderPtr cryptoKeyReader;
     ConsumerCryptoFailureAction cryptoFailureAction;
     bool readCompacted;
+    InitialPosition subscriptionInitialPosition;
     int patternAutoDiscoveryPeriod;
     std::map<std::string, std::string> properties;
     ConsumerConfigurationImpl()
@@ -49,6 +54,7 @@ struct ConsumerConfigurationImpl {
           cryptoKeyReader(),
           cryptoFailureAction(ConsumerCryptoFailureAction::FAIL),
           readCompacted(false),
+          subscriptionInitialPosition(InitialPosition::InitialPositionLatest),
           patternAutoDiscoveryPeriod(60),
           properties() {}
 };

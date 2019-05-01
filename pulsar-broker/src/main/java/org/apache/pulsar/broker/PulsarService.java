@@ -56,7 +56,10 @@ import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
@@ -92,10 +95,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
@@ -122,7 +124,7 @@ import org.slf4j.LoggerFactory;
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
-    private NamespaceService nsservice = null;
+    private NamespaceService nsService = null;
     private ManagedLedgerClientFactory managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
     private BrokerService brokerService = null;
@@ -192,7 +194,7 @@ public class PulsarService implements AutoCloseable {
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
         this.brokerServiceUrlTls = brokerUrlTls(config);
-        this.brokerVersion = PulsarBrokerVersionStringUtils.getNormalizedVersionString();
+        this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
         this.loadManagerExecutor = Executors
@@ -264,7 +266,7 @@ public class PulsarService implements AutoCloseable {
                 client = null;
             }
 
-            nsservice = null;
+            nsService = null;
 
             if (compactorExecutor != null) {
                 compactorExecutor.shutdown();
@@ -328,11 +330,11 @@ public class PulsarService implements AutoCloseable {
         mutex.lock();
 
         LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
-        LOG.info("Git Revision {}", PulsarBrokerVersionStringUtils.getGitSha());
+        LOG.info("Git Revision {}", PulsarVersion.getGitSha());
         LOG.info("Built by {} on {} at {}",
-                 PulsarBrokerVersionStringUtils.getBuildUser(),
-                 PulsarBrokerVersionStringUtils.getBuildHost(),
-                 PulsarBrokerVersionStringUtils.getBuildTime());
+                 PulsarVersion.getBuildUser(),
+                 PulsarVersion.getBuildHost(),
+                 PulsarVersion.getBuildTime());
 
         try {
             if (state != State.Init) {
@@ -420,7 +422,7 @@ public class PulsarService implements AutoCloseable {
             this.webService.addStaticResources("/static", "/static");
 
             // Register heartbeat and bootstrap namespaces.
-            this.nsservice.registerBootstrapNamespaces();
+            this.nsService.registerBootstrapNamespaces();
 
             schemaRegistryService = SchemaRegistryService.create(this);
 
@@ -438,7 +440,7 @@ public class PulsarService implements AutoCloseable {
             acquireSLANamespace();
 
             // start function worker service if necessary
-            this.startWorkerService();
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort().get(), brokerServiceUrl, config.getClusterName(),
@@ -497,14 +499,14 @@ public class PulsarService implements AutoCloseable {
 
             boolean acquiredSLANamespace;
             try {
-                acquiredSLANamespace = nsservice.registerSLANamespace();
+                acquiredSLANamespace = nsService.registerSLANamespace();
                 LOG.info("Register SLA Namespace = {}, returned - {}.", nsName, acquiredSLANamespace);
             } catch (PulsarServerException e) {
                 acquiredSLANamespace = false;
             }
 
             if (!acquiredSLANamespace) {
-                this.nsservice.unloadSLANamespace();
+                this.nsService.unloadSLANamespace();
             }
         } catch (Exception ex) {
             LOG.warn(
@@ -538,9 +540,11 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("starting configuration cache service");
 
-        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
+        this.localZkCache = new LocalZooKeeperCache(getZkClient(), config.getZooKeeperOperationTimeoutSeconds(),
+                getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
+                (int) config.getZooKeeperSessionTimeoutMillis(), 
+                config.getZooKeeperOperationTimeoutSeconds(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();
@@ -556,7 +560,7 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
 
-        this.nsservice = getNamespaceServiceProvider().get();
+        this.nsService = getNamespaceServiceProvider().get();
     }
 
     public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
@@ -659,7 +663,7 @@ public class PulsarService implements AutoCloseable {
      * @return a reference of the current namespace service instance.
      */
     public NamespaceService getNamespaceService() {
-        return this.nsservice;
+        return this.nsService;
     }
 
     public WorkerService getWorkerService() {
@@ -688,11 +692,6 @@ public class PulsarService implements AutoCloseable {
         return offloader;
     }
 
-    // TODO: improve the user metadata in subsequent changes
-    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
-    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
-
-
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         try {
@@ -707,8 +706,8 @@ public class PulsarService implements AutoCloseable {
                     return offloaderFactory.create(
                         conf.getProperties(),
                         ImmutableMap.of(
-                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
+                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
                         getOffloaderScheduler(conf));
                 } catch (IOException ioe) {
@@ -943,7 +942,9 @@ public class PulsarService implements AutoCloseable {
         return schemaRegistryService;
     }
 
-    private void startWorkerService() throws InterruptedException, IOException, KeeperException {
+    private void startWorkerService(AuthenticationService authenticationService,
+                                    AuthorizationService authorizationService)
+            throws InterruptedException, IOException, KeeperException {
         if (functionWorkerService.isPresent()) {
             LOG.info("Starting function worker service");
             String namespace = functionWorkerService.get()
@@ -1030,7 +1031,7 @@ public class PulsarService implements AutoCloseable {
             URI dlogURI;
             try {
                 // initializing dlog namespace for function worker
-                dlogURI = Utils.initializeDlogNamespace(
+                dlogURI = WorkerUtils.initializeDlogNamespace(
                         internalConf.getZookeeperServers(),
                         internalConf.getLedgersRootPath());
             } catch (IOException ioe) {
@@ -1039,7 +1040,7 @@ public class PulsarService implements AutoCloseable {
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");
-            functionWorkerService.get().start(dlogURI);
+            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService);
             LOG.info("Function worker service started");
         }
     }

@@ -63,6 +63,7 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -650,9 +651,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)
      * a. non-batch with compression: pass
-     * b. batch-msg with compression: fail
+     * b. batch-msg with compression: pass
      * c. non-batch w/o  compression: fail
      * d. non-batch with compression, consumer consume: pass
+     * e. batch-msg w/o compression: fail
      * </pre>
      *
      * @throws Exception
@@ -672,18 +674,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
-        // (b) batch-msg
+        // (b) batch-msg with compression
         producer = pulsarClient.newProducer().topic(topic)
             .enableBatching(true)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-            fail("Should have thrown exception");
-        } catch (PulsarClientException.InvalidMessageException e) {
-            // OK
-        }
+        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
         // (c) non-batch msg without compression
@@ -711,6 +708,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(content);
         assertEquals(consumer.receive().getData(), content);
         producer.close();
+
+        // (e) batch-msg w/o compression
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.NONE)
+            .create();
+        try {
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.InvalidMessageException e) {
+            // OK
+        }
+        producer.close();
+
         consumer.close();
 
     }
@@ -1110,8 +1122,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     /**
      * Verify: Consumer stops receiving msg when reach unack-msg limit and starts receiving once acks messages 1.
      * Produce X (600) messages 2. Consumer has receive size (10) and receive message without acknowledging 3. Consumer
-     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remanining
-     * messages This testcase enables checksum sending while producing message and broker verifies the checksum for the
+     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remaining
+     * messages This test case enables checksum sending while producing message and broker verifies the checksum for the
      * message.
      *
      * @throws Exception
@@ -2897,41 +2909,93 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    // Issue 3226: https://github.com/apache/pulsar/issues/3226
-    // Pull 3312: https://github.com/apache/pulsar/pull/3312
-    // Bugfix preventing duplicated consumers on same client cnx with shared subscription mode
-    @Test()
-    public void testPreventDupConsumersOnClientCnx() throws Exception {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
+    /**
+     * This test verifies that broker activates fail-over consumer by considering priority-level as well.
+     * 
+     * <pre>
+     * 1. Start two failover consumer with same priority level, broker selects consumer based on name-sorting (consumer1).
+     * 2. Switch non-active consumer to active (consumer2): by giving it higher priority
+     * Partitioned-topic with 9 partitions:
+     * 1. C1 (priority=1)
+     * 2. C2,C3,C4 (priority=0)
+     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions. 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailOverConsumerPriority() throws Exception {
+        log.info("-- Starting {} test --", methodName);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+        final String topicName = "persistent://my-property/my-ns/priority-topic";
+        final String subscriptionName = "my-sub";
+        final int noOfPartitions = 9;
 
-        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
-            if (t1 != null) {
-                future.completeExceptionally(t1);
-                return;
+        // create partitioned topic
+        admin.topics().createPartitionedTopic(topicName, noOfPartitions);
+
+        // Only subscribe consumer
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .consumerName("aaa").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).priorityLevel(1).subscribe();
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).consumerName("bbb1").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).priorityLevel(1);
+
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+
+        AtomicInteger consumer1Count = new AtomicInteger(0);
+        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+            if (activeConsumerName.equals("aaa")) {
+                consumer1Count.incrementAndGet();
             }
-
-            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
-                if (t2 != null) {
-                    future.completeExceptionally(t2);
-                    return;
-                }
-                future.complete(null);
-            });
         });
 
-        future.get(5, TimeUnit.SECONDS);
-        Assert.assertTrue(future.isDone());
-        Assert.assertFalse(future.isCompletedExceptionally());
+        // validate even distribution among two consumers
+        assertNotEquals(consumer1Count, noOfPartitions);
+
+        consumer2.close();
+        consumer2 = consumerBuilder.priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.consumerName("bbb2").priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.consumerName("bbb3").priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer5 = consumerBuilder.consumerName("bbb4").priorityLevel(1).subscribe();
+
+        Integer evenDistributionCount = noOfPartitions / 3;
+        retryStrategically((test) -> {
+            try {
+                Map<String, Integer> subsCount = Maps.newHashMap();
+                admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+                    String activeConsumerName = stats.subscriptions.entrySet().iterator().next()
+                            .getValue().activeConsumerName;
+                    subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
+                });
+                return subsCount.size() == 3 && subsCount.get("bbb1") == evenDistributionCount
+                        && subsCount.get("bbb2") == evenDistributionCount
+                        && subsCount.get("bbb3") == evenDistributionCount;
+
+            } catch (PulsarAdminException e) {
+                // Ok
+            }
+            return false;
+        }, 5, 100);
+
+        Map<String, Integer> subsCount = Maps.newHashMap();
+        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+            subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
+        });
+        assertEquals(subsCount.size(), 3);
+        assertEquals(subsCount.get("bbb1"), evenDistributionCount);
+        assertEquals(subsCount.get("bbb2"), evenDistributionCount);
+        assertEquals(subsCount.get("bbb3"), evenDistributionCount);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+        consumer5.close();
+        log.info("-- Exiting {} test --", methodName);
     }
 }

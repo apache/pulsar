@@ -24,7 +24,7 @@ cd /pulsar
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp/pkg/rpm
 
-POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
+POM_VERSION=`$ROOT_DIR/src/get-project-version.py`
 
 # Sanitize VERSION by removing `-incubating` since it's not legal in RPM
 VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`

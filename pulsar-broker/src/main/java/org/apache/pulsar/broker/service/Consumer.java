@@ -145,7 +145,7 @@ public class Consumer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
-        if (subType == SubType.Shared) {
+        if (subType == SubType.Shared || subType == SubType.Key_Shared) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
@@ -581,8 +581,11 @@ public class Consumer {
         }
 
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        if (ackOwnedConsumer != null) {
-            int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
+        LongPair ackedPosition = ackOwnedConsumer != null
+                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
+                : null;
+        if (ackedPosition != null) {
+            int totalAckedMsgs = (int) ackedPosition.first;
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
                 return;

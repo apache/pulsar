@@ -136,7 +136,8 @@ public class KubernetesRuntimeFactoryTest {
             "anotherrepo",
             extraDepsDir,
             null,
-            pulsarServiceUrl,
+                0,
+                pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUrl,
             null,
@@ -144,7 +145,7 @@ public class KubernetesRuntimeFactoryTest {
             null,
             null,
                 minResources,
-                new TestSecretProviderConfigurator()));
+                new TestSecretProviderConfigurator(), false));
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -164,8 +165,6 @@ public class KubernetesRuntimeFactoryTest {
         factory = createKubernetesRuntimeFactory(null, null);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
-        verify(factory, times(1)).setupClient();
-
     }
 
     @Test

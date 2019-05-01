@@ -29,6 +29,14 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  * <p>
  * Client instances are thread-safe and can be reused for managing multiple {@link Producer}, {@link Consumer} and
  * {@link Reader} instances.
+ * <p>
+ * Example of constructing a client:
+ *
+ * <pre>{@code
+ * PulsarClient client = PulsarClient.builder()
+ *                              .serviceUrl("pulsar://broker:6650")
+ *                              .build();
+ * }</pre>
  */
 public interface PulsarClient extends Closeable {
 
@@ -44,13 +52,17 @@ public interface PulsarClient extends Closeable {
     }
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a producer builder that can be used to configure
+     * and construct a producer with default {@link Schema.BYTES}.
      * <p>
      * Example:
      *
-     * <code>
-     * Producer producer = client.newProducer().topic(myTopic).create();
-     * </code>
+     * <pre>{@code
+     * Producer<byte[]> producer = client.newProducer()
+     *                  .topic("my-topic")
+     *                  .create();
+     * producer.send("test".getBytes());
+     * }</pre>
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
@@ -59,13 +71,17 @@ public interface PulsarClient extends Closeable {
     ProducerBuilder<byte[]> newProducer();
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a producer builder that can be used to configure
+     * and construct a producer with the specified schema
      * <p>
      * Example:
      *
-     * <code>
-     * Producer producer = client.newProducer(mySchema).topic(myTopic).create();
-     * </code>
+     * <pre>{@code
+     * Producer<String> producer = client.newProducer(Schema.STRING)
+     *                  .topic("my-topic")
+     *                  .create();
+     * producer.send("test");
+     * }</pre>
      *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
@@ -77,7 +93,21 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a consumer with default for subscribing on a specific topic
+     * Create a consumer builder with no schema ({@link Schema.BYTES}) for subscribing to
+     * one or more topics.
+     * <p>
+     *
+     * <pre>{@code
+     * Consumer<byte[]> consumer = client.newConsumer()
+     *        .topic("my-topic")
+     *        .subscriptionName("my-subscription-name")
+     *        .subscribe();
+     *
+     * while (true) {
+     *     Message<byte[]> message = consumer.receive();
+     *     System.out.println("Got message: " + message.getValue());
+     *     consumer.acknowledge(message);
+     * }</pre>
      *
      * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
@@ -86,10 +116,24 @@ public interface PulsarClient extends Closeable {
     ConsumerBuilder<byte[]> newConsumer();
 
     /**
-     * Create a consumer with default for subscribing on a specific topic
-     *
+     * Create a consumer builder with a specific schema for subscribing on a specific topic
+     * <p>
      * Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
      * automatically create the topic with the provided schema.
+     * <p>
+     *
+     * <pre>{@code
+     * Consumer<String> consumer = client.newConsumer(Schema.STRING)
+     *        .topic("my-topic")
+     *        .subscriptionName("my-subscription-name")
+     *        .subscribe();
+     *
+     * while (true) {
+     *     Message<String> message = consumer.receive();
+     *     System.out.println("Got message: " + message.getValue());
+     *     consumer.acknowledge(message);
+     * }
+     * }</pre>
      *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
@@ -100,10 +144,37 @@ public interface PulsarClient extends Closeable {
     <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
 
     /**
-     * Create a topic reader for reading messages from the specified topic.
+     * Create a topic reader builder with no schema ({@link Schema.BYTES}) to read from the specified topic.
      * <p>
      * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
-     * subscription. Reader can only work on non-partitioned topics.
+     * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)} that can either
+     * be:
+     * <ul>
+     * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
+     * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
+     * published <b>*after*</b> the creation of the builder</li>
+     * <li>{@link MessageId}: Position the reader on a particular message. The first message read will be the one
+     * immediately <b>*after*</b> the specified message</li>
+     * </ul>
+     * <p>
+     * A Reader can only from non-partitioned topics. In case of partitioned topics, one can create the readers
+     * directly on the individual partitions. See {@link #getPartitionsForTopic(String)} for how to get the
+     * topic partitions names.
+     * <p>
+     * Example of usage of Reader:
+     * <pre>
+     * {@code
+     * Reader<byte[]> reader = client.newReader()
+     *        .topic("my-topic")
+     *        .startMessageId(MessageId.earliest)
+     *        .create();
+     *
+     * while (true) {
+     *     Message<byte[]> message = reader.readNext();
+     *     System.out.println("Got message: " + message.getValue());
+     *     // Reader doesn't need acknowledgments
+     * }
+     * </pre>
      *
      * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
      *
@@ -112,13 +183,37 @@ public interface PulsarClient extends Closeable {
     ReaderBuilder<byte[]> newReader();
 
     /**
-     * Create a topic reader for reading messages from the specified topic.
+     * Create a topic reader builder with a specific {@link Schema}) to read from the specified topic.
      * <p>
      * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
-     * subscription. Reader can only work on non-partitioned topics.
+     * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)} that can either
+     * be:
+     * <ul>
+     * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
+     * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
+     * published <b>*after*</b> the creation of the builder</li>
+     * <li>{@link MessageId}: Position the reader on a particular message. The first message read will be the one
+     * immediately <b>*after*</b> the specified message</li>
+     * </ul>
+     * <p>
+     * A Reader can only from non-partitioned topics. In case of partitioned topics, one can create the readers
+     * directly on the individual partitions. See {@link #getPartitionsForTopic(String)} for how to get the
+     * topic partitions names.
+     * <p>
+     * Example of usage of Reader:
+     * <pre>
+     * {@code
+     * Reader<String> reader = client.newReader(Schema.STRING)
+     *        .topic("my-topic")
+     *        .startMessageId(MessageId.earliest)
+     *        .create();
      *
-     * @param schema
-     *          provide a way to convert between serialized data and domain objects
+     * while (true) {
+     *     Message<String> message = reader.readNext();
+     *     System.out.println("Got message: " + message.getValue());
+     *     // Reader doesn't need acknowledgments
+     * }
+     * </pre>
      *
      * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
      *
@@ -128,7 +223,7 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Update the service URL this client is using.
-     *
+     * <p>
      * This will force the client close all existing connections and to restart service discovery to the new service
      * endpoint.
      *
@@ -141,24 +236,27 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Get the list of partitions for a given topic.
-     *
+     * <p>
      * If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the
      * returned list will contain the topic name itself.
-     *
+     * <p>
      * This can be used to discover the partitions and create {@link Reader}, {@link Consumer} or {@link Producer}
      * instances directly on a particular partition.
      *
      * @param topic
      *            the topic name
-     * @return a future that will yield a list of the topic partitions
+     * @return a future that will yield a list of the topic partitions or {@link PulsarClientException} if there was any
+     *         error in the operation.
      * @since 2.3.0
      */
     CompletableFuture<List<String>> getPartitionsForTopic(String topic);
 
     /**
      * Close the PulsarClient and release all the resources.
-     *
-     * All the producers and consumers will be orderly closed. Waits until all pending write request are persisted.
+     * <p>
+     * This operation will trigger a graceful close of all producer, consumer and reader instances that this client has
+     * currently active. That implies that close will block and wait until all pending producer send requests are
+     * persisted.
      *
      * @throws PulsarClientException
      *             if the close operation fails
@@ -168,8 +266,10 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Asynchronously close the PulsarClient and release all the resources.
-     *
-     * All the producers and consumers will be orderly closed. Waits until all pending write request are persisted.
+     * <p>
+     * This operation will trigger a graceful close of all producer, consumer and reader instances that this client has
+     * currently active. That implies that close and wait, asynchronously, until all pending producer send requests are
+     * persisted.
      *
      * @throws PulsarClientException
      *             if the close operation fails
@@ -178,8 +278,9 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Perform immediate shutdown of PulsarClient.
-     *
-     * Release all the resources and close all the producers without waiting for ongoing operations to complete.
+     * <p>
+     * Release all the resources and close all the producer, consumer and reader instances without waiting for ongoing
+     * operations to complete.
      *
      * @throws PulsarClientException
      *             if the forceful shutdown fails

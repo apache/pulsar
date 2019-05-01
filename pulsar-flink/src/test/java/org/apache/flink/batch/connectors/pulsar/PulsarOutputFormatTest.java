@@ -20,49 +20,50 @@ package org.apache.flink.batch.connectors.pulsar;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.junit.Test;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Pulsar Output Format
  */
 public class PulsarOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenServiceUrlIsNull() {
-        new PulsarOutputFormat(null, "testTopic", text -> text.toString().getBytes());
+        new PulsarOutputFormat(null, "testTopic", new AuthenticationDisabled(), text -> text.toString().getBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenTopicNameIsNull() {
-        new PulsarOutputFormat("testServiceUrl", null, text -> text.toString().getBytes());
+        new PulsarOutputFormat("testServiceUrl", null, new AuthenticationDisabled(), text -> text.toString().getBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenTopicNameIsBlank() {
-        new PulsarOutputFormat("testServiceUrl", " ", text -> text.toString().getBytes());
+        new PulsarOutputFormat("testServiceUrl", " ", new AuthenticationDisabled(), text -> text.toString().getBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenServiceUrlIsBlank() {
-        new PulsarOutputFormat(" ", "testTopic", text -> text.toString().getBytes());
+        new PulsarOutputFormat(" ", "testTopic", new AuthenticationDisabled(), text -> text.toString().getBytes());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testPulsarOutputFormatConstructorWhenSerializationSchemaIsNull() {
-        new PulsarOutputFormat("testServiceUrl", "testTopic", null);
+        new PulsarOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled(), null);
     }
 
     @Test
     public void testPulsarOutputFormatWithStringSerializationSchema() throws IOException {
         String input = "Wolfgang Amadeus Mozart";
         PulsarOutputFormat pulsarOutputFormat =
-                new PulsarOutputFormat("testServiceUrl", "testTopic",
+                new PulsarOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled(),
                         text -> text.toString().getBytes());
         assertNotNull(pulsarOutputFormat);
         byte[] bytes = pulsarOutputFormat.serializationSchema.serialize(input);
@@ -74,7 +75,7 @@ public class PulsarOutputFormatTest {
     public void testPulsarOutputFormatWithCustomSerializationSchema() throws IOException {
         Employee employee = new Employee(1, "Test Employee", "Test Department");
         PulsarOutputFormat pulsarOutputFormat =
-                new PulsarOutputFormat("testServiceUrl", "testTopic",
+                new PulsarOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled(),
                         new EmployeeSerializationSchema());
         assertNotNull(pulsarOutputFormat);
 

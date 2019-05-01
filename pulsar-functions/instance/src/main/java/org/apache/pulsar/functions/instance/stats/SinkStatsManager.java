@@ -191,9 +191,6 @@ public class SinkStatsManager extends ComponentStatsManager {
 
         statTotalWritten1min.clear();
         _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
-
-        latestSystemExceptions.clear();
-        latestSinkExceptions.clear();
     }
 
     @Override
@@ -216,36 +213,39 @@ public class SinkStatsManager extends ComponentStatsManager {
 
         // report exception throw prometheus
         if (sysExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex, ts);
             sysExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
     }
 
     @Override
-    public void incrUserExceptions(Exception ex) {
+    public void incrUserExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSourceExceptions(Exception ex) {
+    public void incrSourceExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSinkExceptions(Exception ex) {
+    public void incrSinkExceptions(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
 
         // report exception throw prometheus
         if (sinkExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex, ts);
             sinkExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
+    }
+
+    private String[] getExceptionMetricsLabels(Throwable ex, long ts) {
+        String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
+        exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
+        exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+        return exceptionMetricsLabels;
     }
 
     @Override

@@ -139,6 +139,8 @@ public class NonPersistentTopic implements Topic {
     private volatile boolean isEncryptionRequired = false;
     private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
         SchemaCompatibilityStrategy.FULL;
+    // schema validation enforced flag
+    private volatile boolean schemaValidationEnforced = false;
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -183,6 +185,7 @@ public class NonPersistentTopic implements Topic {
             isEncryptionRequired = policies.encryption_required;
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                     policies.schema_auto_update_compatibility_strategy);
+            schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
@@ -226,6 +229,8 @@ public class NonPersistentTopic implements Topic {
 
         lock.readLock().lock();
         try {
+            brokerService.checkTopicNsOwnership(getName());
+            
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -310,6 +315,13 @@ public class NonPersistentTopic implements Topic {
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
+        
+        try {
+            brokerService.checkTopicNsOwnership(getName());
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
 
         if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
             if (log.isDebugEnabled()) {
@@ -456,9 +468,13 @@ public class NonPersistentTopic implements Topic {
                             isFenced = false;
                             deleteFuture.completeExceptionally(ex);
                         } else {
-                            brokerService.removeTopicFromCache(topic);
-                            log.info("[{}] Topic deleted", topic);
-                            deleteFuture.complete(null);
+                            // topic GC iterates over topics map and removing from the map with the same thread creates
+                            // deadlock. so, execute it in different thread
+                            brokerService.executor().execute(() -> {
+                                brokerService.removeTopicFromCache(topic);
+                                log.info("[{}] Topic deleted", topic);
+                                deleteFuture.complete(null);
+                            });
                         }
                     });
                 } else {
@@ -942,6 +958,7 @@ public class NonPersistentTopic implements Topic {
         isEncryptionRequired = data.encryption_required;
         schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                 data.schema_auto_update_compatibility_strategy);
+        schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {
             producer.checkPermissions();
@@ -975,6 +992,9 @@ public class NonPersistentTopic implements Topic {
     public boolean isEncryptionRequired() {
         return isEncryptionRequired;
     }
+
+    @Override
+    public boolean getSchemaValidationEnforced() { return schemaValidationEnforced; }
 
     @Override
     public boolean isReplicated() {

@@ -31,6 +31,11 @@ public class AutoFailoverPolicyData {
     public Map<String, String> parameters;
 
     @Override
+    public int hashCode() {
+        return Objects.hashCode(policy_type, parameters);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof AutoFailoverPolicyData) {
             AutoFailoverPolicyData other = (AutoFailoverPolicyData) obj;

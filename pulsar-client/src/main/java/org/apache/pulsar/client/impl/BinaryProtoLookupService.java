@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +43,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.L
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,8 +139,11 @@ public class BinaryProtoLookupService implements LookupService {
                 }
             }).exceptionally((sendException) -> {
                 // lookup failed
-                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage(),
-                        sendException instanceof ClosedChannelException ? null : sendException);
+                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.warn("[{}] Lookup response exception: {}", topicName.toString(), sendException);
+                }
+
                 addressFuture.completeExceptionally(sendException);
                 return null;
             });
@@ -183,10 +186,16 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        return getSchema(topicName, null);
+    }
+
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
         return client.getCnxPool().getConnection(serviceNameResolver.resolveHost()).thenCompose(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(), Optional.empty());
-
+            ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
+                    Optional.ofNullable(BytesSchemaVersion.of(version)));
             return clientCnx.sendGetSchema(request, requestId);
         });
     }
@@ -200,9 +209,13 @@ public class BinaryProtoLookupService implements LookupService {
         CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
-            0 , TimeUnit.MILLISECONDS);
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(0, TimeUnit.MILLISECONDS)
+                .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                                            client.getConfiguration().getMaxBackoffIntervalNanos())
+                .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
     }

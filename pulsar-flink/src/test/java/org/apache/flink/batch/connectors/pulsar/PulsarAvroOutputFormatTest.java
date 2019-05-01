@@ -18,39 +18,41 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.junit.Test;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
+
 
 /**
  * Tests for Pulsar Avro Output Format
  */
 public class PulsarAvroOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenServiceUrlIsNull() {
-        new PulsarAvroOutputFormat(null, "testTopic");
+        new PulsarAvroOutputFormat(null, "testTopic", new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenTopicNameIsNull() {
-        new PulsarAvroOutputFormat("testServiceUrl", null);
+        new PulsarAvroOutputFormat("testServiceUrl", null, new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenTopicNameIsBlank() {
-        new PulsarAvroOutputFormat("testServiceUrl", " ");
+        new PulsarAvroOutputFormat("testServiceUrl", " ", new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarAvroOutputFormatConstructorWhenServiceUrlIsBlank() {
-        new PulsarAvroOutputFormat(" ", "testTopic");
+        new PulsarAvroOutputFormat(" ", "testTopic", new AuthenticationDisabled());
     }
 
     @Test
     public void testPulsarAvroOutputFormatConstructor() {
         PulsarAvroOutputFormat pulsarAvroOutputFormat =
-                new PulsarAvroOutputFormat("testServiceUrl", "testTopic");
+                new PulsarAvroOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled());
         assertNotNull(pulsarAvroOutputFormat);
     }
 }

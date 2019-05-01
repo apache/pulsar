@@ -210,6 +210,48 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
+        try {
+            configCache.policiesCache().getAsync(POLICY_ROOT + namespaceName.toString()).thenAccept(policies -> {
+                if (!policies.isPresent()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
+                    }
+                } else {
+                    Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
+                    Set<AuthAction> namespaceActions = namespaceRoles.get(role);
+                    if (namespaceActions != null && namespaceActions.contains(AuthAction.functions)) {
+                        // The role has namespace level permission
+                        permissionFuture.complete(true);
+                        return;
+                    }
+
+                    // Using wildcard
+                    if (conf.isAuthorizationAllowWildcardsMatching()) {
+                        if (checkWildcardPermission(role, AuthAction.functions, namespaceRoles)) {
+                            // The role has namespace level permission by wildcard match
+                            permissionFuture.complete(true);
+                            return;
+                        }
+                    }
+                }
+                permissionFuture.complete(false);
+            }).exceptionally(ex -> {
+                log.warn("Client  with Role - {} failed to get permissions for namespace - {}. {}", role, namespaceName,
+                        ex.getMessage());
+                permissionFuture.completeExceptionally(ex);
+                return null;
+            });
+        } catch (Exception e) {
+            log.warn("Client  with Role - {} failed to get permissions for namespace - {}. {}", role, namespaceName,
+                    e.getMessage());
+            permissionFuture.completeExceptionally(e);
+        }
+        return permissionFuture;
+    }
+
+    @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
         return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);

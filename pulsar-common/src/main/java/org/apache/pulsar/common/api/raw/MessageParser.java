@@ -86,7 +86,7 @@ public class MessageParser {
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
                 processor.process(
-                        RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload, ledgerId, entryId, 0));
+                        RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload.retain(), ledgerId, entryId, 0));
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
                 receiveIndividualMessagesFromBatch(refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);

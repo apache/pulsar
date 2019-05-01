@@ -46,10 +46,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -195,14 +192,13 @@ public class JavaInstanceMain implements AutoCloseable {
                 .addService(new InstanceControlImpl(runtimeSpawner))
                 .build()
                 .start();
-        log.info("JaveInstance Server started, listening on " + port);
+        log.info("JavaInstance Server started, listening on " + port);
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
                 try {
-                    server.shutdown();
-                    runtimeSpawner.close();
+                    close();
                 } catch (Exception ex) {
                     System.err.println(ex);
                 }
@@ -345,7 +341,7 @@ public class JavaInstanceMain implements AutoCloseable {
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
                                 io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {
-            log.debug("Recieved health check request...");
+            log.debug("Received health check request...");
             InstanceCommunication.HealthCheckResult healthCheckResult
                     = InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
             responseObserver.onNext(healthCheckResult);

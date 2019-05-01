@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -104,6 +105,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Number of threads to use for HTTP requests processing"
     )
     private int numHttpServerThreads = 8;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            required = false,
+            doc = "Configuration store connection string (as a comma-separated list)"
+    )
+    private String configurationStoreServers;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper session timeout in milliseconds"
+    )
+    private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper operation timeout in seconds"
+    )
+    private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -206,6 +223,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String clientAuthenticationParameters;
     @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "Authentication plugin to use when connecting to bookies"
+    )
+    private String bookkeeperClientAuthenticationPlugin;
+    @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+    )
+    private String bookkeeperClientAuthenticationParametersName;
+    @FieldContext(
+        category = CATEGORY_CLIENT_SECURITY,
+        doc = "Parameters for bookkeeper auth plugin"
+    )
+    private String bookkeeperClientAuthenticationParameters;
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "Frequency how often worker performs compaction on function-topics, in seconds"
     )
@@ -244,9 +276,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
-        doc = "Whether to enable TLS when clients connect to broker"
+        doc = "Whether to enable TLS when clients connect to broker",
+        deprecated = true
     )
     // TLS for Functions -> Broker
+    // @deprecated use "pulsar+ssl://" in serviceUrl to enable
+    @Deprecated
     private boolean useTls = false;
     @FieldContext(
         category = CATEGORY_SECURITY,
@@ -254,13 +289,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean tlsHostnameVerificationEnable = false;
     @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        )
+        private long tlsCertRefreshCheckDurationSec = 300;
+    @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authentication"
     )
     private boolean authenticationEnabled = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
-        doc = "Autentication provider name list, which is a list of class names"
+        doc = "Authentication provider name list, which is a list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
     @FieldContext(
@@ -268,6 +308,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Enforce authorization on accessing functions admin-api"
     )
     private boolean authorizationEnabled = false;
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Authorization provider fully qualified class-name"
+    )
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
@@ -414,6 +459,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "The namespace for storing change config map"
         )
         private String changeConfigMapNamespace;
+
+        @FieldContext(
+                doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
+        )
+        private int percentMemoryPadding;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
@@ -429,7 +479,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "Any config the secret provider configurator might need. \n\nThis is passed on"
-            + " to the init method of the secretproviderconfigurator"
+            + " to the init method of the SecretsProviderConfigurator"
     )
     private Map<String, String> secretsProviderConfiguratorConfig;
     @FieldContext(

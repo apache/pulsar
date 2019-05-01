@@ -43,7 +43,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -120,7 +120,7 @@ public class TestCmdSinks {
             throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
         }
         JAR_FILE_PATH = file.getFile();
-        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(FunctionCommon.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SinkConfig getSinkConfig() {
@@ -165,7 +165,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setInputSpecs(new HashMap<>());
         sinkConfig.setInputs(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -190,7 +189,6 @@ public class TestCmdSinks {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setTopicToSerdeClassName(null);
         sinkConfig.setTopicToSchemaType(null);
-        sinkConfig.setInputSpecs(new HashMap<>());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -212,7 +210,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getInputSpecs().clear();
         sinkConfig.setTopicsPattern(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -522,7 +519,7 @@ public class TestCmdSinks {
         testSinkConfig.setParallelism(PARALLELISM + 1);
         testSinkConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSinkConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
+        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherConfigProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
 
         SinkConfig expectedSinkConfig = getSinkConfig();
@@ -676,5 +673,41 @@ public class TestCmdSinks {
         deleteSink.runCmd();
 
         verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
+    }
+
+    @Test
+    public void testUpdateSink() throws Exception {
+
+        updateSink.name = "my-sink";
+
+        updateSink.archive = "new-archive";
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .archive(updateSink.archive)
+                .build()), eq(updateSink.archive));
+
+
+        updateSink.archive = null;
+
+        updateSink.parallelism = 2;
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .parallelism(2)
+                .build()), eq(null));
+
     }
 }

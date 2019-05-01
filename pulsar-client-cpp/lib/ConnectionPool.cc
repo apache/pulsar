@@ -46,30 +46,6 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     const std::string& logicalAddress, const std::string& physicalAddress) {
     std::unique_lock<std::mutex> lock(mutex_);
 
-    if (clientConfiguration_.isValidateHostName()) {
-        // Create a context that uses the default paths for
-        // finding CA certificates.
-        ssl::context ctx(ssl::context::sslv23);
-        ctx.set_default_verify_paths();
-
-        // Open a socket and connect it to the remote host.
-        boost::asio::io_service io_service;
-        ssl_socket sock(io_service, ctx);
-        tcp::resolver resolver(io_service);
-        Url service_url;
-        Url::parse(physicalAddress, service_url);
-        LOG_DEBUG("Validating hostname for " << service_url.host() << ":" << service_url.port());
-        tcp::resolver::query query(service_url.host(), std::to_string(service_url.port()));
-        boost::asio::connect(sock.lowest_layer(), resolver.resolve(query));
-        sock.lowest_layer().set_option(tcp::no_delay(true));
-
-        // Perform SSL handshake and verify the remote host's
-        // certificate.
-        sock.set_verify_mode(ssl::verify_peer);
-        sock.set_verify_callback(ssl::rfc2818_verification(physicalAddress));
-        sock.handshake(ssl_socket::client);
-    }
-
     if (poolConnections_) {
         PoolMap::iterator cnxIt = pool_.find(logicalAddress);
         if (cnxIt != pool_.end()) {

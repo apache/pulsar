@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 
 #include <iostream>
@@ -131,6 +132,9 @@ const char* pulsar::strResult(Result result) {
 
         case ResultIncompatibleSchema:
             return "IncompatibleSchema";
+
+        case ResultConsumerAssignError:
+            return "ResultConsumerAssignError";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -138,8 +142,4 @@ const char* pulsar::strResult(Result result) {
     return "UnknownErrorCode";
 }
 
-#pragma GCC visibility push(default)
-
-std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }

@@ -19,7 +19,7 @@
 #include "Url.h"
 
 #include <boost/regex.hpp>
-#include <iostream>
+#include <sstream>
 
 namespace pulsar {
 

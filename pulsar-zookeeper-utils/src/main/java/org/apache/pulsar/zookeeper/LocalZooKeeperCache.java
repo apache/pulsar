@@ -35,8 +35,8 @@ public class LocalZooKeeperCache extends ZooKeeperCache {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalZooKeeperCache.class);
 
-    public LocalZooKeeperCache(final ZooKeeper zk, final OrderedExecutor executor) {
-        super(zk, executor);
+    public LocalZooKeeperCache(final ZooKeeper zk, int zkOperationTimeoutSeconds, final OrderedExecutor executor) {
+        super(zk, zkOperationTimeoutSeconds, executor);
     }
 
     @Override

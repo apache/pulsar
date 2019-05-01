@@ -22,13 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +41,10 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -50,7 +52,11 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.common.naming.*;
+import org.apache.pulsar.common.naming.Constants;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundles;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -58,12 +64,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 
 /**
  * Base class for Web resources in Pulsar. It provides basic authorization functions.
@@ -151,12 +151,12 @@ public abstract class PulsarWebResource {
             // Request has come from a proxy
             if (StringUtils.isBlank(originalPrincipal)) {
                 log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");               
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");
             }
             if (proxyRoles.contains(originalPrincipal)) {
                 log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");           
-            } 
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
+            }
         }
     }
 
@@ -609,9 +609,10 @@ public abstract class PulsarWebResource {
      * @throws Exception
      */
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
+        int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
         try {
             ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
-                    .get(cacheTimeOutInSec, SECONDS);
+                    .get(timeout, SECONDS);
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
             if (peerClusterData != null) {
@@ -624,7 +625,7 @@ public abstract class PulsarWebResource {
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while validating policy on {} ", cacheTimeOutInSec, namespace);
+            log.warn("Time-out {} sec while validating policy on {} ", timeout, namespace);
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         } catch (WebApplicationException e) {

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM python:2.7
+FROM python:3.7
 
 MAINTAINER Pulsar
 
@@ -39,19 +39,13 @@ COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
 RUN mkdir /pulsar
 COPY . /pulsar/
 
-# Setup database and create tables
-RUN sudo -u postgres /etc/init.d/postgresql start && \
-    sudo -u postgres psql --command "CREATE USER docker WITH PASSWORD 'docker';" && \
-    sudo -u postgres createdb -O docker pulsar_dashboard && \
-    cd /pulsar/django && \
-    ./manage.py migrate && \
-    sudo -u postgres /etc/init.d/postgresql stop
-
 # Collect all static files needed by Django in a
 # single place. Needed to run the app outside the
 # Django test web server
 RUN cd /pulsar/django && ./manage.py collectstatic --no-input
 
+RUN mkdir /data
+
 EXPOSE 80
 
-CMD ["supervisord", "-n"]
+CMD ["/pulsar/start.sh"]

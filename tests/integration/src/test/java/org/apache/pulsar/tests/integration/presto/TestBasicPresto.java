@@ -42,6 +42,25 @@ public class TestBasicPresto extends PulsarTestSuite {
     @BeforeClass
     public void setupPresto() throws Exception {
         pulsarCluster.startPrestoWorker();
+    }
+
+    @AfterClass
+    public void teardownPresto() {
+        log.info("tearing down...");
+        pulsarCluster.stopPrestoWorker();
+    }
+
+    @Test
+    public void testSimpleSQLQueryBatched() throws Exception {
+        testSimpleSQLQuery(true);
+    }
+
+    @Test
+    public void testSimpleSQLQueryNonBatched() throws Exception {
+        testSimpleSQLQuery(false);
+    }
+    
+    public void testSimpleSQLQuery(boolean isBatched) throws Exception {
 
         // wait until presto worker started
         ContainerExecResult result;
@@ -59,15 +78,6 @@ public class TestBasicPresto extends PulsarTestSuite {
                 }
             }
         } while (true);
-    }
-
-    @AfterClass
-    public void teardownPresto() {
-        pulsarCluster.stopPrestoWorker();;
-    }
-
-    @Test
-    public void testSimpleSQLQuery() throws Exception {
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
@@ -79,15 +89,15 @@ public class TestBasicPresto extends PulsarTestSuite {
         @Cleanup
         Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
                 .topic(stocksTopic)
+                .enableBatching(isBatched)
                 .create();
-
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
             final Stock stock = new Stock(i,"STOCK_" + i , 100.0 + i * 10);
             producer.send(stock);
         }
 
-        ContainerExecResult result = execQuery("show schemas in pulsar;");
+        result = execQuery("show schemas in pulsar;");
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains("public/default");
 
