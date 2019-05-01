@@ -55,6 +55,11 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      */
     private String jsonDef;
 
+    /**
+     * The flag of message decode whether by schema version
+     */
+    private boolean supportSchemaVersioning = false;
+
     @Override
     public SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull) {
         this.alwaysAllowNull = alwaysAllowNull;
@@ -79,6 +84,11 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         return this;
     }
 
+    @Override
+    public SchemaDefinitionBuilder<T> withSupportSchemaVersioning(boolean supportSchemaVersioning) {
+        this.supportSchemaVersioning = supportSchemaVersioning;
+        return this;
+    }
 
     @Override
     public SchemaDefinitionBuilder<T> withProperties(Map<String,String> properties) {
@@ -89,7 +99,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public  SchemaDefinition<T> build() {
         properties.put(ALWAYS_ALLOW_NULL, this.alwaysAllowNull ? "true" : "false");
-        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties);
+        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning);
 
     }
 }

@@ -145,7 +145,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.9.0</bookkeeper.version>
+    <bookkeeper.version>4.9.1</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.32.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -194,11 +194,9 @@ flexible messaging model and an intuitive client API.</description>
     <hbase.version>1.4.9</hbase.version>
 
     <!-- test dependencies -->
-    <arquillian-cube.version>1.15.1</arquillian-cube.version>
-    <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.10.5</testcontainers.version>
+    <testcontainers.version>1.11.2</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
 
     <!-- Plugin dependencies -->
@@ -234,7 +232,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.13.1</version>
+        <version>6.14.3</version>
       </dependency>
 
       <dependency>
@@ -253,12 +251,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-testng</artifactId>
         <version>1.7.3</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.googlecode.jmockit</groupId>
-        <artifactId>jmockit</artifactId>
-        <version>1.7</version>
       </dependency>
 
       <dependency>
@@ -1075,6 +1067,10 @@ flexible messaging model and an intuitive client API.</description>
         <exclusion>
           <groupId>io.netty</groupId>
           <artifactId>netty-tcnative-boringssl-static</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

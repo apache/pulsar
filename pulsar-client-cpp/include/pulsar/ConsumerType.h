@@ -19,7 +19,6 @@
 #ifndef PULSAR_CPP_CONSUMERTYPE_H
 #define PULSAR_CPP_CONSUMERTYPE_H
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 enum ConsumerType
 {
@@ -40,5 +39,5 @@ enum ConsumerType
     ConsumerFailover
 };
 }
-#pragma GCC visibility pop
+
 #endif  // PULSAR_CPP_CONSUMERTYPE_H

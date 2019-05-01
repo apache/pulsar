@@ -22,14 +22,14 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <memory>
-
-#pragma GCC visibility push(default)
+#include <string>
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
 class MessageIdImpl;
 
-class MessageId {
+class PULSAR_PUBLIC MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
@@ -88,7 +88,7 @@ class MessageId {
     friend class PulsarFriend;
     friend class NegativeAcksTracker;
 
-    friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 
     int64_t ledgerId() const;
     int64_t entryId() const;
@@ -99,7 +99,5 @@ class MessageId {
     MessageIdImplPtr impl_;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  // MESSAGE_ID_H

@@ -16,21 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema.generic;
+package org.apache.pulsar.client.impl.schema.reader;
 
-import org.apache.pulsar.client.api.Schema;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaReader;
 
-/**
- * Schema Provider.
- */
-public interface SchemaProvider<T> {
+import java.io.IOException;
 
-    /**
-     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
-     *
-     * @param schemaVersion schema version
-     * @return schema instance of the provided <tt>schemaVersion</tt>
-     */
-    Schema<T> getSchema(byte[] schemaVersion);
+public class JsonReader<T> implements SchemaReader<T> {
+    private final Class<T> pojo;
+    private final ObjectMapper objectMapper;
 
+    public JsonReader(ObjectMapper objectMapper, Class<T> pojo) {
+        this.pojo = pojo;
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public T read(byte[] bytes) {
+        try {
+            return objectMapper.readValue(bytes, this.pojo);
+        } catch (IOException e) {
+            throw new SchemaSerializationException(e);
+        }
+    }
 }

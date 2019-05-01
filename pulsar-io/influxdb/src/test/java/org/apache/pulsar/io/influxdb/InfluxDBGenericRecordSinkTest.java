@@ -27,9 +27,11 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
@@ -56,6 +58,8 @@ import static org.mockito.Mockito.when;
  */
 @Slf4j
 public class InfluxDBGenericRecordSinkTest {
+
+    private Message<GenericRecord> message;
 
     /**
      * A Simple class to test InfluxDB class
@@ -107,6 +111,8 @@ public class InfluxDBGenericRecordSinkTest {
 
     @Test
     public void testOpenAndWrite() throws Exception {
+        message = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a cpu Record
         Cpu cpu = new Cpu();
         cpu.setMeasurement("cpu");
@@ -121,16 +127,18 @@ public class InfluxDBGenericRecordSinkTest {
         AvroSchema<Cpu> schema = AvroSchema.of(Cpu.class);
 
         byte[] bytes = schema.encode(cpu);
-        ByteBuf payload = Unpooled.copiedBuffer(bytes);
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
-        Message<GenericRecord> message = new MessageImpl("influx_cpu", "77:777",
-            configMap, payload, autoConsumeSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("influx_cpu")
             .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        when(message.getValue())
+                .thenReturn(genericAvroSchema.decode(bytes));
 
         log.info("cpu:{}, Message.getValue: {}, record.getValue: {}",
             cpu.toString(),
