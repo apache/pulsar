@@ -110,8 +110,10 @@ public class LocalRunner {
                 }
             } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                 userCodeFile = functionConfig.getGo();
-            } else {
+            } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON){
                 userCodeFile = functionConfig.getPy();
+            } else {
+                throw new UnsupportedOperationException();
             }
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         } else if (!StringUtils.isEmpty(sourceConfigString)) {
