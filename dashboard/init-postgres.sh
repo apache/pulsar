@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,35 +18,15 @@
 # under the License.
 #
 
-FROM python:3.7
+set -x -e
 
-MAINTAINER Pulsar
+rm -rf /data/*
+chown -R postgres: /data
+chmod 700 /data
+sudo -u postgres /usr/lib/postgresql/9.6/bin/initdb /data/
+sudo -u postgres /etc/init.d/postgresql start
+sudo -u postgres psql --command "CREATE USER docker WITH PASSWORD 'docker';"
+sudo -u postgres createdb -O docker pulsar_dashboard
 
-RUN apt-get update
-RUN apt-get -y install postgresql python sudo nginx supervisor
-
-# Python dependencies
-RUN pip install uwsgi 'Django<2.0' psycopg2 pytz requests
-
-# Postgres configuration
-COPY conf/postgresql.conf /etc/postgresql/9.6/main/
-
-# Configure nginx and supervisor
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
-COPY conf/nginx-app.conf /etc/nginx/sites-available/default
-COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
-
-# Copy web-app sources
-RUN mkdir /pulsar
-COPY . /pulsar/
-
-# Collect all static files needed by Django in a
-# single place. Needed to run the app outside the
-# Django test web server
-RUN cd /pulsar/django && ./manage.py collectstatic --no-input
-
-RUN mkdir /data
-
-EXPOSE 80
-
-CMD ["/pulsar/start.sh"]
+cd /pulsar/django
+./manage.py migrate
