@@ -85,6 +85,8 @@ public class PulsarFunctionE2ESecurityTest {
     BrokerStats brokerStatsClient;
     WorkerService functionsWorkerService;
     final String TENANT = "external-repl-prop";
+    final String TENANT2 = "tenant2";
+
     final String NAMESPACE = "test-ns";
     String pulsarFunctionsNamespace = TENANT + "/use/pulsar-function-admin";
     String primaryHost;
@@ -178,10 +180,17 @@ public class PulsarFunctionE2ESecurityTest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         superUserAdmin.tenants().updateTenant(TENANT, propAdmin);
 
+
         final String replNamespace = TENANT + "/" + NAMESPACE;
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create another test tenant and namespace
+        propAdmin = new TenantInfo();
+        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
+        superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
 
@@ -304,6 +313,15 @@ public class PulsarFunctionE2ESecurityTest {
             // admin2 should still fail
             try {
                 admin2.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            // creating on another tenant should also fail
+            try {
+                admin2.functions().createFunctionWithUrl(createFunctionConfig(TENANT2, NAMESPACE, functionName,
+                        sourceTopic, sinkTopic, subscriptionName), jarFilePathUrl);
                 fail("client admin shouldn't have permissions to create function");
             } catch (PulsarAdminException.NotAuthorizedException e) {
 
