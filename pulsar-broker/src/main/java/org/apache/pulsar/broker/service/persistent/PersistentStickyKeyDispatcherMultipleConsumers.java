@@ -92,7 +92,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // remove positions first from replay list first : sendMessages recycles entries
                     List<Entry> subList = new ArrayList<>(entriesWithSameKey.getValue().subList(0, messagesForC));
                     if (readType == ReadType.Replay) {
-                        subList.forEach(entry -> messagesToReplay.remove(entry.getLedgerId(), entry.getEntryId()));
+                        subList.forEach(entry -> messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId()));
                     }
                     final SendMessageInfo sentMsgInfo = consumer.sendMessages(subList);
                     entriesWithSameKey.getValue().removeAll(subList);
@@ -123,7 +123,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 for (List<Entry> entryList : groupedEntries.values()) {
                     laterReplay += entryList.size();
                     entryList.forEach(entry -> {
-                        messagesToReplay.add(entry.getLedgerId(), entry.getEntryId());
+                        messagesToRedeliver.add(entry.getLedgerId(), entry.getEntryId());
                         entry.release();
                     });
                 }
