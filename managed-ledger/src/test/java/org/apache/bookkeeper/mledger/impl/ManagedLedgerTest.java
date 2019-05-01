@@ -1960,6 +1960,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries1 = cursor1.readEntries(remainingEntries);
         // Acknowledge only on last entry
         cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
+
         for (Entry entry : entries1) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
@@ -1969,10 +1970,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // entries
         assertEquals((5 * totalInsertedEntries), entryCache.getSize());
 
+        ledger.deactivateCursor(cursor1);
         ledger.deactivateCursor(cursor2);
 
         // (5) Validate: cursor2 is not active cursor now: cache should have removed all entries read by active cursor1
-        assertEquals(0, entryCache.getSize());
+        assertEquals(entryCache.getSize(), 0);
 
         log.info("Finished reading entries");
 
