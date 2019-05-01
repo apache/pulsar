@@ -662,7 +662,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addUnAckedMessages(int unAckMessages) {
+    public void addUnAckedMessages(int unAckMessages) {
         dispatcher.addUnAckedMessages(unAckMessages);
     }
 
