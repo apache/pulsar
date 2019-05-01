@@ -1702,7 +1702,6 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
 
             // check if role has permissions granted
             if (clientRole != null && authenticationData != null) {
-                log.info("allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData): {}", allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData));
                 return allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData);
             } else {
                 return false;
