@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -85,6 +86,8 @@ public class PulsarFunctionE2ESecurityTest {
     BrokerStats brokerStatsClient;
     WorkerService functionsWorkerService;
     final String TENANT = "external-repl-prop";
+    final String TENANT2 = "tenant2";
+
     final String NAMESPACE = "test-ns";
     String pulsarFunctionsNamespace = TENANT + "/use/pulsar-function-admin";
     String primaryHost;
@@ -98,6 +101,7 @@ public class PulsarFunctionE2ESecurityTest {
 
     private static final String SUBJECT = "my-test-subject";
     private static final String ADMIN_SUBJECT = "superUser";
+    private static final String ANONYMOUS_ROLE = "anonymousUser";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
     private String adminToken;
@@ -135,6 +139,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(true);
         config.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        config.setAnonymousUserRole(ANONYMOUS_ROLE);
         secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey",
@@ -182,6 +187,12 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create another test tenant and namespace
+        propAdmin = new TenantInfo();
+        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
+        superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
 
@@ -249,6 +260,101 @@ public class PulsarFunctionE2ESecurityTest {
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
         return functionConfig;
+    }
+
+    @Test
+    public void testAuthorizationWithAnonymousUser() throws Exception {
+
+        final String replNamespace = TENANT + "/" + NAMESPACE;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+
+
+
+        try (PulsarAdmin admin1 = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build())
+        ) {
+
+            String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+
+            FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
+                    sourceTopic, sinkTopic, subscriptionName);
+
+            FunctionConfig functionConfig2 =  createFunctionConfig(TENANT2, NAMESPACE, functionName,
+                    sourceTopic, sinkTopic, subscriptionName);
+
+            // creating function should fail since admin1 doesn't have permissions granted yet
+            try {
+                admin1.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            // grant permissions to annoynmous role
+            Set<AuthAction> actions = new HashSet<>();
+            actions.add(AuthAction.functions);
+            actions.add(AuthAction.produce);
+            actions.add(AuthAction.consume);
+            superUserAdmin.namespaces().grantPermissionOnNamespace(replNamespace, ANONYMOUS_ROLE, actions);
+
+            // user should be able to create function now
+            admin1.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+            // should still fail on a different namespace
+            try {
+                admin1.functions().createFunctionWithUrl(functionConfig2, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            retryStrategically((test) -> {
+                try {
+                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
+                            && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                } catch (PulsarAdminException e) {
+                    return false;
+                }
+            }, 5, 150);
+            // validate pulsar sink consumer has started on the topic
+            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 1);
+            assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+            // create a producer that creates a topic at broker
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+                 Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe()) {
+
+                int totalMsgs = 5;
+                for (int i = 0; i < totalMsgs; i++) {
+                    String data = "my-message-" + i;
+                    producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+                }
+                retryStrategically((test) -> {
+                    try {
+                        SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+                        return subStats.unackedMessages == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                }, 5, 150);
+
+                Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+                String receivedPropertyValue = msg.getProperty(propertyKey);
+                assertEquals(propertyValue, receivedPropertyValue);
+
+
+                // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked
+                // messages
+                // due to publish failure
+                assertNotEquals(admin1.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+                        totalMsgs);
+            }
+        }
     }
 
     @Test
