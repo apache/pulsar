@@ -354,6 +354,167 @@ public class PulsarFunctionE2ESecurityTest {
                 // due to publish failure
                 assertNotEquals(admin1.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
                         totalMsgs);
+
+                // test update functions
+                functionConfig.setParallelism(2);
+                functionConfig2.setParallelism(2);
+
+                try {
+                    admin1.functions().updateFunctionWithUrl(functionConfig2, jarFilePathUrl);
+                    fail("client admin shouldn't have permissions to update function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+
+                admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+                retryStrategically((test) -> {
+                    try {
+                        return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                }, 5, 150);
+
+                assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 2);
+
+                // test getFunctionInfo
+                try {
+                    admin1.functions().getFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to get function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunction(TENANT, NAMESPACE, functionName);
+
+                // test getFunctionInstanceStatus
+                try {
+                    admin1.functions().getFunctionStatus(TENANT2, NAMESPACE, functionName, 0);
+                    fail("client admin shouldn't have permissions to get function status");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName, 0);
+
+                // test getFunctionStatus
+                try {
+                    admin1.functions().getFunctionStatus(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to get function status");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName);
+
+                // test getFunctionStats
+                try {
+                    admin1.functions().getFunctionStats(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to get function stats");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunctionStats(TENANT, NAMESPACE, functionName);
+
+                // test getFunctionInstanceStats
+                try {
+                    admin1.functions().getFunctionStats(TENANT2, NAMESPACE, functionName, 0);
+                    fail("client admin shouldn't have permissions to get function stats");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunctionStats(TENANT, NAMESPACE, functionName, 0);
+
+                // test listFunctions
+                try {
+                    admin1.functions().getFunctions(TENANT2, NAMESPACE);
+                    fail("client admin shouldn't have permissions to list functions");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().getFunctions(TENANT, NAMESPACE);
+
+                // test triggerFunction
+                try {
+                    admin1.functions().triggerFunction(TENANT2, NAMESPACE, functionName, sourceTopic, "foo", null);
+                    fail("client admin shouldn't have permissions to trigger function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().triggerFunction(TENANT, NAMESPACE, functionName, sourceTopic, "foo", null);
+
+                // test restartFunctionInstance
+                try {
+                    admin1.functions().restartFunction(TENANT2, NAMESPACE, functionName, 0);
+                    fail("client admin shouldn't have permissions to restart function instance");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().restartFunction(TENANT, NAMESPACE, functionName, 0);
+
+                // test restartFunctionInstances
+                try {
+                    admin1.functions().restartFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to restart function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().restartFunction(TENANT, NAMESPACE, functionName);
+
+                // test stopFunction instance
+                try {
+                    admin1.functions().stopFunction(TENANT2, NAMESPACE, functionName, 0);
+                    fail("client admin shouldn't have permissions to stop function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().stopFunction(TENANT, NAMESPACE, functionName, 0);
+
+                // test stopFunction all instance
+                try {
+                    admin1.functions().stopFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to restart function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().stopFunction(TENANT, NAMESPACE, functionName);
+
+                // test startFunction instance
+                try {
+                    admin1.functions().startFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to restart function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().restartFunction(TENANT, NAMESPACE, functionName);
+
+                // test startFunction all instances
+                try {
+                    admin1.functions().restartFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to restart function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+                admin1.functions().restartFunction(TENANT, NAMESPACE, functionName);
+
+                // delete functions
+                try {
+                    admin1.functions().deleteFunction(TENANT2, NAMESPACE, functionName);
+                    fail("client admin shouldn't have permissions to delete function");
+                } catch (PulsarAdminException.NotAuthorizedException e) {
+
+                }
+
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+
+                retryStrategically((test) -> {
+                    try {
+                        return admin1.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                }, 5, 150);
+
+                // make sure subscriptions are cleanup
+                assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 0);
             }
         }
     }
