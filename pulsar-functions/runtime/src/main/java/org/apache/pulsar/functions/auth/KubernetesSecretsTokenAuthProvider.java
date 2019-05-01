@@ -102,7 +102,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 id = createSecret(token, tenant, namespace, name);
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.warn("Failed to get token for function {}", FunctionCommon.getFullyQualifiedName(tenant, namespace, name), e);
+            // ignore exception and continue since anonymous user might to used
         }
 
         if (id != null) {
