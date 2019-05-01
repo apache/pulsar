@@ -687,9 +687,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         producer.send("message".getBytes());
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
-        // Verify: cache has to be cleared as there is no message needs to be consumed by active subscriber
-        assertEquals(entryCache.getSize(), 0, 1);
-
         /************ usecase-2: *************/
         // 1.b Subscriber slower-subscriber
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
