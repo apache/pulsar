@@ -1692,14 +1692,17 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             if (isSuperUser(clientRole)) {
                 return true;
             }
-            TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-            if (clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
-                    || tenantInfo.getAdminRoles().contains(clientRole))) {
-                return true;
+
+            if (clientRole != null) {
+                TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                if (tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                    return true;
+                }
             }
 
             // check if role has permissions granted
             if (clientRole != null && authenticationData != null) {
+                log.info("allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData): {}", allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData));
                 return allowFunctionOps(NamespaceName.get(tenant, namespace), clientRole, authenticationData);
             } else {
                 return false;
