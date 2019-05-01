@@ -19,11 +19,13 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.google.protobuf.util.JsonFormat;
 
 import java.io.IOException;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.net.HttpURLConnection;
@@ -40,9 +42,6 @@ import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.nodes.Tag;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -218,18 +217,14 @@ public class RuntimeUtils {
 
         goInstanceConfig.setKillAfterIdleMs(0);
 
-        DumperOptions dumperOptions = new DumperOptions();
-        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        Yaml yaml = new Yaml(dumperOptions);
-        String output = yaml.dumpAs(goInstanceConfig, Tag.MAP, null);
         String fileName = String.format("%s_%s_%s", goInstanceConfig.getTenant(), goInstanceConfig.getNameSpace(),
                 goInstanceConfig.getName());
-        File ymlFile = File.createTempFile(fileName, ".yml");
+        File ymlFile = File.createTempFile(fileName, ".yml", new File("/tmp"));
         ymlFile.deleteOnExit();
-        FileWriter fileWriter = new FileWriter(ymlFile);
-        fileWriter.write(output);
-        fileWriter.flush();
-        fileWriter.close();
+
+        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory().
+                disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
+        objectMapper.writeValue(new File(ymlFile.getAbsolutePath()), goInstanceConfig);
 
         // Nit: at present, the implementation of go function depends on pulsar-client-go,
         // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
