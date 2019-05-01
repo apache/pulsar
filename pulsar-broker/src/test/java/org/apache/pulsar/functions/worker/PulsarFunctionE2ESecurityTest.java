@@ -183,6 +183,7 @@ public class PulsarFunctionE2ESecurityTest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         superUserAdmin.tenants().updateTenant(TENANT, propAdmin);
 
+
         final String replNamespace = TENANT + "/" + NAMESPACE;
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
@@ -410,6 +411,15 @@ public class PulsarFunctionE2ESecurityTest {
             // admin2 should still fail
             try {
                 admin2.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            // creating on another tenant should also fail
+            try {
+                admin2.functions().createFunctionWithUrl(createFunctionConfig(TENANT2, NAMESPACE, functionName,
+                        sourceTopic, sinkTopic, subscriptionName), jarFilePathUrl);
                 fail("client admin shouldn't have permissions to create function");
             } catch (PulsarAdminException.NotAuthorizedException e) {
 
