@@ -165,6 +165,11 @@ public class NamespaceService {
                 .thenApply(bundles -> bundles.findBundle(topic));
     }
 
+    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) throws Exception {
+        Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
+        return bundles.map(b -> b.findBundle(topicName));
+    }
+
     public NamespaceBundle getBundle(TopicName topicName) throws Exception {
         return bundleFactory.getBundles(topicName.getNamespaceObject()).findBundle(topicName);
     }
@@ -824,7 +829,12 @@ public class NamespaceService {
     }
 
     private boolean isTopicOwned(TopicName topicName) throws Exception {
-        return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
+        Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
+        if (!bundle.isPresent()) {
+            return false;
+        } else {
+            return ownershipCache.getOwnedBundle(bundle.get()) != null;
+        }
     }
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
