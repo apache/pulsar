@@ -36,7 +36,7 @@ public class PublishFunction implements Function<String, Void> {
         try {
             context.newOutputMessage(publishTopic, Schema.STRING).value(output).sendAsync();
         } catch (PulsarClientException e) {
-            e.printStackTrace();
+            context.getLogger().error(e.toString());
         }
         return null;
     }

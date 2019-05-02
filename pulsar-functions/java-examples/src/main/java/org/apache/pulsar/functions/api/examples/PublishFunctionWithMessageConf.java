@@ -50,7 +50,7 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
             }
             messageBuilder.eventTime(System.currentTimeMillis()).sendAsync();
         } catch (PulsarClientException e) {
-            e.printStackTrace();
+            context.getLogger().error(e.toString());
         }
         return null;
     }
