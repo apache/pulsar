@@ -307,6 +307,9 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
+            // inherit super users
+            workerConfig.setSuperUserRoles(config.getSuperUserRoles());
+
             fnWorkerService = new WorkerService(workerConfig);
         }
 
