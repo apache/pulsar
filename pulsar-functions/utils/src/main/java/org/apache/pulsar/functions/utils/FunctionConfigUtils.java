@@ -466,7 +466,7 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Function name cannot be null");
         }
         // go doesn't need className
-        if (isNotBlank(functionConfig.getJar()) || isNotBlank(functionConfig.getPy())){
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
             if (isEmpty(functionConfig.getClassName())) {
                 throw new IllegalArgumentException("Function classname cannot be null");
             }
