@@ -43,6 +43,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -198,8 +199,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         // adjust the auth config to support auth
-        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new KubernetesRuntime(

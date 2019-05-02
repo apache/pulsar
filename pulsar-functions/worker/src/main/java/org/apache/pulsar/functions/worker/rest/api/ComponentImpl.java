@@ -111,6 +111,7 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
@@ -396,23 +397,27 @@ public abstract class ComponentImpl {
                     .setVersion(0);
 
             // cache auth if need
-            if (clientAuthenticationDataHttps != null) {
-                try {
-                    Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
-                            .getRuntimeFactory()
-                            .getAuthProvider()
-                            .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
 
-                    if (functionAuthData.isPresent()) {
-                        functionMetaDataBuilder.setFunctionAuthSpec(
-                                Function.FunctionAuthenticationSpec.newBuilder()
-                                        .setData(ByteString.copyFrom(functionAuthData.get().getData()))
-                                        .build());
+                if (clientAuthenticationDataHttps != null) {
+                    try {
+                        Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
+                                .getRuntimeFactory()
+                                .getAuthProvider()
+                                .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+
+                        if (functionAuthData.isPresent()) {
+                            functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(functionAuthData.get().getData()))
+                                            .build());
+                        }
+                    } catch (Exception e) {
+                        log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+
+
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
                     }
-                } catch (Exception e) {
-                    log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
-
-                    throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
                 }
             }
 
@@ -668,6 +673,40 @@ public abstract class ComponentImpl {
             // merge from existing metadata
             FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
                     .setFunctionDetails(functionDetails);
+
+            // cache auth if need
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                if (clientAuthenticationDataHttps != null) {
+                    // get existing auth data if it exists
+                    Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
+                    if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
+                        existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                    }
+
+                    try {
+                        Optional<FunctionAuthData> newFunctionAuthData = worker().getFunctionRuntimeManager()
+                                .getRuntimeFactory()
+                                .getAuthProvider()
+                                .updateAuthData(
+                                        tenant, namespace,
+                                        componentName, existingFunctionAuthData,
+                                        clientAuthenticationDataHttps);
+
+                        if (newFunctionAuthData.isPresent()) {
+                            functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(newFunctionAuthData.get().getData()))
+                                            .build());
+                        } else {
+                            functionMetaDataBuilder.clearFunctionAuthSpec();
+                        }
+                    } catch (Exception e) {
+                        log.error("Error updating authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+                    }
+                }
+            }
+
 
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {

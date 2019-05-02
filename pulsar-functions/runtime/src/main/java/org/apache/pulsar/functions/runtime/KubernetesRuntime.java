@@ -73,6 +73,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -442,9 +443,9 @@ public class KubernetesRuntime implements Runtime {
     private void submitStatefulSet() throws Exception {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
-        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
+        if (authenticationEnabled) {
             functionAuthDataCacheProvider.configureAuthDataStatefulSet(
-                    statefulSet, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));

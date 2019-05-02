@@ -264,6 +264,138 @@ public class PulsarFunctionE2ESecurityTest {
     }
 
     @Test
+    public void testUpdateToken() throws Exception {
+        String token1 = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+        String token2 = AuthTokenUtils.createToken(secretKey, "wrong-subject", Optional.empty());
+
+        final String replNamespace = TENANT + "/" + NAMESPACE;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+
+
+        // create user admin client
+        AuthenticationToken authToken1 = new AuthenticationToken();
+        authToken1.configure("token:" +  token1);
+
+        AuthenticationToken authToken2 = new AuthenticationToken();
+        authToken2.configure("token:" +  token2);
+
+        try(PulsarAdmin admin1 = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken1).build());
+            PulsarAdmin admin2 = spy(
+                    PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken2).build())
+        ) {
+
+            String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+
+            FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
+                    sourceTopic, sinkTopic, subscriptionName);
+
+            // creating function should fail since admin1 doesn't have permissions granted yet
+            try {
+                admin1.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            // grant permissions to admin1
+            Set<AuthAction> actions = new HashSet<>();
+            actions.add(AuthAction.functions);
+            actions.add(AuthAction.produce);
+            actions.add(AuthAction.consume);
+            superUserAdmin.namespaces().grantPermissionOnNamespace(replNamespace, SUBJECT, actions);
+
+            // user should be able to create function now
+            admin1.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+            // admin2 should still fail
+            try {
+                admin2.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            // creating on another tenant should also fail
+            try {
+                admin2.functions().createFunctionWithUrl(createFunctionConfig(TENANT2, NAMESPACE, functionName,
+                        sourceTopic, sinkTopic, subscriptionName), jarFilePathUrl);
+                fail("client admin shouldn't have permissions to create function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            retryStrategically((test) -> {
+                try {
+                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
+                            && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                } catch (PulsarAdminException e) {
+                    return false;
+                }
+            }, 5, 150);
+            // validate pulsar sink consumer has started on the topic
+            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 1);
+            assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+            // create a producer that creates a topic at broker
+            try(Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+                Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe()) {
+
+                int totalMsgs = 5;
+                for (int i = 0; i < totalMsgs; i++) {
+                    String data = "my-message-" + i;
+                    producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+                }
+                retryStrategically((test) -> {
+                    try {
+                        SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+                        return subStats.unackedMessages == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                }, 5, 150);
+
+                Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+                String receivedPropertyValue = msg.getProperty(propertyKey);
+                assertEquals(propertyValue, receivedPropertyValue);
+
+
+                // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked
+                // messages
+                // due to publish failure
+                assertNotEquals(admin1.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+                        totalMsgs);
+            }
+
+            // test update functions
+            functionConfig.setParallelism(2);
+            // admin2 should still fail
+            try {
+                admin2.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+                fail("client admin shouldn't have permissions to update function");
+            } catch (PulsarAdminException.NotAuthorizedException e) {
+
+            }
+
+            admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+            retryStrategically((test) -> {
+                try {
+                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
+                } catch (PulsarAdminException e) {
+                    return false;
+                }
+            }, 5, 150);
+
+            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 2);
+    }
+
+    @Test
     public void testAuthorizationWithAnonymousUser() throws Exception {
 
         final String replNamespace = TENANT + "/" + NAMESPACE;

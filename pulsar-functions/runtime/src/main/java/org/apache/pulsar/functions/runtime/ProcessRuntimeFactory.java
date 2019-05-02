@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
+import java.util.Optional;
 
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
@@ -132,8 +133,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         }
 
         // configure auth if necessary
-        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new ProcessRuntime(
