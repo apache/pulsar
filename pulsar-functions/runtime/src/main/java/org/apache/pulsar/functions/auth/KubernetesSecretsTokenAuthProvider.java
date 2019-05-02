@@ -221,14 +221,13 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
                                                      AuthenticationDataSource authenticationDataSource) throws Exception {
 
-        String existingSecretName;
+        String secretName;
         if (existingFunctionAuthData.isPresent()) {
-            existingSecretName = new String(existingFunctionAuthData.get().getData());
+            secretName = new String(existingFunctionAuthData.get().getData());
         } else {
-            existingSecretName = getSecretName(RandomStringUtils.random(5, true, true).toLowerCase());
+            secretName = getSecretName(RandomStringUtils.random(5, true, true).toLowerCase());
         }
 
-        String id = null;
         String token;
         try {
             token = getToken(authenticationDataSource);
@@ -241,19 +240,15 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (token != null) {
-            id = upsertSecret(token, tenant, namespace, name, existingSecretName);
-        }
-
-        if (id != null) {
-            return Optional.of(FunctionAuthData.builder().data(id.getBytes()).build());
+            upsertSecret(token, tenant, namespace, name, secretName);
+            return Optional.of(FunctionAuthData.builder().data(secretName.getBytes()).build());
         }
 
         return existingFunctionAuthData;
     }
 
-    private String upsertSecret(String token, String tenant, String namespace, String name, String secretName) throws InterruptedException {
+    private void upsertSecret(String token, String tenant, String namespace, String name, String secretName) throws InterruptedException {
 
-        StringBuilder sb = new StringBuilder();
         Actions.Action createAuthSecret = Actions.Action.builder()
                 .actionName(String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
@@ -285,7 +280,6 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         }
                     }
 
-                    sb.append(id.toCharArray());
                     return Actions.ActionResult.builder().success(true).build();
                 })
                 .build();
@@ -300,8 +294,6 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         if (!success.get()) {
             throw new RuntimeException(String.format("Failed to upsert authentication secret for function %s/%s/%s", tenant, namespace, name));
         }
-
-        return sb.toString();
     }
 
     private String createSecret(String token, String tenant, String namespace, String name) throws ApiException, InterruptedException {
