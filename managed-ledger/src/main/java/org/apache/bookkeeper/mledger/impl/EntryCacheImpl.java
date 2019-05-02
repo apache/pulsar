@@ -21,15 +21,17 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -37,7 +39,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.RangeCache;
-import org.apache.bookkeeper.mledger.util.RangeCache.Weighter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +54,10 @@ public class EntryCacheImpl implements EntryCache {
 
     private static final double MB = 1024 * 1024;
 
-    private static final Weighter<EntryImpl> entryWeighter = EntryImpl::getLength;
-
     public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml) {
         this.manager = manager;
         this.ml = ml;
-        this.entries = new RangeCache<>(entryWeighter);
+        this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -132,7 +131,7 @@ public class EntryCacheImpl implements EntryCache {
     public void invalidateEntries(final PositionImpl lastPosition) {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
-        Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, true);
+        Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
@@ -173,7 +172,7 @@ public class EntryCacheImpl implements EntryCache {
             callback.readEntryFailed(createManagedLedgerException(t), ctx);
         }
     }
-    
+
     private void asyncReadEntry0(ReadHandle lh, PositionImpl position, final ReadEntryCallback callback,
             final Object ctx) {
         if (log.isDebugEnabled()) {
@@ -229,7 +228,7 @@ public class EntryCacheImpl implements EntryCache {
             callback.readEntriesFailed(createManagedLedgerException(t), ctx);
         }
     }
-    
+
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             final ReadEntriesCallback callback, Object ctx) {
@@ -339,6 +338,12 @@ public class EntryCacheImpl implements EntryCache {
         }
         manager.entriesRemoved(evictedSize);
         return evicted;
+    }
+
+    @Override
+    public void invalidateEntriesBeforeTimestamp(long timestamp) {
+        long evictedSize = entries.evictLEntriesBeforeTimestamp(timestamp);
+        manager.entriesRemoved(evictedSize);
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheImpl.class);

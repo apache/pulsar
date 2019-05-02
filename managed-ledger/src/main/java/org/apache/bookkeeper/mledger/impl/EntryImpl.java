@@ -40,12 +40,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     };
 
     private final Handle<EntryImpl> recyclerHandle;
+    private long timestamp;
     private long ledgerId;
     private long entryId;
     ByteBuf data;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
@@ -57,6 +59,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     // Used just for tests
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
@@ -66,6 +69,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
@@ -76,6 +80,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(PositionImpl position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
@@ -86,6 +91,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     public static EntryImpl create(EntryImpl other) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
@@ -95,6 +101,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     private EntryImpl(Recycler.Handle<EntryImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
     }
 
     @Override
@@ -152,6 +162,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         data.release();
         data = null;
+        timestamp = -1;
         ledgerId = -1;
         entryId = -1;
         recyclerHandle.recycle(this);
