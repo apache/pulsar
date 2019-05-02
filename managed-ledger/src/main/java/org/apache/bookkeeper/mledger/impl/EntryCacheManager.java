@@ -190,6 +190,10 @@ public class EntryCacheManager {
         }
 
         @Override
+        public void invalidateEntriesBeforeTimestamp(long timestamp) {
+        }
+
+        @Override
         public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                 final ReadEntriesCallback callback, Object ctx) {
             lh.readAsync(firstEntry, lastEntry).whenComplete(

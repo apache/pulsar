@@ -568,9 +568,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
+                ledger.checkBackloggedCursors();
+
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                                                  maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition);
                 subscription.addConsumer(consumer);
+
                 if (!cnx.isActive()) {
                     consumer.close();
                     if (log.isDebugEnabled()) {
