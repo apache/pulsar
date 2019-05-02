@@ -1694,9 +1694,13 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             }
 
             if (clientRole != null) {
-                TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-                if (tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
-                    return true;
+                try {
+                    TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    if (tenantInfo != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                        return true;
+                    }
+                } catch (PulsarAdminException.NotFoundException e) {
+
                 }
             }
 
