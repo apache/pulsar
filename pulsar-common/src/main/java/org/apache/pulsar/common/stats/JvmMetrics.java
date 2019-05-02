@@ -21,6 +21,10 @@ package org.apache.pulsar.common.stats;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import io.netty.buffer.PoolArenaMetric;
+import io.netty.buffer.PoolChunkListMetric;
+import io.netty.buffer.PoolChunkMetric;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 
 import java.lang.management.BufferPoolMXBean;
@@ -109,6 +113,27 @@ public class JvmMetrics {
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
         m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
+
+        this.gcLogger.logMetrics(m);
+
+        long totalAllocated = 0;
+        long totalUsed = 0;
+
+        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.directArenas()) {
+            this.gcLogger.logMetrics(m);
+            for (PoolChunkListMetric list : arena.chunkLists()) {
+                for (PoolChunkMetric chunk : list) {
+                    int size = chunk.chunkSize();
+                    int used = size - chunk.freeBytes();
+
+                    totalAllocated += size;
+                    totalUsed += used;
+                }
+            }
+        }
+
+        m.put(this.componentName + "_default_pool_allocated", totalAllocated);
+        m.put(this.componentName + "_default_pool_used", totalUsed);
 
         this.gcLogger.logMetrics(m);
 
