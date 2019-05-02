@@ -758,8 +758,8 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-streaming_2.10</artifactId>
-        <version>2.1.0</version>
+        <artifactId>spark-streaming_2.4.2</artifactId>
+        <version>2.4.2</version>
         <exclusions>
           <exclusion>
             <groupId>com.google.guava</groupId>
