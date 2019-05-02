@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 
@@ -34,6 +33,7 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
@@ -216,7 +216,7 @@ public class RuntimeUtils {
         goInstanceConfig.setKillAfterIdleMs(0);
 
         // Parse the contents of goInstanceConfig into json form string
-        ObjectMapper objectMapper = new ObjectMapper(new JsonFactory());
+        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         // Nit: at present, the implementation of go function depends on pulsar-client-go,
