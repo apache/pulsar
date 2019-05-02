@@ -44,7 +44,7 @@ public class CompressorCodecTest {
     void testCompressDecompress(CompressionType type) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
         byte[] data = text.getBytes();
-        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.buffer();
+        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
         raw.writeBytes(data);
 
         ByteBuf compressed = codec.encode(raw);
@@ -85,7 +85,7 @@ public class CompressorCodecTest {
         byte[] data = text.getBytes();
 
         for (int i = 0; i < 5; i++) {
-            ByteBuf raw = PulsarByteBufAllocator.DEFAULT.buffer();
+            ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
             raw.writeBytes(data);
             ByteBuf compressed = codec.encode(raw);
             assertEquals(raw.readableBytes(), data.length);
