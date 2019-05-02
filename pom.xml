@@ -311,6 +311,12 @@ flexible messaging model and an intuitive client API.</description>
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>bookkeeper-common-allocator</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+
       <!-- reflection libs -->
       <dependency>
         <groupId>org.reflections</groupId>
@@ -1105,8 +1111,9 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
-            -Dio.netty.leakDetectionLevel=advanced
+          <argLine> -Xmx2G
+            -Dpulsar.allocator.pooled=false
+            -Dpulsar.allocator.leak_detection=Advanced
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>false</reuseForks>

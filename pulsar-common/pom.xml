@@ -75,6 +75,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common-allocator</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>
     </dependency>

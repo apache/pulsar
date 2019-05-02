@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker;
 
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,7 +30,11 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.api.BookKeeperBuilder;
+import org.apache.bookkeeper.client.impl.BookKeeperBuilderImpl;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.distributedlog.BookKeeperClientBuilder;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -38,6 +45,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     private final AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
     private final AtomicReference<ZooKeeperCache> clientIsolationZkCache = new AtomicReference<>();
 
+    @SuppressWarnings("deprecation")
     @Override
     public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
         ClientConfiguration bkConf = new ClientConfiguration();
@@ -58,7 +66,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setEnableDigestTypeAutodetection(true);
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
 
-        bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
             bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);
@@ -102,7 +109,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
 
         try {
-            return new BookKeeper(bkConf, zkClient);
+            return BookKeeper.forConfig(bkConf)
+                    .allocator(PulsarByteBufAllocator.DEFAULT)
+                    .zk(zkClient)
+                    .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }

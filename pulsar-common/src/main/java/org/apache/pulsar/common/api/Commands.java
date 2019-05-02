@@ -27,7 +27,6 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -38,6 +37,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -952,7 +952,7 @@ public class Commands {
         int totalSize = cmdSize + 4;
         int frameSize = totalSize + 4;
 
-        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(frameSize, frameSize);
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(frameSize, frameSize);
 
         // Prepend 2 lengths to the buffer
         buf.writeInt(totalSize);
@@ -992,7 +992,7 @@ public class Commands {
         int headersSize = 4 + headerContentSize; // totalSize + headerLength
         int checksumReaderIndex = -1;
 
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         headers.writeInt(totalSize); // External frame
 
         try {
@@ -1049,7 +1049,7 @@ public class Commands {
         int checksumReaderIndex = -1;
         int totalSize = headerContentSize + payloadSize;
 
-        ByteBuf metadataAndPayload = PooledByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+        ByteBuf metadataAndPayload = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
         try {
             ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
 
@@ -1181,7 +1181,7 @@ public class Commands {
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();
         int headersSize = 4 + 4 + cmdSize;
 
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize);
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
         headers.writeInt(totalSize); // External frame
 
         try {
