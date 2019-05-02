@@ -51,13 +51,15 @@ public class EntryCacheImpl implements EntryCache {
     private final EntryCacheManager manager;
     private final ManagedLedgerImpl ml;
     private final RangeCache<PositionImpl, EntryImpl> entries;
+    private final boolean copyEntries;
 
     private static final double MB = 1024 * 1024;
 
-    public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml) {
+    public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
         this.ml = ml;
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
+        this.copyEntries = copyEntries;
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -95,23 +97,15 @@ public class EntryCacheImpl implements EntryCache {
                     entry.getLength());
         }
 
-        // Copy the entry into a buffer owned by the cache. The reason is that the incoming entry is retaining a buffer
-        // from netty, usually allocated in 64Kb chunks. So if we just retain the entry without copying it, we might
-        // retain actually the full 64Kb even for a small entry
-        int size = entry.getLength();
         ByteBuf cachedData = null;
-        try {
-            cachedData = ALLOCATOR.directBuffer(size, size);
-        } catch (Throwable t) {
-            log.warn("[{}] Failed to allocate buffer for entry cache: {}", ml.getName(), t.getMessage(), t);
-            return false;
-        }
-
-        if (size > 0) {
-            ByteBuf entryBuf = entry.getDataBuffer();
-            int readerIdx = entryBuf.readerIndex();
-            cachedData.writeBytes(entryBuf);
-            entryBuf.readerIndex(readerIdx);
+        if (copyEntries) {
+            cachedData = copyEntry(entry);
+            if (cachedData == null) {
+                return false;
+            }
+        } else {
+            // Use retain here to have the same counter increase as in the copy entry scenario
+            cachedData = entry.getDataBuffer().retain();
         }
 
         PositionImpl position = entry.getPosition();
@@ -125,6 +119,29 @@ public class EntryCacheImpl implements EntryCache {
             cacheEntry.release();
             return false;
         }
+    }
+
+    private ByteBuf copyEntry(EntryImpl entry) {
+        // Copy the entry into a buffer owned by the cache. The reason is that the incoming entry is retaining a buffer
+        // from netty, usually allocated in 64Kb chunks. So if we just retain the entry without copying it, we might
+        // retain actually the full 64Kb even for a small entry
+        int size = entry.getLength();
+        ByteBuf cachedData = null;
+        try {
+            cachedData = ALLOCATOR.directBuffer(size, size);
+        } catch (Throwable t) {
+            log.warn("[{}] Failed to allocate buffer for entry cache: {}", ml.getName(), t.getMessage());
+            return null;
+        }
+
+        if (size > 0) {
+            ByteBuf entryBuf = entry.getDataBuffer();
+            int readerIdx = entryBuf.readerIndex();
+            cachedData.writeBytes(entryBuf);
+            entryBuf.readerIndex(readerIdx);
+        }
+
+        return cachedData;
     }
 
     @Override
