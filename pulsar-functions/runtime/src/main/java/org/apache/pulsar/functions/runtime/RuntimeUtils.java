@@ -19,13 +19,11 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.google.protobuf.util.JsonFormat;
 
 import java.io.IOException;
-import java.io.File;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.net.HttpURLConnection;
@@ -217,21 +215,15 @@ public class RuntimeUtils {
 
         goInstanceConfig.setKillAfterIdleMs(0);
 
-        String fileName = String.format("%s_%s_%s", goInstanceConfig.getTenant(), goInstanceConfig.getNameSpace(),
-                goInstanceConfig.getName());
-        File ymlFile = File.createTempFile(fileName, ".yml", new File("/tmp"));
-        ymlFile.deleteOnExit();
-
-        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory().
-                disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
-        objectMapper.writeValue(new File(ymlFile.getAbsolutePath()), goInstanceConfig);
+        // Parse the contents of goInstanceConfig into json form string
+        ObjectMapper objectMapper = new ObjectMapper(new JsonFactory());
+        String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         // Nit: at present, the implementation of go function depends on pulsar-client-go,
         // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
-
         args.add("-instance-conf");
-        args.add(ymlFile.getAbsolutePath());
+        args.add(configContent);
         return args;
     }
 
