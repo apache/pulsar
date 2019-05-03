@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.allocator;
 
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -62,6 +63,7 @@ public class PulsarByteBufAllocator {
 
         ByteBufAllocatorBuilder builder = ByteBufAllocatorBuilder.create()
                 .leakDetectionPolicy(leakDetectionPolicy)
+                .pooledAllocator(PooledByteBufAllocator.DEFAULT)
                 .outOfMemoryListener(oomException -> {
                     // First notify all listeners
                     LISTENERS.forEach(c -> {
