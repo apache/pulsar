@@ -65,6 +65,8 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
                 return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), onlyLatestValidator);
             case FULL:
                 return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), onlyLatestValidator);
+            case ALWAYS_COMPATIBLE:
+                return AlwaysSchemaValidator.INSTANCE;
             default:
                 return NeverSchemaValidator.INSTANCE;
         }
