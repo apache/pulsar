@@ -39,6 +39,10 @@ public class GenericAvroSchema extends GenericSchemaImpl {
         return new AvroRecordBuilderImpl(this);
     }
 
+    @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
 
     @Override
     protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
