@@ -95,9 +95,15 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertEquals(msg.getValue(), "msg-" + i);
         }
 
+        Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {
             msg = sharedConsumer.receive(10, TimeUnit.SECONDS);
-            assertEquals(msg.getValue(), "msg-" + i);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
         }
     }
 
