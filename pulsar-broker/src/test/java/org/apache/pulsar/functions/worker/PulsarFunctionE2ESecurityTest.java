@@ -100,7 +100,6 @@ public class PulsarFunctionE2ESecurityTest {
     private SecretKey secretKey;
 
     private static final String SUBJECT = "my-test-subject";
-    private static final String SUBJECT2 = "my-test-subject-2";
     private static final String ADMIN_SUBJECT = "superUser";
     private static final String ANONYMOUS_ROLE = "anonymousUser";
 

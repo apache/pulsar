@@ -49,8 +49,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class
-FunctionsBase extends AdminResource implements Supplier<WorkerService> {
+public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
 
     private final FunctionsImpl functions;
 

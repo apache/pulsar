@@ -193,7 +193,7 @@ public class SourceImpl extends ComponentResource implements Source {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-            mp.bodyPart(new FormDataBodyPart("updateAuthData", updateAuthData, MediaType.TEXT_PLAIN_TYPE));
+            mp.bodyPart(new FormDataBodyPart("updateAuthData", String.valueOf(updateAuthData), MediaType.TEXT_PLAIN_TYPE));
 
             mp.bodyPart(new FormDataBodyPart("sourceConfig", new Gson().toJson(sourceConfig),
                     MediaType.APPLICATION_JSON_TYPE));

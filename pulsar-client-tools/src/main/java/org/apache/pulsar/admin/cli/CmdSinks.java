@@ -211,12 +211,16 @@ public class CmdSinks extends CmdBase {
 
     @Parameters(commandDescription = "Update a Pulsar IO sink connector")
     protected class UpdateSink extends SinkDetailsCommand {
+
+        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data")
+        protected boolean updateAuthData;
+
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive());
+                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateAuthData);
             } else {
-                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive());
+                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive(), updateAuthData);
             }
             print("Updated successfully");
         }

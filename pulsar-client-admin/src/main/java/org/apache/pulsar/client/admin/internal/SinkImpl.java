@@ -195,7 +195,7 @@ public class SinkImpl extends ComponentResource implements Sink {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-            mp.bodyPart(new FormDataBodyPart("updateAuthData", updateAuthData, MediaType.TEXT_PLAIN_TYPE));
+            mp.bodyPart(new FormDataBodyPart("updateAuthData", String.valueOf(updateAuthData), MediaType.TEXT_PLAIN_TYPE));
 
             mp.bodyPart(new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig),
                     MediaType.APPLICATION_JSON_TYPE));
