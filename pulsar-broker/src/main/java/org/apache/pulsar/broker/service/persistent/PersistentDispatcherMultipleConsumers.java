@@ -24,7 +24,6 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -450,8 +449,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     });
                 }
 
-                SendMessageInfo sentMsgInfo = c
-                        .sendMessages(new ArrayList<>(entries.subList(start, start + messagesForC)));
+                SendMessageInfo sentMsgInfo = c.sendMessages(entries.subList(start, start + messagesForC));
 
                 long msgSent = sentMsgInfo.getTotalSentMessages();
                 start += messagesForC;

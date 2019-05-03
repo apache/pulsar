@@ -221,7 +221,7 @@ public class Consumer {
         }
 
         try {
-            updatePermitsAndPendingAcks(entries, sentMessages);
+            updatePermitsAndFilterMessages(entries, sentMessages);
         } catch (PulsarServerException pe) {
             log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
                     cnx.getRemoteEndpointProtocolVersion());
@@ -238,6 +238,11 @@ public class Consumer {
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
+                if (entry == null) {
+                    // Skip deleted entry
+                    continue;
+                }
+
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
                 MessageIdData messageId = messageIdBuilder
@@ -310,14 +315,14 @@ public class Consumer {
         }
     }
 
-    void updatePermitsAndPendingAcks(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
+    private void updatePermitsAndFilterMessages(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
         int permitsToReduce = 0;
-        Iterator<Entry> iter = entries.iterator();
         boolean unsupportedVersion = false;
         long totalReadableBytes = 0;
         boolean clientSupportBatchMessages = cnx.isBatchMessageCompatibleVersion();
-        while (iter.hasNext()) {
-            Entry entry = iter.next();
+
+        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
+            Entry entry = entries.get(i);
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             PositionImpl pos = (PositionImpl) entry.getPosition();
 
@@ -327,7 +332,7 @@ public class Consumer {
             try {
                 if (msgMetadata == null) {
                     // Message metadata was corrupted
-                    iter.remove();
+                    entries.set(i, null);
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
                             Collections.emptyMap());
@@ -336,7 +341,7 @@ public class Consumer {
                         && subscription.getDispatcher()
                                 .trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                     // The message is marked for delayed delivery. Ignore for now.
-                    iter.remove();
+                    entries.set(i, null);
                     entry.release();
                     continue;
                 }
