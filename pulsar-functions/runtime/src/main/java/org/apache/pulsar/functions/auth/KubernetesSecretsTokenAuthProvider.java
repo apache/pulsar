@@ -226,12 +226,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
         String secretId;
         if (existingFunctionAuthData.isPresent()) {
-            log.info("new String(existingFunctionAuthData.get().getData()): {}", new String(existingFunctionAuthData.get().getData()));
             secretId = new String(existingFunctionAuthData.get().getData());
-            log.info("secretId-1: {}", secretId);
         } else {
             secretId = RandomStringUtils.random(5, true, true).toLowerCase();
-            log.info("secretId-2: {}", secretId);
         }
 
         String token;
