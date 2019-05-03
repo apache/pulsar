@@ -279,7 +279,7 @@ public class PulsarFunctionPublishTest {
         functionConfig.setSubName(subscriptionName);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setAutoAck(true);
-        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.typedMessageBuilderPublish");
+        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.TypedMessageBuilderPublish");
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         Map<String, Object> userConfig = new HashMap<>();
         userConfig.put("publish-topic", publishTopic);
