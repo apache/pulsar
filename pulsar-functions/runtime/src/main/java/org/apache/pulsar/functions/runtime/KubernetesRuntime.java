@@ -761,7 +761,8 @@ public class KubernetesRuntime implements Runtime {
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())
+                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
                         pulsarRootDir + "/bin/pulsar-admin",
                         "--auth-plugin",

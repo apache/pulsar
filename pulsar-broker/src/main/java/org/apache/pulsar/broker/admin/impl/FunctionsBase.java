@@ -49,7 +49,8 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
+public class
+FunctionsBase extends AdminResource implements Supplier<WorkerService> {
 
     private final FunctionsImpl functions;
 
@@ -99,10 +100,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("functionConfig") String functionConfigJson) {
+                               final @FormDataParam("functionConfig") String functionConfigJson,
+                               final @FormDataParam("updateAuthData") boolean updateAuthData) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateAuthData);
     }
 
 

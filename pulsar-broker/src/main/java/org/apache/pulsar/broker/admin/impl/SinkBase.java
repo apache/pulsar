@@ -96,10 +96,11 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
                            final @FormDataParam("url") String functionPkgUrl,
-                           final @FormDataParam("sinkConfig") String sinkConfigJson) {
+                           final @FormDataParam("sinkConfig") String sinkConfigJson,
+                           final @FormDataParam("updateAuthData") boolean updateAuthData) {
 
          sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData(), updateAuthData);
 
     }
 

@@ -73,10 +73,11 @@ public class SourceApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                             final @FormDataParam("sourceConfig") String sourceConfigJson,
+                             final @FormDataParam("updateAuthData") boolean updateAuthData) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateAuthData);
     }
 
 

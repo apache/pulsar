@@ -835,7 +835,7 @@ public class SourceApiV3ResourceTest {
             details,
             null,
             new Gson().toJson(sourceConfig),
-                null, null);
+                null, null, false);
 
     }
 
@@ -872,7 +872,7 @@ public class SourceApiV3ResourceTest {
             mockedFormData,
             null,
             new Gson().toJson(sourceConfig),
-                null, null);
+                null, null, false);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
@@ -973,7 +973,7 @@ public class SourceApiV3ResourceTest {
             null,
             filePackageUrl,
             new Gson().toJson(sourceConfig),
-                null, null);
+                null, null, false);
 
     }
 

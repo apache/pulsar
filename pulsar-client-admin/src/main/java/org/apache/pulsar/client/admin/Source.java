@@ -121,6 +121,24 @@ public interface Source {
 
     /**
      * Update the configuration for a source.
+     * <p>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the source
+     *            with the auth data submitted with this call
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSource(SourceConfig sourceConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a source.
      * <pre>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
@@ -140,6 +158,31 @@ public interface Source {
      *             Unexpected error
      */
     void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a source.
+     * <pre>
+     * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the source
+     *            with the auth data submitted with this call
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
 
     /**
      * Delete an existing source

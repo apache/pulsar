@@ -207,9 +207,15 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        updateFunction(functionConfig, fileName, false);
+    }
+
+        @Override
+    public void updateFunction(FunctionConfig functionConfig, String fileName, boolean updateAuthData) throws PulsarAdminException {
         try {
             RequestBuilder builder = put(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON))
+                    .addBodyPart(new StringPart("updateAuthData", String.valueOf(updateAuthData)));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -226,20 +232,26 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+            mp.bodyPart(new FormDataBodyPart("updateAuthData", updateAuthData, MediaType.TEXT_PLAIN_TYPE));
 
             mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
                     .path(functionConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
-                            ErrorData.class);
+                    ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    @Override
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
+        updateFunctionWithUrl(functionConfig, pkgUrl, false);
     }
 
     @Override

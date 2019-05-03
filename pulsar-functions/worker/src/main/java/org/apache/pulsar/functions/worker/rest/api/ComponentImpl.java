@@ -517,7 +517,8 @@ public abstract class ComponentImpl {
                                final String functionPkgUrl,
                                final String componentConfigJson,
                                final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps) {
+                               AuthenticationDataHttps clientAuthenticationDataHttps,
+                               boolean updateAuthData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -674,8 +675,8 @@ public abstract class ComponentImpl {
             FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
                     .setFunctionDetails(functionDetails);
 
-            // cache auth if need
-            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+            // update auth data if need
+            if (worker().getWorkerConfig().isAuthenticationEnabled() && updateAuthData) {
                 if (clientAuthenticationDataHttps != null) {
                     // get existing auth data if it exists
                     Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();

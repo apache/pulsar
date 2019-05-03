@@ -739,6 +739,9 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
 
+        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data")
+        protected boolean updateAuthData;
+
         @Override
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             if (StringUtils.isEmpty(functionConfig.getClassName())) {
@@ -759,9 +762,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar());
+                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateAuthData);
             } else {
-                admin.functions().updateFunction(functionConfig, userCodeFile);
+                admin.functions().updateFunction(functionConfig, userCodeFile, updateAuthData);
             }
             print("Updated successfully");
         }

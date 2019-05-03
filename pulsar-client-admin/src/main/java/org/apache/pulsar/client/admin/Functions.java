@@ -124,6 +124,25 @@ public interface Functions {
 
     /**
      * Update the configuration for a function.
+     * <p>
+     *
+     * @param functionConfig
+     *            the function configuration object
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the function
+     *            with the auth data submitted with this call
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateFunction(FunctionConfig functionConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a function.
      * <pre>
      * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
@@ -143,6 +162,32 @@ public interface Functions {
      *             Unexpected error
      */
     void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a function.
+     * <pre>
+     * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param functionConfig
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the function
+     *            with the auth data submitted with this call
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
+
 
     /**
      * Delete an existing function

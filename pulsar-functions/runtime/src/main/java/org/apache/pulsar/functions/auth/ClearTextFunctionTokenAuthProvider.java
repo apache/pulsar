@@ -30,10 +30,13 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     @Override
     public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
         if (!functionAuthData.isPresent()) {
-            return;
+            // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
+            authConfig.setClientAuthenticationPlugin(null);
+            authConfig.setClientAuthenticationParameters(null);
+        } else {
+            authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
+            authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.get().getData()));
         }
-        authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.get().getData()));
     }
 
     @Override

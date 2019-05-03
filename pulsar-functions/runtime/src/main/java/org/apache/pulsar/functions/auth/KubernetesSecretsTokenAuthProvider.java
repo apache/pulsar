@@ -93,10 +93,13 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     @Override
     public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
         if (!functionAuthData.isPresent()) {
-            return;
+            // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
+            authConfig.setClientAuthenticationPlugin(null);
+            authConfig.setClientAuthenticationParameters(null);
+        } else {
+            authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
+            authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
         }
-        authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
     }
 
 
@@ -221,11 +224,14 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
                                                      AuthenticationDataSource authenticationDataSource) throws Exception {
 
-        String secretName;
+        String secretId;
         if (existingFunctionAuthData.isPresent()) {
-            secretName = new String(existingFunctionAuthData.get().getData());
+            log.info("new String(existingFunctionAuthData.get().getData()): {}", new String(existingFunctionAuthData.get().getData()));
+            secretId = new String(existingFunctionAuthData.get().getData());
+            log.info("secretId-1: {}", secretId);
         } else {
-            secretName = getSecretName(RandomStringUtils.random(5, true, true).toLowerCase());
+            secretId = RandomStringUtils.random(5, true, true).toLowerCase();
+            log.info("secretId-2: {}", secretId);
         }
 
         String token;
@@ -240,8 +246,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
 
         if (token != null) {
-            upsertSecret(token, tenant, namespace, name, secretName);
-            return Optional.of(FunctionAuthData.builder().data(secretName.getBytes()).build());
+            upsertSecret(token, tenant, namespace, name, getSecretName(secretId));
+            return Optional.of(FunctionAuthData.builder().data(secretId.getBytes()).build());
         }
 
         return existingFunctionAuthData;
@@ -250,7 +256,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private void upsertSecret(String token, String tenant, String namespace, String name, String secretName) throws InterruptedException {
 
         Actions.Action createAuthSecret = Actions.Action.builder()
-                .actionName(String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
+                .actionName(String.format("Upsert authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
@@ -265,6 +271,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
                                 coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null);
+                                return Actions.ActionResult.builder().success(true).build();
+
                             } catch (ApiException e1) {
                                 String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
                                 return Actions.ActionResult.builder()
@@ -272,12 +280,13 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                                         .errorMsg(errorMsg)
                                         .build();
                             }
-                            String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
-                            return Actions.ActionResult.builder()
-                                    .success(false)
-                                    .errorMsg(errorMsg)
-                                    .build();
                         }
+
+                        String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
+                        return Actions.ActionResult.builder()
+                                .success(false)
+                                .errorMsg(errorMsg)
+                                .build();
                     }
 
                     return Actions.ActionResult.builder().success(true).build();

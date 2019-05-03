@@ -818,7 +818,7 @@ public class SinkApiV3ResourceTest {
             details,
             null,
             new Gson().toJson(sinkConfig),
-                null, null);
+                null, null, false);
 
     }
 
@@ -859,7 +859,7 @@ public class SinkApiV3ResourceTest {
             mockedFormData,
             null,
             new Gson().toJson(sinkConfig),
-                null, null);
+                null, null, false);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
@@ -961,7 +961,7 @@ public class SinkApiV3ResourceTest {
             null,
             filePackageUrl,
             new Gson().toJson(sinkConfig),
-                null, null);
+                null, null, false);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")

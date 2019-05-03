@@ -121,6 +121,24 @@ public interface Sink {
 
     /**
      * Update the configuration for a sink.
+     * <p>
+     *
+     * @param sinkConfig
+     *            the sink configuration object
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the sink
+     *            with the auth data submitted with this call
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSink(SinkConfig sinkConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a sink.
      * <pre>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
@@ -140,6 +158,31 @@ public interface Sink {
      *             Unexpected error
      */
     void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a sink.
+     * <pre>
+     * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param sinkConfig
+     *            the sink configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @param updateAuthData
+     *            If authentication is enabled, whether or not to update the auth data of the sink
+     *            with the auth data submitted with this call
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
 
     /**
      * Delete an existing sink
