@@ -19,4 +19,4 @@
 /**
  * Common classes used by pulsar transaction related modules.
  */
-package org.apache.pulsar.transaction.common;
+package org.apache.pulsar.transaction.impl.common;

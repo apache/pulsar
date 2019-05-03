@@ -20,9 +20,9 @@ package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
 import java.util.List;
-import org.apache.pulsar.transaction.common.TxnID;
-import org.apache.pulsar.transaction.common.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.

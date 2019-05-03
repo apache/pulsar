@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.common;
+package org.apache.pulsar.transaction.impl.common;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;

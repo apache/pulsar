@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.common;
+package org.apache.pulsar.transaction.impl.common;
 
 import com.google.common.annotations.Beta;
 import java.io.Serializable;

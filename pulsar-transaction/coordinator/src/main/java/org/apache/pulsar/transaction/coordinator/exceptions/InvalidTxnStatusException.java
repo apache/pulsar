@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.transaction.coordinator.exceptions;
 
-import org.apache.pulsar.transaction.common.TxnID;
-import org.apache.pulsar.transaction.common.TxnStatus;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * Exception is thrown when transaction is not in the right status.
