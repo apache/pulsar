@@ -32,7 +32,7 @@ import java.util.Map;
  * to publish to a desired topic based on config and setting various message configurations to be passed along.
  *
  */
-public class PublishFunctionWithMessageConf implements Function<String, Void> {
+public class typedMessageBuilderPublish implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
         String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
