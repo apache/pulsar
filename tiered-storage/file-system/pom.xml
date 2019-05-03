@@ -34,7 +34,7 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger-original</artifactId>
+            <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -54,7 +54,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger-original</artifactId>
+            <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
