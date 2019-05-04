@@ -237,6 +237,7 @@
 <tr><td>managedLedgerDefaultWriteQuorum</td><td>Number of copies to store for each message</td><td>2</td></tr>
 <tr><td>managedLedgerDefaultAckQuorum</td><td>Number of guaranteed copies (acks to wait before write is complete)</td><td>2</td></tr>
 <tr><td>managedLedgerCacheSizeMB</td><td>Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. By default, uses 1/5th of available direct memory</td><td></td></tr>
+<tr><td>managedLedgerCacheCopyEntries</td><td>Whether we should make a copy of the entry payloads when inserting in cache</td><td>false</td></tr>
 <tr><td>managedLedgerCacheEvictionWatermark</td><td>Threshold to which bring down the cache level when eviction is triggered</td><td>0.9</td></tr>
 <tr><td>managedLedgerCacheEvictionFrequency</td><td>Configure the cache eviction frequency for the managed ledger cache (evictions/sec)</td><td>100.0</td></tr>
 <tr><td>managedLedgerCacheEvictionTimeThresholdMillis</td><td>All entries that have stayed in cache for more than the configured time, will be evicted</td><td>1000</td></tr>
