@@ -91,7 +91,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_FILE = "exclamation_with_extra_deps.py";
     public static final String EXCLAMATION_PYTHONZIP_FILE = "exclamation.zip";
-    public static final String PUBLISH_FUNCTION_PYTHON_FILE = "publish_function_with_message_conf.py";
+    public static final String PUBLISH_FUNCTION_PYTHON_FILE = "typed_message_builder_publish.py";
 
 
     protected static String getExclamationClass(Runtime runtime,
