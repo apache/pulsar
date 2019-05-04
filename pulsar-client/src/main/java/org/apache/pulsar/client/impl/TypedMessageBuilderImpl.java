@@ -99,7 +99,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public TypedMessageBuilder<T> value(T value) {
 
         checkArgument(value != null, "Need Non-Null content value");
-        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+        if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
