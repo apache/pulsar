@@ -25,6 +25,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -128,18 +129,16 @@ public interface Functions {
      *
      * @param functionConfig
      *            the function configuration object
-     *
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the function
-     *            with the auth data submitted with this call
      * @throws NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+    void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
@@ -176,9 +175,8 @@ public interface Functions {
      *            the function configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the function
-     *            with the auth data submitted with this call
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
      * @throws NotFoundException
@@ -186,7 +184,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
+    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
 
 
     /**

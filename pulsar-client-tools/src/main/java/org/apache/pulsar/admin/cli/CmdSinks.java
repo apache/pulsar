@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.functions.Utils;
@@ -217,10 +218,12 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            UpdateOptions updateOptions = new UpdateOptions();
+            updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateAuthData);
+                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
             } else {
-                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive(), updateAuthData);
+                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive(), updateOptions);
             }
             print("Updated successfully");
         }

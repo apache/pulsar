@@ -918,7 +918,7 @@ public class FunctionApiV3ResourceTest {
             details,
             null,
             new Gson().toJson(functionConfig),
-                null, null, false);
+                null, null, null);
 
     }
 
@@ -942,7 +942,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             null,
             new Gson().toJson(functionConfig),
-                null, null, false);
+                null, null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1030,7 +1030,7 @@ public class FunctionApiV3ResourceTest {
             null,
             filePackageUrl,
             new Gson().toJson(functionConfig),
-                null, null, false);
+                null, null, null);
 
     }
 

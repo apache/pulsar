@@ -23,6 +23,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -97,10 +98,10 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
                              final @FormDataParam("sourceConfig") String sourceConfigJson,
-                             final @FormDataParam("updateAuthData") boolean updateAuthData) {
+                             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateAuthData);
+            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
     }
 
 

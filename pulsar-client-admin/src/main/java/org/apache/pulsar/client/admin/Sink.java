@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -125,9 +126,8 @@ public interface Sink {
      *
      * @param sinkConfig
      *            the sink configuration object
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the sink
-     *            with the auth data submitted with this call
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
      * @throws NotFoundException
@@ -135,7 +135,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSink(SinkConfig sinkConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Update the configuration for a sink.
@@ -172,9 +172,8 @@ public interface Sink {
      *            the sink configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the sink
-     *            with the auth data submitted with this call
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
      * @throws NotFoundException
@@ -182,7 +181,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Delete an existing sink

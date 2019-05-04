@@ -50,6 +50,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -761,10 +762,13 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+
+            UpdateOptions updateOptions = new UpdateOptions();
+            updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateAuthData);
+                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
             } else {
-                admin.functions().updateFunction(functionConfig, userCodeFile, updateAuthData);
+                admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }
             print("Updated successfully");
         }

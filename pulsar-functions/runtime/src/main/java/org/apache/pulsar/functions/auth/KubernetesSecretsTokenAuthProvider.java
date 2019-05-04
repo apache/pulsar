@@ -131,12 +131,14 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
         String fqfn = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
 
-        String secretName = new String(functionAuthData.get().getData());
+        String secretId = new String(functionAuthData.get().getData());
         // Make sure secretName is empty.  Defensive programing
-        if (isBlank(secretName)) {
+        if (isBlank(secretId)) {
             log.warn("Secret name for function {} is empty.", fqfn);
             return;
         }
+
+        String secretName = getSecretName(secretId);
 
         Actions.Action deleteSecrets = Actions.Action.builder()
                 .actionName(String.format("Deleting secrets for function %s", fqfn))

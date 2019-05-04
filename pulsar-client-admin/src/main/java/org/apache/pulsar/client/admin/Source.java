@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -125,9 +126,8 @@ public interface Source {
      *
      * @param sourceConfig
      *            the source configuration object
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the source
-     *            with the auth data submitted with this call
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
      * @throws NotFoundException
@@ -135,7 +135,7 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSource(SourceConfig sourceConfig, String fileName, boolean updateAuthData) throws PulsarAdminException;
+    void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Update the configuration for a source.
@@ -172,9 +172,8 @@ public interface Source {
      *            the source configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
-     * @param updateAuthData
-     *            If authentication is enabled, whether or not to update the auth data of the source
-     *            with the auth data submitted with this call
+     * @param updateOptions
+     *            options for the update operations
      * @throws NotAuthorizedException
      *             You don't have admin permission to create the cluster
      * @throws NotFoundException
@@ -182,7 +181,7 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException;
+    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Delete an existing source

@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.powermock.api.mockito.PowerMockito;
@@ -691,7 +692,7 @@ public class TestCmdSinks {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSink.name)
                 .archive(updateSink.archive)
-                .build()), eq(updateSink.archive));
+                .build()), eq(updateSink.archive), eq(new UpdateOptions()));
 
 
         updateSink.archive = null;
@@ -700,14 +701,21 @@ public class TestCmdSinks {
 
         updateSink.processArguments();
 
+        updateSink.updateAuthData = true;
+
         updateSink.runCmd();
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
 
         verify(sink).updateSink(eq(SinkConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSink.name)
                 .parallelism(2)
-                .build()), eq(null));
+                .build()), eq(null), eq(updateOptions));
+
+
 
     }
 }

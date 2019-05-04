@@ -293,7 +293,9 @@ public class FunctionActioner {
                             .getRuntimeFactory().getAuthProvider()
                             .cleanUpAuthData(
                                     details.getTenant(), details.getNamespace(), details.getName(),
-                                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()))));
+                                    Optional.ofNullable(getFunctionAuthData(
+                                            Optional.ofNullable(
+                                                    functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
 
                 } catch (Exception e) {
                     log.error("Failed to cleanup auth data for function: {}", fqfn, e);

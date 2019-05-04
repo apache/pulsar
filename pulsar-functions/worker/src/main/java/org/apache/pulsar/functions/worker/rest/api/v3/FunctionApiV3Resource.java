@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -83,10 +84,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
                                final @FormDataParam("functionConfig") String functionConfigJson,
-                               final @FormDataParam("updateAuthData") boolean updateAuthData) {
+                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateAuthData);
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
 
     }
 

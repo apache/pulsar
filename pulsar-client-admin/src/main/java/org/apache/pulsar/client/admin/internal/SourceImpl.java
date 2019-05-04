@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -162,11 +163,14 @@ public class SourceImpl extends ComponentResource implements Source {
     }
 
     @Override
-    public void updateSource(SourceConfig sourceConfig, String fileName, boolean updateAuthData) throws PulsarAdminException {
+    public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
             RequestBuilder builder = put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON))
-                    .addBodyPart(new StringPart("updateAuthData", String.valueOf(updateAuthData)));
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+
+            if (updateOptions != null) {
+                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+            }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -184,19 +188,28 @@ public class SourceImpl extends ComponentResource implements Source {
 
     @Override
     public void updateSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
-        updateSource(sourceConfig, fileName, false);
+        updateSource(sourceConfig, fileName, null);
     }
 
     @Override
-    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, boolean updateAuthData) throws PulsarAdminException {
+    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-            mp.bodyPart(new FormDataBodyPart("updateAuthData", String.valueOf(updateAuthData), MediaType.TEXT_PLAIN_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("sourceConfig", new Gson().toJson(sourceConfig),
+            mp.bodyPart(new FormDataBodyPart(
+                    "sourceConfig",
+                    new Gson().toJson(sourceConfig),
                     MediaType.APPLICATION_JSON_TYPE));
+
+            if (updateOptions != null) {
+                mp.bodyPart(new FormDataBodyPart(
+                        "updateOptions",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+
             request(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
                     .path(sourceConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                     ErrorData.class);
@@ -207,7 +220,7 @@ public class SourceImpl extends ComponentResource implements Source {
 
     @Override
     public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException {
-        updateSourceWithUrl(sourceConfig, pkgUrl, false);
+        updateSourceWithUrl(sourceConfig, pkgUrl, null);
     }
 
     @Override

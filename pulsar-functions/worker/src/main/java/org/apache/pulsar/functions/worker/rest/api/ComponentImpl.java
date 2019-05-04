@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -518,7 +519,7 @@ public abstract class ComponentImpl {
                                final String componentConfigJson,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps,
-                               boolean updateAuthData) {
+                               UpdateOptions updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -538,7 +539,7 @@ public abstract class ComponentImpl {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
                         componentName, clientRole, componentType);
-                throw new RestException(Status.UNAUTHORIZED, componentType + "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
 
             }
         } catch (PulsarAdminException e) {
@@ -676,8 +677,8 @@ public abstract class ComponentImpl {
                     .setFunctionDetails(functionDetails);
 
             // update auth data if need
-            if (worker().getWorkerConfig().isAuthenticationEnabled() && updateAuthData) {
-                if (clientAuthenticationDataHttps != null) {
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                if (clientAuthenticationDataHttps != null && updateOptions != null && updateOptions.isUpdateAuthData()) {
                     // get existing auth data if it exists
                     Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
                     if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
@@ -707,7 +708,6 @@ public abstract class ComponentImpl {
                     }
                 }
             }
-
 
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {
