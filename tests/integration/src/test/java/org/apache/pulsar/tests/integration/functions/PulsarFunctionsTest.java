@@ -726,6 +726,182 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     //
 
     @Test
+    public void testPythonFunctionNegAck() throws Exception {
+        testFunctionNegAck(Runtime.PYTHON);
+    }
+
+    @Test
+    public void testJavaFunctionNegAck() throws Exception {
+        testFunctionNegAck(Runtime.JAVA);
+    }
+
+    private void testFunctionNegAck(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD) {
+            return;
+        }
+
+        Schema<?> schema;
+        if (Runtime.JAVA == runtime) {
+            schema = Schema.STRING;
+        } else {
+            schema = Schema.BYTES;
+        }
+
+        String inputTopicName = "persistent://public/default/test-neg-ack-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-neg-ack-" + runtime + "-output-" + randomName(8);
+
+        String functionName = "test-neg-ack-fn-" + randomName(8);
+        final int numMessages = 20;
+
+        // submit the exclamation function
+
+        if (runtime == Runtime.PYTHON) {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE, EXCEPTION_PYTHON_CLASS, schema);
+        } else {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema);
+        }
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
+        // publish and consume result
+        if (Runtime.JAVA == runtime) {
+            // java supports schema
+            @Cleanup PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                    .build();
+            @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                    .topic(outputTopicName)
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("test-sub")
+                    .subscribe();
+            @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(inputTopicName)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("message-" + i);
+            }
+
+            Set<String> expectedMessages = new HashSet<>();
+            for (int i = 0; i < numMessages; i++) {
+                expectedMessages.add("message-" + i + "!");
+            }
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<String> msg = consumer.receive(60 * 2, TimeUnit.SECONDS);
+                log.info("Received: {}", msg.getValue());
+                assertTrue(expectedMessages.contains(msg.getValue()));
+                expectedMessages.remove(msg.getValue());
+            }
+            assertEquals(expectedMessages.size(), 0);
+
+        } else {
+            // python doesn't support schema
+
+            @Cleanup PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                    .build();
+            @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
+                    .topic(outputTopicName)
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("test-sub")
+                    .subscribe();
+
+            @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                    .topic(inputTopicName)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                producer.newMessage().value(("message-" + i).getBytes(UTF_8)).send();
+            }
+
+            Set<String> expectedMessages = new HashSet<>();
+            for (int i = 0; i < numMessages; i++) {
+                expectedMessages.add("message-" + i + "!");
+            }
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<byte[]> msg = consumer.receive(60 * 2, TimeUnit.SECONDS);
+                String msgValue = new String(msg.getValue(), UTF_8);
+                log.info("Received: {}", msgValue);
+                assertTrue(expectedMessages.contains(msgValue));
+                expectedMessages.remove(msgValue);
+            }
+            assertEquals(expectedMessages.size(), 0);
+        }
+
+        // get function status
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "status",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName
+        );
+
+        FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+
+        assertEquals(functionStatus.getNumInstances(), 1);
+        assertEquals(functionStatus.getNumRunning(), 1);
+        assertEquals(functionStatus.getInstances().size(), 1);
+        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
+        assertTrue(functionStatus.getInstances().get(0).getStatus().getAverageLatency() > 0.0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
+        // going to receive two more tuples because of delivery
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages + 2);
+        // only going to successfully process 20
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 2);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+
+        // get function stats
+        result = pulsarCluster.getAnyWorker().execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "stats",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName
+        );
+
+        log.info("FUNCTION STATS: {}", result.getStdout());
+
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
+        assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
+        assertEquals(functionStats.getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.getUserExceptionsTotal(), 2);
+        assertTrue(functionStats.avgProcessLatency > 0);
+        assertTrue(functionStats.getLastInvocation() > 0);
+
+        assertEquals(functionStats.instances.size(), 1);
+        assertEquals(functionStats.instances.get(0).getInstanceId(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getReceivedTotal(), numMessages + 2);
+        assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), numMessages);
+        assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 2);
+        assertTrue(functionStats.instances.get(0).getMetrics().avgProcessLatency > 0);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
+    }
+
+    @Test
     public void testPythonPublishFunction() throws Exception {
         testPublishFunction(Runtime.PYTHON);
     }

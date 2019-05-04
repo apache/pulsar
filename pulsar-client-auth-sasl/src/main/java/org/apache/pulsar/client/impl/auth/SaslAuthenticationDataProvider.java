@@ -19,12 +19,18 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.naming.AuthenticationException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Slf4j
 public class SaslAuthenticationDataProvider implements AuthenticationDataProvider {
@@ -54,4 +60,17 @@ public class SaslAuthenticationDataProvider implements AuthenticationDataProvide
 
         return pulsarSaslClient.evaluateChallenge(commandData);
     }
+
+    @Override
+    public boolean hasDataForHttp() {
+        return true;
+    }
+
+    @Override
+    public Set<Entry<String, String>> getHttpHeaders() throws Exception {
+        Map<String, String> headers = new HashMap<>();
+        headers.put(SaslConstants.SASL_HEADER_TYPE, SaslConstants.SASL_TYPE_VALUE);
+        return headers.entrySet();
+    }
+
 }

@@ -111,13 +111,32 @@ public class RangeCacheTest {
 
     @Test
     void customWeighter() {
-        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length());
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
         cache.put(1, new RefString("one"));
 
         assertEquals(cache.getSize(), 7);
         assertEquals(cache.getNumberOfEntries(), 2);
+    }
+
+    @Test
+    void customTimeExtraction() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
+
+        cache.put(1, new RefString("1"));
+        cache.put(2, new RefString("22"));
+        cache.put(3, new RefString("333"));
+        cache.put(4, new RefString("4444"));
+
+        assertEquals(cache.getSize(), 10);
+        assertEquals(cache.getNumberOfEntries(), 4);
+
+        long evictedSize = cache.evictLEntriesBeforeTimestamp(3);
+        assertEquals(evictedSize, 6);
+
+        assertEquals(cache.getSize(), 4);
+        assertEquals(cache.getNumberOfEntries(), 1);
     }
 
     @Test
@@ -172,7 +191,7 @@ public class RangeCacheTest {
 
     @Test
     void eviction() {
-        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length());
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
         cache.put(1, new RefString("one"));

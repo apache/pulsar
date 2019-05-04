@@ -1692,10 +1692,16 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             if (isSuperUser(clientRole)) {
                 return true;
             }
-            TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-            if (clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
-                    || tenantInfo.getAdminRoles().contains(clientRole))) {
-                return true;
+
+            if (clientRole != null) {
+                try {
+                    TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    if (tenantInfo != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                        return true;
+                    }
+                } catch (PulsarAdminException.NotFoundException e) {
+
+                }
             }
 
             // check if role has permissions granted

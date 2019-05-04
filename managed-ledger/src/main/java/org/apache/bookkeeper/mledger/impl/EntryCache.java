@@ -50,9 +50,11 @@ public interface EntryCache extends Comparable<EntryCache> {
      * Remove from cache all the entries related to a ledger up to lastPosition included.
      *
      * @param lastPosition
-     *            the position of the last entry to be invalidated (inclusive)
+     *            the position of the last entry to be invalidated (non-inclusive)
      */
     void invalidateEntries(PositionImpl lastPosition);
+
+    void invalidateEntriesBeforeTimestamp(long timestamp);
 
     /**
      * Remove from the cache all the entries belonging to a specific ledger.

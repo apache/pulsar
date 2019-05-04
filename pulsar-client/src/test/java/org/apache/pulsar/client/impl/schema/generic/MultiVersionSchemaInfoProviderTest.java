@@ -29,7 +29,6 @@ import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
-import org.apache.pulsar.client.tutorial.JsonPojo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.testng.annotations.BeforeMethod;
@@ -39,17 +38,17 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Unit test for {@link MultiVersionGenericSchemaProvider}.
+ * Unit test for {@link MultiVersionSchemaInfoProvider}.
  */
-public class MultiVersionGenericSchemaProviderTest {
+public class MultiVersionSchemaInfoProviderTest {
 
-    private MultiVersionGenericSchemaProvider schemaProvider;
+    private MultiVersionSchemaInfoProvider schemaProvider;
 
     @BeforeMethod
     public void setup() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         when(client.getLookup()).thenReturn(mock(LookupService.class));
-        schemaProvider = new MultiVersionGenericSchemaProvider(
+        schemaProvider = new MultiVersionSchemaInfoProvider(
                 TopicName.get("persistent://public/default/my-topic"), client);
     }
 
@@ -63,7 +62,7 @@ public class MultiVersionGenericSchemaProviderTest {
                         any(TopicName.class),
                         any(byte[].class)))
                 .thenReturn(completableFuture);
-        GenericSchema schema = schemaProvider.getSchema(new byte[0]);
-        assertEquals(schema.getSchemaInfo(), schemaInfo);
+        SchemaInfo schemaInfoByVersion = schemaProvider.getSchemaByVersion(new byte[0]);
+        assertEquals(schemaInfoByVersion, schemaInfo);
     }
 }

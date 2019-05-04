@@ -76,12 +76,14 @@ public class SolrSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The username to use for basic authentication")
     private String username;
 
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The password to use for basic authentication")
     private String password;
 

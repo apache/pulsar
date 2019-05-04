@@ -21,8 +21,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -37,28 +36,28 @@ import java.util.concurrent.TimeUnit;
 /**
  * Multi version generic schema provider by guava cache.
  */
-public class MultiVersionGenericSchemaProvider implements SchemaProvider<GenericRecord> {
+public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MultiVersionGenericSchemaProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MultiVersionSchemaInfoProvider.class);
 
     private final TopicName topicName;
     private final PulsarClientImpl pulsarClient;
 
-    private final LoadingCache<byte[], GenericSchema> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], GenericSchema>() {
+    private final LoadingCache<byte[], SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaInfo>() {
                 @Override
-                public GenericSchema load(byte[] schemaVersion) throws Exception {
+                public SchemaInfo load(byte[] schemaVersion) throws Exception {
                     return loadSchema(schemaVersion);
                 }
             });
 
-    public MultiVersionGenericSchemaProvider(TopicName topicName, PulsarClientImpl pulsarClient) {
+    public MultiVersionSchemaInfoProvider(TopicName topicName, PulsarClientImpl pulsarClient) {
         this.topicName = topicName;
         this.pulsarClient = pulsarClient;
     }
 
     @Override
-    public GenericSchema getSchema(byte[] schemaVersion) {
+    public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
         try {
             if (null == schemaVersion) {
                 return null;
@@ -67,18 +66,32 @@ public class MultiVersionGenericSchemaProvider implements SchemaProvider<Generic
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
-            return null;
+            throw new RuntimeException("Can't get generic schema for topic " + topicName.toString());
         }
     }
 
-    private GenericSchema loadSchema(byte[] schemaVersion) throws ExecutionException, InterruptedException {
-        Optional<SchemaInfo> schemaInfo = pulsarClient.getLookup()
-                .getSchema(topicName, schemaVersion).get();
-        return schemaInfo.map(GenericSchemaImpl::of).orElse(null);
+    @Override
+    public SchemaInfo getLatestSchema() {
+        try {
+            Optional<SchemaInfo> optional = pulsarClient.getLookup()
+                    .getSchema(topicName).get();
+            return optional.orElse(null);
+        } catch (ExecutionException | InterruptedException e) {
+            LOG.error("Can't get current schema for topic {}",
+                    topicName.toString(), e);
+            throw new RuntimeException("Can't get current schema for topic " + topicName.toString());
+        }
     }
 
-    public TopicName getTopic() {
-        return topicName;
+    @Override
+    public String getTopicName() {
+        return topicName.getLocalName();
+    }
+
+    private SchemaInfo loadSchema(byte[] schemaVersion) throws ExecutionException, InterruptedException {
+        Optional<SchemaInfo> optional = pulsarClient.getLookup()
+                .getSchema(topicName, schemaVersion).get();
+        return optional.orElse(null);
     }
 
     public PulsarClientImpl getPulsarClient() {

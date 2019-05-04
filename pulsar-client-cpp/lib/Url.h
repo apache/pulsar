@@ -20,15 +20,14 @@
 #define LIB_URL_H_
 
 #include <string>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
 /**
  * URL parsing utility
  */
-class Url {
+class PULSAR_PUBLIC Url {
    public:
     static bool parse(const std::string& urlStr, Url& url);
 
@@ -54,7 +53,5 @@ class Url {
 };
 
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* LIB_URL_H_ */
