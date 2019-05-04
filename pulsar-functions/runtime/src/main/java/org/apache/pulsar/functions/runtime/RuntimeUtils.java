@@ -92,8 +92,6 @@ public class RuntimeUtils {
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
             }
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            //no-op
         }
 
         return args;
