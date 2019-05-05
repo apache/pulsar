@@ -26,13 +26,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
-import org.apache.pulsar.client.api.schema.SchemaBuilder;
-import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroReader;
-import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
@@ -71,11 +65,8 @@ public class SchemaBuilderTest {
     @ToString
     @EqualsAndHashCode
     private static class People {
-        @Nullable
-        private static People1 people1;
-        @Nullable
-        private static People2 people2;
-        @Nullable
+        private People1 people1;
+        private People2 people2;
         private String name;
     }
 
@@ -304,6 +295,74 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    public void testGenericRecordBuilderAvroByFilednamePojo() {
+        RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
+        people1SchemaBuilder.field("age").type(SchemaType.INT32);
+        people1SchemaBuilder.field("height").type(SchemaType.INT32);
+        people1SchemaBuilder.field("name").type(SchemaType.STRING);
+
+
+        SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema people1Schema = Schema.generic(people1SchemaInfo);
+
+
+        GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
+        people1RecordBuilder.set("age", 20);
+        people1RecordBuilder.set("height", 180);
+        people1RecordBuilder.set("name", "people1");
+        GenericRecord people1GenericRecord = people1RecordBuilder.build();
+
+        RecordSchemaBuilder people2SchemaBuilder = SchemaBuilder.record("People2");
+        people2SchemaBuilder.field("age").type(SchemaType.INT32);
+        people2SchemaBuilder.field("height").type(SchemaType.INT32);
+        people2SchemaBuilder.field("name").type(SchemaType.STRING);
+
+        SchemaInfo people2SchemaInfo = people2SchemaBuilder.build(SchemaType.AVRO);
+        GenericSchema people2Schema = Schema.generic(people2SchemaInfo);
+
+        GenericRecordBuilder people2RecordBuilder = people2Schema.newRecordBuilder();
+        people2RecordBuilder.set("age", 20);
+        people2RecordBuilder.set("height", 180);
+        people2RecordBuilder.set("name", "people2");
+        GenericRecord people2GenericRecord = people2RecordBuilder.build();
+
+        RecordSchemaBuilder peopleSchemaBuilder = SchemaBuilder.record("People");
+        peopleSchemaBuilder.field("people1", people1Schema).type(SchemaType.AVRO);
+        peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
+        peopleSchemaBuilder.field("name").type(SchemaType.STRING);
+
+
+        SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
+
+        GenericSchema peopleSchema = Schema.generic(schemaInfo);
+        GenericRecordBuilder peopleRecordBuilder = peopleSchema.newRecordBuilder();
+        peopleRecordBuilder.set("people1", people1GenericRecord);
+        peopleRecordBuilder.set("people2", people2GenericRecord);
+        peopleRecordBuilder.set("name", "people");
+        GenericRecord peopleRecord = peopleRecordBuilder.build();
+
+        byte[] peopleEncode = peopleSchema.encode(peopleRecord);
+
+        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
+
+        assertEquals(people.getFields(), peopleRecord.getFields());
+        assertEquals((people.getField("name")), peopleRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
+                people1GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
+                people1GenericRecord.getField("heigth"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
+                people1GenericRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
+                people2GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+                people2GenericRecord.getField("height"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
+                people2GenericRecord.getField("name"));
+
+    }
+
+    @Test
     public void testGenericRecordBuilderAvroByFiledIndex() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -352,23 +411,17 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
+        Schema<People> peopleDecodeSchema = Schema.AVRO(
+                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
+        People people = peopleDecodeSchema.decode(peopleEncode);
 
-        assertEquals(people.getFields(), peopleRecord.getFields());
-        assertEquals((people.getField("name")), peopleRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
-                people1GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
-                people1GenericRecord.getField("heigth"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
-                people1GenericRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
-                people2GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
-                people2GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
-                people2GenericRecord.getField("name"));
-
+        assertEquals(people.name, peopleRecord.getField("name"));
+        assertEquals(people.getPeople1().age, people1GenericRecord.getField("age"));
+        assertEquals(people.getPeople1().height, people1GenericRecord.getField("height"));
+        assertEquals(people.getPeople1().name, people1GenericRecord.getField("name"));
+        assertEquals(people.getPeople2().age, people2GenericRecord.getField("age"));
+        assertEquals(people.getPeople2().height, people2GenericRecord.getField("height"));
+        assertEquals(people.getPeople2().name, people2GenericRecord.getField("name"));
     }
 
     @Test
@@ -420,43 +473,16 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-
-//        People people = new People();
-//        People1 people1 = new People1();
-//        People2 people2 = new People2();
-//        people.setPeople1(people1);
-//        people.setPeople2(people2);
-//        AvroSchema peopleAvroSchema = AvroSchema.of(People.class);
-//
-//        GenericAvroReader genericPeopleAvroSchemaSchema = new GenericAvroReader(peopleAvroSchema.getAvroSchema());
-//
-//        GenericRecord people = genericPeopleAvroSchemaSchema.read(peopleEncode);
-//
-////        People people = pojoSchema.decode(peopleEncode);
-//
-        Schema<People> peopleDecodeSchema = Schema.AVRO(People.class);
-//
+        Schema<People> peopleDecodeSchema = Schema.AVRO(
+                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
         People people = peopleDecodeSchema.decode(peopleEncode);
 
-////        KeyValue<People1, People2> fields = pojoSchema.decode(peopleEncode);
-//
-//
-////        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
-//
-        assertEquals(people, peopleRecord.getFields());
-//        assertEquals((people.getField("name")), peopleRecord.getField("name"));
-//        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
-//                people1GenericRecord.getField("age"));
-//        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
-//                people1GenericRecord.getField("heigth"));
-//        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
-//                people1GenericRecord.getField("name"));
-//        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
-//                people2GenericRecord.getField("age"));
-//        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
-//                people2GenericRecord.getField("height"));
-//        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
-//                people2GenericRecord.getField("name"));
-
+        assertEquals(people.name, peopleRecord.getField("name"));
+        assertEquals(people.getPeople1().age, people1GenericRecord.getField("age"));
+        assertEquals(people.getPeople1().height, people1GenericRecord.getField("height"));
+        assertEquals(people.getPeople1().name, people1GenericRecord.getField("name"));
+        assertEquals(people.getPeople2().age, people2GenericRecord.getField("age"));
+        assertEquals(people.getPeople2().height, people2GenericRecord.getField("height"));
+        assertEquals(people.getPeople2().name, people2GenericRecord.getField("name"));
     }
 }
