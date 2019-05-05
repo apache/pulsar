@@ -31,8 +31,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
 
-import javax.validation.constraints.Null;
-
 /**
  * Schema Builder Test.
  */
@@ -343,22 +341,17 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
+        Schema<People> peopleDecodeSchema = Schema.AVRO(
+                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
+        People people = peopleDecodeSchema.decode(peopleEncode);
 
-        assertEquals(people.getFields(), peopleRecord.getFields());
-        assertEquals((people.getField("name")), peopleRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
-                people1GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
-                people1GenericRecord.getField("heigth"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
-                people1GenericRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
-                people2GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
-                people2GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
-                people2GenericRecord.getField("name"));
+        assertEquals(people.name, peopleRecord.getField("name"));
+        assertEquals(people.getPeople1().age, people1GenericRecord.getField("age"));
+        assertEquals(people.getPeople1().height, people1GenericRecord.getField("height"));
+        assertEquals(people.getPeople1().name, people1GenericRecord.getField("name"));
+        assertEquals(people.getPeople2().age, people2GenericRecord.getField("age"));
+        assertEquals(people.getPeople2().height, people2GenericRecord.getField("height"));
+        assertEquals(people.getPeople2().name, people2GenericRecord.getField("name"));
 
     }
 
@@ -411,17 +404,23 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-        Schema<People> peopleDecodeSchema = Schema.AVRO(
-                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
-        People people = peopleDecodeSchema.decode(peopleEncode);
+        GenericRecord people = (GenericRecord) peopleSchema.decode(peopleEncode);
 
-        assertEquals(people.name, peopleRecord.getField("name"));
-        assertEquals(people.getPeople1().age, people1GenericRecord.getField("age"));
-        assertEquals(people.getPeople1().height, people1GenericRecord.getField("height"));
-        assertEquals(people.getPeople1().name, people1GenericRecord.getField("name"));
-        assertEquals(people.getPeople2().age, people2GenericRecord.getField("age"));
-        assertEquals(people.getPeople2().height, people2GenericRecord.getField("height"));
-        assertEquals(people.getPeople2().name, people2GenericRecord.getField("name"));
+        assertEquals(people.getFields(), peopleRecord.getFields());
+        assertEquals((people.getField("name")), peopleRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
+                people1GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("heigth"),
+                people1GenericRecord.getField("heigth"));
+        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
+                people1GenericRecord.getField("name"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
+                people2GenericRecord.getField("age"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+                people2GenericRecord.getField("height"));
+        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
+                people2GenericRecord.getField("name"));
+
     }
 
     @Test
