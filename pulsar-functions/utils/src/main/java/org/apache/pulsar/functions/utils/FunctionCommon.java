@@ -31,16 +31,16 @@ import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.UUID;
+import java.util.*;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
@@ -56,6 +56,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Utils used for runtime.
@@ -89,6 +91,28 @@ public class FunctionCommon {
     public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) {
         Object userClass = createInstance(functionConfig.getClassName(), classLoader);
         boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
+        return getFunctionTypes(userClass, isWindowConfigPresent);
+    }
+
+    public static Class<?>[] getFunctionTypes(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails, ClassLoader classLoader) {
+        Object userClass = null;
+        Map<String, Object> userConfig;
+        boolean isWindowConfigPresent = false;
+        if (!isEmpty(functionDetails.getUserConfig())) {
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
+            userConfig = new Gson().fromJson(functionDetails.getUserConfig(), type);
+            if (userConfig.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
+                isWindowConfigPresent = true;
+                WindowConfig windowConfig = new Gson().fromJson(
+                        (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                        WindowConfig.class);
+                userClass = createInstance(windowConfig.getActualWindowFunctionClassName(), classLoader);
+            }
+        }
+        if (!isWindowConfigPresent) {
+            userClass = createInstance(functionDetails.getClassName(), classLoader);
+        }
         return getFunctionTypes(userClass, isWindowConfigPresent);
     }
     

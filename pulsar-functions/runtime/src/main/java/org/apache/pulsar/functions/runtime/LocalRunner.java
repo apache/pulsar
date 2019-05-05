@@ -123,13 +123,13 @@ public class LocalRunner {
             userCodeFile = sourceConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                 File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, true));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Source archive does not exist");
                 }
-                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null));
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null, true));
             }
         } else {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);
@@ -142,13 +142,13 @@ public class LocalRunner {
             userCodeFile = sinkConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                 File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, true));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Sink archive does not exist");
                 }
-                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, true));
             }
         }
         startLocalRun(functionDetails, parallelism,

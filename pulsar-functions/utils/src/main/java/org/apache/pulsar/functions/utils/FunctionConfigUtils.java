@@ -53,7 +53,6 @@ public class FunctionConfigUtils {
                 typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
             }
         }
-
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
         // Setup source
@@ -562,31 +561,36 @@ public class FunctionConfigUtils {
         return retval;
     }
 
-    public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
+    public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile,
+                                       boolean doAdditionalJavaChecks) {
         doCommonChecks(functionConfig);
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-            ClassLoader classLoader = null;
-            if (functionPackageFile != null) {
-                try {
-                    classLoader = loadJar(functionPackageFile);
-                } catch (MalformedURLException e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
+            if (doAdditionalJavaChecks) {
+                ClassLoader classLoader = null;
+                if (functionPackageFile != null) {
+                    try {
+                        classLoader = loadJar(functionPackageFile);
+                    } catch (MalformedURLException e) {
+                        throw new IllegalArgumentException("Corrupted Jar File", e);
+                    }
+                } else if (!isEmpty(functionConfig.getJar())) {
+                    File jarFile = new File(functionConfig.getJar());
+                    if (!jarFile.exists()) {
+                        throw new IllegalArgumentException("Jar file does not exist");
+                    }
+                    try {
+                        classLoader = loadJar(jarFile);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException("Corrupted Jar File", e);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Function Package is not provided");
                 }
-            } else if (!isEmpty(functionConfig.getJar())) {
-                File jarFile = new File(functionConfig.getJar());
-                if (!jarFile.exists()) {
-                    throw new IllegalArgumentException("Jar file does not exist");
-                }
-                try {
-                    classLoader = loadJar(jarFile);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
-                }
+                doJavaChecks(functionConfig, classLoader);
+                return classLoader;
             } else {
-                throw new IllegalArgumentException("Function Package is not provided");
+                return null;
             }
-            doJavaChecks(functionConfig, classLoader);
-            return classLoader;
         } else {
             doPythonChecks(functionConfig);
             return null;

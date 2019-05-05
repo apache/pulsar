@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,11 +32,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -48,12 +55,17 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
+    private Function.FunctionDetails functionDetails;
+    private String jarFile;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,
+                        Function.FunctionDetails functionDetails, String jarFile) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
         this.properties = properties;
+        this.functionDetails = functionDetails;
+        this.jarFile = jarFile;
     }
 
     @Override
@@ -107,6 +119,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void received(Consumer<T> consumer, Message<T> message) {
+        log.info("Received a record " + message.getValue().toString());
 
         Record<T> record = PulsarRecord.<T>builder()
                 .message(message)
@@ -145,9 +158,42 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     @VisibleForTesting
     Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
         Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
-
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
+        Class<?> typeArg;
+        if (!StringUtils.isEmpty(this.pulsarSourceConfig.getTypeClassName())) {
+            typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
+                    Thread.currentThread().getContextClassLoader());
+        } else {
+            switch (InstanceUtils.calculateSubjectType(functionDetails)) {
+                case FUNCTION:
+                    Class<?>[] functionTypes = FunctionCommon.getFunctionTypes(functionDetails, Thread.currentThread().getContextClassLoader());
+                    typeArg = Reflections.loadClass(functionTypes[0].getName(),
+                            Thread.currentThread().getContextClassLoader());
+                    break;
+                case SINK:
+                    List<String> serdes = new LinkedList<>();
+                    List<String> schemas = new LinkedList<>();
+                    if (functionDetails.getSource().getTopicsToSerDeClassName() != null) {
+                        functionDetails.getSource().getTopicsToSerDeClassName().forEach((topicName, serde) -> serdes.add(serde));
+                    }
+                    if (functionDetails.getSource().getInputSpecsMap() != null) {
+                        functionDetails.getSource().getInputSpecsMap().forEach((topicName, spec) -> {
+                            if (!StringUtils.isEmpty(spec.getSerdeClassName())) {
+                                serdes.add(spec.getSerdeClassName());
+                            }
+                            if (!StringUtils.isEmpty(spec.getSchemaType())) {
+                                schemas.add(spec.getSchemaType());
+                            }
+                        });
+                    }
+                    SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.extractedSinkDetails(functionDetails.getSink().getClassName(), null, new File(jarFile),
+                            serdes, schemas);
+                    typeArg = Reflections.loadClass(sinkDetails.getTypeArg(), Thread.currentThread().getContextClassLoader());
+                    break;
+                case SOURCE:
+                default:
+                    throw new RuntimeException("Invalid componentType in PulsarSource");
+            }
+        }
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 

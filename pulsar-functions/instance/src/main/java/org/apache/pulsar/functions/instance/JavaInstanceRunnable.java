@@ -658,7 +658,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     break;
             }
 
-            pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
+            if (!StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
+            }
 
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
@@ -668,7 +670,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties);
+            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.instanceConfig.getFunctionDetails(), this.jarFile);
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
@@ -712,9 +714,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     pulsarSinkConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
                 }
 
-                pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                if (!StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                    pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                }
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats);
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.instanceConfig.getFunctionDetails(), this.jarFile);
             }
         } else {
             object = Reflections.createInstance(

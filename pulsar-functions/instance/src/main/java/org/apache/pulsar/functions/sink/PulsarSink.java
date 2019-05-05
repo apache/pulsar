@@ -34,14 +34,18 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -59,6 +63,8 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
     private ComponentStatsManager stats;
+    private org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails;
+    private String jarFile;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
@@ -237,12 +243,15 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties, ComponentStatsManager stats) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties, ComponentStatsManager stats,
+                      org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails, String jarFile) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
+        this.functionDetails = functionDetails;
+        this.jarFile = jarFile;
     }
 
     @Override
@@ -310,12 +319,28 @@ public class PulsarSink<T> implements Sink<T> {
     @SuppressWarnings("unchecked")
     @VisibleForTesting
     Schema<T> initializeSchema() throws ClassNotFoundException {
+        Class<?> typeArg;
         if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
-            return (Schema<T>) Schema.BYTES;
+            switch (InstanceUtils.calculateSubjectType(functionDetails)) {
+                case FUNCTION:
+                    Class<?>[] functionTypes = FunctionCommon.getFunctionTypes(functionDetails, Thread.currentThread().getContextClassLoader());
+                    typeArg = Reflections.loadClass(functionTypes[1].getName(),
+                            Thread.currentThread().getContextClassLoader());
+                    break;
+                case SOURCE:
+                    SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.extractedSourceDetails(functionDetails.getSource().getClassName(), null, new File(jarFile),
+                            functionDetails.getSink().getSerDeClassName(), functionDetails.getSink().getSchemaType());
+                    typeArg = Reflections.loadClass(sourceDetails.getTypeArg(), Thread.currentThread().getContextClassLoader());
+                    break;
+                case SINK:
+                default:
+                    throw new RuntimeException("Invalid componentType in PulsarSink");
+            }
+        } else {
+            typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
+                    Thread.currentThread().getContextClassLoader());
         }
-
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
+        log.info("In PulsarSink determined to be " + typeArg.getName());
 
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check

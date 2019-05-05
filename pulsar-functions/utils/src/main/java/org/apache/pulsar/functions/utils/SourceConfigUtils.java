@@ -41,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -198,7 +199,8 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile,
+                                                  boolean doLoadChecks) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -221,66 +223,15 @@ public class SourceConfigUtils {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
 
-        String sourceClassName;
-        final Class<?> typeArg;
-        final ClassLoader classLoader;
-        if (!isEmpty(sourceConfig.getClassName())) {
-            sourceClassName = sourceConfig.getClassName();
-            // We really don't know if we should use nar class loader or regular classloader
-            ClassLoader jarClassLoader = null;
-            ClassLoader narClassLoader = null;
-            try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
-            } catch (Exception e) {
-            }
-            try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
-            } catch (Exception e) {
-            }
-            if (jarClassLoader == null && narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Source Package");
-            }
-            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
-            // Thus we use these tmp vars
-            Class<?> tmptypeArg;
-            ClassLoader tmpclassLoader;
-            try {
-                tmptypeArg = getSourceType(sourceClassName, narClassLoader);
-                tmpclassLoader = narClassLoader;
-            } catch (Exception e) {
-                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
-                tmpclassLoader = jarClassLoader;
-            }
-            typeArg = tmptypeArg;
-            classLoader = tmpclassLoader;
-        } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+        if (isEmpty(sourceConfig.getClassName()) && !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
+        }
+        if (doLoadChecks) {
+            return extractedSourceDetails(sourceConfig.getClassName(), archivePath, sourcePackageFile,
+                    sourceConfig.getSerdeClassName(), sourceConfig.getSchemaType());
         } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Source Package is not provided");
-            }
-            try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
-            } catch (IOException e1) {
-                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
-            }
-            typeArg = getSourceType(sourceClassName, classLoader);
+            return new ExtractedSourceDetails(sourceConfig.getClassName(), null);
         }
-
-        // Only one of serdeClassName or schemaType should be set
-        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
-        }
-
-        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
-            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, classLoader, false);
-        }
-        if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
-        }
-
-        return new ExtractedSourceDetails(sourceClassName, typeArg.getName());
     }
 
     public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {
@@ -325,6 +276,84 @@ public class SourceConfigUtils {
             mergedConfig.setArchive(newConfig.getArchive());
         }
         return mergedConfig;
+    }
+
+    public static void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+            String typeArg = getSourceType(className, ncl).getName();
+
+            Function.SourceSpec.Builder sourceBuilder = Function.SourceSpec.newBuilder(functionDetails.getSource());
+            sourceBuilder.setTypeClassName(typeArg);
+            functionDetails.setSource(sourceBuilder);
+
+            Function.SinkSpec sinkSpec = functionDetails.getSink();
+            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                Function.SinkSpec.Builder sinkBuilder = Function.SinkSpec.newBuilder(sinkSpec);
+                sinkBuilder.setTypeClassName(typeArg);
+                functionDetails.setSink(sinkBuilder);
+            }
+        }
+    }
+
+    public static ExtractedSourceDetails extractedSourceDetails(String sourceClassName, Path archivePath, File sourcePackageFile,
+                                                                String serdeClassName, String schemaClassName) {
+        Class<?> typeArg = null;
+        final ClassLoader classLoader;
+        if (!isEmpty(sourceClassName)) {
+            // We really don't know if we should use nar class loader or regular classloader
+            ClassLoader jarClassLoader = null;
+            ClassLoader narClassLoader = null;
+            try {
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
+            } catch (Exception e) {
+            }
+            try {
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+            } catch (Exception e) {
+            }
+            if (jarClassLoader == null && narClassLoader == null) {
+                throw new IllegalArgumentException("Invalid Source Package");
+            }
+            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
+            // Thus we use these tmp vars
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
+            try {
+                tmptypeArg = getSourceType(sourceClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
+            } catch (Exception e) {
+                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
+            }
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
+        } else {
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Source Package is not provided");
+            }
+            try {
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
+            }
+            typeArg = getSourceType(sourceClassName, classLoader);
+        }
+
+        // Only one of serdeClassName or schemaType should be set
+        if (!StringUtils.isEmpty(serdeClassName) && !StringUtils.isEmpty(schemaClassName)) {
+            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+        }
+
+        if (!StringUtils.isEmpty(serdeClassName)) {
+            ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, false);
+        }
+        if (!StringUtils.isEmpty(schemaClassName)) {
+            ValidatorUtils.validateSchema(schemaClassName, typeArg, classLoader, false);
+        }
+
+        return new ExtractedSourceDetails(sourceClassName, typeArg != null ? typeArg.getName() : null);
     }
 
 }

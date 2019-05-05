@@ -18,22 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -43,12 +27,35 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.IObjectFactory;
+import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.mock;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.fail;
+
+@PrepareForTest({ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class PulsarSourceTest {
 
@@ -95,8 +102,18 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = new PulsarSourceConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         pulsarConfig.setTopicSchema(consumerConfigs);
-        pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
+    }
+    private static Function.FunctionDetails.Builder getFunctionDetails() {
+        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder()
+                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE);
+        Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
+        sourceSpecBuilder.putInputSpecs("persistent://sample/standalone/ns1/test_result",
+                Function.ConsumerSpec.newBuilder()
+                        .setIsRegexPattern(false)
+                        .build());
+        functionDetailsBuilder.setSource(sourceSpecBuilder);
+        return functionDetailsBuilder;
     }
 
     @Getter
@@ -118,16 +135,26 @@ public class PulsarSourceTest {
         }
     }
 
+    @ObjectFactory
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
+    }
 
     @Test
     public void testVoidInputClasses() throws IOException {
+        mockStatic(FunctionCommon.class);
+        Class<?>[] types = {
+                Void.class,
+                Integer.class
+        };
+        doReturn(types).when(FunctionCommon.class);
+        FunctionCommon.getFunctionTypes(any(Function.FunctionDetails.class), any(ClassLoader.class));
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
-        // set type to void
-        pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+        Function.FunctionDetails functionDetails = getFunctionDetails().build();
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>(), functionDetails, null);
 
         try {
-            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
+            pulsarSource.open(new HashMap<>(), null);
             assertFalse(true);
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -144,15 +171,29 @@ public class PulsarSourceTest {
     @Test
     public void testInconsistentInputType() throws IOException {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        Function.FunctionDetails.Builder functionDetailsBuilder = getFunctionDetails();
         // set type to be inconsistent to that of SerDe
-        pulsarConfig.setTypeClassName(Integer.class.getName());
+        mockStatic(FunctionCommon.class);
+        Class<?>[] types = {
+                Integer.class,
+                Integer.class
+        };
+        Thread.currentThread().setContextClassLoader(SerDe.class.getClassLoader());
+        doReturn(types).when(FunctionCommon.class);
+        FunctionCommon.getFunctionTypes(any(Function.FunctionDetails.class), any(ClassLoader.class));
         Map<String, ConsumerConfig> topicSerdeClassNameMap = new HashMap<>();
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(TestSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+        Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
+        sourceSpecBuilder.putInputSpecs("persistent://sample/standalone/ns1/test_result",
+                Function.ConsumerSpec.newBuilder()
+                        .setSerdeClassName(TestSerDe.class.getName())
+                        .build());
+        functionDetailsBuilder.setSource(sourceSpecBuilder);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>(), functionDetailsBuilder.build(), null);
         try {
-            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
+            pulsarSource.open(new HashMap<>(), null);
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -170,26 +211,42 @@ public class PulsarSourceTest {
     public void testDefaultSerDe() throws Exception {
 
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        Function.FunctionDetails functionDetails = getFunctionDetails().build();
         // set type to void
-        pulsarConfig.setTypeClassName(String.class.getName());
+        mockStatic(FunctionCommon.class);
+        Class<?>[] types = {
+                String.class,
+                Integer.class
+        };
+        doReturn(types).when(FunctionCommon.class);
+        FunctionCommon.getFunctionTypes(any(Function.FunctionDetails.class), any(ClassLoader.class));
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>(), functionDetails, null);
 
-        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
+        pulsarSource.open(new HashMap<>(), null);
     }
 
     @Test
     public void testComplexOuputType() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        Function.FunctionDetails functionDetails = getFunctionDetails().build();
         // set type to void
-        pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
+        mockStatic(FunctionCommon.class);
+        Class<?>[] types = {
+                ComplexUserDefinedType.class,
+                Integer.class
+        };
+        Thread.currentThread().setContextClassLoader(SerDe.class.getClassLoader());
+        doReturn(types).when(FunctionCommon.class);
+        FunctionCommon.getFunctionTypes(any(Function.FunctionDetails.class), any(ClassLoader.class));
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(ComplexSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>(), functionDetails, null);
 
         pulsarSource.setupConsumerConfigs();
     }
+
 }

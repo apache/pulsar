@@ -32,7 +32,6 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -46,6 +45,8 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
@@ -68,8 +69,6 @@ import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Data
 @Setter
@@ -397,7 +396,7 @@ public class FunctionActioner {
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
 
-                fillSourceTypeClass(functionDetails, archive, sourceClass);
+                SourceConfigUtils.fillSourceTypeClass(functionDetails, archive, sourceClass);
                 return archive;
             }
         }
@@ -411,48 +410,12 @@ public class FunctionActioner {
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);
 
-                fillSinkTypeClass(functionDetails, archive, sinkClass);
+                SinkConfigUtils.fillSinkTypeClass(functionDetails, archive, sinkClass);
                 return archive;
             }
         }
 
         throw new IOException("Could not find built in archive definition");
-    }
-
-    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
-            String typeArg = getSourceType(className, ncl).getName();
-
-            SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
-            sourceBuilder.setTypeClassName(typeArg);
-            functionDetails.setSource(sourceBuilder);
-
-            SinkSpec sinkSpec = functionDetails.getSink();
-            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
-                SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
-                sinkBuilder.setTypeClassName(typeArg);
-                functionDetails.setSink(sinkBuilder);
-            }
-        }
-    }
-
-    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
-            String typeArg = getSinkType(className, ncl).getName();
-
-            SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
-            sinkBuilder.setTypeClassName(typeArg);
-            functionDetails.setSink(sinkBuilder);
-
-            SourceSpec sourceSpec = functionDetails.getSource();
-            if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
-                SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
-                sourceBuilder.setTypeClassName(typeArg);
-                functionDetails.setSource(sourceBuilder);
-            }
-        }
     }
 
     private static String getDownloadFileName(FunctionDetails FunctionDetails,

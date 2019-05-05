@@ -213,6 +213,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long instanceLivenessCheckFreqMs;
     @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Do we do additional checks of the user code for java functions?"
+    )
+    private boolean additionalJavaChecks;
+    @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )

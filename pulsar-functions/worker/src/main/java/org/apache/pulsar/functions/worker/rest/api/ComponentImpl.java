@@ -1602,7 +1602,7 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             functionConfig.setNamespace(namespace);
             functionConfig.setName(componentName);
             FunctionConfigUtils.inferMissingArguments(functionConfig);
-            ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+            ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile, worker().getWorkerConfig().isAdditionalJavaChecks());
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
         if (componentType.equals(SOURCE)) {
@@ -1624,7 +1624,8 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
                     throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
                 }
             }
-            SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, componentPackageFile);
+            SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, componentPackageFile,
+                    worker().getWorkerConfig().isAdditionalJavaChecks());
             return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         }
         if (componentType.equals(SINK)) {
@@ -1646,7 +1647,8 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
                     throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
                 }
             }
-            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath, componentPackageFile);
+            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath, componentPackageFile,
+                    worker().getWorkerConfig().isAdditionalJavaChecks());
             return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         } else {
             throw new IllegalArgumentException("Unrecognized component type: " + componentType);

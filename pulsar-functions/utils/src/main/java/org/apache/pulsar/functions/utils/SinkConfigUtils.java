@@ -32,6 +32,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -281,7 +282,7 @@ public class SinkConfigUtils {
     }
 
     public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
-                                          File uploadedInputStreamAsFile) {
+                                          File uploadedInputStreamAsFile, boolean doLoadChecks) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -316,82 +317,47 @@ public class SinkConfigUtils {
             throw new IllegalArgumentException("Sink timeout must be a positive number");
         }
 
-        String sinkClassName;
-        final Class<?> typeArg;
-        final ClassLoader classLoader;
-        if (!isEmpty(sinkConfig.getClassName())) {
-            sinkClassName = sinkConfig.getClassName();
-            // We really don't know if we should use nar class loader or regular classloader
-            ClassLoader jarClassLoader = null;
-            ClassLoader narClassLoader = null;
-            try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, uploadedInputStreamAsFile);
-            } catch (Exception e) {
-            }
-            try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
-            } catch (Exception e) {
-            }
-            if (jarClassLoader == null && narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Sink Package");
-            }
-            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
-            // Thus we use these tmp vars
-            Class<?> tmptypeArg;
-            ClassLoader tmpclassLoader;
-            try {
-                tmptypeArg = getSinkType(sinkClassName, narClassLoader);
-                tmpclassLoader = narClassLoader;
-            } catch (Exception e) {
-                tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
-                tmpclassLoader = jarClassLoader;
-            }
-            typeArg = tmptypeArg;
-            classLoader = tmpclassLoader;
-        } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+        if (isEmpty(sinkConfig.getClassName()) && !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             throw new IllegalArgumentException("Class-name must be present for archive with file-url");
+        }
+        if (doLoadChecks) {
+            // topicsPattern does not need checks
+            List<String> serdes = new LinkedList<>();
+            List<String> schemas = new LinkedList<>();
+
+
+            if (sinkConfig.getTopicToSerdeClassName() != null) {
+                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                    serdes.add(serdeClassName);
+                });
+            }
+
+            if (sinkConfig.getTopicToSchemaType() != null) {
+                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                    schemas.add(schemaType);
+                });
+            }
+
+            // topicsPattern does not need checks
+
+            if (sinkConfig.getInputSpecs() != null) {
+                sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+                    // Only one is set
+                    if (!isEmpty(consumerSpec.getSerdeClassName()) && !isEmpty(consumerSpec.getSchemaType())) {
+                        throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+                    }
+                    if (!isEmpty(consumerSpec.getSerdeClassName())) {
+                        serdes.add(consumerSpec.getSerdeClassName());
+                    }
+                    if (!isEmpty(consumerSpec.getSchemaType())) {
+                        schemas.add(consumerSpec.getSchemaType());
+                    }
+                });
+            }
+            return extractedSinkDetails(sinkConfig.getClassName(), archivePath, uploadedInputStreamAsFile, serdes, schemas);
         } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Sink Package is not provided");
-            }
-            try {
-                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
-            } catch (IOException e1) {
-                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
-            }
-            typeArg = getSinkType(sinkClassName, classLoader);
+            return new ExtractedSinkDetails(sinkConfig.getClassName(), null);
         }
-
-        if (sinkConfig.getTopicToSerdeClassName() != null) {
-            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, true);
-            });
-        }
-
-        if (sinkConfig.getTopicToSchemaType() != null) {
-            sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                ValidatorUtils.validateSchema(schemaType, typeArg, classLoader, true);
-            });
-        }
-
-        // topicsPattern does not need checks
-
-        if (sinkConfig.getInputSpecs() != null) {
-            sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
-                // Only one is set
-                if (!isEmpty(consumerSpec.getSerdeClassName()) && !isEmpty(consumerSpec.getSchemaType())) {
-                    throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
-                }
-                if (!isEmpty(consumerSpec.getSerdeClassName())) {
-                    ValidatorUtils.validateSerde(consumerSpec.getSerdeClassName(), typeArg, classLoader, true);
-                }
-                if (!isEmpty(consumerSpec.getSchemaType())) {
-                    ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, classLoader, true);
-                }
-            });
-        }
-        return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
     }
 
     private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
@@ -509,5 +475,81 @@ public class SinkConfigUtils {
             mergedConfig.setArchive(newConfig.getArchive());
         }
         return mergedConfig;
+    }
+
+    public static void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+            String typeArg = getSinkType(className, ncl).getName();
+
+            Function.SinkSpec.Builder sinkBuilder = Function.SinkSpec.newBuilder(functionDetails.getSink());
+            sinkBuilder.setTypeClassName(typeArg);
+            functionDetails.setSink(sinkBuilder);
+
+            Function.SourceSpec sourceSpec = functionDetails.getSource();
+            if (null == sourceSpec || org.apache.commons.lang3.StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                Function.SourceSpec.Builder sourceBuilder = Function.SourceSpec.newBuilder(sourceSpec);
+                sourceBuilder.setTypeClassName(typeArg);
+                functionDetails.setSource(sourceBuilder);
+            }
+        }
+    }
+
+    public static ExtractedSinkDetails extractedSinkDetails(String sinkClassName, Path archivePath,
+                                                            File uploadedInputStreamAsFile,
+                                                            Collection<String> serdes,
+                                                            Collection<String> schemas) {
+        final ClassLoader classLoader;
+        Class<?> typeArg = null;
+        if (!isEmpty(sinkClassName)) {
+            // We really don't know if we should use nar class loader or regular classloader
+            ClassLoader jarClassLoader = null;
+            ClassLoader narClassLoader = null;
+            try {
+                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+            }
+            try {
+                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+            }
+            if (jarClassLoader == null && narClassLoader == null) {
+                throw new IllegalArgumentException("Invalid Sink Package");
+            }
+            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
+            // Thus we use these tmp vars
+            Class<?> tmptypeArg;
+            ClassLoader tmpclassLoader;
+            try {
+                tmptypeArg = getSinkType(sinkClassName, narClassLoader);
+                tmpclassLoader = narClassLoader;
+            } catch (Exception e) {
+                tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
+                tmpclassLoader = jarClassLoader;
+            }
+            typeArg = tmptypeArg;
+            classLoader = tmpclassLoader;
+        } else {
+            classLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Sink Package is not provided");
+            }
+            try {
+                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
+            }
+            typeArg = getSinkType(sinkClassName, classLoader);
+        }
+
+        for (String serde: serdes) {
+            final Class<?> tmpTypeArg = typeArg;
+            ValidatorUtils.validateSerde(serde, tmpTypeArg, classLoader, true);
+        }
+        for (String schema: schemas) {
+            final Class<?> tmpTypeArg = typeArg;
+            ValidatorUtils.validateSchema(schema, tmpTypeArg, classLoader, true);
+        }
+        return new ExtractedSinkDetails(sinkClassName, typeArg != null ? typeArg.getName() : null);
     }
 }
