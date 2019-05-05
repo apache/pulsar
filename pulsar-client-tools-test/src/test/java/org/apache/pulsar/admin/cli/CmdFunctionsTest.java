@@ -54,6 +54,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -504,7 +505,7 @@ public class CmdFunctionsTest {
         assertEquals(inputTopicName, updater.getInputs());
         assertEquals(outputTopicName, updater.getOutput());
 
-        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
     }
 
     @Test
@@ -724,7 +725,7 @@ public class CmdFunctionsTest {
         // Disk/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
     }
 
     @Test
@@ -755,7 +756,7 @@ public class CmdFunctionsTest {
         // cpu/disk should be default
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
     }
 
     @Test
@@ -786,7 +787,41 @@ public class CmdFunctionsTest {
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
+    }
+
+    @Test
+    public void testUpdateAuthData() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "update",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--disk", "8080808080808080",
+                "--update-auth-data"
+        });
+
+        UpdateFunction updater = cmd.getUpdater();
+
+        assertEquals(fnName, updater.getFunctionName());
+        assertEquals(inputTopicName, updater.getInputs());
+        assertEquals(outputTopicName, updater.getOutput());
+        assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(8080808080808080l));
+        // cpu/Ram should be default
+        assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(updateOptions));
     }
 
 
