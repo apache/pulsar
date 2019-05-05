@@ -29,11 +29,14 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.Map;
 
 public class KeyValueSchemaCompatibilityCheckTest {
+
+    private final Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
 
     @Data
     @ToString
@@ -52,6 +55,13 @@ public class KeyValueSchemaCompatibilityCheckTest {
         private boolean field1;
     }
 
+    @BeforeClass
+    protected void setup() {
+        checkers.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
+        checkers.put(SchemaType.JSON, new JsonSchemaCompatibilityCheck());
+        checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+    }
+
     @Test
     public void testCheckKeyValueAvroCompatibilityFull() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
@@ -63,8 +73,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -78,8 +87,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -93,8 +101,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -108,8 +115,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -123,8 +129,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -138,8 +143,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -153,8 +157,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -168,8 +171,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -183,8 +185,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -198,8 +199,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -213,8 +213,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -228,8 +227,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -243,8 +241,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -258,8 +255,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -273,8 +269,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -288,8 +283,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -303,8 +297,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -318,8 +311,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -333,8 +325,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -348,8 +339,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
@@ -363,8 +353,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
@@ -378,8 +367,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
 
@@ -394,8 +382,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertTrue(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
@@ -409,7 +396,40 @@ public class KeyValueSchemaCompatibilityCheckTest {
                 .data(KeyValueSchema.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        KeyValueSchemaCompatibilityCheck keyValueSchemaCompatibilityCheck = new KeyValueSchemaCompatibilityCheck();
-        Assert.assertFalse(keyValueSchemaCompatibilityCheck.isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+    }
+
+    @Test
+    public void testCheckKeyJsonValueAvroKeyTypeInCompatibility() {
+        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        Map<String, String> fromProperties = Maps.newHashMap();
+        fromProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
+        fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
+        Map<String, String> toProperties = Maps.newHashMap();
+        toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
+        toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(barSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+    }
+
+    @Test
+    public void testCheckKeyJsonValueAvroValueTypeInCompatibility() {
+        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        Map<String, String> fromProperties = Maps.newHashMap();
+        fromProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
+        fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
+        Map<String, String> toProperties = Maps.newHashMap();
+        toProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
+        toProperties.put("value.schema.type", String.valueOf(SchemaType.JSON));
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, fooSchema).getSchemaInfo().getSchema()).props(toProperties).build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 }

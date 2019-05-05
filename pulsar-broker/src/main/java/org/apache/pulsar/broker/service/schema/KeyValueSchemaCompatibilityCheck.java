@@ -18,18 +18,26 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import com.google.gson.Gson;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 
 /**
  * {@link KeyValueSchemaCompatibilityCheck} for {@link SchemaType#KEY_VALUE}.
  */
-public class KeyValueSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCheck {
+public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
-    private KeyValue<byte[], byte[]> decode(byte[] bytes, SchemaData schemaData) {
+    private final Map<SchemaType, SchemaCompatibilityCheck> checkers;
+
+    public KeyValueSchemaCompatibilityCheck(Map<SchemaType, SchemaCompatibilityCheck> checkers) {
+        this.checkers = checkers;
+    }
+
+    private KeyValue<byte[], byte[]> splitKeyValueSchemaData(byte[] bytes) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         int keyLength = byteBuffer.getInt();
         byte[] keySchema = new byte[keyLength];
@@ -48,48 +56,44 @@ public class KeyValueSchemaCompatibilityCheck extends AvroSchemaBasedCompatibili
 
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        KeyValue<byte[], byte[]> fromKeyValue = this.decode(from.getData(), from);
-        KeyValue<byte[], byte[]> toKeyValue = this.decode(to.getData(), to);
+        KeyValue<byte[], byte[]> fromKeyValue = this.splitKeyValueSchemaData(from.getData());
+        KeyValue<byte[], byte[]> toKeyValue = this.splitKeyValueSchemaData(to.getData());
+
+        SchemaType fromKeyType = SchemaType.valueOf(from.getProps().get("key.schema.type"));
+        SchemaType fromValueType = SchemaType.valueOf(from.getProps().get("value.schema.type"));
+        SchemaType toKeyType = SchemaType.valueOf(to.getProps().get("key.schema.type"));
+        SchemaType toValueType = SchemaType.valueOf(to.getProps().get("value.schema.type"));
+
+        if (fromKeyType != toKeyType || fromValueType != toValueType) {
+            return false;
+        }
+
+        Gson schemaGson = new Gson();
+        Map<String, String> keyFromProperties = schemaGson.fromJson(from.getProps().get("key.schema.properties"), Map.class);
+        Map<String, String> valueFromProperties = schemaGson.fromJson(from.getProps().get("value.schema.properties"), Map.class);
+        Map<String, String> keyToProperties = schemaGson.fromJson(to.getProps().get("key.schema.properties"), Map.class);
+        Map<String, String> valueToProperties = schemaGson.fromJson(to.getProps().get("value.schema.properties"), Map.class);
 
         SchemaData fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
-                .type(SchemaType.valueOf(from.getProps().get("key.schema.type"))).build();
+                .type(fromKeyType)
+                .props(keyFromProperties).build();
 
         SchemaData fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
-                .type(SchemaType.valueOf(from.getProps().get("value.schema.type"))).build();
+                .type(fromValueType)
+                .props(valueFromProperties).build();
 
         SchemaData toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
-                .type(SchemaType.valueOf(to.getProps().get("key.schema.type"))).build();
+                .type(toKeyType)
+                .props(keyToProperties).build();
 
 
         SchemaData toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
-                .type(SchemaType.valueOf(to.getProps().get("value.schema.type"))).build();
+                .type(toValueType)
+                .props(valueToProperties).build();
 
-        JsonSchemaCompatibilityCheck jsonSchemaCompatibilityCheck = new JsonSchemaCompatibilityCheck();
-        if (SchemaType.valueOf(to.getProps().get("key.schema.type")) == SchemaType.AVRO
-                && SchemaType.valueOf(to.getProps().get("value.schema.type")) == SchemaType.AVRO) {
-            if (super.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
-                    && super.isCompatible(fromValueSchemaData, toValueSchemaData, strategy)) {
-                return true;
-            }
-        } else if (SchemaType.valueOf(to.getProps().get("key.schema.type")) == SchemaType.JSON
-                && SchemaType.valueOf(to.getProps().get("value.schema.type")) == SchemaType.JSON) {
-            if (jsonSchemaCompatibilityCheck.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
-                    && jsonSchemaCompatibilityCheck.isCompatible(fromValueSchemaData, toValueSchemaData, strategy)) {
-                return true;
-            }
-        } else if (SchemaType.valueOf(to.getProps().get("key.schema.type")) == SchemaType.AVRO
-                && SchemaType.valueOf(to.getProps().get("value.schema.type")) == SchemaType.JSON) {
-            if (super.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
-                    && jsonSchemaCompatibilityCheck.isCompatible(fromValueSchemaData, toValueSchemaData, strategy)) {
-                return true;
-            }
-        } else if (SchemaType.valueOf(to.getProps().get("key.schema.type")) == SchemaType.JSON
-                && SchemaType.valueOf(to.getProps().get("value.schema.type")) == SchemaType.AVRO) {
-            if (jsonSchemaCompatibilityCheck.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
-                    && super.isCompatible(fromValueSchemaData, toValueSchemaData, strategy)) {
-                return true;
-            }
-        }
-        return false;
+        SchemaCompatibilityCheck keyCheck = checkers.get(toKeyType);
+        SchemaCompatibilityCheck valueCheck = checkers.get(toValueType);
+        return keyCheck.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
+                && valueCheck.isCompatible(fromValueSchemaData, toValueSchemaData, strategy);
     }
 }
