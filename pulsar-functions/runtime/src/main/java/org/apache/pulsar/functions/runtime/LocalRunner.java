@@ -108,8 +108,12 @@ public class LocalRunner {
                     }
                     classLoader = loadJar(file);
                 }
-            } else {
+            } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
+                userCodeFile = functionConfig.getGo();
+            } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON){
                 userCodeFile = functionConfig.getPy();
+            } else {
+                throw new UnsupportedOperationException();
             }
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         } else if (!StringUtils.isEmpty(sourceConfigString)) {
@@ -172,14 +176,14 @@ public class LocalRunner {
         }
 
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-            serviceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            null, /* java instance jar file */
-            null, /* python instance file */
-            null, /* log directory */
-            null, /* extra dependencies dir */
-            new DefaultSecretsProviderConfigurator(), false)) {
+                serviceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                null, /* java instance jar file */
+                null, /* python instance file */
+                null, /* log directory */
+                null, /* extra dependencies dir */
+                new DefaultSecretsProviderConfigurator(), false)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
