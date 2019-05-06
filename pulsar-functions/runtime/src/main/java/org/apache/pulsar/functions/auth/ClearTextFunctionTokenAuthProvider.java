@@ -28,9 +28,15 @@ import static org.apache.pulsar.broker.authentication.AuthenticationProviderToke
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
-        authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.getData()));
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
+        if (!functionAuthData.isPresent()) {
+            // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
+            authConfig.setClientAuthenticationPlugin(null);
+            authConfig.setClientAuthenticationParameters(null);
+        } else {
+            authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
+            authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.get().getData()));
+        }
     }
 
     @Override
@@ -45,11 +51,17 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
         if (token != null) {
             return Optional.of(FunctionAuthData.builder().data(token.getBytes()).build());
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
+    public Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name,
+                                                     Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception {
+        return cacheAuthData(tenant, namespace, name, authenticationDataSource);
+    }
+
+    @Override
+    public void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception {
         //no-op
     }
 }
