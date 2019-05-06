@@ -43,6 +43,8 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
 
 RUN mkdir -p /pulsar/instances/deps
 
+COPY go-test-schema/producer_schema /pulsar/examples/go-test-schema
+COPY go-test-schema/consumer_schema /pulsar/examples/go-test-schema
 COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
 COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/

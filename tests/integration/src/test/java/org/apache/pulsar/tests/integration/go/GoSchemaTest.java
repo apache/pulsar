@@ -68,7 +68,7 @@ public class GoSchemaTest extends PulsarTestSuite {
         producer.send(p1);
 
         ContainerExecResult res = pulsarCluster.getAnyBroker()
-                .execCmd("go run pulsar-client-go/examples/consumer/consumer_schema.go", "pulsar://localhost:6650", topicName);
+                .execCmd("tests/docker-images/latest-version-image/go-test-schema/consumer_schema", "pulsar://localhost:6650", topicName);
         assertEquals(res.getExitCode(), 0);
     }
 
@@ -80,7 +80,7 @@ public class GoSchemaTest extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
-        String topicName = generateTopicName(nsName, "testJavaPublishGolangConsume", true);
+        String topicName = generateTopicName(nsName, "testGoPublishJavaConsume", true);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -99,7 +99,7 @@ public class GoSchemaTest extends PulsarTestSuite {
                 .subscribe();
 
         ContainerExecResult res = pulsarCluster.getAnyBroker()
-                .execCmd("go run pulsar-client-go/examples/producer/producer_schema.go", "pulsar://localhost:6650", topicName);
+                .execCmd("tests/docker-images/latest-version-image/go-test-schema/producer_schema", "pulsar://localhost:6650", topicName);
         assertEquals(res.getExitCode(), 0);
 
 
