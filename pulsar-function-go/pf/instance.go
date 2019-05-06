@@ -262,7 +262,7 @@ func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
-	if timeoutMilliSecond < 0 {
+	if timeoutMilliSecond <= 0 {
 		return time.Duration(math.MaxInt64)
 	}
 	return timeoutMilliSecond
@@ -284,7 +284,8 @@ func (gi *goInstance) setupLogHandler() error {
 
 func (gi *goInstance) addLogTopicHandler() {
 	if gi.context.logAppender == nil {
-		panic("please init logAppender")
+		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
+		return
 	}
 
 	for _, logByte := range log.StrEntry {

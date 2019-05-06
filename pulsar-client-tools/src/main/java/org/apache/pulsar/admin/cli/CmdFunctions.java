@@ -198,6 +198,10 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
+        @Parameter(
+                names = "--go",
+                description = "Path to the main Go executable binary for the function (if the function is written in Go)")
+        protected String goFile;
         @Parameter(names = {"-i",
                 "--inputs"}, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
@@ -477,10 +481,16 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setPy(pyFile);
             }
 
+            if (null != goFile) {
+                functionConfig.setGo(goFile);
+            }
+
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
             } else if (functionConfig.getPy() != null) {
                 userCodeFile = functionConfig.getPy();
+            } else if (functionConfig.getGo() != null) {
+                userCodeFile = functionConfig.getGo();
             }
 
             // check if configs are valid
@@ -488,8 +498,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getClassName())) {
-                throw new IllegalArgumentException("No Function Classname specified");
+            // go doesn't need className
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
+                if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                    throw new IllegalArgumentException("No Function Classname specified");
+                }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
@@ -501,13 +514,13 @@ public class CmdFunctions extends CmdBase {
                 org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
             }
 
-            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
-                throw new ParameterException("Either a Java jar or a Python file needs to"
+            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy()) && isNotBlank(functionConfig.getGo())) {
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
-            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())) {
-                throw new ParameterException("Either a Java jar or a Python file needs to"
+            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy()) && isBlank(functionConfig.getGo())) {
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Please specify one.");
             }
 
@@ -518,6 +531,10 @@ public class CmdFunctions extends CmdBase {
             if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
                     !new File(functionConfig.getPy()).exists()) {
                 throw new ParameterException("The specified python file does not exist");
+            }
+            if (!isBlank(functionConfig.getGo()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getGo()) &&
+                    !new File(functionConfig.getGo()).exists()) {
+                throw new ParameterException("The specified go executable binary does not exist");
             }
         }
     }

@@ -45,7 +45,8 @@ public class FunctionConfig {
 
     public enum Runtime {
         JAVA,
-        PYTHON
+        PYTHON,
+        GO
     }
 
     // Any flags that you want to pass to the runtime.
@@ -97,6 +98,7 @@ public class FunctionConfig {
     private Long timeoutMs;
     private String jar;
     private String py;
+    private String go;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
 }

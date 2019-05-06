@@ -185,7 +185,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -193,6 +193,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                throw new UnsupportedOperationException();
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
