@@ -30,11 +30,11 @@ import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
 
 /**
  * [Key, Value] pair schema definition
@@ -52,6 +52,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     @Getter
     private final KeyValueEncodingType keyValueEncodingType;
+
+    protected SchemaInfoProvider schemaInfoProvider;
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
@@ -85,6 +87,10 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         return KV_BYTES;
     }
 
+    @Override
+    public boolean supportSchemaVersioning() {
+        return keySchema.supportSchemaVersioning() || valueSchema.supportSchemaVersioning();
+    }
 
     private KeyValueSchema(Schema<K> keySchema,
                            Schema<V> valueSchema) {
@@ -96,6 +102,46 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                            KeyValueEncodingType keyValueEncodingType) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
+
+        if (keySchema instanceof StructSchema) {
+            ((StructSchema) keySchema).setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                    SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).get("key");
+                }
+
+                @Override
+                public SchemaInfo getLatestSchema() {
+                    return null;
+                }
+
+                @Override
+                public String getTopicName() {
+                    return null;
+                }
+            });
+        }
+
+        if (valueSchema instanceof StructSchema) {
+            ((StructSchema) valueSchema).setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                    SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).get("value");
+                }
+
+                @Override
+                public SchemaInfo getLatestSchema() {
+                    return null;
+                }
+
+                @Override
+                public String getTopicName() {
+                    return null;
+                }
+            });
+        }
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
@@ -125,6 +171,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         properties.put("kv.encoding.type", String.valueOf(keyValueEncodingType));
 
         this.schemaInfo.setSchema(byteBuffer.array()).setProperties(properties);
+
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
@@ -142,6 +189,10 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     }
 
     public KeyValue<K, V> decode(byte[] bytes) {
+        return decode(bytes, null);
+    }
+
+    public KeyValue<K, V> decode(byte[] bytes, byte[] schemaVersion) {
         if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
             throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
         }
@@ -154,14 +205,52 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         byte[] valueBytes = new byte[valueLength];
         byteBuffer.get(valueBytes);
 
-        return decode(keyBytes, valueBytes);
+        return decode(keyBytes, valueBytes, schemaVersion);
     }
 
-    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes) {
-        return new KeyValue<>(keySchema.decode(keyBytes), valueSchema.decode(valueBytes));
+    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
+        K k;
+        if (keySchema.supportSchemaVersioning() && schemaVersion != null) {
+            k = keySchema.decode(keyBytes, schemaVersion);
+        } else {
+            k = keySchema.decode(keyBytes);
+        }
+        V v;
+        if (valueSchema.supportSchemaVersioning() && schemaVersion != null) {
+            v = valueSchema.decode(valueBytes, schemaVersion);
+        } else {
+            v = valueSchema.decode(valueBytes);
+        }
+        return new KeyValue<>(k, v);
     }
 
     public SchemaInfo getSchemaInfo() {
         return this.schemaInfo;
+    }
+
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        this.schemaInfoProvider = schemaInfoProvider;
+    }
+
+    private Map<String, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
+        ByteBuffer byteBuffer = ByteBuffer.wrap(schemaInfo.getSchema());
+        int keySchemaLength = byteBuffer.getInt();
+        byte[] key = new byte[keySchemaLength];
+        byteBuffer.get(key);
+        int valueSchemaLength = byteBuffer.getInt();
+        byte[] value = new byte[valueSchemaLength];
+        byteBuffer.get(value);
+        Map<String, SchemaInfo> mapSchemaInfo = Maps.newHashMap();
+        Gson keySchemaGson = new Gson();
+        mapSchemaInfo.put("key", SchemaInfo.builder().schema(key)
+                .properties(keySchemaGson.fromJson(schemaInfo.getProperties().get("key.schema.properties"), Map.class))
+                .name("")
+                .type(SchemaType.AVRO).build());
+        Gson valueSchemaGson = new Gson();
+        mapSchemaInfo.put("value", SchemaInfo.builder().schema(value)
+                .properties(valueSchemaGson.fromJson(schemaInfo.getProperties().get("value.schema.properties"), Map.class))
+                .name("")
+                .type(SchemaType.AVRO).build());
+        return mapSchemaInfo;
     }
 }
