@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 
@@ -116,6 +118,36 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             LongSchemaVersion longVersion = (LongSchemaVersion) version;
             return getSchema(key, longVersion.getVersion());
         }
+    }
+
+    @Override
+    public List<CompletableFuture<StoredSchema>> getAll(String key) {
+        List<CompletableFuture<StoredSchema>> result = new ArrayList<>();
+        getSchemaLocator(getSchemaPath(key)).thenAccept(locator -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get all schemas - locator: {}", key, locator);
+            }
+
+            if (!locator.isPresent()) {
+                return;
+            }
+
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+
+            schemaLocator.getIndexList().forEach(indexEntry -> {
+                CompletableFuture<StoredSchema> future = new CompletableFuture<>();
+                readSchemaEntry(indexEntry.getPosition()).thenAccept(entry ->
+                    future.complete(
+                        new StoredSchema(
+                                entry.getSchemaData().toByteArray(),
+                                new LongSchemaVersion(schemaLocator.getInfo().getVersion())
+                        )
+                    )
+                );
+                result.add(future);
+            });
+        });
+        return result;
     }
 
     @Override

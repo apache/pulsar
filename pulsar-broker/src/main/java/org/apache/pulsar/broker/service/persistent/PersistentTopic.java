@@ -1932,7 +1932,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
+            .isCompatible(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
