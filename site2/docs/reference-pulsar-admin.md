@@ -996,6 +996,27 @@ Options
 |----|---|---|
 |`-s`, `--size`|Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.|-1|
 
+### `get-schema-autoupdate-strategy`
+Get the schema auto-update strategy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-schema-autoupdate-strategy tenant/namespace
+```
+
+### `set-schema-autoupdate-strategy`
+Set the schema auto-update strategy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-schema-autoupdate-strategy tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).||
+|`-d`, `--disabled`|Disable automatic schema updates.|false|
 
 
 ## `ns-isolation-policy`
@@ -1919,5 +1940,3 @@ Options
 |`-c`, `--classname`|The Java class name||
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
-
-

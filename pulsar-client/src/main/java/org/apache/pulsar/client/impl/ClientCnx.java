@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -38,6 +38,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
@@ -193,7 +194,7 @@ public class ClientCnx extends PulsarHandler {
             authData = authentication.getAuthData().getCommandData();
         }
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress, null, null, null);
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override

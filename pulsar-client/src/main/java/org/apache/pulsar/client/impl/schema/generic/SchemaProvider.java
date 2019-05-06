@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.client.impl.schema.generic;
 
-import lombok.*;
-import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.Schema;
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@Accessors(chain = true)
-public class FunctionAction {
+/**
+ * Schema Provider.
+ */
+public interface SchemaProvider<T> {
 
-    public enum Action {
-        START,
-        STOP,
-        TERMINATE
-    }
+    /**
+     * Retrieve the schema instance of a given <tt>schemaVersion</tt>.
+     *
+     * @param schemaVersion schema version
+     * @return schema instance of the provided <tt>schemaVersion</tt>
+     */
+    Schema<T> getSchema(byte[] schemaVersion);
 
-    private Action action;
-    private FunctionRuntimeInfo functionRuntimeInfo;
 }

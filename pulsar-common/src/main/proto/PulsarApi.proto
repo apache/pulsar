@@ -29,6 +29,17 @@ message Schema {
 		Json = 2;
 		Protobuf = 3;
 		Avro = 4;
+		Bool = 5;
+		Int8 = 6;
+		Int16 = 7;
+		Int32 = 8;
+		Int64 = 9;
+		Float = 10;
+		Double = 11;
+		Date = 12;
+		Time = 13;
+		Timestamp = 14;
+		KeyValue = 15;
 	}
 
     required string name = 1;

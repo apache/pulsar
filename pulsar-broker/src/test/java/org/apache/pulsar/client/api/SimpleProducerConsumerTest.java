@@ -650,9 +650,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)
      * a. non-batch with compression: pass
-     * b. batch-msg with compression: fail
+     * b. batch-msg with compression: pass
      * c. non-batch w/o  compression: fail
      * d. non-batch with compression, consumer consume: pass
+     * e. batch-msg w/o compression: fail
      * </pre>
      *
      * @throws Exception
@@ -672,18 +673,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
-        // (b) batch-msg
+        // (b) batch-msg with compression
         producer = pulsarClient.newProducer().topic(topic)
             .enableBatching(true)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-            fail("Should have thrown exception");
-        } catch (PulsarClientException.InvalidMessageException e) {
-            // OK
-        }
+        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
         producer.close();
 
         // (c) non-batch msg without compression
@@ -711,6 +707,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(content);
         assertEquals(consumer.receive().getData(), content);
         producer.close();
+
+        // (e) batch-msg w/o compression
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.NONE)
+            .create();
+        try {
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.InvalidMessageException e) {
+            // OK
+        }
+        producer.close();
+
         consumer.close();
 
     }
@@ -2901,7 +2912,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     // Pull 3312: https://github.com/apache/pulsar/pull/3312
     // Bugfix preventing duplicated consumers on same client cnx with shared subscription mode
     @Test()
-    public void testPreventDupConsumersOnClientCnx() throws Exception {
+    public void testPreventDupConsumersOnClientCnxForSingleSub() throws Exception {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         final String topic = "persistent://my-property/my-ns/my-topic";
         final String subName = "my-subscription";
@@ -2931,7 +2942,81 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         });
 
         future.get(5, TimeUnit.SECONDS);
+        Assert.assertEquals(consumer, consumerB);
         Assert.assertTrue(future.isDone());
         Assert.assertFalse(future.isCompletedExceptionally());
+    }
+
+    @Test()
+    public void testPreventDupConsumersOnClientCnxForSingleSub_AllowDifferentTopics() throws Exception {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String subName = "my-subscription";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        // This consumer should be a newly subscription since is it from a different topic
+        // even though has the same subscription name.
+        Consumer<byte[]> consumerC = pulsarClient.newConsumer().topic(topic + "-different-topic")
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
+            if (t1 != null) {
+                future.completeExceptionally(t1);
+                return;
+            }
+
+            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
+                if (t2 != null) {
+                    future.completeExceptionally(t2);
+                    return;
+                }
+                future.complete(null);
+            });
+        });
+
+        future.get(5, TimeUnit.SECONDS);
+        Assert.assertEquals(consumer, consumerB);
+        Assert.assertTrue(future.isDone());
+        Assert.assertFalse(future.isCompletedExceptionally());
+
+        // consumerC is a newly created subscription.
+        Assert.assertNotEquals(consumer, consumerC);
+        Assert.assertTrue(consumerC.isConnected());
+        consumerC.close();
+    }
+
+    @Test
+    public void testRefCount_OnCloseConsumer() throws Exception {
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String subName = "my-subscription";
+
+        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Assert.assertEquals(consumerA, consumerB);
+
+        consumerA.close();
+        Assert.assertTrue(consumerA.isConnected());
+        Assert.assertTrue(consumerB.isConnected());
+
+        consumerB.close();
+        Assert.assertFalse(consumerA.isConnected());
+        Assert.assertFalse(consumerB.isConnected());
     }
 }

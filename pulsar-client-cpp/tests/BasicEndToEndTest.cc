@@ -555,7 +555,9 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Client client(lookupUrl);
     std::string topicName = "testMessageTooBig";
     Producer producer;
-    Result result = client.createProducer(topicName, producer);
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
     int size = Commands::MaxMessageSize + 1;
@@ -1135,6 +1137,45 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     producer1.closeAsync(0);
     producer2.closeAsync(0);
     consumer.close();
+    client.close();
+
+    delete[] content;
+}
+
+TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testBigMessageSizeBatching";
+    std::string subName = "my-sub-name";
+
+    ProducerConfiguration conf1;
+    conf1.setCompressionType(CompressionNone);
+    conf1.setBatchingEnabled(true);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName, conf1, producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    ProducerConfiguration conf2;
+    conf2.setCompressionType(CompressionLZ4);
+    conf2.setBatchingEnabled(true);
+
+    Producer producer2;
+    result = client.createProducer(topicName, conf2, producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    int size = Commands::MaxMessageSize + 1;
+    char* content = new char[size];
+    Message msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer1.send(msg);
+    ASSERT_EQ(ResultMessageTooBig, result);
+
+    msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer2.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    producer1.close();
+    producer2.close();
     client.close();
 
     delete[] content;
@@ -2775,6 +2816,8 @@ TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
     // Since this is a shared consumer over same client cnx
     // closing consumerA should result in consumerB also being closed.
     ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
     ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
 }
 
@@ -2800,4 +2843,36 @@ TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
     ASSERT_EQ(ResultOk, consumerA.unsubscribe());
     // If dup consumers are allowed BrokerMetadataError will be the result of close()
     ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
+}
+
+TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string subsName = "my-only-sub";
+    std::string topicName =
+        "persistent://public/default/testPreventDupConsumersAllowSameSubForDifferentTopics";
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+
+    Consumer consumerA;
+    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
+    ASSERT_EQ(ResultOk, resultA);
+    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
+
+    Consumer consumerB;
+    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+
+    Consumer consumerC;
+    Result resultC = client.subscribe(topicName + "-different-topic", subsName, consumerConf, consumerC);
+    ASSERT_EQ(ResultOk, resultB);
+    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
+    ASSERT_EQ(ResultOk, consumerA.close());
+    ASSERT_EQ(ResultOk, consumerB.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
+
+    // consumer C should be a different instance from A and B and should be with open state.
+    ASSERT_EQ(ResultOk, consumerC.close());
 }

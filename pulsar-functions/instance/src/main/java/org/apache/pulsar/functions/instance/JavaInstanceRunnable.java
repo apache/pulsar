@@ -208,14 +208,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     ContextImpl setupContext() {
-        List<String> inputTopics = null;
-        if (source instanceof PulsarSource) {
-            inputTopics = ((PulsarSource<?>) source).getInputTopics();
-        }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType);
+        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+                collectorRegistry, metricsLabels, this.componentType, this.stats);
     }
 
     /**
@@ -461,32 +457,39 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return record;
     }
 
+    /**
+     * NOTE: this method is be syncrhonized because it is potentially called by two different places
+     *       one inside the run/finally clause and one inside the ThreadRuntime::stop
+     */
     @Override
-    public void close() {
+    synchronized public void close() {
 
         if (stats != null) {
             stats.close();
+            stats = null;
         }
 
         if (source != null) {
             try {
                 source.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
-
             }
+            source = null;
         }
 
         if (sink != null) {
             try {
                 sink.close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
             }
+            sink = null;
         }
 
         if (null != javaInstance) {
             javaInstance.close();
+            javaInstance = null;
         }
 
         // kill the state table
@@ -500,13 +503,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.warn("Failed to close state storage client", cause);
                     return null;
                 });
+            storageClient = null;
         }
 
-        // once the thread quits, clean up the instance
-        fnCache.unregisterFunctionInstance(
-                instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceName());
-        log.info("Unloading JAR files for function {}", instanceConfig);
+        if (instanceCache != null) {
+            // once the thread quits, clean up the instance
+            fnCache.unregisterFunctionInstance(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceName());
+            log.info("Unloading JAR files for function {}", instanceConfig);
+            instanceCache = null;
+        }
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
@@ -617,6 +624,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
+                if (conf.hasReceiverQueueSize()) {
+                    consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
+                }
                 pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
             });
 
@@ -704,7 +714,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties);
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats);
             }
         } else {
             object = Reflections.createInstance(

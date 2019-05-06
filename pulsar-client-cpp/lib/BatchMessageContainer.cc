@@ -102,6 +102,14 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload);
     impl_->payload = encryptedPayload;
 
+    if (impl_->payload.readableBytes() > Commands::MaxMessageSize) {
+        // At this point the compressed batch is above the overall MaxMessageSize. There
+        // can only 1 single message in the batch at this point.
+        batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
+        clear();
+        return;
+    }
+
     Message msg;
     msg.impl_ = impl_;
 

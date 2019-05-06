@@ -25,7 +25,6 @@ import com.google.protobuf.Parser;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.avro.protobuf.ProtobufDatumReader;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -38,9 +37,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> implements Schema<T> {
+/**
+ * A schema implementation to deal with protobuf generated messages.
+ */
+public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends StructSchema<T> {
 
-    private SchemaInfo schemaInfo;
     private Parser<T> tParser;
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
@@ -55,25 +56,27 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
         private final Map <String, Object> definition;
     }
 
+    private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
+        ProtobufDatumReader datumReader = new ProtobufDatumReader(pojo);
+        return datumReader.getSchema();
+    }
+
     private ProtobufSchema(Map<String, String> properties, Class<T> pojo) {
+        super(
+            SchemaType.PROTOBUF,
+            createProtobufAvroSchema(pojo),
+            properties);
+        // update properties with protobuf related properties
         try {
             T protoMessageInstance = (T) pojo.getMethod("getDefaultInstance").invoke(null);
             tParser = (Parser<T>) protoMessageInstance.getParserForType();
 
-            this.schemaInfo = new SchemaInfo();
-            this.schemaInfo.setName("");
-
             Map<String, String> allProperties = new HashMap<>();
-            allProperties.putAll(properties);
+            allProperties.putAll(schemaInfo.getProperties());
             // set protobuf parsing info
             allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
 
-            this.schemaInfo.setProperties(allProperties);
-            this.schemaInfo.setType(SchemaType.PROTOBUF);
-            ProtobufDatumReader datumReader = new ProtobufDatumReader(pojo);
-            org.apache.avro.Schema schema = datumReader.getSchema();
-            this.schemaInfo.setSchema(schema.toString().getBytes());
-
+            schemaInfo.setProperties(allProperties);
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }

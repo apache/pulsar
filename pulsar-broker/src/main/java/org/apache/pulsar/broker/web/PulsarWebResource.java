@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -609,9 +608,10 @@ public abstract class PulsarWebResource {
      * @throws Exception
      */
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
+        int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
         try {
             ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
-                    .get(cacheTimeOutInSec, SECONDS);
+                    .get(timeout, SECONDS);
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
             if (peerClusterData != null) {
@@ -624,7 +624,7 @@ public abstract class PulsarWebResource {
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while validating policy on {} ", cacheTimeOutInSec, namespace);
+            log.warn("Time-out {} sec while validating policy on {} ", timeout, namespace);
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         } catch (WebApplicationException e) {

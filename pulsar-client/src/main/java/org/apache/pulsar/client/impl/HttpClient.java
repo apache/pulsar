@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -80,7 +81,7 @@ public class HttpClient implements Closeable {
         confBuilder.setFollowRedirect(true);
         confBuilder.setConnectTimeout(connectTimeoutInSeconds * 1000);
         confBuilder.setReadTimeout(readTimeoutInSeconds * 1000);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", getPulsarClientVersion()));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
             public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
@@ -191,35 +192,6 @@ public class HttpClient implements Closeable {
 
         return future;
 
-    }
-
-    /**
-     * Looks for a file called pulsar-client-version.properties and returns the client version
-     *
-     * @return client version or unknown version depending on whether the file is found or not.
-     */
-    public static String getPulsarClientVersion() {
-        String path = "/pulsar-client-version.properties";
-        String unknownClientIdentifier = "UnknownClient";
-
-        try {
-            InputStream stream = HttpClient.class.getResourceAsStream(path);
-            if (stream == null) {
-                return unknownClientIdentifier;
-            }
-            Properties props = new Properties();
-            try {
-                props.load(stream);
-                String version = (String) props.get("pulsar-client-version");
-                return version;
-            } catch (IOException e) {
-                return unknownClientIdentifier;
-            } finally {
-                stream.close();
-            }
-        } catch (Throwable t) {
-            return unknownClientIdentifier;
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(HttpClient.class);

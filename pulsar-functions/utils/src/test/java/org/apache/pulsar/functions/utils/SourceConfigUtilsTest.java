@@ -49,10 +49,14 @@ public class SourceConfigUtilsTest {
         sourceConfig.setTopicName("test-output");
         sourceConfig.setSerdeClassName("test-serde");
         sourceConfig.setParallelism(1);
+        sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sourceConfig.setConfigs(new HashMap<>());
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
+
+        // add default resources
+        sourceConfig.setResources(Resources.getDefaultResources());
         assertEquals(
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(convertedConfig)

@@ -300,7 +300,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             log.info("Started Pulsar Broker service on port {}", port.get());
         }
-        
+
         Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
         if (tlsPort.isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
@@ -491,7 +491,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (cause instanceof ServiceUnitNotReadyException) {
                 log.warn("[{}] Service unit is not ready when loading the topic", topic);
             } else {
-                log.warn("[{}] Unexpected exception when loading topic: {}", topic, cause);
+                log.warn("[{}] Unexpected exception when loading topic: {}", topic, e.getMessage(), e);
             }
 
             return failedFuture(cause);

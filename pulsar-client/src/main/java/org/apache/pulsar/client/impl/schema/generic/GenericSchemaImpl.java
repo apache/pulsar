@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -30,13 +31,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * A generic schema representation.
  */
-public abstract class GenericSchema implements Schema<GenericRecord> {
+public abstract class GenericSchemaImpl implements GenericSchema {
 
     protected final org.apache.avro.Schema schema;
     protected final List<Field> fields;
     protected final SchemaInfo schemaInfo;
 
-    protected GenericSchema(SchemaInfo schemaInfo) {
+    protected GenericSchemaImpl(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
         this.schema = new org.apache.avro.Schema.Parser().parse(
             new String(schemaInfo.getSchema(), UTF_8)
@@ -52,6 +53,11 @@ public abstract class GenericSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public List<Field> getFields() {
+        return fields;
+    }
+
+    @Override
     public SchemaInfo getSchemaInfo() {
         return schemaInfo;
     }
@@ -62,7 +68,7 @@ public abstract class GenericSchema implements Schema<GenericRecord> {
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
-    public static GenericSchema of(SchemaInfo schemaInfo) {
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
         switch (schemaInfo.getType()) {
             case AVRO:
                 return new GenericAvroSchema(schemaInfo);

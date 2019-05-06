@@ -35,7 +35,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic avro schema.
  */
-class GenericAvroSchema extends GenericSchema {
+class GenericAvroSchema extends GenericSchemaImpl {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> datumWriter;
     private BinaryEncoder encoder;
@@ -66,13 +66,13 @@ class GenericAvroSchema extends GenericSchema {
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         try {
             Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
             org.apache.avro.generic.GenericRecord avroRecord = datumReader.read(
                 null,
                 decoder);
-            return new GenericAvroRecord(schema, fields, avroRecord);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

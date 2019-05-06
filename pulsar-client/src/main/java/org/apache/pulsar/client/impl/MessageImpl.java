@@ -229,8 +229,23 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public byte[] getSchemaVersion() {
+        if (msgMetadataBuilder.hasSchemaVersion()) {
+            return msgMetadataBuilder.getSchemaVersion().toByteArray();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
     public T getValue() {
-        return schema.decode(getData());
+        // check if the schema passed in from client supports schema versioning or not
+        // this is an optimization to only get schema version when necessary
+        if (schema.supportSchemaVersioning()) {
+            return schema.decode(getData(), getSchemaVersion());
+        } else {
+            return schema.decode(getData());
+        }
     }
 
     public long getSequenceId() {

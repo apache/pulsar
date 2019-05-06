@@ -109,6 +109,10 @@ Future<Result, ConsumerImplBaseWeakPtr> ConsumerImpl::getConsumerCreatedFuture()
     return consumerCreatedPromise_.getFuture();
 }
 
+void ConsumerImpl::incrRefCount() { ++refCount_; }
+
+unsigned int ConsumerImpl::safeDecrRefCount() { return refCount_ > 0 ? refCount_-- : refCount_; }
+
 const std::string& ConsumerImpl::getSubscriptionName() const { return originalSubscriptionName_; }
 
 const std::string& ConsumerImpl::getTopic() const { return topic_; }
@@ -503,6 +507,7 @@ void ConsumerImpl::internalListener() {
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
+        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -724,10 +729,10 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
     InitialPosition initialPosition = config_.getSubscriptionInitialPosition();
     switch (initialPosition) {
         case InitialPositionLatest:
-            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Latest;
+            return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Latest;
 
         case InitialPositionEarliest:
-            return proto::CommandSubscribe_InitialPosition ::CommandSubscribe_InitialPosition_Earliest;
+            return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Earliest;
     }
 }
 
@@ -806,6 +811,14 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+
+    if (safeDecrRefCount() != 0) {
+        lock.unlock();
+        if (callback) {
+            callback(ResultOk);
         }
         return;
     }
@@ -1039,8 +1052,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
-                                                                            MessageId messageId) {
+    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1050,9 +1062,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         } else {
             callback(result, false);
         }
-    };
-
-    getLastMessageIdAsync(callback1);
+    });
 }
 
 void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,

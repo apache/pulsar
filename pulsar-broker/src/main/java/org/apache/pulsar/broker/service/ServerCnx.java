@@ -686,30 +686,13 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
-    private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
-        switch (protocolType) {
-        case None:
-            return SchemaType.NONE;
-        case String:
-            return SchemaType.STRING;
-        case Json:
-            return SchemaType.JSON;
-        case Protobuf:
-            return SchemaType.PROTOBUF;
-        case Avro:
-            return SchemaType.AVRO;
-        default:
-            return SchemaType.NONE;
-        }
-    }
-
     private SchemaData getSchema(PulsarApi.Schema protocolSchema) {
         return SchemaData.builder()
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
             .user(Strings.nullToEmpty(originalPrincipal))
-            .type(getType(protocolSchema.getType()))
+            .type(Commands.getSchemaType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
                     PulsarApi.KeyValue::getKey,
