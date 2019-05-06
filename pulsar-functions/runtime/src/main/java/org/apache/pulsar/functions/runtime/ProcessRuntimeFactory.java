@@ -119,13 +119,15 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
                 break;
             case PYTHON:
                 instanceFile = pythonInstanceFile;
+                break;
+            case GO:
                 break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
