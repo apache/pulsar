@@ -918,7 +918,7 @@
         },
         "runtime" : {
           "type" : "string",
-          "enum" : [ "JAVA", "PYTHON" ]
+          "enum" : [ "JAVA", "PYTHON", "GO" ]
         },
         "autoAck" : {
           "type" : "boolean"
@@ -954,6 +954,9 @@
           "type" : "string"
         },
         "py" : {
+          "type" : "string"
+        },
+        "go" : {
           "type" : "string"
         },
         "cleanupSubscription" : {
@@ -1163,12 +1166,27 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "keyBytes" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "redeliveryCount" : {
           "type" : "integer",
@@ -1181,36 +1199,21 @@
             "format" : "byte"
           }
         },
-        "orderingKey" : {
+        "topicName" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "data" : {
           "type" : "array",
