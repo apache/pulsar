@@ -268,7 +268,7 @@ public class MessageImpl<T> implements Message<T> {
         KeyValueSchema kvSchema = (KeyValueSchema) schema;
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return schema.decode(getKeyBytes(), getData(), schemaVersion);
+            return (T)kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
         } else {
             return schema.decode(getData(), schemaVersion);
         }
@@ -277,7 +277,7 @@ public class MessageImpl<T> implements Message<T> {
     private T getKeyValue() {
         KeyValueSchema kvSchema = (KeyValueSchema) schema;
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return schema.decode(getKeyBytes(), getData(), null);
+            return (T)kvSchema.decode(getKeyBytes(), getData(), null);
         } else {
             return schema.decode(getData());
         }

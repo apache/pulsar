@@ -108,7 +108,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 @Override
                 public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
                     SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
-                    return decodeKeyValueSchemaInfo(versionSchemaInfo).get("key");
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).getKey();
                 }
 
                 @Override
@@ -128,7 +128,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 @Override
                 public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
                     SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
-                    return decodeKeyValueSchemaInfo(versionSchemaInfo).get("value");
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).getValue();
                 }
 
                 @Override
@@ -172,6 +172,22 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
         this.schemaInfo.setSchema(byteBuffer.array()).setProperties(properties);
 
+        this.schemaInfoProvider = new SchemaInfoProvider() {
+            @Override
+            public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfo;
+            }
+
+            @Override
+            public SchemaInfo getLatestSchema() {
+                return schemaInfo;
+            }
+
+            @Override
+            public String getTopicName() {
+                return null;
+            }
+        };
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
@@ -232,7 +248,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
-    private Map<String, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
+    private static KeyValue<SchemaInfo, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(schemaInfo.getSchema());
         int keySchemaLength = byteBuffer.getInt();
         byte[] key = new byte[keySchemaLength];
@@ -240,17 +256,16 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         int valueSchemaLength = byteBuffer.getInt();
         byte[] value = new byte[valueSchemaLength];
         byteBuffer.get(value);
-        Map<String, SchemaInfo> mapSchemaInfo = Maps.newHashMap();
         Gson keySchemaGson = new Gson();
-        mapSchemaInfo.put("key", SchemaInfo.builder().schema(key)
+        SchemaInfo keySchemaInfo = SchemaInfo.builder().schema(key)
                 .properties(keySchemaGson.fromJson(schemaInfo.getProperties().get("key.schema.properties"), Map.class))
                 .name("")
-                .type(SchemaType.AVRO).build());
+                .type(SchemaType.AVRO).build();
         Gson valueSchemaGson = new Gson();
-        mapSchemaInfo.put("value", SchemaInfo.builder().schema(value)
+        SchemaInfo valueSchemaInfo = SchemaInfo.builder().schema(value)
                 .properties(valueSchemaGson.fromJson(schemaInfo.getProperties().get("value.schema.properties"), Map.class))
                 .name("")
-                .type(SchemaType.AVRO).build());
-        return mapSchemaInfo;
+                .type(SchemaType.AVRO).build();
+        return new KeyValue<>(keySchemaInfo, valueSchemaInfo);
     }
 }

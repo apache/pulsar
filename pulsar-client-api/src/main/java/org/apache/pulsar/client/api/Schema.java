@@ -112,21 +112,6 @@ public interface Schema<T> {
     }
 
     /**
-     * At present, this method is provided for KeyValueSchema.
-     * Decode a byte array into an object using keyBytes, keyBytes and a given version.
-     *
-     * @param keyBytes the byte array to decode
-     * @param valueBytes the byte array to decode
-     * @param schemaVersion
-     *            the schema version to decode the object. null indicates using latest version.
-     * @return the deserialized object
-     */
-    default T decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
-        // ignore version by default (most of the primitive schema implementations ignore schema version)
-        throw new UnsupportedOperationException("Only KeyValueSchema Schema support this method");
-    }
-
-    /**
      * @return an object that represents the Schema associated metadata
      */
     SchemaInfo getSchemaInfo();

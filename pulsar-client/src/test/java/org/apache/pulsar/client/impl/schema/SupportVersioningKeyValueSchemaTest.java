@@ -95,7 +95,68 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchema)keyValueSchema).decode(
+                fooSchema.encode(foo), encodeBytes, new byte[10]);
+        Assert.assertTrue(keyValue.getValue().isField1());
+        Assert.assertEquals(
+                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.SEPARATED);
+    }
+
+    @Test
+    public void testKeyValueDefaultVersioningEncodeDecode() {
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+                fooSchema, barSchema);
+
+        SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
+        bar.setField1(true);
+
+        SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(SchemaTestUtils.Color.RED);
+
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(
+                encodeBytes, new byte[10]);
+        Assert.assertEquals(keyValue.getKey().getField1(), foo.getField1());
+        Assert.assertEquals(keyValue.getKey().getField2(), foo.getField2());
+        Assert.assertEquals(keyValue.getKey().getField3(), foo.getField3());
+        Assert.assertEquals(keyValue.getKey().getField4(), foo.getField4());
+        Assert.assertEquals(keyValue.getKey().getColor(), foo.getColor());
+        Assert.assertTrue(keyValue.getValue().isField1());
+        Assert.assertEquals(
+                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.INLINE);
+    }
+
+    @Test
+    public void testKeyValueLatestVersioningEncodeDecode() {
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+
+        SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
+        bar.setField1(true);
+
+        SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(SchemaTestUtils.Color.RED);
+
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchema)keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
