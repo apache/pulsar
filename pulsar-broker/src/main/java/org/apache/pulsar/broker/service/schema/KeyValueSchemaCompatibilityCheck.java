@@ -24,6 +24,7 @@ import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -59,10 +60,30 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         KeyValue<byte[], byte[]> fromKeyValue = this.splitKeyValueSchemaData(from.getData());
         KeyValue<byte[], byte[]> toKeyValue = this.splitKeyValueSchemaData(to.getData());
 
-        SchemaType fromKeyType = SchemaType.valueOf(from.getProps().get("key.schema.type"));
-        SchemaType fromValueType = SchemaType.valueOf(from.getProps().get("value.schema.type"));
-        SchemaType toKeyType = SchemaType.valueOf(to.getProps().get("key.schema.type"));
-        SchemaType toValueType = SchemaType.valueOf(to.getProps().get("value.schema.type"));
+        SchemaType fromKeyType;
+        if (from.getProps().get("key.schema.type") != null) {
+            fromKeyType = SchemaType.valueOf(from.getProps().get("key.schema.type"));
+        } else {
+            fromKeyType = SchemaType.BYTES;
+        }
+        SchemaType fromValueType;
+        if (from.getProps().get("value.schema.type") != null) {
+            fromValueType = SchemaType.valueOf(from.getProps().get("value.schema.type"));
+        } else {
+            fromValueType = SchemaType.BYTES;
+        }
+        SchemaType toKeyType;
+        if (to.getProps().get("key.schema.type") != null) {
+            toKeyType = SchemaType.valueOf(to.getProps().get("key.schema.type"));
+        } else {
+            toKeyType = SchemaType.BYTES;
+        }
+        SchemaType toValueType;
+        if (to.getProps().get("value.schema.type") != null) {
+            toValueType = SchemaType.valueOf(to.getProps().get("value.schema.type"));
+        } else {
+            toValueType = SchemaType.BYTES;
+        }
 
         if (fromKeyType != toKeyType || fromValueType != toValueType) {
             return false;
@@ -74,25 +95,62 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         Map<String, String> keyToProperties = schemaGson.fromJson(to.getProps().get("key.schema.properties"), Map.class);
         Map<String, String> valueToProperties = schemaGson.fromJson(to.getProps().get("value.schema.properties"), Map.class);
 
-        SchemaData fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
-                .type(fromKeyType)
-                .props(keyFromProperties).build();
+        SchemaData fromKeySchemaData;
+        if (from.getProps().get("key.schema.properties") != null) {
+            fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
+                    .type(fromKeyType)
+                    .props(keyFromProperties).build();
+        } else {
+            fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
+                    .type(fromKeyType)
+                    .props(Collections.emptyMap()).build();
+        }
 
-        SchemaData fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
-                .type(fromValueType)
-                .props(valueFromProperties).build();
+        SchemaData fromValueSchemaData;
+        if (from.getProps().get("value.schema.properties") != null) {
+            fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
+                    .type(fromValueType)
+                    .props(valueFromProperties).build();
+        } else {
+            fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
+                    .type(fromValueType)
+                    .props(Collections.emptyMap()).build();
+        }
 
-        SchemaData toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
-                .type(toKeyType)
-                .props(keyToProperties).build();
+        SchemaData toKeySchemaData;
+        if (to.getProps().get("key.schema.properties") != null) {
+            toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
+                    .type(toKeyType)
+                    .props(keyToProperties).build();
+        } else {
+            toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
+                    .type(toKeyType)
+                    .props(Collections.emptyMap()).build();
+        }
 
+        SchemaData toValueSchemaData;
+        if (to.getProps().get("value.schema.properties") != null) {
+            toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
+                    .type(toValueType)
+                    .props(valueToProperties).build();
+        } else {
+            toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
+                    .type(toValueType)
+                    .props(Collections.emptyMap()).build();
+        }
 
-        SchemaData toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
-                .type(toValueType)
-                .props(valueToProperties).build();
-
-        SchemaCompatibilityCheck keyCheck = checkers.get(toKeyType);
-        SchemaCompatibilityCheck valueCheck = checkers.get(toValueType);
+        SchemaCompatibilityCheck keyCheck;
+        if (checkers.get(toKeyType) != null) {
+            keyCheck = checkers.get(toKeyType);
+        } else {
+            keyCheck = SchemaCompatibilityCheck.DEFAULT;
+        }
+        SchemaCompatibilityCheck valueCheck;
+        if (checkers.get(toValueType) != null) {
+            valueCheck = checkers.get(toValueType);
+        } else {
+            valueCheck = SchemaCompatibilityCheck.DEFAULT;
+        }
         return keyCheck.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
                 && valueCheck.isCompatible(fromValueSchemaData, toValueSchemaData, strategy);
     }

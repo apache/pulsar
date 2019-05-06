@@ -32,6 +32,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.Collections;
 import java.util.Map;
 
 public class KeyValueSchemaCompatibilityCheckTest {
@@ -431,5 +432,43 @@ public class KeyValueSchemaCompatibilityCheckTest {
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, fooSchema).getSchemaInfo().getSchema()).props(toProperties).build();
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+    }
+
+    @Test
+    public void testCheckPropertiesNullTypeCompatibility() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        Map<String, String> fromProperties = Maps.newHashMap();
+        fromProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
+        fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
+        fromProperties.put("key.schema.properties", null);
+        fromProperties.put("value.schema.properties", null);
+        Map<String, String> toProperties = Maps.newHashMap();
+        toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
+        toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
+        toProperties.put("key.schema.properties", null);
+        toProperties.put("value.schema.properties", null);
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testCheckSchemaTypeNullCompatibility() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        Map<String, String> fromProperties = Maps.newHashMap();
+        fromProperties.put("key.schema.type", null);
+        fromProperties.put("value.schema.type", null);
+        Map<String, String> toProperties = Maps.newHashMap();
+        toProperties.put("key.schema.type", null);
+        toProperties.put("value.schema.type", null);
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 }
