@@ -350,6 +350,12 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 }
 
 void ClientConnection::handleHandshake(const boost::system::error_code& err) {
+    if (err) {
+        LOG_ERROR(cnxString_ << "Handshake failed: " << err.message());
+        close();
+        return;
+    }
+
     bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
     SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
     // Send CONNECT command to broker
