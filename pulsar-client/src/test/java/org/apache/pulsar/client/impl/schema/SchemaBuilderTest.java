@@ -225,7 +225,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
-    public void testGenericRecordBuilderAvroByFiledname() {
+    public void testGenericRecordBuilderAvroByFieldname() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
@@ -293,7 +293,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
-    public void testGenericRecordBuilderAvroByFilednamePojo() {
+    public void testGenericRecordBuilderAvroByFieldnamePojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
@@ -356,7 +356,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
-    public void testGenericRecordBuilderAvroByFiledIndex() {
+    public void testGenericRecordBuilderAvroByFieldIndex() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
@@ -424,7 +424,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
-    public void testGenericRecordBuilderAvroByFiledIndexPojo() {
+    public void testGenericRecordBuilderAvroByFieldIndexPojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record("People1");
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
