@@ -16,18 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.auth;
+package org.apache.pulsar.common.functions;
 
-import org.apache.pulsar.functions.proto.Function;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.Optional;
-
-public final class FunctionAuthUtils {
-
-    public static final FunctionAuthData getFunctionAuthData(Optional<Function.FunctionAuthenticationSpec> functionAuthenticationSpec) {
-        if (functionAuthenticationSpec.isPresent()) {
-            return FunctionAuthData.builder().data(functionAuthenticationSpec.get().getData().toByteArray()).build();
-        }
-        return null;
-    }
+@Data
+@NoArgsConstructor
+public class UpdateOptions {
+    private boolean updateAuthData = false;
 }
