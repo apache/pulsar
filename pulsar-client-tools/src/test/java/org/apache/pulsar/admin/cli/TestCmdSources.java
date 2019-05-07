@@ -40,9 +40,9 @@ import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.*;
-import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -101,7 +101,7 @@ public class TestCmdSources {
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(FunctionCommon.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SourceConfig getSourceConfig() {
@@ -421,7 +421,7 @@ public class TestCmdSources {
         testSourceConfig.setParallelism(PARALLELISM + 1);
         testSourceConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSourceConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSourceConfig.setConfigs(createSource.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
+        testSourceConfig.setConfigs(createSource.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
 
         SourceConfig expectedSourceConfig = getSourceConfig();
@@ -569,5 +569,48 @@ public class TestCmdSources {
         deleteSource.runCmd();
 
         verify(source).deleteSource(eq(TENANT), eq(NAMESPACE), null);
+    }
+
+    @Test
+    public void testUpdateSource() throws Exception {
+
+        updateSource.name = "my-source";
+
+        updateSource.archive = "new-archive";
+
+        updateSource.processArguments();
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .archive(updateSource.archive)
+                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
+
+
+        updateSource.archive = null;
+
+        updateSource.parallelism = 2;
+
+        updateSource.processArguments();
+
+        updateSource.updateAuthData = true;
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .parallelism(2)
+                .build()), eq(null), eq(updateOptions));
+
+
+
     }
 }

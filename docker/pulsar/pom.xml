@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.4.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.pulsar</groupId>
@@ -70,7 +70,7 @@
                 </configuration>
               </execution>
               <execution>
-                <id>build-pulsar-clients-python-37</id>
+                <id>build-pulsar-clients-python-35</id>
                 <phase>compile</phase>
                 <goals>
                   <goal>exec</goal>
@@ -80,8 +80,8 @@
                   <workingDirectory>${project.basedir}/target</workingDirectory>
                   <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
                   <arguments>
-                    <!-- build python 3.7 -->
-                    <argument>3.7 cp37-cp37m</argument>
+                    <!-- build python 3.5 -->
+                    <argument>3.5 cp35-cp35m</argument>
                   </arguments>
                 </configuration>
               </execution>
@@ -97,7 +97,7 @@
                   <goal>run</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
+                  <skip>${skipCopyPythonClients}</skip>
                   <tasks>
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>

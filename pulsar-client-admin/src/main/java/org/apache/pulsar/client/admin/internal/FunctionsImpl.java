@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.netty.handler.codec.http.HttpHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
@@ -27,11 +28,20 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHandler;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.HttpResponseBodyPart;
+import org.asynchttpclient.HttpResponseStatus;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -42,21 +52,27 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.StandardCopyOption;
+import java.io.FileOutputStream;
+import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static org.asynchttpclient.Dsl.get;
+import static org.asynchttpclient.Dsl.post;
+import static org.asynchttpclient.Dsl.put;
+
 @Slf4j
-public class FunctionsImpl extends BaseResource implements Functions {
+public class FunctionsImpl extends ComponentResource implements Functions {
 
     private final WebTarget functions;
+    private final AsyncHttpClient asyncHttpClient;
 
-    public FunctionsImpl(WebTarget web, Authentication auth) {
+    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.functions = web.path("/admin/v3/functions");
+        this.asyncHttpClient = asyncHttpClient;
     }
 
     @Override
@@ -145,18 +161,19 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+               builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
+            }
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
             }
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                new Gson().toJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -191,19 +208,55 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        updateFunction(functionConfig, fileName, null);
+    }
+
+        @Override
+    public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = put(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
+
+            if (updateOptions != null) {
+                   builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+            }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
+            }
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart(
+                    "functionConfig",
+                    ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+
+            if (updateOptions != null) {
+                mp.bodyPart(new FormDataBodyPart(
+                        "updateOptions",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        MediaType.APPLICATION_JSON_TYPE));
             }
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                new Gson().toJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
-                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
+                    .path(functionConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -211,19 +264,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
-        try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
-
-            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-
-            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
-                    MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
-                    .path(functionConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
-                            ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        updateFunctionWithUrl(functionConfig, pkgUrl, null);
     }
 
     @Override
@@ -314,13 +355,14 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = post(functions.path("upload").getUri().toASCIIString())
+                    .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
+                    .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
 
-            mp.bodyPart(new FileDataBodyPart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM_TYPE));
-
-            mp.bodyPart(new FormDataBodyPart("path", path, MediaType.TEXT_PLAIN_TYPE));
-            request(functions.path("upload"))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build()).get();
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -328,15 +370,58 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     @Override
     public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
+
+        HttpResponseStatus status;
         try {
-            InputStream response = request(functions.path("download")
-                    .queryParam("path", path)).get(InputStream.class);
-            if (response != null) {
-                File targetFile = new File(destinationPath);
-                java.nio.file.Files.copy(
-                        response,
-                        targetFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING);
+            File file = new File(destinationPath);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
+            WebTarget target = functions.path("download").queryParam("path", path);
+
+            RequestBuilder builder = get(target.getUri().toASCIIString());
+
+            Future<HttpResponseStatus> whenStatusCode
+                    = asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build(), new AsyncHandler<HttpResponseStatus>() {
+                private HttpResponseStatus status;
+
+                @Override
+                public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
+                    status = responseStatus;
+                    if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
+                        return State.ABORT;
+                    }
+                    return State.CONTINUE;
+                }
+
+                @Override
+                public State onHeadersReceived(HttpHeaders headers) throws Exception {
+                    return State.CONTINUE;
+                }
+
+                @Override
+                public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+
+                    os.write(bodyPart.getBodyByteBuffer());
+                    return State.CONTINUE;
+                }
+
+                @Override
+                public HttpResponseStatus onCompleted() throws Exception {
+                    return status;
+                }
+
+                @Override
+                public void onThrowable(Throwable t) {
+                }
+            });
+
+            status = whenStatusCode.get();
+            os.close();
+
+            if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                throw getApiException(Response.status(status.getStatusCode()).entity(status.getStatusText()).build());
             }
         } catch (Exception e) {
             throw getApiException(e);

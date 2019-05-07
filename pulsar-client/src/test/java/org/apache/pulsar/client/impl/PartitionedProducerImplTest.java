@@ -18,19 +18,29 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 
-import org.apache.pulsar.client.api.*;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadFactory;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
@@ -109,6 +119,31 @@ public class PartitionedProducerImplTest {
             int partitionIndex = Integer.parseInt(msg.getKey()) % metadata.numPartitions();
             return partitionIndex;
         }
+    }
+
+    @Test
+    public void testGetStats() throws Exception {
+        String topicName = "test-stats";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+
+        assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
+
+        PartitionedProducerImpl impl = new PartitionedProducerImpl(
+            clientImpl, topicName, producerConfData,
+            1, null, null, null);
+
+        impl.getStats();
     }
 
 }

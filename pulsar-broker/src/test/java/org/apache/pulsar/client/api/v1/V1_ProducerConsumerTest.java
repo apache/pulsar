@@ -618,81 +618,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     }
 
     /**
-     * Verifies non-batch message size being validated after performing compression while batch-messaging validates
-     * before compression of message
-     *
-     * <pre>
-     * send msg with size > MAX_SIZE (5 MB)
-     * a. non-batch with compression: pass
-     * b. batch-msg with compression: fail
-     * c. non-batch w/o  compression: fail
-     * d. non-batch with compression, consumer consume: pass
-     * </pre>
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testSendBigMessageSizeButCompressed() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        final String topic = "persistent://my-property/use/my-ns/bigMsg";
-
-        // (a) non-batch msg with compression
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .compressionType(CompressionType.LZ4)
-                .create();
-        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-        producer.close();
-
-        // (b) batch-msg
-        producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(true)
-                .compressionType(CompressionType.LZ4)
-                .create();
-        try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-            fail("Should have thrown exception");
-        } catch (PulsarClientException.InvalidMessageException e) {
-            // OK
-        }
-        producer.close();
-
-        // (c) non-batch msg without compression
-        producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .compressionType(CompressionType.NONE)
-                .create();
-        try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
-            fail("Should have thrown exception");
-        } catch (PulsarClientException.InvalidMessageException e) {
-            // OK
-        }
-        producer.close();
-
-        // (d) non-batch msg with compression and try to consume message
-        producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .compressionType(CompressionType.LZ4)
-                .create();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub1")
-                .subscribe();
-        byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
-        producer.send(content);
-        assertEquals(consumer.receive().getValue(), content);
-        producer.close();
-        consumer.close();
-
-    }
-
-    /**
      * Usecase 1: Only 1 Active Subscription - 1 subscriber - Produce Messages - EntryCache should cache messages -
      * EntryCache should be cleaned : Once active subscription consumes messages
      *
@@ -762,9 +687,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         producer.send("message".getBytes());
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
-        // Verify: cache has to be cleared as there is no message needs to be consumed by active subscriber
-        assertEquals(entryCache.getSize(), 0, 1);
-
         /************ usecase-2: *************/
         // 1.b Subscriber slower-subscriber
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
@@ -807,93 +729,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testDeactivatingBacklogConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        final long batchMessageDelayMs = 100;
-        final int receiverSize = 10;
-        final String topicName = "cache-topic";
-        final String topic = "persistent://my-property/use/my-ns/" + topicName;
-        final String sub1 = "faster-sub1";
-        final String sub2 = "slower-sub2";
-
-        // 1. Subscriber Faster subscriber: let it consume all messages immediately
-        Consumer<byte[]> subscriber1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/" + topicName)
-                .subscriptionName(sub1)
-                .subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(receiverSize)
-                .subscribe();
-        // 1.b. Subscriber Slow subscriber:
-        Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/" + topicName)
-                .subscriptionName(sub2)
-                .subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(receiverSize)
-                .subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(batchMessageDelayMs != 0)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
-                .batchingMaxMessages(5)
-                .create();
-
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-
-        // reflection to set/get cache-backlog fields value:
-        final long maxMessageCacheRetentionTimeMillis = 100;
-        Field backlogThresholdField = ManagedLedgerImpl.class.getDeclaredField("maxActiveCursorBacklogEntries");
-        backlogThresholdField.setAccessible(true);
-        Field field = ManagedLedgerImpl.class.getDeclaredField("maxMessageCacheRetentionTimeMillis");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(ledger, maxMessageCacheRetentionTimeMillis);
-        final long maxActiveCursorBacklogEntries = (long) backlogThresholdField.get(ledger);
-
-        Message<byte[]>msg = null;
-        final int totalMsgs = (int) maxActiveCursorBacklogEntries + receiverSize + 1;
-        // 2. Produce messages
-        for (int i = 0; i < totalMsgs; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        // 3. Consume messages: at Faster subscriber
-        for (int i = 0; i < totalMsgs; i++) {
-            msg = subscriber1.receive(100, TimeUnit.MILLISECONDS);
-            subscriber1.acknowledge(msg);
-        }
-
-        // wait : so message can be eligible to to be evict from cache
-        Thread.sleep(maxMessageCacheRetentionTimeMillis);
-
-        // 4. deactivate subscriber which has built the backlog
-        ledger.checkBackloggedCursors();
-        Thread.sleep(100);
-
-        // 5. verify: active subscribers
-        Set<String> activeSubscriber = Sets.newHashSet();
-        ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
-        assertTrue(activeSubscriber.contains(sub1));
-        assertFalse(activeSubscriber.contains(sub2));
-
-        // 6. consume messages : at slower subscriber
-        for (int i = 0; i < totalMsgs; i++) {
-            msg = subscriber2.receive(100, TimeUnit.MILLISECONDS);
-            subscriber2.acknowledge(msg);
-        }
-
-        ledger.checkBackloggedCursors();
-
-        activeSubscriber.clear();
-        ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
-
-        assertTrue(activeSubscriber.contains(sub1));
-        assertTrue(activeSubscriber.contains(sub2));
-    }
 
     @Test(timeOut = 2000)
     public void testAsyncProducerAndConsumer() throws Exception {

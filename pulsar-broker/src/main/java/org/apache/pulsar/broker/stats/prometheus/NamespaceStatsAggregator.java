@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import io.netty.util.concurrent.FastThreadLocal;
+
+import java.util.concurrent.atomic.LongAdder;
+
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-
-import io.netty.util.concurrent.FastThreadLocal;
 
 public class NamespaceStatsAggregator {
 
@@ -50,6 +53,8 @@ public class NamespaceStatsAggregator {
 
         printDefaultBrokerStats(stream, cluster);
 
+        LongAdder topicsCount = new LongAdder();
+
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
 
@@ -58,6 +63,7 @@ public class NamespaceStatsAggregator {
                     getTopicStats(topic, topicStats, includeConsumerMetrics);
 
                     if (includeTopicMetrics) {
+                        topicsCount.add(1);
                         TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
                     } else {
                         namespaceStats.updateStats(topicStats);
@@ -69,6 +75,8 @@ public class NamespaceStatsAggregator {
                 // Only include namespace level stats if we don't have the per-topic, otherwise we're going to report
                 // the same data twice, and it will make the aggregation difficult
                 printNamespaceStats(stream, cluster, namespace, namespaceStats);
+            } else {
+                printTopicsCountStats(stream, cluster, namespace, topicsCount);
             }
         });
     }
@@ -78,9 +86,13 @@ public class NamespaceStatsAggregator {
 
         if (topic instanceof PersistentTopic) {
             // Managed Ledger stats
-            ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic) topic).getManagedLedger().getStats();
+            ManagedLedger ml = ((PersistentTopic) topic).getManagedLedger();
+            ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ml.getStats();
 
             stats.storageSize = mlStats.getStoredMessagesSize();
+            stats.backlogSize = ml.getEstimatedBacklogSize();
+            stats.offloadedStorageUsed = ml.getOffloadedSize();
+            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimit();
 
             stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
             stats.storageWriteLatencyBuckets.refresh();
@@ -170,6 +182,11 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, "pulsar_msg_backlog", 0);
     }
 
+    private static void printTopicsCountStats(SimpleTextOutputStream stream, String cluster, String namespace,
+                                              LongAdder topicsCount) {
+        metric(stream, cluster, namespace, "pulsar_topics_count", topicsCount.sum());
+    }
+
     private static void printNamespaceStats(SimpleTextOutputStream stream, String cluster, String namespace,
                                             AggregatedNamespaceStats stats) {
         metric(stream, cluster, namespace, "pulsar_topics_count", stats.topicsCount);
@@ -237,7 +254,6 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
             long value) {
-        TopicStats.metricType(stream, name);
         stream.write(name)
                 .write("{cluster=\"").write(cluster).write("\"} ")
                 .write(value).write(' ').write(System.currentTimeMillis())
@@ -246,21 +262,18 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                long value) {
-        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                double value) {
-        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
                                                 String name, String remoteCluster, double value) {
-        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');

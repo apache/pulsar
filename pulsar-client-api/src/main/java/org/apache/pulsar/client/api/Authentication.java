@@ -21,6 +21,11 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
 /**
  * Interface of authentication providers.
@@ -40,7 +45,23 @@ public interface Authentication extends Closeable, Serializable {
      * @throws PulsarClientException
      *             any other error
      */
-    AuthenticationDataProvider getAuthData() throws PulsarClientException;
+    default AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        throw new UnsupportedAuthenticationException("Method not implemented!");
+    }
+
+    /**
+     *
+     * Get/Create an authentication data provider which provides the data that this client will be sent to the broker.
+     * Some authentication method need to auth between each client channel. So it need the broker, who it will talk to.
+     *
+     * @param brokerHostName
+     *          target broker host name
+     *
+     * @return The authentication data provider
+     */
+    default AuthenticationDataProvider getAuthData(String brokerHostName) throws PulsarClientException {
+        return this.getAuthData();
+    }
 
     /**
      * Configure the authentication plugins with the supplied parameters
@@ -57,4 +78,25 @@ public interface Authentication extends Closeable, Serializable {
      * Initialize the authentication provider
      */
     void start() throws PulsarClientException;
+
+    /**
+     * An authentication Stage.
+     * when authentication complete, passed-in authFuture will contains authentication related http request headers.
+     */
+    default void authenticationStage(String requestUrl,
+                                     AuthenticationDataProvider authData,
+                                     Map<String, String> previousResHeaders,
+                                     CompletableFuture<Map<String, String>> authFuture) {
+        authFuture.complete(null);
+    }
+
+    /**
+     * Add an authenticationStage that will complete along with authFuture
+     */
+    default Set<Entry<String, String>> newRequestHeader(String hostName,
+                                                        AuthenticationDataProvider authData,
+                                                        Map<String, String> previousResHeaders) throws Exception {
+        return authData.getHttpHeaders();
+    }
+
 }

@@ -95,6 +95,9 @@ public class TenantsBase extends AdminResource {
 
         try {
             NamedEntity.checkName(tenant);
+            if (config == null) {
+                config = new TenantInfo();
+            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {

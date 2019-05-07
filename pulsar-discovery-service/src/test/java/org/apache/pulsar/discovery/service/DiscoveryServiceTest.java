@@ -66,12 +66,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
-
-    private static final Logger log = LoggerFactory.getLogger(DiscoveryServiceTest.class);
 
     private final static String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private final static String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";

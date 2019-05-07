@@ -26,6 +26,6 @@ echo "Generating swagger json file ..."
 mvn -am -pl pulsar-broker install -DskipTests -Pswagger
 echo "Swagger json file is generated."
 
-cp pulsar-broker/target/docs/swagger.json site2/website/static/swagger/
+cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/
 echo "Copied swagger json file."
 

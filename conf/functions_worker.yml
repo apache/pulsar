@@ -26,6 +26,13 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
+# Configuration Store connection string
+configurationStoreServers: localhost:2181
+# ZooKeeper session timeout in milliseconds
+zooKeeperSessionTimeoutMillis: 30000
+# ZooKeeper operation timeout in seconds
+zooKeeperOperationTimeoutSeconds: 30
+
 ################################
 # Function package management
 ################################
@@ -48,6 +55,16 @@ pulsarWebServiceUrl: http://localhost:8080
 # clientAuthenticationPlugin:
 # the authentication parameter to be used by the pulsar client used in worker service
 # clientAuthenticationParameters:
+
+# Bookie Authentication
+#
+# Authentication plugin to use when connecting to bookies
+# bookkeeperClientAuthenticationPlugin:
+# BookKeeper auth plugin implementatation specifics parameters name and values
+# bookkeeperClientAuthenticationParametersName:
+# Parameters for bookkeeper auth plugin
+# bookkeeperClientAuthenticationParameters:
+
 
 # pulsar topics used for function metadata management
 
@@ -110,6 +127,8 @@ processContainerFactory:
 #  # the directory for dropping extra function dependencies
 #  # if it is not an absolute path, it is relative to `pulsarRootDir`
 #  extraFunctionDependenciesDir:
+#  # Additional memory padding added on top of the memory requested by the function per on a per instance basis
+#  percentMemoryPadding: 10
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.
@@ -127,8 +146,10 @@ processContainerFactory:
 authenticationEnabled: false
 # Enforce authorization on accessing functions api
 authorizationEnabled: false
-# Set of autentication provider name list, which is a list of class names
-authenticationProviders: 
+# Set of authentication provider name list, which is a list of class names
+authenticationProviders:
+# Authorization provider fully qualified class-name
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles: 
 
@@ -143,6 +164,8 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+tlsCertRefreshCheckDurationSec: 300
 
 ########################
 # State Management

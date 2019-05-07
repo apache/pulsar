@@ -20,6 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
+
+import java.util.Map;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -157,6 +160,24 @@ public interface ManagedLedger {
     public ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Open a ManagedCursor in this ManagedLedger.
+     * <p>
+     * If the cursors doesn't exist, a new one will be created and its position will be at the end of the ManagedLedger.
+     *
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            the cursor will be set at lastest position or not when first created
+     *            default is <b>true</b>
+     * @param properties
+     *             user defined properties that will be attached to the first position of the cursor, if the open
+     *             operation will trigger the creation of the cursor.
+     * @return the ManagedCursor
+     * @throws ManagedLedgerException
+     */
+    public ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
      * exactly like a normal cursor, with the only difference in that after restart it will not remember which entries
      * were deleted. Also it does not prevent data from being deleted.
@@ -172,6 +193,7 @@ public interface ManagedLedger {
      * @return the new NonDurableCursor
      */
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
+    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -229,6 +251,22 @@ public interface ManagedLedger {
     public void asyncOpenCursor(String name, InitialPosition initialPosition, OpenCursorCallback callback, Object ctx);
 
     /**
+     * Open a ManagedCursor asynchronously.
+     *
+     * @see #openCursor(String)
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            the cursor will be set at lastest position or not when first created
+     *            default is <b>true</b>
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    public void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
+
+    /**
      * Get a list of all the cursors reading from this ManagedLedger
      *
      * @return a list of cursors
@@ -283,6 +321,11 @@ public interface ManagedLedger {
      * @return estimated total backlog size
      */
     long getEstimatedBacklogSize();
+
+    /**
+     * Return the size of all ledgers offloaded to 2nd tier storage
+     */
+    long getOffloadedSize();
 
     /**
      * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating

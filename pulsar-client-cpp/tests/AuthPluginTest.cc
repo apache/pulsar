@@ -140,24 +140,18 @@ TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
 }
 
 TEST(AuthPluginTest, testTlsDetectPulsarSslWithHostNameValidation) {
-    try {
-        ClientConfiguration config = ClientConfiguration();
-        config.setTlsTrustCertsFilePath(caPath);
-        config.setTlsAllowInsecureConnection(false);
-        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
-        config.setValidateHostName(true);
+    ClientConfiguration config = ClientConfiguration();
+    config.setTlsTrustCertsFilePath(caPath);
+    config.setTlsAllowInsecureConnection(false);
+    config.setValidateHostName(true);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
 
-        Client client(serviceUrlTls, config);
-        std::string topicName = "persistent://private/auth/test-tls-detect";
+    Client client(serviceUrlTls, config);
+    std::string topicName = "persistent://private/auth/testTlsDetectPulsarSslWithHostNameValidation";
 
-        Producer producer;
-        Promise<Result, Producer> producerPromise;
-        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
-    } catch (const std::exception& ex) {
-        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
-    } catch (...) {
-        FAIL() << "Expected handshake: certificate verify failed";
-    }
+    Producer producer;
+    Result res = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultConnectError, res);
 }
 
 TEST(AuthPluginTest, testTlsDetectHttps) {

@@ -23,10 +23,10 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -79,7 +79,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                              final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -97,10 +97,11 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
                            final @FormDataParam("url") String functionPkgUrl,
-                           final @FormDataParam("sinkConfig") String sinkConfigJson) {
+                           final @FormDataParam("sinkConfig") String sinkConfigJson,
+                           final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
          sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData(), updateOptions);
 
     }
 
@@ -118,13 +119,13 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public void deregisterSink(final @PathParam("tenant") String tenant,
                                final @PathParam("namespace") String namespace,
                                final @PathParam("sinkName") String sinkName) {
-        sink.deregisterFunction(tenant, namespace, sinkName, clientAppId());
+        sink.deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @GET
     @ApiOperation(
             value = "Fetches information about a Pulsar Sink currently running in cluster mode",
-            response = FunctionMetaData.class
+            response = SinkConfig.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -157,7 +158,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
             final @PathParam("sinkName") String sinkName,
             final @PathParam("instanceId") String instanceId) throws IOException {
         return sink.getSinkInstanceStatus(
-            tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+            tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -175,7 +176,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public SinkStatus getSinkStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sinkName") String sinkName) throws IOException {
-        return sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri());
+        return sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -191,7 +192,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @Path("/{tenant}/{namespace}")
     public List<String> listSinks(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
-        return sink.listFunctions(tenant, namespace);
+        return sink.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -207,7 +208,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sinkName") String sinkName,
                             final @PathParam("instanceId") String instanceId) {
-        sink.restartFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        sink.restartFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -222,7 +223,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public void restartSink(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sinkName") String sinkName) {
-        sink.restartFunctionInstances(tenant, namespace, sinkName);
+        sink.restartFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -238,7 +239,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                          final @PathParam("namespace") String namespace,
                          final @PathParam("sinkName") String sinkName,
                          final @PathParam("instanceId") String instanceId) {
-        sink.stopFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        sink.stopFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -253,7 +254,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public void stopSink(final @PathParam("tenant") String tenant,
                          final @PathParam("namespace") String namespace,
                          final @PathParam("sinkName") String sinkName) {
-        sink.stopFunctionInstances(tenant, namespace, sinkName);
+        sink.stopFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -269,7 +270,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                           final @PathParam("namespace") String namespace,
                           final @PathParam("sinkName") String sinkName,
                           final @PathParam("instanceId") String instanceId) {
-        sink.startFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        sink.startFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -284,7 +285,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public void startSink(final @PathParam("tenant") String tenant,
                           final @PathParam("namespace") String namespace,
                           final @PathParam("sinkName") String sinkName) {
-        sink.startFunctionInstances(tenant, namespace, sinkName);
+        sink.startFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @GET

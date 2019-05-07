@@ -28,6 +28,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -303,6 +305,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleGetSchemaResponse(cmd.getGetSchemaResponse());
                 cmd.getGetSchemaResponse().recycle();
                 break;
+
+            case AUTH_CHALLENGE:
+                checkArgument(cmd.hasAuthChallenge());
+                handleAuthChallenge(cmd.getAuthChallenge());
+                cmd.getAuthChallenge().recycle();
+                break;
+
+            case AUTH_RESPONSE:
+                checkArgument(cmd.hasAuthResponse());
+                handleAuthResponse(cmd.getAuthResponse());
+                cmd.getAuthResponse().recycle();
+                break;
             }
         } finally {
             if (cmdBuilder != null) {
@@ -451,6 +465,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleAuthResponse(CommandAuthResponse commandAuthResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleAuthChallenge(CommandAuthChallenge commandAuthChallenge) {
         throw new UnsupportedOperationException();
     }
 

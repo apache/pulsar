@@ -89,7 +89,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
-                .numBrokers(1)
+                .numBrokers(2)
                 .numProxies(1)
                 .clusterName(clusterName)
                 .build();
@@ -106,6 +106,8 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                     "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
             brokerContainer.withEnv("authorizationEnabled", "true");
             brokerContainer.withEnv("superUserRoles", SUPER_USER_ROLE + "," + PROXY_ROLE);
+            brokerContainer.withEnv("brokerClientAuthenticationPlugin", AuthenticationToken.class.getName());
+            brokerContainer.withEnv("brokerClientAuthenticationParameters", "token:" + superUserAuthToken);
         }
 
         ProxyContainer proxyContainer = pulsarCluster.getProxy();
@@ -199,6 +201,56 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
             fail("Should have failed to create producer");
         } catch (PulsarClientException e) {
             // Expected
+        }
+    }
+
+    @Test
+    public void testProxyRedirectWithTokenAuth() throws Exception {
+
+        final String tenant = "token-test-tenant" + randomName(4);
+        final String namespace = tenant + "/ns-1";
+        final String topic = namespace + "/my-topic-1";
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .authentication(AuthenticationFactory.token(superUserAuthToken))
+                .build();
+
+        try {
+            admin.tenants().createTenant(tenant,
+                    new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                            Collections.singleton(pulsarCluster.getClusterName())));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
+        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE,
+                EnumSet.allOf(AuthAction.class));
+
+        admin.topics().createPartitionedTopic(topic, 16);
+
+        // Create the partitions
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .authentication(AuthenticationFactory.token(REGULAR_USER_ROLE))
+                .build();
+
+        // Force the topics to be created
+        client.newProducer()
+                .topic(topic)
+                .create()
+                .close();
+
+        admin.topics().getList(namespace);
+
+        // Test multiple stats request to make sure the proxy will try against all brokers and receive 307
+        // responses that it will handle internally.
+        for (int i = 0; i < 10; i++) {
+            admin.topics().getStats(topic);
         }
     }
 }

@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -69,7 +70,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                  final @FormDataParam("functionConfig") String functionConfigJson) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, functionConfigJson, clientAppId());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
 
     }
 
@@ -82,10 +83,11 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("functionConfig") String functionConfigJson) {
+                               final @FormDataParam("functionConfig") String functionConfigJson,
+                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, functionConfigJson, clientAppId());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
 
     }
 
@@ -94,7 +96,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public void deregisterFunction(final @PathParam("tenant") String tenant,
                                    final @PathParam("namespace") String namespace,
                                    final @PathParam("functionName") String functionName) {
-        functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
+        functions.deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -102,7 +104,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public FunctionConfig getFunctionInfo(final @PathParam("tenant") String tenant,
                                           final @PathParam("namespace") String namespace,
                                           final @PathParam("functionName") String functionName) {
-        return functions.getFunctionInfo(tenant, namespace, functionName);
+        return functions.getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -123,7 +125,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
             final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(
-                tenant, namespace, functionName, instanceId, uri.getRequestUri());
+                tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -143,7 +145,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStatus(
-                tenant, namespace, functionName, uri.getRequestUri());
+                tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -161,7 +163,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public FunctionStats getFunctionStats(final @PathParam("tenant") String tenant,
                                           final @PathParam("namespace") String namespace,
                                           final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri());
+        return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @GET
@@ -182,7 +184,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
             final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionsInstanceStats(
-                tenant, namespace, functionName, instanceId, uri.getRequestUri());
+                tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -194,7 +196,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                   final @FormDataParam("data") String input,
                                   final @FormDataParam("dataStream") InputStream uploadedInputStream,
                                   final @FormDataParam("topic") String topic) {
-        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream, topic);
+        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream, topic, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -210,7 +212,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                 final @PathParam("namespace") String namespace,
                                 final @PathParam("functionName") String functionName,
                                 final @PathParam("instanceId") String instanceId) {
-        functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
+        functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -225,7 +227,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public void restartFunction(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace,
                                 final @PathParam("functionName") String functionName) {
-        functions.restartFunctionInstances(tenant, namespace, functionName);
+        functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -241,7 +243,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                              final @PathParam("namespace") String namespace,
                              final @PathParam("functionName") String functionName,
                              final @PathParam("instanceId") String instanceId) {
-        functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
+        functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -256,7 +258,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public void stopFunction(final @PathParam("tenant") String tenant,
                              final @PathParam("namespace") String namespace,
                              final @PathParam("functionName") String functionName) {
-        functions.stopFunctionInstances(tenant, namespace, functionName);
+        functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -272,7 +274,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                               final @PathParam("namespace") String namespace,
                               final @PathParam("functionName") String functionName,
                               final @PathParam("instanceId") String instanceId) {
-        functions.startFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
+        functions.startFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
@@ -287,7 +289,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     public void startFunction(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace,
                               final @PathParam("functionName") String functionName) {
-        functions.startFunctionInstances(tenant, namespace, functionName);
+        functions.startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
@@ -306,6 +308,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
 
     @GET
     @Path("/connectors")
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
+     */
+    @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }
@@ -316,6 +322,6 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                           final @PathParam("namespace") String namespace,
                                           final @PathParam("functionName") String functionName,
                                           final @PathParam("key") String key) throws IOException {
-        return functions.getFunctionState(tenant, namespace, functionName, key);
+        return functions.getFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
     }
 }

@@ -18,6 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.ImmutableSet;
 
 import java.lang.reflect.Field;
@@ -204,6 +207,46 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
                             .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
         Assert.assertEquals(firstUnoffloaded2.getLedgerId(), ledger.getLedgersInfoAsList().get(2).getLedgerId());
+    }
+
+    @Test
+    public void testPositionOnLastEmptyLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        for (int i = 0; i < 5; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        // Re-open to trigger the case of empty ledger
+        ledger.close();
+        ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+
+        assertTrue(ledger.getLedgersInfoAsList().get(0).getSize() > 0);
+        assertEquals(ledger.getLedgersInfoAsList().get(1).getSize(), 0);
+
+        // position past the end of first ledger
+        Position p = new PositionImpl(ledger.getLedgersInfoAsList().get(1).getLedgerId(), 0);
+
+        PositionImpl firstUnoffloaded = (PositionImpl)ledger.offloadPrefix(p);
+
+        // only the first ledger should have been offloaded
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        Assert.assertEquals(offloader.offloadedLedgers().size(), 1);
+        Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
+        Assert.assertEquals(firstUnoffloaded.getLedgerId(), ledger.getLedgersInfoAsList().get(1).getLedgerId());
+        Assert.assertEquals(firstUnoffloaded.getEntryId(), 0);
     }
 
     @Test

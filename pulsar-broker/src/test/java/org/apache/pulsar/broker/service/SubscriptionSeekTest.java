@@ -24,12 +24,14 @@ import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -98,6 +100,59 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         try {
             consumer.seek(MessageId.latest);
+            fail("Should not have succeeded");
+        } catch (PulsarClientException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    public void testSeekTime() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testSeekTime";
+        String resetTimeStr = "100s";
+        long resetTimeInMillis = TimeUnit.SECONDS
+                .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        // Disable pre-fetch in consumer to track the messages received
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").receiverQueueSize(0).subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getSubscriptions().size(), 1);
+        PersistentSubscription sub = topicRef.getSubscription("my-subscription");
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+
+        long currentTimestamp = System.currentTimeMillis();
+        consumer.seek(currentTimestamp);
+        assertEquals(sub.getNumberOfEntriesInBacklog(), 1);
+
+        // Wait for consumer to reconnect
+        Thread.sleep(1000);
+        consumer.seek(currentTimestamp - resetTimeInMillis);
+        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+    }
+
+    @Test
+    public void testSeekTimeOnPartitionedTopic() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
+        long timestamp = 1550479732;
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").subscribe();
+
+        try {
+            consumer.seek(timestamp);
             fail("Should not have succeeded");
         } catch (PulsarClientException e) {
             // Expected

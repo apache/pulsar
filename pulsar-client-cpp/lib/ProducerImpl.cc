@@ -351,12 +351,13 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             return;
         }
         payload = encryptedPayload;
-    }
-    if (payloadSize > Commands::MaxMessageSize) {
-        LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                            << Commands::MaxMessageSize << " bytes");
-        cb(ResultMessageTooBig, msg);
-        return;
+
+        if (payloadSize > Commands::MaxMessageSize) {
+            LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
+                                << Commands::MaxMessageSize << " bytes");
+            cb(ResultMessageTooBig, msg);
+            return;
+        }
     }
 
     // Reserve a spot in the messages queue before acquiring the ProducerImpl
@@ -672,7 +673,9 @@ void ProducerImpl::start() { HandlerBase::start(); }
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
     state_ = Closed;
-    sendTimer_->cancel();
+    if (sendTimer_) {
+        sendTimer_->cancel();
+    }
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
 

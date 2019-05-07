@@ -18,39 +18,40 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.junit.Test;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Pulsar Csv Output Format
  */
 public class PulsarCsvOutputFormatTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsNull() {
-        new PulsarCsvOutputFormat(null, "testTopic");
+        new PulsarCsvOutputFormat(null, "testTopic", new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsNull() {
-        new PulsarCsvOutputFormat("testServiceUrl", null);
+        new PulsarCsvOutputFormat("testServiceUrl", null, new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsBlank() {
-        new PulsarCsvOutputFormat("testServiceUrl", " ");
+        new PulsarCsvOutputFormat("testServiceUrl", " ", new AuthenticationDisabled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsBlank() {
-        new PulsarCsvOutputFormat(" ", "testTopic");
+        new PulsarCsvOutputFormat(" ", "testTopic", new AuthenticationDisabled());
     }
 
     @Test
     public void testPulsarCsvOutputFormatConstructor() {
         PulsarCsvOutputFormat pulsarCsvOutputFormat =
-                new PulsarCsvOutputFormat("testServiceUrl", "testTopic");
+                new PulsarCsvOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled());
         assertNotNull(pulsarCsvOutputFormat);
     }
 }

@@ -37,18 +37,14 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -89,7 +85,7 @@ class ProcessRuntime implements Runtime {
                    Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.metricsPort = Utils.findAvailablePort();
+        this.metricsPort = FunctionCommon.findAvailablePort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.funcLogDir = RuntimeUtils.genFunctionLogFolder(logDirectory, instanceConfig);
@@ -106,12 +102,14 @@ class ProcessRuntime implements Runtime {
             case PYTHON:
                 logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
                 break;
+            case GO:
+                break;
         }
         this.extraDependenciesDir = extraDependenciesDir;
-        this.processArgs = RuntimeUtils.composeArgs(
+        this.processArgs = RuntimeUtils.composeCmd(
             instanceConfig,
             instanceFile,
-            // DONT SET extra dependencies here (for python runtime),
+            // DONT SET extra dependencies here (for python or go runtime),
             // since process runtime is using Java ProcessBuilder,
             // we have to set the environment variable via ProcessBuilder
             FunctionDetails.Runtime.JAVA == instanceConfig.getFunctionDetails().getRuntime() ? extraDependenciesDir : null,
@@ -133,7 +131,7 @@ class ProcessRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function
+     * The core logic that initialize the thread container and executes the function.
      */
     @Override
     public void start() {
@@ -205,7 +203,7 @@ class ProcessRuntime implements Runtime {
             // forcibly kill after timeout
             if (process.isAlive()) {
                 log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
-                        Utils.getFullyQualifiedInstanceId(
+                        FunctionCommon.getFullyQualifiedInstanceId(
                                 instanceConfig.getFunctionDetails().getTenant(),
                                 instanceConfig.getFunctionDetails().getNamespace(),
                                 instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));

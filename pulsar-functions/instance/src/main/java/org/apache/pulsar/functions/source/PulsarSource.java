@@ -33,12 +33,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -81,6 +78,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             } else {
                 cb.topic(topic);
             }
+            if (conf.getReceiverQueueSize() != null) {
+                cb.receiverQueueSize(conf.getReceiverQueueSize());
+            }
             cb.properties(properties);
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {
@@ -122,6 +122,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
+                    consumer.negativeAcknowledge(message);
                 })
                 .build();
 
@@ -159,7 +160,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }
             configs.put(topic,
-                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).build());
+                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
         });
 
         return configs;
@@ -174,6 +175,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private static class ConsumerConfig<T> {
         private Schema<T> schema;
         private boolean isRegexPattern;
+        private Integer receiverQueueSize;
     }
 
 }

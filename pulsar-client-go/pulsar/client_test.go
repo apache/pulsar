@@ -58,7 +58,7 @@ func TestGetTopicPartitions(t *testing.T) {
 	assert.Equal(t, partitions[0], topic)
 }
 
-const TestTokenFilePath = "/tmp/pulsar-test-data/certs/token.txt"
+const TestTokenFilePath = "/tmp/pulsar-test-data/tokens/token.txt"
 
 func readToken(t *testing.T) string {
 	data, err := ioutil.ReadFile(TestTokenFilePath)
@@ -125,4 +125,30 @@ func TestTokenAuthSupplier(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+var (
+	caPath               = "cacert.pem"
+	clientPublicKeyPath  = "client-cert.pem"
+	clientPrivateKeyPath = "client-key.pem"
+)
+
+func TestClient_ValidationHostName(t *testing.T) {
+	conf := &ClientOptions{
+		URL:                        "https://localhost:8443",
+		TLSAllowInsecureConnection: false,
+		TLSValidateHostname:        true,
+		TLSTrustCertsFilePath:      caPath,
+		Authentication:             NewAuthenticationTLS(clientPublicKeyPath, clientPrivateKeyPath),
+	}
+
+	client, err := NewClient(*conf)
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "persistent://private/auth/test-tls-detect-https"
+	_, err = client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.NotNil(t, err)
 }

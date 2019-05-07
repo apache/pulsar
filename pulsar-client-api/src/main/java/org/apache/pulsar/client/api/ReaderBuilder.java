@@ -32,9 +32,8 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Finalize the creation of the {@link Reader} instance.
-     *
      * <p>
-     * This method will block until the reader is created successfully.
+     * This method will block until the reader is created successfully or an exception is thrown.
      *
      * @return the reader instance
      * @throws PulsarClientException
@@ -57,20 +56,23 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * Load the configuration from provided <tt>config</tt> map.
      *
-     * <p>Example:
-     * <pre>
-     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * <p>
+     * Example:
+     *
+     * <pre>{@code
+     * Map<String, Object> config = new HashMap<>();
      * config.put("topicName", "test-topic");
      * config.put("receiverQueueSize", 2000);
      *
-     * ReaderBuilder&lt;byte[]&gt; builder = ...;
+     * ReaderBuilder<byte[]> builder = ...;
      * builder = builder.loadConf(config);
      *
-     * Reader&lt;byte[]&gt; reader = builder.create();
-     * </pre>
+     * Reader<byte[]> reader = builder.create();
+     * }</pre>
      *
-     * @param config configuration to load
-     * @return reader builder instance
+     * @param config
+     *            configuration to load
+     * @return the reader builder instance
      */
     ReaderBuilder<T> loadConf(Map<String, Object> config);
 
@@ -80,33 +82,42 @@ public interface ReaderBuilder<T> extends Cloneable {
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
-     * <pre>
-     * ReaderBuilder builder = client.newReader().readerName("my-reader").receiverQueueSize(10);
+     * <pre>{@code
+     * ReaderBuilder<String> builder = client.newReader(Schema.STRING)
+     *             .readerName("my-reader")
+     *             .receiverQueueSize(10);
      *
-     * Reader reader1 = builder.clone().topic(TOPIC_1).create();
-     * Reader reader2 = builder.clone().topic(TOPIC_2).create();
-     * </pre>
+     * Reader<String> reader1 = builder.clone().topic("topic-1").create();
+     * Reader<String> reader2 = builder.clone().topic("topic-2").create();
+     * }</pre>
+     *
+     * @return a clone of the reader builder instance
      */
     ReaderBuilder<T> clone();
 
     /**
-     * Specify the topic this consumer will subscribe on.
+     * Specify the topic this reader will read from.
      * <p>
-     * This argument is required when constructing the consumer.
+     * This argument is required when constructing the reader.
      *
      * @param topicName
+     *            the name of the topic
+     * @return the reader builder instance
      */
     ReaderBuilder<T> topic(String topicName);
 
     /**
      * The initial reader positioning is done by specifying a message id. The options are:
      * <ul>
-     * <li><code>MessageId.earliest</code> : Start reading from the earliest message available in the topic
-     * <li><code>MessageId.latest</code> : Start reading from the end topic, only getting messages published after the
-     * reader was created
-     * <li><code>MessageId</code> : When passing a particular message id, the reader will position itself on that
-     * specific position. The first message to be read will be the message next to the specified messageId.
+     * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
+     * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
+     * published <b>*after*</b> the creation of the builder</li>
+     * <li>{@link MessageId}: Position the reader on a particular message. The first message read will be the one
+     * immediately <b>*after*</b> the specified message</li>
      * </ul>
+     *
+     * @param startMessageId the message id where the reader will be initially positioned on
+     * @return the reader builder instance
      */
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
 
@@ -118,22 +129,25 @@ public interface ReaderBuilder<T> extends Cloneable {
      *
      * @param readerListener
      *            the listener object
+     * @return the reader builder instance
      */
     ReaderBuilder<T> readerListener(ReaderListener<T> readerListener);
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader} to decrypt the message payloads.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
+     * @return the reader builder instance
      */
     ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
-     * Sets the ConsumerCryptoFailureAction to the value specified
+     * Sets the {@link ConsumerCryptoFailureAction} to specify
      *
      * @param action
      *            The action to take when the decoding fails
+     * @return the reader builder instance
      */
     ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
@@ -143,18 +157,24 @@ public interface ReaderBuilder<T> extends Cloneable {
      * The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
      * application calls {@link Consumer#receive()}. Using a higher value could potentially increase the consumer
      * throughput at the expense of bigger memory utilization.
-     * </p>
+     * <p>
      * Default value is {@code 1000} messages and should be good for most use cases.
      *
      * @param receiverQueueSize
      *            the new receiver queue size value
+     * @return the reader builder instance
      */
     ReaderBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
-     * Set the reader name.
+     * Specify a reader name.
+     * <p>
+     * The reader name is purely informational and can used to track a particular reader in the reported stats. By
+     * default a randomly generated name is used.
      *
      * @param readerName
+     *            the name to use for the reader
+     * @return the reader builder instance
      */
     ReaderBuilder<T> readerName(String readerName);
 
@@ -162,6 +182,7 @@ public interface ReaderBuilder<T> extends Cloneable {
      * Set the subscription role prefix. The default prefix is "reader".
      *
      * @param subscriptionRolePrefix
+     * @return the reader builder instance
      */
     ReaderBuilder<T> subscriptionRolePrefix(String subscriptionRolePrefix);
 
@@ -170,12 +191,13 @@ public interface ReaderBuilder<T> extends Cloneable {
      * of the topic. This means that, if the topic has been compacted, the reader will only see the latest value for
      * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
      * point, the messages will be sent as normal.
-     *
+     * <p>
      * readCompacted can only be enabled when reading from a persistent topic. Attempting to enable it on non-persistent
-     * topics will lead to the reader create call throwing a PulsarClientException.
+     * topics will lead to the reader create call throwing a {@link PulsarClientException}.
      *
      * @param readCompacted
      *            whether to read from the compacted topic
+     * @return the reader builder instance
      */
     ReaderBuilder<T> readCompacted(boolean readCompacted);
 }

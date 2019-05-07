@@ -46,9 +46,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -80,7 +82,15 @@ public class CmdFunctions extends CmdBase {
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            processArguments();
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                jcommander.usage(chosenCommand);
+                return;
+            }
             runCmd();
         }
 
@@ -189,6 +199,10 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
+        @Parameter(
+                names = "--go",
+                description = "Path to the main Go executable binary for the function (if the function is written in Go)")
+        protected String goFile;
         @Parameter(names = {"-i",
                 "--inputs"}, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
@@ -239,7 +253,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
-        protected boolean retainOrdering;
+        protected Boolean retainOrdering;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
@@ -271,9 +285,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowledge messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
@@ -370,7 +384,9 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            functionConfig.setRetainOrdering(retainOrdering);
+            if (retainOrdering != null) {
+                functionConfig.setRetainOrdering(retainOrdering);
+            }
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
@@ -466,10 +482,16 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setPy(pyFile);
             }
 
+            if (null != goFile) {
+                functionConfig.setGo(goFile);
+            }
+
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
             } else if (functionConfig.getPy() != null) {
                 userCodeFile = functionConfig.getPy();
+            } else if (functionConfig.getGo() != null) {
+                userCodeFile = functionConfig.getGo();
             }
 
             // check if configs are valid
@@ -477,8 +499,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getClassName())) {
-                throw new IllegalArgumentException("No Function Classname specified");
+            // go doesn't need className
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
+                if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                    throw new IllegalArgumentException("No Function Classname specified");
+                }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
@@ -490,13 +515,13 @@ public class CmdFunctions extends CmdBase {
                 org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
             }
 
-            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
-                throw new ParameterException("Either a Java jar or a Python file needs to"
+            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy()) && isNotBlank(functionConfig.getGo())) {
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
-            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())) {
-                throw new ParameterException("Either a Java jar or a Python file needs to"
+            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy()) && isBlank(functionConfig.getGo())) {
+                throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Please specify one.");
             }
 
@@ -507,6 +532,10 @@ public class CmdFunctions extends CmdBase {
             if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
                     !new File(functionConfig.getPy()).exists()) {
                 throw new ParameterException("The specified python file does not exist");
+            }
+            if (!isBlank(functionConfig.getGo()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getGo()) &&
+                    !new File(functionConfig.getGo()).exists()) {
+                throw new ParameterException("The specified go executable binary does not exist");
             }
         }
     }
@@ -639,7 +668,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
     class GetFunctionStats extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-stats of all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -728,6 +757,9 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
 
+        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data")
+        protected boolean updateAuthData;
+
         @Override
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             if (StringUtils.isEmpty(functionConfig.getClassName())) {
@@ -747,10 +779,13 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+
+            UpdateOptions updateOptions = new UpdateOptions();
+            updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar());
+                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
             } else {
-                admin.functions().updateFunction(functionConfig, userCodeFile);
+                admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }
             print("Updated successfully");
         }
@@ -776,9 +811,18 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             do {
-                FunctionState functionState = admin.functions().getFunctionState(tenant, namespace, functionName, key);
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                System.out.println(gson.toJson(functionState));
+                try {
+                    FunctionState functionState = admin.functions()
+                                                       .getFunctionState(tenant, namespace, functionName, key);
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    gson.toJson(functionState);
+                } catch (PulsarAdminException pae) {
+                    if (pae.getStatusCode() == 404 && watch) {
+                        System.err.println(pae.getMessage());
+                    } else {
+                        throw pae;
+                    }
+                }
                 if (watch) {
                     Thread.sleep(1000);
                 }

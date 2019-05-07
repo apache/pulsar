@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -46,8 +44,9 @@ import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -96,39 +95,44 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        for (int i = 0; i < 6; i++) {
-            try {
-                return client.newProducer().topic(config.getFunctionAssignmentTopic())
-                    .enableBatching(false)
-                    .blockIfQueueFull(true)
-                    .compressionType(CompressionType.LZ4)
-                    .sendTimeout(0, TimeUnit.MILLISECONDS)
-                    .createAsync().get(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-                log.error("Encountered exceptions at creating producer for topic {}",
-                    config.getFunctionAssignmentTopic(), e);
-                throw new RuntimeException(e);
-            } catch (TimeoutException e) {
-                try {
-                    log.info("Can't create a producer on assignment topic {} in {} seconds, retry in 10 seconds ...",
-                        stopwatch.elapsed(TimeUnit.SECONDS));
-                    TimeUnit.SECONDS.sleep(10);
-                } catch (InterruptedException e1) {
-                    log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }
-                continue;
-            }
+        Actions.Action createProducerAction = Actions.Action.builder()
+                .actionName(String.format("Creating producer for assignment topic %s", config.getFunctionAssignmentTopic()))
+                .numRetries(5)
+                .sleepBetweenInvocationsMs(10000)
+                .supplier(() -> {
+                    try {
+                        Producer<byte[]> producer = client.newProducer().topic(config.getFunctionAssignmentTopic())
+                                .enableBatching(false)
+                                .blockIfQueueFull(true)
+                                .compressionType(CompressionType.LZ4)
+                                .sendTimeout(0, TimeUnit.MILLISECONDS)
+                                .createAsync().get(10, TimeUnit.SECONDS);
+                        return Actions.ActionResult.builder().success(true).result(producer).build();
+                    } catch (Exception e) {
+                        log.error("Exception while at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+                        return Actions.ActionResult.builder()
+                                .success(false)
+                                .build();
+                    }
+                })
+                .build();
+        AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
+        try {
+            Actions.newBuilder()
+                    .addAction(createProducerAction.toBuilder()
+                            .onSuccess((actionResult) -> producer.set((Producer<byte[]>) actionResult.getResult()))
+                            .build())
+                    .run();
+        } catch (InterruptedException e) {
+            log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
-        throw new RuntimeException("Can't create a producer on assignment topic "
-            + config.getFunctionAssignmentTopic() + " in " + stopwatch.elapsed(TimeUnit.SECONDS)
-            + " seconds, fail fast ...");
+        if (producer.get() == null) {
+            throw new RuntimeException("Can't create a producer on assignment topic "
+                    + config.getFunctionAssignmentTopic());
+        }
+        return producer.get();
     }
 
     public Future<?> schedule() {
@@ -249,7 +253,7 @@ public class SchedulerManager implements AutoCloseable {
 
     private void publishNewAssignment(Assignment assignment, boolean deleted) {
         try {
-            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
             producer.newMessage().key(fullyQualifiedInstanceId)
@@ -265,7 +269,7 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
             for (Function.Instance instance : computeInstances(functionMetaData, externallyManagedRuntime)) {
-                functionInstances.put(Utils.getFullyQualifiedInstanceId(instance), instance);
+                functionInstances.put(FunctionCommon.getFullyQualifiedInstanceId(instance), instance);
             }
         }
         return functionInstances;

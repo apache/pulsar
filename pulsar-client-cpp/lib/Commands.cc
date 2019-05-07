@@ -233,7 +233,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
-                                    const SchemaInfo& schemaInfo) {
+                                    const SchemaInfo& schemaInfo,
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -245,6 +246,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_consumer_name(consumerName);
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
     subscribe->set_read_compacted(readCompacted);
+    subscribe->set_initialposition(subscriptionInitialPosition);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
@@ -364,11 +366,17 @@ SharedBuffer Commands::newPong() {
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId) {
+SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId,
+                                                          const std::set<MessageId>& messageIds) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES);
     CommandRedeliverUnacknowledgedMessages* command = cmd.mutable_redeliverunacknowledgedmessages();
     command->set_consumer_id(consumerId);
+    for (const auto& msgId : messageIds) {
+        MessageIdData* msgIdData = command->add_message_ids();
+        msgIdData->set_ledgerid(msgId.ledgerId());
+        msgIdData->set_entryid(msgId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 
@@ -512,6 +520,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::GET_SCHEMA_RESPONSE:
             return "GET_SCHEMA_RESPONSE";
+            break;
+        case BaseCommand::AUTH_CHALLENGE:
+            return "AUTH_CHALLENGE";
+            break;
+        case BaseCommand::AUTH_RESPONSE:
+            return "AUTH_RESPONSE";
             break;
     };
 }

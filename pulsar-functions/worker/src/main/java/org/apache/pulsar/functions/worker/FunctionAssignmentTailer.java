@@ -22,9 +22,9 @@ import java.io.IOException;
 import java.util.function.Function;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,13 +33,12 @@ import lombok.extern.slf4j.Slf4j;
 public class FunctionAssignmentTailer
     implements java.util.function.Consumer<Message<byte[]>>, Function<Throwable, Void>, AutoCloseable {
 
-        private final FunctionRuntimeManager functionRuntimeManager;
-        private final Reader<byte[]> reader;
+    private final FunctionRuntimeManager functionRuntimeManager;
+    private final Reader<byte[]> reader;
+    private boolean closed = false;
 
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader)
-            throws PulsarClientException {
+    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader) {
         this.functionRuntimeManager = functionRuntimeManager;
-
         this.reader = reader;
     }
 
@@ -55,8 +54,12 @@ public class FunctionAssignmentTailer
 
     @Override
     public void close() {
+        if (closed) {
+            return;
+        }
         log.info("Stopping function state consumer");
         try {
+            closed = true;
             reader.close();
         } catch (IOException e) {
             log.error("Failed to stop function state consumer", e);
@@ -92,8 +95,23 @@ public class FunctionAssignmentTailer
 
     @Override
     public Void apply(Throwable cause) {
-        log.error("Failed to retrieve messages from assignment update topic", cause);
-        // TODO: find a better way to handle consumer functions
-        throw new RuntimeException(cause);
+        Throwable realCause = FutureUtil.unwrapCompletionException(cause);
+        if (realCause instanceof AlreadyClosedException) {
+            // if reader is closed because tailer is closed, ignore the exception
+            if (closed) {
+                // ignore
+                return null;
+            } else {
+                log.error("Reader of assignment update topic is closed unexpectedly", cause);
+                throw new RuntimeException(
+                    "Reader of assignment update topic is closed unexpectedly",
+                    cause
+                );
+            }
+        } else {
+            log.error("Failed to retrieve messages from assignment update topic", cause);
+            // TODO: find a better way to handle consumer functions
+            throw new RuntimeException(cause);
+        }
     }
 }

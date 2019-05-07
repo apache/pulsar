@@ -83,6 +83,15 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get runtime configuration values")
+    private class GetRuntimeConfigCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(admin.brokers().getRuntimeConfigurations());
+        }
+    }
+
     @Parameters(commandDescription = "Get internal configuration information")
     private class GetInternalConfigurationCmd extends CliCommand {
 
@@ -112,6 +121,7 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
         jcommander.addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
+        jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
     }
 }

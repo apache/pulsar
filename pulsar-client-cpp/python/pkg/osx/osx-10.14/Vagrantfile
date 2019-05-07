@@ -1,0 +1,9 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "apachepulsar/osx-10.14-python-dev"
+  config.vm.box_version = "0.2"
+  config.vm.provision "shell", path: "../vagrant-build.sh", privileged: false, args: [ENV["GIT_TAG"], ENV["GIT_REPO"]]
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provider :virtualbox do |vb|
+  	vb.name = "pulsar-python-osx-10.14"
+  end
+end

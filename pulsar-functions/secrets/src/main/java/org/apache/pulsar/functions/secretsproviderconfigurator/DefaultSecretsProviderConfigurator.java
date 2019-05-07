@@ -40,8 +40,10 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
                 return ClearTextSecretsProvider.class.getName();
             case PYTHON:
                 return "secretsprovider.ClearTextSecretsProvider";
+            case GO:
+                return "";
             default:
-                throw new RuntimeException("Unknwon runtime " + functionDetails.getRuntime());
+                throw new RuntimeException("Unknown runtime " + functionDetails.getRuntime());
         }
     }
 

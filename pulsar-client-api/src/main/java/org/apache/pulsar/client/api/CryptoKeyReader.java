@@ -21,6 +21,9 @@ package org.apache.pulsar.client.api;
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * Interface that abstracts the access to a key store.
+ */
 public interface CryptoKeyReader extends Serializable {
 
     /**

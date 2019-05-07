@@ -18,6 +18,7 @@
  */
 #ifndef PULSAR_PRODUCERCONFIGURATION_H_
 #define PULSAR_PRODUCERCONFIGURATION_H_
+#include <pulsar/defines.h>
 #include <pulsar/CompressionType.h>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/Result.h>
@@ -29,20 +30,18 @@
 
 #include <set>
 
-#pragma GCC visibility push(default)
-
 namespace pulsar {
 
 typedef std::function<void(Result, const Message& msg)> SendCallback;
 typedef std::function<void(Result)> CloseCallback;
 
-class ProducerConfigurationImpl;
+struct ProducerConfigurationImpl;
 class PulsarWrapper;
 
 /**
  * Class that holds the configuration for a producer
  */
-class ProducerConfiguration {
+class PULSAR_PUBLIC ProducerConfiguration {
    public:
     enum PartitionsRoutingMode
     {
@@ -203,5 +202,4 @@ class ProducerConfiguration {
     std::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */

@@ -31,7 +31,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.KubernetesRuntime;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -48,6 +48,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -88,6 +89,11 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
+        FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -122,8 +128,8 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.get("worker-2")
                 .get("test-tenant/test-namespace/func-2:0"), assignment2);
-        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertStartAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -137,15 +143,7 @@ public class FunctionRuntimeManagerTest {
                 return false;
             }
         }));
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
-
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
-        Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
-                new FunctionAction()
-                        .setAction(FunctionAction.Action.START)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
-                                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                                        .build()))));
+        verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
@@ -182,6 +180,11 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
+        FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -216,7 +219,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment1);
         functionRuntimeManager.processAssignment(assignment2);
 
-        functionRuntimeManager.deleteAssignment(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
+        functionRuntimeManager.deleteAssignment(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()));
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
 
@@ -224,9 +227,9 @@ public class FunctionRuntimeManagerTest {
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-2:0"), assignment2);
 
-        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(1)).insertTerminateAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertTerminateAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(1)).terminateFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner).terminateFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -240,14 +243,6 @@ public class FunctionRuntimeManagerTest {
                 return false;
             }
         }));
-
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
-        Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
-                new FunctionAction()
-                        .setAction(FunctionAction.Action.TERMINATE)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
-                                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                                        .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
     }
@@ -279,6 +274,11 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
+        FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -303,6 +303,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.setAssignment(assignment1);
         functionRuntimeManager.setAssignment(assignment2);
         reset(functionRuntimeManager);
+        reset(functionActioner);
 
         Function.Assignment assignment3 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -322,11 +323,11 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment1);
         functionRuntimeManager.processAssignment(assignment3);
 
-        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
         // make sure terminate is not called since this is a update operation
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -341,8 +342,8 @@ public class FunctionRuntimeManagerTest {
             }
         }));
 
-        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertStartAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -356,14 +357,6 @@ public class FunctionRuntimeManagerTest {
                 return false;
             }
         }));
-
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 2);
-        Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
-                new FunctionAction()
-                        .setAction(FunctionAction.Action.START)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
-                                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
-                                        .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
@@ -373,7 +366,7 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
 
         reset(functionRuntimeManager);
-        functionRuntimeManager.actionQueue.clear();
+        reset(functionActioner);
 
         // add a stop
         Function.FunctionMetaData.Builder function2StoppedBldr = function2.toBuilder();
@@ -388,11 +381,11 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager.processAssignment(assignment4);
 
-        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
         // make sure terminate is not called since this is a update operation
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
@@ -407,15 +400,7 @@ public class FunctionRuntimeManagerTest {
             }
         }));
 
-        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
-        Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
-                new FunctionAction()
-                        .setAction(FunctionAction.Action.STOP)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
-                                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
-                                        .build()))));
+        verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
@@ -453,6 +438,11 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
+        FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
@@ -486,9 +476,9 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager.processAssignment(assignment2);
 
-        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
@@ -497,6 +487,11 @@ public class FunctionRuntimeManagerTest {
 
         /** Test transfer from other worker to me **/
         reset(functionRuntimeManager);
+        reset(functionActioner);
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.Assignment assignment3 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -506,9 +501,9 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager.processAssignment(assignment3);
 
-        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);
@@ -556,16 +551,16 @@ public class FunctionRuntimeManagerTest {
         List<Message<byte[]>> messageList = new LinkedList<>();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
-        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
-        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
         messageList.add(message1);
         messageList.add(message2);
@@ -620,27 +615,64 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionMetaDataManager.class)));
-
+        FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+        doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+        doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+        functionRuntimeManager.setFunctionActioner(functionActioner);
 
         functionRuntimeManager.initialize();
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
-        log.info("actionQueue: {}", functionRuntimeManager.actionQueue);
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
+        verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
+        // Ideally this should be zero, but it will nevertheless be called with null runtimespawner which essentially
+        // results in it being noop. We ensure that in the check below.
+        verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        FunctionAction functionAction = functionRuntimeManager.actionQueue.poll();
+        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof FunctionRuntimeInfo) {
+                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
 
-        // only actually start function1
-        Assert.assertEquals(functionAction.getAction(), FunctionAction.Action.START);
-        Assert.assertEquals(functionAction.getFunctionRuntimeInfo().getFunctionInstance(), assignment1.getInstance());
+                    if (!functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof FunctionRuntimeInfo) {
+                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
 
+                    if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+                new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                .build()));
     }
 
     @Test
     public void testExternallyManagedRuntimeUpdate() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setKubernetesContainerFactory(new WorkerConfig.KubernetesContainerFactory());
+        workerConfig.setKubernetesContainerFactory(
+                new WorkerConfig.KubernetesContainerFactory()
+                        .setSubmittingInsidePod(false));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setPulsarFunctionsCluster("cluster");
@@ -656,15 +688,15 @@ public class FunctionRuntimeManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
-
         KubernetesRuntimeFactory kubernetesRuntimeFactory = mock(KubernetesRuntimeFactory.class);
+        doNothing().when(kubernetesRuntimeFactory).setupClient();
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
         doReturn(mock(KubernetesRuntime.class)).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any());
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
-                kubernetesRuntimeFactory, null, null, null, null));
+                kubernetesRuntimeFactory, null, null, null));
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
@@ -713,9 +745,9 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment2);
 
         // make sure nothing is called
-        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
@@ -732,9 +764,9 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment3);
 
         // make sure nothing is called
-        verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertTerminateAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager, times(0)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
+        verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);

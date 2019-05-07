@@ -39,9 +39,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpRequest;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.util.HttpCookieStore;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -130,6 +132,33 @@ class AdminProxyHandler extends ProxyServlet {
         }
     }
 
+
+    private static class JettyHttpClient extends HttpClient {
+        public JettyHttpClient() {
+            super();
+        }
+
+        public JettyHttpClient(SslContextFactory sslContextFactory) {
+            super(sslContextFactory);
+        }
+
+        /**
+         * Ensure the Authorization header is carried over after a 307 redirect
+         * from brokers.
+         */
+        @Override
+        protected Request copyRequest(HttpRequest oldRequest, URI newURI) {
+            String authorization = oldRequest.getHeaders().get(HttpHeader.AUTHORIZATION);
+            Request newRequest = super.copyRequest(oldRequest, newURI);
+            if (authorization != null) {
+                newRequest.header(HttpHeader.AUTHORIZATION, authorization);
+            }
+
+            return newRequest;
+        }
+
+    }
+
     @Override
     protected HttpClient newHttpClient() {
         try {
@@ -166,7 +195,7 @@ class AdminProxyHandler extends ProxyServlet {
                     SslContextFactory contextFactory = new SslContextFactory();
                     contextFactory.setSslContext(sslCtx);
 
-                    return new HttpClient(contextFactory);
+                    return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
                     try {
                         auth.close();
@@ -181,7 +210,7 @@ class AdminProxyHandler extends ProxyServlet {
         }
 
         // return an unauthenticated client, every request will fail.
-        return new HttpClient();
+        return new JettyHttpClient();
     }
 
     @Override

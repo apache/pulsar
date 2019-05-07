@@ -40,4 +40,5 @@ for i in range(10):
     except Exception as e:
         print("Failed to send message: %s", e)
 
+producer.flush()
 producer.close()

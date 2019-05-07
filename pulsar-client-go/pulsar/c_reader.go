@@ -31,6 +31,7 @@ import (
 )
 
 type reader struct {
+	schema         Schema
 	client         *client
 	ptr            *C.pulsar_reader_t
 	defaultChannel chan ReaderMessage
@@ -52,18 +53,20 @@ func pulsarCreateReaderCallbackProxy(res C.pulsar_result, ptr *C.pulsar_reader_t
 		cc.callback(nil, newError(res, "Failed to create Reader"))
 	} else {
 		cc.reader.ptr = ptr
+		cc.reader.schema = cc.schema
 		runtime.SetFinalizer(cc.reader, readerFinalizer)
 		cc.callback(cc.reader, nil)
 	}
 }
 
 type readerAndCallback struct {
+	schema   Schema
 	reader   *reader
 	conf     *C.pulsar_reader_configuration_t
 	callback func(Reader, error)
 }
 
-func createReaderAsync(client *client, options ReaderOptions, callback func(Reader, error)) {
+func createReaderAsync(client *client, schema Schema, options ReaderOptions, callback func(Reader, error)) {
 	if options.Topic == "" {
 		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
@@ -113,7 +116,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 	defer C.free(unsafe.Pointer(topic))
 
 	C._pulsar_client_create_reader_async(client.ptr, topic, options.StartMessageID.(*messageID).ptr,
-		conf, savePointer(&readerAndCallback{reader, conf, callback}))
+		conf, savePointer(&readerAndCallback{schema: schema, reader: reader, conf: conf, callback: callback}))
 }
 
 type readerCallback struct {
@@ -132,11 +135,15 @@ func pulsarReaderListenerProxy(cReader *C.pulsar_reader_t, message *C.pulsar_mes
 		}
 	}()
 
-	rc.channel <- ReaderMessage{rc.reader, newMessageWrapper(message)}
+	rc.channel <- ReaderMessage{rc.reader, newMessageWrapper(rc.reader.Schema(), message)}
 }
 
 func (r *reader) Topic() string {
 	return C.GoString(C.pulsar_reader_get_topic(r.ptr))
+}
+
+func (r *reader) Schema() Schema {
+	return r.schema
 }
 
 func (r *reader) Next(ctx context.Context) (Message, error) {

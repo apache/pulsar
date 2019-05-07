@@ -49,7 +49,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     
     public AuthenticationTls() {
     }
-
+    
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;

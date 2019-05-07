@@ -12,7 +12,7 @@ class AdminRestApi extends React.Component {
       <div className="pageContainer">
         <Container className="mainContainer documentContainer postContainer" >
           <redoc spec-url={`${swaggerUrl}`} lazy-rendering="true"></redoc>
-          <script src="//cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"/>
+          <script src="https://rebilly.github.io/ReDoc/releases/latest/redoc.min.js"></script>
         </Container>
       </div>
     );

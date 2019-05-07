@@ -29,6 +29,7 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -154,7 +155,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
                                 }
                             };
 
-                            asyncCreateFullPathOptimistic(zk, prefixName, ledgerName, new byte[0], Acl,
+                            asyncCreateFullPathOptimistic(prefixName, ledgerName, new byte[0], Acl,
                                                           CreateMode.PERSISTENT, createcb);
                         } else {
                             // Tried to open a managed ledger but it doesn't exist and we shouldn't creating it at this
@@ -362,20 +363,22 @@ public class MetaStoreImplZookeeper implements MetaStore {
 
     }
 
-    public static void asyncCreateFullPathOptimistic(
-            final ZooKeeper zk, final String basePath, final String nodePath, final byte[] data,
+    void asyncCreateFullPathOptimistic(
+            final String basePath, final String nodePath, final byte[] data,
             final List<ACL> acl, final CreateMode createMode, final StringCallback callback) {
         String fullPath = basePath + "/" + nodePath;
 
         zk.create(fullPath, data, acl, createMode,
                   (rc, path, ignoreCtx1, name) -> {
                       Runnable retry = () -> {
-                          asyncCreateFullPathOptimistic(zk, basePath, nodePath, data,
+                          asyncCreateFullPathOptimistic(basePath, nodePath, data,
                                                         acl, createMode, callback);
                       };
 
                       Consumer<Integer> complete = (finalrc) -> {
-                          callback.processResult(finalrc, path, null, name);
+                          executor.executeOrdered(nodePath, safeRun(() -> {
+                              callback.processResult(finalrc, path, null, name);
+                          }));
                       };
 
                       if (rc != Code.NONODE.intValue()) {
@@ -403,7 +406,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
                       } else {
                           nodeParent = nodeParent.replace("\\", "/");
                           asyncCreateFullPathOptimistic(
-                                  zk, basePath, nodeParent, new byte[0], acl, CreateMode.PERSISTENT,
+                                  basePath, nodeParent, new byte[0], acl, CreateMode.PERSISTENT,
                                   (parentRc, parentPath, ignoreCtx3, parentName) -> {
                                       if (parentRc == Code.OK.intValue() || parentRc == Code.NODEEXISTS.intValue()) {
                                           retry.run();

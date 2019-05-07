@@ -65,6 +65,24 @@ public class Policies {
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
+    public boolean schema_validation_enforced = false;
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(auth_policies, replication_clusters,
+                backlog_quota_map, clusterDispatchRate,
+                clusterSubscribeRate, deduplicationEnabled, persistence,
+                bundles, latency_stats_sample_rate,
+                message_ttl_in_seconds, retention_policies,
+                encryption_required, subscription_auth_mode,
+                antiAffinityGroup, max_producers_per_topic,
+                max_consumers_per_topic, max_consumers_per_subscription,
+                compaction_threshold, offload_threshold,
+                offload_deletion_lag_ms,
+                schema_auto_update_compatibility_strategy,
+                schema_validation_enforced);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -77,7 +95,8 @@ public class Policies {
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
-                    && message_ttl_in_seconds == other.message_ttl_in_seconds
+                    && Objects.equals(message_ttl_in_seconds,
+                            other.message_ttl_in_seconds)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
@@ -88,7 +107,8 @@ public class Policies {
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
-                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy;
+                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
+                    && schema_validation_enforced == other.schema_validation_enforced;
         }
 
         return false;
@@ -130,6 +150,7 @@ public class Policies {
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
-                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy).toString();
+                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
+                .add("schema_validation_enforced", schema_validation_enforced).toString();
     }
 }

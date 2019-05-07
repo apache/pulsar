@@ -40,6 +40,13 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
     return (pulsar_consumer_type)consumer_configuration->consumerConfiguration.getConsumerType();
 }
 
+void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties) {
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema, properties->map);
+    consumer_configuration->consumerConfiguration.setSchema(schemaInfo);
+}
+
 static void message_listener_callback(pulsar::Consumer consumer, const pulsar::Message &msg,
                                       pulsar_message_listener listener, void *ctx) {
     pulsar_consumer_t c_consumer;
@@ -101,6 +108,16 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(
     return consumer_configuration->consumerConfiguration.getUnAckedMessagesTimeoutMs();
 }
 
+void pulsar_configure_set_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis) {
+    consumer_configuration->consumerConfiguration.setNegativeAckRedeliveryDelayMs(redeliveryDelayMillis);
+}
+
+long pulsar_configure_get_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getNegativeAckRedeliveryDelayMs();
+}
+
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isEncryptionEnabled();
 }
@@ -117,4 +134,15 @@ void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consume
 void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf, const char *name,
                                                 const char *value) {
     conf->consumerConfiguration.setProperty(name, value);
+}
+
+void pulsar_consumer_set_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration, initial_position subscriptionInitialPosition) {
+    consumer_configuration->consumerConfiguration.setSubscriptionInitialPosition(
+        (pulsar::InitialPosition)subscriptionInitialPosition);
+}
+
+int pulsar_consumer_get_subscription_initial_position(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getSubscriptionInitialPosition();
 }

@@ -23,29 +23,23 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 
 /**
  * A generic avro record.
  */
 @Slf4j
-class GenericAvroRecord implements GenericRecord {
+class GenericAvroRecord extends VersionedGenericRecord {
 
     private final org.apache.avro.Schema schema;
-    private final List<Field> fields;
     private final org.apache.avro.generic.GenericRecord record;
 
-    GenericAvroRecord(org.apache.avro.Schema schema,
+    GenericAvroRecord(byte[] schemaVersion,
+                      org.apache.avro.Schema schema,
                       List<Field> fields,
                       org.apache.avro.generic.GenericRecord record) {
+        super(schemaVersion, fields);
         this.schema = schema;
-        this.fields = fields;
         this.record = record;
-    }
-
-    @Override
-    public List<Field> getFields() {
-        return fields;
     }
 
     @Override
@@ -61,7 +55,7 @@ class GenericAvroRecord implements GenericRecord {
                 .stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
-            return new GenericAvroRecord(schema, fields, avroRecord);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } else {
             return value;
         }

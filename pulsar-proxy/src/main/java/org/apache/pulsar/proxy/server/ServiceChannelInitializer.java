@@ -20,12 +20,12 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
-import java.security.cert.X509Certificate;
-
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.ClientSslContextRefresher;
+import org.apache.pulsar.common.util.NettySslContextBuilder;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -40,21 +40,24 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     public static final String TLS_HANDLER = "tls";
     private final ProxyService proxyService;
-    private final SslContext serverSslCtx;
-    private final SslContext clientSslCtx;
+    private final NettySslContextBuilder serverSslCtxRefresher;
+    private final ClientSslContextRefresher clientSslCtxRefresher;
+    private final boolean enableTls;
 
-    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTLS)
+    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTls)
             throws Exception {
         super();
         this.proxyService = proxyService;
+        this.enableTls = enableTls;
 
-        if (enableTLS) {
-            this.serverSslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
+        if (enableTls) {
+            serverSslCtxRefresher = new NettySslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                     serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.isTlsRequireTrustedClientCertOnConnect());
+                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                    serviceConfig.getTlsCertRefreshCheckDurationSec());
         } else {
-            this.serverSslCtx = null;
+            this.serverSslCtxRefresher = null;
         }
 
         if (serviceConfig.isTlsEnabledWithBroker()) {
@@ -65,27 +68,25 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getBrokerClientAuthenticationParameters()).getAuthData();
             }
 
-            if (authData != null && authData.hasDataForTls()) {
-                    this.clientSslCtx = SecurityUtility.createNettySslContextForClient(
-                            serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getBrokerClientTrustCertsFilePath(),
-                            (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
-                } else {
-                    this.clientSslCtx = SecurityUtility.createNettySslContextForClient(
-                            serviceConfig.isTlsAllowInsecureConnection(),
-                            serviceConfig.getBrokerClientTrustCertsFilePath());
-            }
+            clientSslCtxRefresher = new ClientSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
+                    serviceConfig.getBrokerClientTrustCertsFilePath(), authData);
+
         } else {
-            this.clientSslCtx = null;
+            this.clientSslCtxRefresher = null;
         }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        if (serverSslCtx != null) {
-            ch.pipeline().addLast(TLS_HANDLER, serverSslCtx.newHandler(ch.alloc()));
+        if (serverSslCtxRefresher != null && this.enableTls) {
+            SslContext sslContext = serverSslCtxRefresher.get();
+            if (sslContext != null) {
+                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
+            }
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ProxyConnection(proxyService, clientSslCtx));
+        ch.pipeline().addLast("handler",
+                new ProxyConnection(proxyService, clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get()));
     }
 }

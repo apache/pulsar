@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-functions</artifactId>
-        <version>2.3.0-SNAPSHOT</version>
+        <version>2.4.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-functions-proto</artifactId>
@@ -78,6 +78,7 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <phase>generate-sources</phase>
                         <goals>
                             <goal>compile</goal>
                             <goal>compile-custom</goal>

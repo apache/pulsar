@@ -65,6 +65,9 @@ class Record(with_metaclass(RecordMeta, object)):
             if k in kwargs:
                 # Value was overridden at constructor
                 self.__setattr__(k, kwargs[k])
+            elif isinstance(value, Record):
+                # Value is a subrecord
+                self.__setattr__(k, value)
             else:
                 # Set field to default value
                 self.__setattr__(k, value.default())
@@ -195,7 +198,8 @@ class Array(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'items': self.array_type.type()
+            'items': self.array_type.schema() if isinstance(self.array_type, Record) 
+                else self.array_type.type()
         }
 
 
@@ -211,5 +215,6 @@ class Map(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'values': self.value_type.type()
+            'values': self.value_type.schema() if isinstance(self.value_type, Record)
+                else self.value_type.type()
         }

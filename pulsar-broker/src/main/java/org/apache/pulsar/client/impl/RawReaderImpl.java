@@ -111,7 +111,9 @@ public class RawReaderImpl implements RawReader {
                 consumerFuture,
                 SubscriptionMode.Durable,
                 MessageId.earliest,
-                Schema.BYTES, null);
+                Schema.BYTES, null,
+                client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                client.getConfiguration().getMaxBackoffIntervalNanos());
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }
@@ -163,6 +165,12 @@ public class RawReaderImpl implements RawReader {
                 incomingRawMessages.clear();
             }
             toError.forEach((f) -> f.cancel(false));
+        }
+
+        @Override
+        public CompletableFuture<Void> seekAsync(long timestamp) {
+            reset();
+            return super.seekAsync(timestamp);
         }
 
         @Override

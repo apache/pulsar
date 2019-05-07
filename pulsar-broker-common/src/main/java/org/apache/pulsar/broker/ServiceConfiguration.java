@@ -37,6 +37,7 @@ import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
  * Pulsar service configuration object.
@@ -75,6 +76,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_AUTHORIZATION = "Authorization";
     @Category
     private static final String CATEGORY_TOKEN_AUTH = "Token Authentication Provider";
+    @Category
+    private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
 
@@ -146,7 +149,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
         )
-    private int numHttpServerThreads = 2 * Runtime.getRuntime().availableProcessors();
+    // Use at least 8 threads to avoid having Jetty go into threads starving and
+    // having the possibility of getting into a deadlock where a Jetty thread is
+    // waiting for another HTTP call to complete in same thread.
+    private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -177,6 +183,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "ZooKeeper session timeout in milliseconds"
     )
     private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "ZooKeeper operation timeout in seconds"
+        )
+    private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -209,6 +220,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.producer_request_hold;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "
+                    + "(disable default-ttl with value 0)"
+        )
+    private int ttlDurationDefaultInSeconds = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -237,10 +254,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable subscription message redelivery tracker to send redelivery "
+                    + "count to consumer (default is enabled)"
+        )
+    private boolean subscriptionRedeliveryTrackerEnabled = true;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"
     )
     private long subscriptionExpiryCheckIntervalInMinutes = 5;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Enable Key_Shared subscription (default is enabled)"
+    )
+    private boolean subscriptionKeySharedEnable = true;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -367,6 +398,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+    )
+    private int dispatcherMaxReadBatchSize = 100;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Min number of entries to read from bookkeeper. By default it is 1 entries."
+            + "When there is an error occurred on reading entries from bookkeeper, the broker"
+            + " will backoff the batch size to this minimum number."
+    )
+    private int dispatcherMinReadBatchSize = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
+    )
+    private int dispatcherMaxRoundRobinBatchSize = 20;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -440,6 +496,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     @Deprecated
     private boolean tlsEnabled = false;
+    @FieldContext(
+        category = CATEGORY_TLS,
+        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+    )
+    private long tlsCertRefreshCheckDurationSec = 300;
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the TLS certificate file"
@@ -549,6 +610,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
     private String anonymousUserRole = null;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
+            + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
+    )
+    private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "Service Principal, for login context name. Default value is \"Broker\"."
+    )
+    private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+
+    @FieldContext(
+        category = CATEGORY_SASL_AUTH,
+        doc = "kerberos kinit command."
+    )
+    private String kinitCommand = "/usr/bin/kinit";
 
     /**** --- BookKeeper Client --- ****/
     @FieldContext(
@@ -683,17 +763,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when inserting in cache")
+    private boolean managedLedgerCacheCopyEntries = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
     private double managedLedgerCacheEvictionWatermark = 0.9f;
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
+    private double managedLedgerCacheEvictionFrequency = 100.0;
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
+    private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
+                    + " and thus should be set as inactive.")
+    private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Rate limit the amount of writes per second generated by consumer acking the messages"
     )
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
-
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+    	doc = "Allow automated creation of non-partition topics if set to true (default value)."
+    )
+    private boolean allowAutoTopicCreation = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"

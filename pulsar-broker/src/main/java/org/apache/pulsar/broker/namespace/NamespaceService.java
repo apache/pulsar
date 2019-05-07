@@ -54,6 +54,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -87,10 +88,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -162,6 +163,11 @@ public class NamespaceService {
     public CompletableFuture<NamespaceBundle> getBundleAsync(TopicName topic) {
         return bundleFactory.getBundlesAsync(topic.getNamespaceObject())
                 .thenApply(bundles -> bundles.findBundle(topic));
+    }
+
+    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) throws Exception {
+        Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
+        return bundles.map(b -> b.findBundle(topicName));
     }
 
     public NamespaceBundle getBundle(TopicName topicName) throws Exception {
@@ -291,9 +297,9 @@ public class NamespaceService {
         }
     }
 
-    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesAuthoritative
+    private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesAuthoritative
         = new ConcurrentOpenHashMap<>();
-    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesNotAuthoritative
+    private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesNotAuthoritative
         = new ConcurrentOpenHashMap<>();
 
     /**
@@ -373,7 +379,12 @@ public class NamespaceService {
             }
 
             if (candidateBroker == null) {
-                if (!this.loadManager.get().isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
+                if (!this.loadManager.get().isCentralized()
+                        || pulsar.getLeaderElectionService().isLeader()
+
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        || !isBrokerActive(pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl())
+                    ) {
                     Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                     if (!availableBroker.isPresent()) {
                         lookupFuture.complete(Optional.empty());
@@ -400,6 +411,10 @@ public class NamespaceService {
             checkNotNull(candidateBroker);
 
             if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
+                // invalidate namespace policies and try to load latest policies to avoid data-discrepancy if broker
+                // doesn't receive watch on policies changes
+                final String policyPath = AdminResource.path(POLICIES, bundle.getNamespaceObject().toString());
+                pulsar.getConfigurationCache().policiesCache().invalidate(policyPath);
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
@@ -514,11 +529,27 @@ public class NamespaceService {
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {
+        // unload namespace bundle
         unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) throws Exception {
         checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar, timeout, timeoutUnit);
+    }
+
+    public CompletableFuture<Boolean> isNamespaceBundleOwned(NamespaceBundle bundle) {
+        String bundlePath = ServiceUnitZkUtils.path(bundle);
+        CompletableFuture<Boolean> isExistFuture = new CompletableFuture<Boolean>();
+        pulsar.getLocalZkCache().getZooKeeper().exists(bundlePath, false, (rc, path, ctx, stat) -> {
+            if (rc == Code.OK.intValue()) {
+                isExistFuture.complete(true);
+            } else if (rc == Code.NONODE.intValue()) {
+                isExistFuture.complete(false);
+            } else {
+                isExistFuture.completeExceptionally(KeeperException.create(rc));
+            }
+        }, null);
+        return isExistFuture;
     }
 
     public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
@@ -735,7 +766,8 @@ public class NamespaceService {
 
         if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
-            this.pulsar.getLocalZkCacheService().createPolicies(path, false).get(cacheTimeOutInSec, SECONDS);
+            this.pulsar.getLocalZkCacheService().createPolicies(path, false)
+                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         long version = nsBundles.getVersion();
@@ -797,21 +829,29 @@ public class NamespaceService {
     }
 
     private boolean isTopicOwned(TopicName topicName) throws Exception {
-        return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
+        Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
+        if (!bundle.isPresent()) {
+            return false;
+        } else {
+            return ownershipCache.getOwnedBundle(bundle.get()) != null;
+        }
     }
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
-        ownershipCache.removeOwnership(getFullBundle(nsName)).get(cacheTimeOutInSec, SECONDS);
+        ownershipCache.removeOwnership(getFullBundle(nsName))
+                .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         bundleFactory.invalidateBundleCache(nsName);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle).get(cacheTimeOutInSec, SECONDS);
+        ownershipCache.removeOwnership(nsBundle).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(),
+                SECONDS);
         bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
     }
 
     public void removeOwnedServiceUnits(NamespaceName nsName, BundlesData bundleData) throws Exception {
-        ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData)).get(cacheTimeOutInSec, SECONDS);
+        ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData))
+                .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         bundleFactory.invalidateBundleCache(nsName);
     }
 
@@ -869,7 +909,7 @@ public class NamespaceService {
         ClusterData peerClusterData;
         try {
             peerClusterData = PulsarWebResource.checkLocalOrGetPeerReplicationCluster(pulsar, namespaceName)
-                .get(cacheTimeOutInSec, SECONDS);
+                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException("Failed to contact peer replication cluster.", e);
         }
@@ -945,7 +985,7 @@ public class NamespaceService {
 
     public Optional<NamespaceEphemeralData> getOwner(NamespaceBundle bundle) throws Exception {
         // if there is no znode for the service unit, it is not owned by any broker
-        return getOwnerAsync(bundle).get(cacheTimeOutInSec, SECONDS);
+        return getOwnerAsync(bundle).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
     }
 
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
@@ -977,7 +1017,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
      public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
@@ -986,7 +1026,7 @@ public class NamespaceService {
             port = config.getWebServicePort().get();
         } else if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
-        } 
+        }
         return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 

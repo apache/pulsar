@@ -23,9 +23,18 @@ package org.apache.pulsar.client.api;
  * to only pick a certain type of topics.
  */
 public enum RegexSubscriptionMode {
+    /**
+     * Only subscribe to persistent topics
+     */
     PersistentOnly,
 
+    /**
+     * Only subscribe to non-persistent topics
+     */
     NonPersistentOnly,
 
+    /**
+     * Subscribe to both persistent and non-persistent topics
+     */
     AllTopics
 }

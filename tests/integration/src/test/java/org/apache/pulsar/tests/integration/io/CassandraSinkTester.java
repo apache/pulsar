@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
 
 /**
  * A tester for testing cassandra sink.
