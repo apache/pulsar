@@ -67,9 +67,7 @@
                                 </goals>
                                 <configuration>
                                     <workingDirectory>${project.basedir}/target</workingDirectory>
-                                    <executable>
-                                        ${project.basedir}/../../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh
-                                    </executable>
+                                    <executable>${project.basedir}/../../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh</executable>
                                 </configuration>
                             </execution>
                             <execution>
@@ -80,8 +78,7 @@
                                 </goals>
                                 <configuration>
                                     <workingDirectory>${project.basedir}/go-test-schema</workingDirectory>
-                                    <executable>${project.basedir}/go-test-schema/docker_build_go_schema_test.sh
-                                    </executable>
+                                    <executable>${project.basedir}/go-test-schema/docker_build_go_schema_test.sh</executable>
                                 </configuration>
                             </execution>
                         </executions>
