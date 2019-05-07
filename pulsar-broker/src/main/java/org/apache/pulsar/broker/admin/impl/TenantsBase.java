@@ -211,6 +211,9 @@ public class TenantsBase extends AdminResource {
     private void validateClusters(TenantInfo info) {
         List<String> nonexistentClusters;
         try {
+            if (info == null) {
+                info = new TenantInfo();
+            }
             Set<String> availableClusters = clustersListCache().get();
             Set<String> allowedClusters = info.getAllowedClusters();
             nonexistentClusters = allowedClusters.stream()
