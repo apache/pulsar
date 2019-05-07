@@ -32,62 +32,66 @@ import java.util.Map;
 @Data
 @Accessors(chain = true)
 public class CBSourceConfig implements Serializable {
-    @FieldDoc(required = true, defaultValue = "",
-            help = "name connection to couchbase server")
-    private String connectionName;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "name connection to couchbase server")
+  private String connectionName;
 
-    @FieldDoc(required = true, defaultValue = "30",
-            help = "Wait this milliseconds before failing when connecting to couchbase server")
-    private long connectionTimeOut;
+  @FieldDoc(required = true, defaultValue = "10000",
+      help = "Wait this milliseconds before failing when connecting to couchbase server")
+  private long connectionTimeOut;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "hostnames of couchbase server")
-    private String[] hostnames;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "hostnames of couchbase server")
+  private String[] hostnames;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "bucket to connect on couchbase server")
-    private String bucket;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "bucket to connect on couchbase server")
+  private String bucket;
 
-    @FieldDoc(required = true, defaultValue = "", sensitive = true,
-            help = "username to connect to bucket on couchbase server")
-    private String username;
+  @FieldDoc(required = true, defaultValue = "", sensitive = true,
+      help = "username to connect to bucket on couchbase server")
+  private String username;
 
-    @FieldDoc(required = true, defaultValue = "", sensitive = true,
-            help = "password to connect to bucket on couchbase server")
-    private String password;
+  @FieldDoc(required = true, defaultValue = "", sensitive = true,
+      help = "password to connect to bucket on couchbase server")
+  private String password;
 
-    @FieldDoc(required = true, defaultValue = "ENABLED", sensitive = true,
-            help = "password to connect to bucket on couchbase server")
-    private String compressedMode;
+  @FieldDoc(required = true, defaultValue = "ENABLED", sensitive = true,
+      help = "password to connect to bucket on couchbase server")
+  private String compressedMode;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "persistence polling interval in milliseconds for rollback mitigation")
-    private long persistencePollingInterval;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "persistence polling interval in milliseconds for rollback mitigation")
+  private long persistencePollingInterval;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "the amount of data the server will send before requiring an ack")
-    private int flowControlBufferSizeInBytes;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "the amount of data the server will send before requiring an ack")
+  private int flowControlBufferSizeInBytes;
 
-    @FieldDoc(required = true, defaultValue = "false",
-            help = "set if ssl should be enabled")
-    private Boolean sslEnabled;
+  @FieldDoc(required = true, defaultValue = "false",
+      help = "set if ssl should be enabled")
+  private Boolean sslEnabled;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "the location of the ssl keystore file")
-    private String sslKeystoreFile;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "the location of the ssl keystore file")
+  private String sslKeystoreFile;
 
-    @FieldDoc(required = true, defaultValue = "",
-            help = "the ssl keystore password to be used with the keystore file")
-    private String sslKeystorePassword;
+  @FieldDoc(required = true, defaultValue = "",
+      help = "the ssl keystore password to be used with the keystore file")
+  private String sslKeystorePassword;
 
-    public static CBSourceConfig load(String yamlFile) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), CBSourceConfig.class);
-    }
+  @FieldDoc(required = true, defaultValue = "false",
+      help = "use snapshots")
+  private Boolean useSnapshots;
 
-    public static CBSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), CBSourceConfig.class);
-    }
+  public static CBSourceConfig load(String yamlFile) throws IOException {
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    return mapper.readValue(new File(yamlFile), CBSourceConfig.class);
+  }
+
+  public static CBSourceConfig load(Map<String, Object> map) throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    return mapper.readValue(new ObjectMapper().writeValueAsString(map), CBSourceConfig.class);
+  }
 
 }

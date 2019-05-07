@@ -18,12 +18,21 @@
  */
 package org.apache.pulsar.io.cb;
 
-import lombok.extern.slf4j.Slf4j;
+import com.couchbase.client.dcp.message.DcpSnapshotMarkerRequest;
+import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
+import lombok.Data;
 
-@Slf4j
-public class CBByteArraySource extends CBAbstractSource<byte[]> {
-  @Override
-  public byte[] extractValue(byte[] message) {
-    return message;
+@Data
+public class DcpSnapshotMarkerRequestMeta {
+  private short partition;
+  private long startSeqNo;
+  private long endSeqNo;
+
+  private DcpSnapshotMarkerRequestMeta() {}
+
+  public DcpSnapshotMarkerRequestMeta(ByteBuf event) {
+    this.partition = DcpSnapshotMarkerRequest.partition(event);
+    this.startSeqNo = DcpSnapshotMarkerRequest.startSeqno(event);
+    this.endSeqNo = DcpSnapshotMarkerRequest.endSeqno(event);
   }
 }

@@ -28,5 +28,6 @@
    "flowControlBufferSizeInBytes": 10240,
    "sslEnabled": false,
    "sslKeystoreFile": "",
-   "sslKeystorePassword": ""
+   "sslKeystorePassword": "",
+   "useSnapshots": true
 }
