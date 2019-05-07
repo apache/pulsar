@@ -61,15 +61,17 @@ func TestConsumer(t *testing.T) {
 	assert.Nil(t, err)
 	defer client.Close()
 
+	topic := fmt.Sprintf("my-topic-%d", time.Now().Unix())
+
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic: "my-topic",
+		Topic: topic,
 	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
-		Topic:             "my-topic",
+		Topic:             topic,
 		SubscriptionName:  "my-sub",
 		AckTimeout:        1 * time.Minute,
 		Name:              "my-consumer-name",
@@ -81,7 +83,7 @@ func TestConsumer(t *testing.T) {
 	assert.Nil(t, err)
 	defer consumer.Close()
 
-	assert.Equal(t, consumer.Topic(), "persistent://public/default/my-topic")
+	assert.Equal(t, consumer.Topic(), "persistent://public/default/" + topic)
 	assert.Equal(t, consumer.Subscription(), "my-sub")
 
 	ctx := context.Background()
@@ -100,7 +102,10 @@ func TestConsumer(t *testing.T) {
 		assert.NotNil(t, msg)
 
 		assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
-		assert.Equal(t, string(msg.Topic()), "persistent://public/default/my-topic")
+		assert.Equal(t, msg.Topic(), "persistent://public/default/" + topic)
+		fmt.Println("Send time: ", sendTime)
+		fmt.Println("Publish time: ", msg.PublishTime())
+		fmt.Println("Receive time: ", recvTime)
 		assert.True(t, sendTime.Unix() <= msg.PublishTime().Unix())
 		assert.True(t, recvTime.Unix() >= msg.PublishTime().Unix())
 
@@ -374,7 +379,7 @@ func TestConsumerRegex(t *testing.T) {
 	defer producer2.Close()
 
 	consumer, err := client.Subscribe(ConsumerOptions{
-		TopicsPattern:    "topic-\\d+",
+		TopicsPattern:    "persistent://public/default/topic-.*",
 		SubscriptionName: "my-sub",
 	})
 
@@ -400,6 +405,7 @@ func TestConsumerRegex(t *testing.T) {
 	}
 
 	for i := 0; i < 20; i++ {
+		ctx, _ = context.WithTimeout(context.Background(), 1 * time.Second)
 		msg, err := consumer.Receive(ctx)
 		assert.Nil(t, err)
 		assert.NotNil(t, msg)
@@ -478,7 +484,7 @@ func TestConsumer_SubscriptionInitPos(t *testing.T) {
 	assert.Nil(t, err)
 	defer client.Close()
 
-	topicName := "persistent://public/default/testSeek"
+	topicName := fmt.Sprintf("testSeek-%d", time.Now().Unix())
 	subName := "test-subscription-initial-earliest-position"
 
 	// create producer

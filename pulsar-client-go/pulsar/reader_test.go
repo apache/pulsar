@@ -58,22 +58,24 @@ func TestReader(t *testing.T) {
 	assert.Nil(t, err)
 	defer client.Close()
 
+	topic := fmt.Sprintf("my-reader-topic-%d", time.Now().Unix())
+
 	producer, err := client.CreateProducer(ProducerOptions{
-		Topic: "my-reader-topic",
+		Topic: topic,
 	})
 
 	assert.Nil(t, err)
 	defer producer.Close()
 
 	reader, err := client.CreateReader(ReaderOptions{
-		Topic:          "my-reader-topic",
+		Topic:          topic,
 		StartMessageID: LatestMessage,
 	})
 
 	assert.Nil(t, err)
 	defer reader.Close()
 
-	assert.Equal(t, reader.Topic(), "persistent://public/default/my-reader-topic")
+	assert.Equal(t, reader.Topic(), "persistent://public/default/" + topic )
 
 	ctx := context.Background()
 

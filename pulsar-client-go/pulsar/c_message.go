@@ -87,8 +87,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 			for i, s := range message.ReplicationClusters {
 				C.setString(array, C.CString(s), C.int(i))
 			}
-
-			C.pulsar_message_set_replication_clusters(cMsg, array, size)
+			C.pulsar_message_set_replication_clusters(cMsg, array, C.size_t(size))
 		}
 	}
 
