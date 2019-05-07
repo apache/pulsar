@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,8 +18,5 @@
 # under the License.
 #
 
-apk add bash git gcc g++ libc-dev
-
 go mod download
 CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go install -i -gcflags='all=-N -l' .
-

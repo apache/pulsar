@@ -21,10 +21,10 @@
 set -e
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-GOIMAGE=golang:1.11-alpine
+GOIMAGE=golang:1.11.4
 
 docker pull $GOIMAGE
 
 DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $GOIMAGE"
 
-$DOCKER_CMD sh -c "cd /pulsar/tests/docker-images/latest-version-image/go-test-schema && ./build_go_schema_test.sh && cp /go/bin/consumer-schema . && cp /go/bin/producer-schema ."
+$DOCKER_CMD sh -c "cd /pulsar/tests/docker-images/latest-version-image/target/ && mkdir cpp-dep-build && cp -r /pulsar/pulsar-client-cpp/pkg/deb/BUILD/DEB/* /pulsar/tests/docker-images/latest-version-image/target/cpp-dep-build && cd /pulsar/tests/docker-images/latest-version-image/target/cpp-dep-build && apt install ./apache-pulsar-client.deb && apt install ./apache-pulsar-client-dev.deb && cd /pulsar/tests/docker-images/latest-version-image/go-test-schema && ./build_go_schema_test.sh && cp /go/bin/consumer-schema . && cp /go/bin/producer-schema ."

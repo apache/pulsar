@@ -29,4 +29,3 @@ func createClient() pulsar.Client {
 	}
 	return client
 }
-
