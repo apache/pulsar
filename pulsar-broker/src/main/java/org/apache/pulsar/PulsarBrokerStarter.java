@@ -175,6 +175,10 @@ public class PulsarBrokerStarter {
                 workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
+
+                // inherit super users
+                workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+
                 functionsWorkerService = new WorkerService(workerConfig);
             } else {
                 functionsWorkerService = null;

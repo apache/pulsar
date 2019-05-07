@@ -796,9 +796,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
-        // Verify: cache has to be cleared as there is no message needs to be consumed by active subscriber
-        assertEquals(entryCache.getSize(), 0, 1);
-
         /************ usecase-2: *************/
         // 1.b Subscriber slower-subscriber
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
@@ -869,16 +866,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
         // reflection to set/get cache-backlog fields value:
-        final long maxMessageCacheRetentionTimeMillis = 100;
-        Field backlogThresholdField = ManagedLedgerImpl.class.getDeclaredField("maxActiveCursorBacklogEntries");
-        backlogThresholdField.setAccessible(true);
-        Field field = ManagedLedgerImpl.class.getDeclaredField("maxMessageCacheRetentionTimeMillis");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(ledger, maxMessageCacheRetentionTimeMillis);
-        final long maxActiveCursorBacklogEntries = (long) backlogThresholdField.get(ledger);
+        final long maxMessageCacheRetentionTimeMillis = conf.getManagedLedgerCacheEvictionTimeThresholdMillis();
+        final long maxActiveCursorBacklogEntries = conf.getManagedLedgerCursorBackloggedThreshold();
 
         Message<byte[]> msg = null;
         final int totalMsgs = (int) maxActiveCursorBacklogEntries + receiverSize + 1;
@@ -2911,16 +2900,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * This test verifies that broker activates fail-over consumer by considering priority-level as well.
-     * 
+     *
      * <pre>
      * 1. Start two failover consumer with same priority level, broker selects consumer based on name-sorting (consumer1).
      * 2. Switch non-active consumer to active (consumer2): by giving it higher priority
      * Partitioned-topic with 9 partitions:
      * 1. C1 (priority=1)
      * 2. C2,C3,C4 (priority=0)
-     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions. 
+     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions.
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test

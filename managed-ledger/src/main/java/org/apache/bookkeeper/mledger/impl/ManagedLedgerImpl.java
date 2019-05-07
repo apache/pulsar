@@ -20,10 +20,25 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.TRUE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+
+import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Range;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 
 import java.time.Clock;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,13 +77,13 @@ import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -99,35 +114,15 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.BoundType;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Range;
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-import java.util.HashMap;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.TRUE;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static long MegaByte = 1024 * 1024;
 
     protected final static int AsyncOperationTimeoutSeconds = 30;
-    private final static long maxActiveCursorBacklogEntries = 100;
-    private static long maxMessageCacheRetentionTimeMillis = 10 * 1000;
 
     protected final BookKeeper bookKeeper;
     protected final String name;
@@ -159,8 +154,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, "totalSize");
     @SuppressWarnings("unused")
     private volatile long totalSize = 0;
-
-    private RateLimiter updateCursorRateLimit;
 
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
@@ -235,6 +228,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "readOpCount");
     private volatile long readOpCount = 0;
+
+    private final long backloggedCursorThresholdEntries;
+
     // last read-operation's callback to check read-timeout on it.
     private volatile ReadEntryCallbackWrapper lastReadCallback = null;
 
@@ -267,8 +263,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = Maps.newHashMap();
-        this.updateCursorRateLimit = RateLimiter.create(1);
         this.clock = config.getClock();
+        this.backloggedCursorThresholdEntries = factory.getConfig().getThresholdBackloggedCursor();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
@@ -904,63 +900,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void checkBackloggedCursors() {
-
         // activate caught up cursors
         cursors.forEach(cursor -> {
-            if (cursor.getNumberOfEntries() < maxActiveCursorBacklogEntries) {
+            if (cursor.getNumberOfEntries() < backloggedCursorThresholdEntries) {
                 cursor.setActive();
+            } else {
+                cursor.setInactive();
             }
         });
-
-        // deactivate backlog cursors
-        Iterator<ManagedCursor> cursors = activeCursors.iterator();
-        while (cursors.hasNext()) {
-            ManagedCursor cursor = cursors.next();
-            long backlogEntries = cursor.getNumberOfEntries();
-            if (backlogEntries > maxActiveCursorBacklogEntries) {
-                PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
-                readPosition = isValidPosition(readPosition) ? readPosition : getNextValidPosition(readPosition);
-                if (readPosition == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Couldn't find valid read position [{}] {}", name, cursor.getName(),
-                                cursor.getReadPosition());
-                    }
-                    continue;
-                }
-                try {
-                    asyncReadEntry(readPosition, new ReadEntryCallback() {
-
-                        @Override
-                        public void readEntryFailed(ManagedLedgerException e, Object ctx) {
-                            log.warn("[{}] Failed while reading entries on [{}] {}", name, cursor.getName(),
-                                    e.getMessage(), e);
-
-                        }
-
-                        @Override
-                        public void readEntryComplete(Entry entry, Object ctx) {
-                            MessageMetadata msgMetadata = null;
-                            try {
-                                msgMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                                long msgTimeSincePublish = (clock.millis() - msgMetadata.getPublishTime());
-                                if (msgTimeSincePublish > maxMessageCacheRetentionTimeMillis) {
-                                    cursor.setInactive();
-                                }
-                            } finally {
-                                if (msgMetadata != null) {
-                                    msgMetadata.recycle();
-                                }
-                                entry.release();
-                            }
-
-                        }
-                    }, null);
-                } catch (Exception e) {
-                    log.warn("[{}] Failed while reading entries from cache on [{}] {}", name, cursor.getName(),
-                            e.getMessage(), e);
-                }
-            }
-        }
     }
 
     @Override
@@ -1578,13 +1525,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     lastEntry);
         }
         asyncReadEntry(ledger, firstEntry, lastEntry, false, opReadEntry, opReadEntry.ctx);
-
-        if (updateCursorRateLimit.tryAcquire()) {
-            if (isCursorActive(cursor)) {
-                final PositionImpl lastReadPosition = PositionImpl.get(ledger.getId(), lastEntry);
-                discardEntriesFromCache(cursor, lastReadPosition);
-            }
-        }
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {
@@ -1778,6 +1718,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (pair != null) {
             entryCache.invalidateEntries(pair.getRight());
         }
+    }
+
+    void doCacheEviction(long maxTimestamp) {
+        // Always remove all entries already read by active cursors
+        PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
+        if (slowestReaderPos != null) {
+            entryCache.invalidateEntries(slowestReaderPos);
+        }
+
+        // Remove entries older than the cutoff threshold
+        entryCache.invalidateEntriesBeforeTimestamp(maxTimestamp);
+    }
+
+    private PositionImpl getEarlierReadPositionForActiveCursors() {
+        PositionImpl smallest = null;
+        for (ManagedCursor cursor : activeCursors) {
+            PositionImpl p = (PositionImpl) cursor.getReadPosition();
+            if (smallest == null) {
+                smallest = p;
+            } else if (p.compareTo(smallest) < 0) {
+                smallest = p;
+            }
+        }
+
+        return smallest;
     }
 
     void updateCursor(ManagedCursorImpl cursor, PositionImpl newPosition) {

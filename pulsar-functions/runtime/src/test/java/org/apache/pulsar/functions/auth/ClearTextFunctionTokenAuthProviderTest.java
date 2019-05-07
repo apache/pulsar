@@ -50,7 +50,7 @@ public class ClearTextFunctionTokenAuthProviderTest {
         Assert.assertEquals(functionAuthData.get().getData(), "test-token".getBytes());
 
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        clearTextFunctionTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, functionAuthData.get());
+        clearTextFunctionTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, functionAuthData);
 
         Assert.assertEquals(authenticationConfig.getClientAuthenticationPlugin(), AuthenticationToken.class.getName());
         Assert.assertEquals(authenticationConfig.getClientAuthenticationParameters(), "token:test-token");

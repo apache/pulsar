@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -111,6 +112,7 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
 import static org.apache.pulsar.functions.utils.ComponentType.SINK;
 import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
@@ -396,23 +398,27 @@ public abstract class ComponentImpl {
                     .setVersion(0);
 
             // cache auth if need
-            if (clientAuthenticationDataHttps != null) {
-                try {
-                    Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
-                            .getRuntimeFactory()
-                            .getAuthProvider()
-                            .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
 
-                    if (functionAuthData.isPresent()) {
-                        functionMetaDataBuilder.setFunctionAuthSpec(
-                                Function.FunctionAuthenticationSpec.newBuilder()
-                                        .setData(ByteString.copyFrom(functionAuthData.get().getData()))
-                                        .build());
+                if (clientAuthenticationDataHttps != null) {
+                    try {
+                        Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
+                                .getRuntimeFactory()
+                                .getAuthProvider()
+                                .cacheAuthData(tenant, namespace, componentName, clientAuthenticationDataHttps);
+
+                        if (functionAuthData.isPresent()) {
+                            functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(functionAuthData.get().getData()))
+                                            .build());
+                        }
+                    } catch (Exception e) {
+                        log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+
+
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
                     }
-                } catch (Exception e) {
-                    log.error("Error caching authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
-
-                    throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
                 }
             }
 
@@ -512,7 +518,8 @@ public abstract class ComponentImpl {
                                final String functionPkgUrl,
                                final String componentConfigJson,
                                final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps) {
+                               AuthenticationDataHttps clientAuthenticationDataHttps,
+                               UpdateOptions updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -532,7 +539,7 @@ public abstract class ComponentImpl {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
                         componentName, clientRole, componentType);
-                throw new RestException(Status.UNAUTHORIZED, componentType + "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
 
             }
         } catch (PulsarAdminException e) {
@@ -668,6 +675,39 @@ public abstract class ComponentImpl {
             // merge from existing metadata
             FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder().mergeFrom(existingComponent)
                     .setFunctionDetails(functionDetails);
+
+            // update auth data if need
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                if (clientAuthenticationDataHttps != null && updateOptions != null && updateOptions.isUpdateAuthData()) {
+                    // get existing auth data if it exists
+                    Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
+                    if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
+                        existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                    }
+
+                    try {
+                        Optional<FunctionAuthData> newFunctionAuthData = worker().getFunctionRuntimeManager()
+                                .getRuntimeFactory()
+                                .getAuthProvider()
+                                .updateAuthData(
+                                        tenant, namespace,
+                                        componentName, existingFunctionAuthData,
+                                        clientAuthenticationDataHttps);
+
+                        if (newFunctionAuthData.isPresent()) {
+                            functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(newFunctionAuthData.get().getData()))
+                                            .build());
+                        } else {
+                            functionMetaDataBuilder.clearFunctionAuthSpec();
+                        }
+                    } catch (Exception e) {
+                        log.error("Error updating authentication data for {} {}/{}/{}", componentType, tenant, namespace, componentName, e);
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", componentType, componentName, e.getMessage()));
+                    }
+                }
+            }
 
             PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {
@@ -1694,9 +1734,13 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             }
 
             if (clientRole != null) {
-                TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-                if (tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
-                    return true;
+                try {
+                    TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    if (tenantInfo != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                        return true;
+                    }
+                } catch (PulsarAdminException.NotFoundException e) {
+
                 }
             }
 

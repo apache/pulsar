@@ -23,7 +23,7 @@ from pulsar import Function
 
 # Example function that uses the built in publish function in the context
 # to publish to a desired topic based on config
-class PublishFunctionWithMessageConf(Function):
+class TypedMessageBuilderPublish(Function):
   def __init__(self):
     pass
 

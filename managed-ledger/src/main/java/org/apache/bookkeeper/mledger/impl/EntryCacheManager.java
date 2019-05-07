@@ -81,7 +81,7 @@ public class EntryCacheManager {
             return new EntryCacheDisabled(ml);
         }
 
-        EntryCache newEntryCache = new EntryCacheImpl(this, ml);
+        EntryCache newEntryCache = new EntryCacheImpl(this, ml, mlFactory.getConfig().isCopyEntriesInCache());
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
@@ -187,6 +187,10 @@ public class EntryCacheManager {
         @Override
         public Pair<Integer, Long> evictEntries(long sizeToFree) {
             return Pair.of(0, (long) 0);
+        }
+
+        @Override
+        public void invalidateEntriesBeforeTimestamp(long timestamp) {
         }
 
         @Override

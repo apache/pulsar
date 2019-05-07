@@ -25,7 +25,7 @@ import java.util.Optional;
 
 public class NoOpFunctionAuthProvider implements FunctionAuthProvider{
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData) {
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
 
     }
 
@@ -37,7 +37,13 @@ public class NoOpFunctionAuthProvider implements FunctionAuthProvider{
     }
 
     @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception {
+    public Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name,
+                                                     Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception {
+        return Optional.empty();
+    }
+
+    @Override
+    public void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception {
 
     }
 }
