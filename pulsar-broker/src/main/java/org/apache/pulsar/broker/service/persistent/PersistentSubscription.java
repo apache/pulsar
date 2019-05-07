@@ -20,10 +20,13 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -55,9 +58,14 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class PersistentSubscription implements Subscription {
     protected final PersistentTopic topic;
@@ -76,6 +84,29 @@ public class PersistentSubscription implements Subscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
+    // Map to keep track of message ack by each txn.
+    private final ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<Position>> pendingAckMessagesMap;
+
+    // Messages acked by ongoing transaction, pending transaction commit to materialize the acks. For faster look up.
+    // Using hashset as a message should only be acked once by one transaction.
+    private final ConcurrentOpenHashSet<Position> pendingAckMessages;
+
+    // Message cumulative acked by ongoing transaction, pending transaction commit to materialize the ack.
+    // Only one transaction can cumulative ack.
+    // This parameter only keep the the largest Position it cumulative ack,as any Position smaller will also be covered.
+    private volatile Position pendingCumulativeAckMessage;
+
+    private static final AtomicReferenceFieldUpdater<PersistentSubscription, Position> POSITION_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(PersistentSubscription.class, Position.class,
+                    "pendingCumulativeAckMessage");
+
+    // Transaction currently using cumulative ack.
+    private volatile TxnID txnID;
+
+    private static final AtomicReferenceFieldUpdater<PersistentSubscription, TxnID> TXNID_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(PersistentSubscription.class, TxnID.class,
+                    "txnID");
+
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor) {
         this.topic = topic;
         this.cursor = cursor;
@@ -83,6 +114,8 @@ public class PersistentSubscription implements Subscription {
         this.subName = subscriptionName;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         IS_FENCED_UPDATER.set(this, FALSE);
+        pendingAckMessages = new ConcurrentOpenHashSet<>();
+        pendingAckMessagesMap = new ConcurrentOpenHashMap<>();
     }
 
     @Override
@@ -206,6 +239,67 @@ public class PersistentSubscription implements Subscription {
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+        }
+    }
+
+    /**
+     *
+     * @param txnID
+     * @param positions
+     * @param ackType
+     */
+    public void acknowledgeMessage(TxnID txnID, List<Position> positions, AckType ackType) {
+        checkArgument(txnID != null, "TransactionID can not be null.");
+        if (AckType.Cumulative == ackType) {
+            if (this.txnID != null && this.txnID != txnID) {
+                String errorMsg = String.format("[%s] Transaction:%l%l try to cumulative ack message while" +
+                        " transaction:%l%l already cumulative acked messages. ", topicName, this.txnID.getMostSigBits(),
+                        this.txnID.getLeastSigBits(), txnID.getMostSigBits(), txnID.getLeastSigBits());
+                log.error(errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+
+            if (positions.size() != 1) {
+                String errorMsg = String.format("[%s] Transaction:%l%l, invalid cumulative ack received with multiple " +
+                                "message ids", topicName, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                log.error(errorMsg);
+                throw new IllegalArgumentException(errorMsg);
+            }
+
+            Position position = positions.get(0);
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}]TxnID:[{}{}] Cumulative ack on {}", topicName, txnID.getMostSigBits(),
+                        txnID.getLeastSigBits(), position);
+            }
+
+            if (this.txnID == null) {
+                TXNID_UPDATER.set(this, txnID);
+                POSITION_UPDATER.compareAndSet(this, null, position);
+            } else if (((PositionImpl)position).compareTo((PositionImpl)this.pendingCumulativeAckMessage) < 0) {
+                // If new cumulative ack position is greater than current one, update it.
+                POSITION_UPDATER.set(this, position);
+            }
+
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}]TxnID:[{}{}] Cumulative ack on {}", topicName, txnID.getMostSigBits(),
+                        txnID.getLeastSigBits(), positions);
+            }
+
+            ConcurrentOpenHashSet<Position> pendingAckMessages =
+                    pendingAckMessagesMap.computeIfAbsent(txnID, txn -> new ConcurrentOpenHashSet<>());
+
+            for (Position position : positions) {
+                if (pendingAckMessages.contains(position)) {
+                    String errorMsg = String.format("[%s] Transaction:%l%l try to ack message:%s already acked before. ",
+                            topicName, txnID.getMostSigBits(), txnID.getLeastSigBits(), position);
+                    log.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
+
+                pendingAckMessages.add(position);
+            }
         }
     }
 
