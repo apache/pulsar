@@ -153,6 +153,6 @@ public class ContextImplTest {
 
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
-        context.publish("sometopic", "Somevalue");
+        context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
     }
  }

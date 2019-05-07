@@ -19,6 +19,7 @@
 #ifndef _PULSAR_TOPIC_NAME_HEADER_
 #define _PULSAR_TOPIC_NAME_HEADER_
 
+#include <pulsar/defines.h>
 #include "NamespaceName.h"
 #include "ServiceUnitId.h"
 
@@ -26,10 +27,8 @@
 #include <curl/curl.h>
 #include <mutex>
 
-#pragma GCC visibility push(default)
-
 namespace pulsar {
-class TopicName : public ServiceUnitId {
+class PULSAR_PUBLIC TopicName : public ServiceUnitId {
    private:
     std::string topicName_;
     std::string domain_;
@@ -69,7 +68,5 @@ class TopicName : public ServiceUnitId {
 typedef std::shared_ptr<TopicName> TopicNamePtr;
 }  // namespace pulsar
 // end of namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  //_PULSAR_TOPIC_NAME_HEADER_

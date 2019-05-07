@@ -437,8 +437,5 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         statTotalRecordsReceived1min.clear();
         _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
-
-        latestUserExceptions.clear();
-        latestSystemExceptions.clear();
     }
 }

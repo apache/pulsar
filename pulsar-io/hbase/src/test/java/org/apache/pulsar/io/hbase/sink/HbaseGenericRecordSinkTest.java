@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -31,10 +29,12 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
@@ -52,12 +52,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * hbase Sink test
  */
 @Slf4j
 public class HbaseGenericRecordSinkTest {
+    private Message<GenericRecord> message;
+
 
     /**
      * A Simple class to test hbase class
@@ -84,6 +87,9 @@ public class HbaseGenericRecordSinkTest {
 
     @Test(enabled = false)
     public void TestOpenAndWriteSink() throws Exception {
+        message = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
+
         Map<String, Object> map = new HashMap<>();
         map.put("zookeeperQuorum", "localhost");
         map.put("zookeeperClientPort", "2181");
@@ -112,13 +118,12 @@ public class HbaseGenericRecordSinkTest {
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
         byte[] bytes = schema.encode(obj);
-        ByteBuf payload = Unpooled.copiedBuffer(bytes);
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
         PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
         Consumer consumer = mock(Consumer.class);
-        Message<GenericRecord> message = new MessageImpl("fake_topic_name", "11:111", map, payload, autoConsumeSchema);
+
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("fake_topic_name")
@@ -135,6 +140,11 @@ public class HbaseGenericRecordSinkTest {
                 }
             })
             .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        when(message.getValue())
+                .thenReturn(genericAvroSchema.decode(bytes));
 
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
                 obj.toString(),

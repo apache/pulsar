@@ -179,7 +179,7 @@ public class SchemaBuilderTest {
         SchemaInfo schemaInfo = recordSchemaBuilder.build(
             SchemaType.AVRO
         );
-        GenericSchema schema = Schema.generic(schemaInfo);
+        GenericSchema<GenericRecord> schema = Schema.generic(schemaInfo);
         GenericRecord record = schema.newRecordBuilder()
             .set(schema.getFields().get(0), 32)
             .set(schema.getFields().get(1), 1234L)

@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /**
  * Date-time String formatter utility class
@@ -49,6 +50,17 @@ public class DateFormatter {
      */
     public static String format(Instant instant) {
         return DATE_FORMAT.format(instant);
+    }
+
+    /**
+     * @param datetime
+     * @return the parsed timestamp (in milliseconds) of the provided datetime
+     * @throws DateTimeParseException
+     */
+    public static long parse(String datetime) throws DateTimeParseException {
+        Instant instant = Instant.from(DATE_FORMAT.parse(datetime));
+
+        return instant.toEpochMilli();
     }
 
     private DateFormatter() {

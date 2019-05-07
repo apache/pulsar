@@ -34,8 +34,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
@@ -64,6 +67,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
+        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                    "This method is not allowed to set keys when in encoding type is SEPARATED");
+        }
         msgMetadataBuilder.setPartitionKey(key);
         msgMetadataBuilder.setPartitionKeyB64Encoded(false);
         return this;
@@ -71,6 +79,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                    "This method is not allowed to set keys when in encoding type is SEPARATED");
+        }
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);
         return this;
@@ -84,7 +97,21 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
+
         checkArgument(value != null, "Need Non-Null content value");
+        if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                // set key as the message key
+                msgMetadataBuilder.setPartitionKey(
+                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                // set value as the payload
+                this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                return this;
+            }
+        }
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }

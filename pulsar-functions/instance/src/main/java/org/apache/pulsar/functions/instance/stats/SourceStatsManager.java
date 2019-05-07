@@ -190,9 +190,6 @@ public class SourceStatsManager extends ComponentStatsManager {
 
         statTotalWritten1min.clear();
         _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
-
-        latestSystemExceptions.clear();
-        latestSourceExceptions.clear();
     }
 
     @Override

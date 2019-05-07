@@ -63,6 +63,7 @@
       "security-token-client",
       "security-token-admin",
       "security-athenz",
+      "security-kerberos",
       "security-authorization",
       "security-encryption",
       "security-extending"
