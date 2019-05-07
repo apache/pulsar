@@ -24,7 +24,7 @@ explores these two different options and how to configure them.
 The following diagram illustrates a deployment of functions-workers running along with
 brokers.
 
-![assets/functions-worker-corun.png](assets/broker-bookie.png)
+![assets/functions-worker-corun.png](assets/functions-worker-corun.png)
 
 To enable functions-worker running as part of a broker, `functionsWorkerEnabled` should
 be set to `true` in the broker configuration `broker.conf`.
@@ -76,7 +76,7 @@ It should return the list of function workers alive in the cluster. Similar outp
 
 This section illustrates how to run `functions-worker` as a separated process in separated machines.
 
-![assets/functions-worker-separated.png](assets/broker-bookie.png)
+![assets/functions-worker-separated.png](assets/functions-worker-separated.png)
 
 > NOTE: In this mode, you need to make sure `functionsWorkerEnabled` is set to `false` so that your brokers
 don't start `functions-worker` by mistake.
@@ -132,6 +132,8 @@ Hence you need to configure your `pulsar-admin` to use the right service url acc
 In order to address this inconvenience, you can choose to start a proxy cluster for routing the admin rest
 requests accordingly. If you already have a proxy cluster, continue the reading. If you haven't setup a proxy
 cluster, you can follow the [instructions](http://pulsar.apache.org/docs/en/administration-proxy/) to start proxies.    
+
+![assets/functions-worker-separated.png](assets/functions-worker-separated-proxy.png)
 
 To enable routing functions related admin requests to `functions-worker` in a proxy, you can edit `proxy.conf` to modify
 following settings:
