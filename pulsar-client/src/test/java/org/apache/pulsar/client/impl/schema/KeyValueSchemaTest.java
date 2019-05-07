@@ -20,16 +20,21 @@ package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Map;
 
 @Slf4j
 public class KeyValueSchemaTest {
@@ -57,6 +62,32 @@ public class KeyValueSchemaTest {
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
         String schemaInfo2 = new String(keyValueSchema2.getSchemaInfo().getSchema());
         assertEquals(schemaInfo1, schemaInfo2);
+    }
+
+    @Test
+    public void testFillParametersToSchemainfo() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        fooSchema.getSchemaInfo().setName("foo");
+        fooSchema.getSchemaInfo().setType(SchemaType.AVRO);
+        Map<String, String> keyProperties = Maps.newTreeMap();
+        keyProperties.put("foo.key1", "value");
+        keyProperties.put("foo.key2", "value");
+        fooSchema.getSchemaInfo().setProperties(keyProperties);
+        barSchema.getSchemaInfo().setName("bar");
+        barSchema.getSchemaInfo().setType(SchemaType.AVRO);
+        Map<String, String> valueProperties = Maps.newTreeMap();
+        valueProperties.put("bar.key", "key");
+        barSchema.getSchemaInfo().setProperties(valueProperties);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
+
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.name"), "foo");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"), "{\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.name"), "bar");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"), "{\"bar.key\":\"key\"}");
     }
 
     @Test
@@ -201,6 +232,99 @@ public class KeyValueSchemaTest {
         Foo fooBack = keyValue.getKey();
         Bar barBack = keyValue.getValue();
 
+        assertEquals(foo, fooBack);
+        assertEquals(bar, barBack);
+    }
+
+    @Test
+    public void testDefaultKeyValueEncodingTypeSchemaEncodeAndDecode() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
+
+        // Check kv.encoding.type default not set value
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        Assert.assertTrue(encodeBytes.length > 0);
+
+        KeyValue<Foo, Bar> keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
+        Foo fooBack = keyValue.getKey();
+        Bar barBack = keyValue.getValue();
+
+        assertEquals(foo, fooBack);
+        assertEquals(bar, barBack);
+    }
+
+    @Test
+    public void testInlineKeyValueEncodingTypeSchemaEncodeAndDecode() {
+
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
+
+        // Check kv.encoding.type INLINE
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        Assert.assertTrue(encodeBytes.length > 0);
+        KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
+        Foo fooBack = keyValue.getKey();
+        Bar barBack = keyValue.getValue();
+        assertEquals(foo, fooBack);
+        assertEquals(bar, barBack);
+
+    }
+
+    @Test
+    public void testSeparatedKeyValueEncodingTypeSchemaEncodeAndDecode() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
+
+        // Check kv.encoding.type SEPARATED
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        Assert.assertTrue(encodeBytes.length > 0);
+        try {
+            keyValueSchema.decode(encodeBytes);
+            Assert.fail("This method cannot be used under this SEPARATED encoding type");
+        } catch (SchemaSerializationException e) {
+            Assert.assertTrue(e.getMessage().contains("This method cannot be used under this SEPARATED encoding type"));
+        }
+        KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
+        Foo fooBack = keyValue.getKey();
+        Bar barBack = keyValue.getValue();
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
     }

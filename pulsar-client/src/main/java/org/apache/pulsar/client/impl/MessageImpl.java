@@ -41,11 +41,14 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 
 public class MessageImpl<T> implements Message<T> {
 
@@ -230,7 +233,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public byte[] getSchemaVersion() {
-        if (msgMetadataBuilder.hasSchemaVersion()) {
+        if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion()) {
             return msgMetadataBuilder.getSchemaVersion().toByteArray();
         } else {
             return null;
@@ -241,8 +244,16 @@ public class MessageImpl<T> implements Message<T> {
     public T getValue() {
         // check if the schema passed in from client supports schema versioning or not
         // this is an optimization to only get schema version when necessary
-        if (schema.supportSchemaVersioning()) {
-            return schema.decode(getData(), getSchemaVersion());
+        byte [] schemaVersion = getSchemaVersion();
+        if (schema.supportSchemaVersioning() && schemaVersion != null) {
+            return schema.decode(getData(), schemaVersion);
+        } else if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                return schema.decode(getKeyBytes(), getData());
+            } else {
+                return schema.decode(getData());
+            }
         } else {
             return schema.decode(getData());
         }
@@ -333,6 +344,18 @@ public class MessageImpl<T> implements Message<T> {
         } else {
             return getKey().getBytes(UTF_8);
         }
+    }
+
+    @Override
+    public boolean hasOrderingKey() {
+        checkNotNull(msgMetadataBuilder);
+        return msgMetadataBuilder.hasOrderingKey();
+    }
+
+    @Override
+    public byte[] getOrderingKey() {
+        checkNotNull(msgMetadataBuilder);
+        return msgMetadataBuilder.getOrderingKey().toByteArray();
     }
 
     public ClientCnx getCnx() {

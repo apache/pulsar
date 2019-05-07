@@ -301,6 +301,8 @@ dashboard:
     ports:
     - name: server
       port: 80
+  ingress:
+    enabled: false
 
 ## Pulsar Extra: Bastion
 ## templates/bastion-deployment.yaml

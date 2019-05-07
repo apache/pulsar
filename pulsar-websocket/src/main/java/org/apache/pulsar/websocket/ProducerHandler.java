@@ -28,6 +28,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -48,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaEx
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -188,6 +193,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
         if (sendRequest.replicationClusters != null) {
             builder.replicationClusters(sendRequest.replicationClusters);
+        }
+        if (sendRequest.eventTime != null) {
+            try {
+                builder.eventTime(DateFormatter.parse(sendRequest.eventTime));
+            } catch (DateTimeParseException e) {
+                sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+                return;
+            }
         }
 
         final long now = System.nanoTime();

@@ -38,6 +38,11 @@ class TopicStats {
     long storageSize;
     public long msgBacklog;
 
+    long backlogSize;
+    long offloadedStorageUsed;
+
+    long backlogQuotaLimit;
+
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
     double storageWriteRate;
@@ -59,6 +64,9 @@ class TopicStats {
         msgBacklog = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        backlogSize = 0;
+        offloadedStorageUsed = 0;
+        backlogQuotaLimit = 0;
 
         replicationStats.clear();
         subscriptionStats.clear();
@@ -79,6 +87,9 @@ class TopicStats {
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
 
         long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
@@ -144,13 +155,8 @@ class TopicStats {
         }
     }
 
-    static void metricType(SimpleTextOutputStream stream, String name) {
-        stream.write("# TYPE ").write(name).write(" gauge\n");
-    }
-
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
                                String name, double value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
@@ -158,7 +164,6 @@ class TopicStats {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String name, long value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
@@ -166,7 +171,6 @@ class TopicStats {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String name, double value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
@@ -174,7 +178,6 @@ class TopicStats {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String consumerName, long consumerId, String name, long value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
                 .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
@@ -183,7 +186,6 @@ class TopicStats {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String consumerName, long consumerId, String name, double value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
                 .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
@@ -193,7 +195,6 @@ class TopicStats {
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
             String topic,
             String name, String remoteCluster, double value) {
-        metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",topic=\"").write(topic).write("remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');

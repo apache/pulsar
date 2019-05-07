@@ -61,7 +61,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected int maxReceiverQueueSize;
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
-    private int refCount = 0;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -316,6 +315,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         case Failover:
             return SubType.Failover;
+
+        case Key_Shared:
+            return SubType.Key_Shared;
         }
 
         // Should not happen since we cover all cases above
@@ -386,11 +388,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected synchronized void incrRefCount() {
-        ++refCount;
-    }
-
-    protected synchronized boolean shouldTearDown() {
-        return refCount > 0 ? refCount-- == 0 : refCount == 0;
+    protected void onNegativeAcksSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors.onNegativeAcksSend(this, messageIds);
+        }
     }
 }

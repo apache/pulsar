@@ -193,6 +193,7 @@ public interface ManagedLedger {
      * @return the new NonDurableCursor
      */
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
+    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -320,6 +321,11 @@ public interface ManagedLedger {
      * @return estimated total backlog size
      */
     long getEstimatedBacklogSize();
+
+    /**
+     * Return the size of all ledgers offloaded to 2nd tier storage
+     */
+    long getOffloadedSize();
 
     /**
      * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating

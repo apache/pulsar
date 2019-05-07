@@ -36,6 +36,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setManagedLedgerCacheEvictionFrequency(0.1);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -62,7 +63,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        
+
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
         Producer<byte[]> producer = producerBuilder.create();
@@ -99,7 +100,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
             MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
             if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId());
+                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
             }
             lastMsgId = msgId;
         }

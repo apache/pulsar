@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.windowing;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
@@ -36,8 +37,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.anyString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
@@ -204,6 +208,10 @@ public class WindowFunctionExecutorTest {
         windowConfig.setLateDataTopic("$late");
         Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        TypedMessageBuilder typedMessageBuilder = Mockito.mock(TypedMessageBuilder.class);
+        Mockito.when(typedMessageBuilder.value(anyString())).thenReturn(typedMessageBuilder);
+        Mockito.when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());
+        Mockito.when(context.newOutputMessage(anyString(), anyObject())).thenReturn(typedMessageBuilder);
 
         long[] timestamps = {603, 605, 607, 618, 626, 636, 600};
         List<Long> events = new ArrayList<>(timestamps.length);

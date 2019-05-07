@@ -108,8 +108,12 @@ public class LocalRunner {
                     }
                     classLoader = loadJar(file);
                 }
-            } else {
+            } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
+                userCodeFile = functionConfig.getGo();
+            } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON){
                 userCodeFile = functionConfig.getPy();
+            } else {
+                throw new UnsupportedOperationException();
             }
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         } else if (!StringUtils.isEmpty(sourceConfigString)) {
@@ -122,13 +126,14 @@ public class LocalRunner {
             parallelism = sourceConfig.getParallelism();
             userCodeFile = sourceConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, userCodeFile, null));
+                File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Source archive does not exist");
                 }
-                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null, file));
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null));
             }
         } else {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);
@@ -140,13 +145,14 @@ public class LocalRunner {
             parallelism = sinkConfig.getParallelism();
             userCodeFile = sinkConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, userCodeFile, null));
+                File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Sink archive does not exist");
                 }
-                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, null, file));
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
             }
         }
         startLocalRun(functionDetails, parallelism,
@@ -170,14 +176,14 @@ public class LocalRunner {
         }
 
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-            serviceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            null, /* java instance jar file */
-            null, /* python instance file */
-            null, /* log directory */
-            null, /* extra dependencies dir */
-            new DefaultSecretsProviderConfigurator())) {
+                serviceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                null, /* java instance jar file */
+                null, /* python instance file */
+                null, /* log directory */
+                null, /* extra dependencies dir */
+                new DefaultSecretsProviderConfigurator(), false)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();

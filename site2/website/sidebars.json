@@ -53,7 +53,7 @@
       "administration-geo",
       "administration-dashboard",
       "administration-stats",
-      "administration-load-distribution",
+      "administration-load-balance",
       "administration-proxy"
     ],
     "Security": [
@@ -63,6 +63,7 @@
       "security-token-client",
       "security-token-admin",
       "security-athenz",
+      "security-kerberos",
       "security-authorization",
       "security-encryption",
       "security-extending"

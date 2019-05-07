@@ -184,6 +184,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private volatile boolean isEncryptionRequired = false;
     private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
         SchemaCompatibilityStrategy.FULL;
+    // schema validation enforced flag
+    private volatile boolean schemaValidationEnforced = false;
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
@@ -262,6 +264,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                     policies.schema_auto_update_compatibility_strategy);
+
+            schemaValidationEnforced = policies.schema_validation_enforced;
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -498,6 +502,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
             return future;
         }
+
+        if (subType == SubType.Key_Shared
+            && !brokerService.pulsar().getConfiguration().isSubscriptionKeySharedEnable()) {
+            future.completeExceptionally(
+                new NotAllowedException("Key_Shared subscription is disabled by broker.")
+            );
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -556,9 +568,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
+                ledger.checkBackloggedCursors();
+
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                                                  maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition);
                 subscription.addConsumer(consumer);
+
                 if (!cnx.isActive()) {
                     consumer.close();
                     if (log.isDebugEnabled()) {
@@ -641,7 +656,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Position startPosition = new PositionImpl(ledgerId, entryId);
             ManagedCursor cursor = null;
             try {
-                cursor = ledger.newNonDurableCursor(startPosition);
+                cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
             } catch (ManagedLedgerException e) {
                 subscriptionFuture.completeExceptionally(e);
             }
@@ -1613,6 +1628,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                 data.schema_auto_update_compatibility_strategy);
 
+        schemaValidationEnforced = data.schema_validation_enforced;
+
+
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
 
         producers.forEach(producer -> {
@@ -1681,6 +1699,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public boolean isEncryptionRequired() {
         return isEncryptionRequired;
     }
+
+    @Override
+    public boolean getSchemaValidationEnforced() { return schemaValidationEnforced; }
 
     @Override
     public boolean isReplicated() {

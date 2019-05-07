@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.auth;
 import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 
+import java.util.Optional;
+
 /**
  * Kubernetes runtime specific functions authentication provider
  */
@@ -31,5 +33,5 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
      * @param statefulSet statefulset spec for function
      * @param functionAuthData function auth data
      */
-    void configureAuthDataStatefulSet(V1StatefulSet statefulSet, FunctionAuthData functionAuthData);
+    void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData);
 }

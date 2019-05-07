@@ -108,6 +108,9 @@ static Result getResult(ServerError serverError) {
 
         case IncompatibleSchema:
             return ResultIncompatibleSchema;
+
+        case ConsumerAssignError:
+            return ResultConsumerAssignError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -117,7 +120,7 @@ static Result getResult(ServerError serverError) {
 
 static bool file_exists(const std::string& path) {
     std::ifstream f(path);
-    return !f.bad();
+    return f.good();
 }
 
 ClientConnection::ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
@@ -167,12 +170,16 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
 
             std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
-            if (file_exists(trustCertFilePath)) {
-                ctx.load_verify_file(trustCertFilePath);
+            if (!trustCertFilePath.empty()) {
+                if (file_exists(trustCertFilePath)) {
+                    ctx.load_verify_file(trustCertFilePath);
+                } else {
+                    LOG_ERROR(trustCertFilePath << ": No such trustCertFile");
+                    close();
+                    return;
+                }
             } else {
-                LOG_ERROR(trustCertFilePath << ": No such trustCertFile");
-                close();
-                return;
+                ctx.set_default_verify_paths();
             }
         }
 
@@ -347,6 +354,12 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 }
 
 void ClientConnection::handleHandshake(const boost::system::error_code& err) {
+    if (err) {
+        LOG_ERROR(cnxString_ << "Handshake failed: " << err.message());
+        close();
+        return;
+    }
+
     bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
     SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
     // Send CONNECT command to broker

@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.io.solr;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
@@ -39,6 +39,9 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 /**
  * solr Sink test
  */
@@ -46,6 +49,7 @@ import java.util.Map;
 public class SolrGenericRecordSinkTest {
 
     private SolrServerUtil solrServerUtil;
+    private Message<GenericRecord> message;
 
     /**
      * A Simple class to test solr class
@@ -71,6 +75,7 @@ public class SolrGenericRecordSinkTest {
 
     @Test
     public void TestOpenAndWriteSink() throws Exception {
+        message = mock(MessageImpl.class);
         Map<String, Object> configs = new HashMap<>();
         configs.put("solrUrl", "http://localhost:8983/solr");
         configs.put("solrMode", "Standalone");
@@ -78,6 +83,7 @@ public class SolrGenericRecordSinkTest {
         configs.put("solrCommitWithinMs", "100");
         configs.put("username", "");
         configs.put("password", "");
+        GenericSchema<GenericRecord> genericAvroSchema;
 
         SolrGenericRecordSink sink = new SolrGenericRecordSink();
 
@@ -88,15 +94,18 @@ public class SolrGenericRecordSinkTest {
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
 
         byte[] bytes = schema.encode(obj);
-        ByteBuf payload = Unpooled.copiedBuffer(bytes);
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
-        Message<GenericRecord> message = new MessageImpl("fake_topic_name", "77:777", configs, payload, autoConsumeSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("fake_topic_name")
             .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        when(message.getValue())
+                .thenReturn(genericAvroSchema.decode(bytes));
 
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
             obj.toString(),

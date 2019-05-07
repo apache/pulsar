@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class JavaStringHash implements Hash {
     private static final JavaStringHash instance = new JavaStringHash();
 
@@ -31,4 +33,10 @@ public class JavaStringHash implements Hash {
     public int makeHash(String s) {
         return s.hashCode() & Integer.MAX_VALUE;
     }
+
+    @Override
+    public int makeHash(byte[] b) {
+        return makeHash(new String(b, UTF_8));
+    }
+
 }

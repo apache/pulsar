@@ -43,6 +43,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -92,6 +93,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
     private Resources functionInstanceMinResources;
+    private final boolean authenticationEnabled;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -114,7 +116,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
                                     Resources functionInstanceMinResources,
-                                    SecretsProviderConfigurator secretsProviderConfigurator) {
+                                    SecretsProviderConfigurator secretsProviderConfigurator,
+                                    boolean authenticationEnabled) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -165,6 +168,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.functionInstanceMinResources = functionInstanceMinResources;
+        this.authenticationEnabled = authenticationEnabled;
         try {
             setupClient();
         } catch (Exception e) {
@@ -182,7 +186,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -190,13 +194,16 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                throw new UnsupportedOperationException();
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // adjust the auth config to support auth
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new KubernetesRuntime(
@@ -223,7 +230,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
             this.kubernetesInfo.getPercentMemoryPadding(),
-            getAuthProvider());
+            getAuthProvider(),
+            authenticationEnabled);
     }
 
     @Override

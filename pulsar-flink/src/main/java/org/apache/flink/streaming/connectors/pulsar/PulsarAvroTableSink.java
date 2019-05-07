@@ -36,6 +36,7 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.apache.pulsar.client.api.Authentication;
 
 /**
  * An append-only table sink to emit a streaming table as a Pulsar stream that serializes data in Avro format.
@@ -44,6 +45,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
     protected final String serviceUrl;
     protected final String topic;
+    protected final Authentication authentication;
     protected final String routingKeyFieldName;
     protected SerializationSchema<Row> serializationSchema;
     protected String[] fieldNames;
@@ -56,16 +58,17 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
      *
      * @param serviceUrl          pulsar service url
      * @param topic               topic in pulsar to which table is written
-     * @param producerConf        producer configuration
      * @param routingKeyFieldName routing key field name
      */
     public PulsarAvroTableSink(
             String serviceUrl,
             String topic,
+            Authentication authentication,
             String routingKeyFieldName,
             Class<? extends SpecificRecord> recordClazz) {
         this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
         this.topic = checkNotNull(topic, "Topic is null");
+        this.authentication = checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
         this.routingKeyFieldName = routingKeyFieldName;
         this.recordClazz = recordClazz;
     }
@@ -78,6 +81,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
         return new FlinkPulsarProducer<Row>(
                 serviceUrl,
                 topic,
+                authentication,
                 serializationSchema,
                 keyExtractor);
     }
@@ -110,7 +114,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
     @Override
     public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-        PulsarAvroTableSink sink = new PulsarAvroTableSink(serviceUrl, topic, routingKeyFieldName, recordClazz);
+        PulsarAvroTableSink sink = new PulsarAvroTableSink(serviceUrl, topic, authentication, routingKeyFieldName, recordClazz);
 
         sink.fieldNames = checkNotNull(fieldNames, "Field names are null");
         sink.fieldTypes = checkNotNull(fieldTypes, "Field types are null");
