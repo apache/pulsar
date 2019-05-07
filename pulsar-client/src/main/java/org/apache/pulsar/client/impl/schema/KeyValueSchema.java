@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
@@ -113,12 +114,12 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
                 @Override
                 public SchemaInfo getLatestSchema() {
-                    return null;
+                    return ((StructSchema<K>) keySchema).schemaInfo;
                 }
 
                 @Override
                 public String getTopicName() {
-                    return null;
+                    return "key-schema";
                 }
             });
         }
@@ -133,12 +134,12 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
                 @Override
                 public SchemaInfo getLatestSchema() {
-                    return null;
+                    return ((StructSchema<V>) valueSchema).schemaInfo;
                 }
 
                 @Override
                 public String getTopicName() {
-                    return null;
+                    return "value-schema";
                 }
             });
         }
@@ -185,7 +186,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
             @Override
             public String getTopicName() {
-                return null;
+                return "key-value-schema";
             }
         };
     }
@@ -257,13 +258,25 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         byte[] value = new byte[valueSchemaLength];
         byteBuffer.get(value);
         Gson keySchemaGson = new Gson();
+        Map<String, String> keyProperties = Maps.newHashMap();
+        if (schemaInfo.getProperties().get("key.schema.properties") != null) {
+            keyProperties = keySchemaGson.fromJson(schemaInfo.getProperties().get("key.schema.properties"), Map.class);
+        } else {
+            keyProperties = Collections.emptyMap();
+        }
         SchemaInfo keySchemaInfo = SchemaInfo.builder().schema(key)
-                .properties(keySchemaGson.fromJson(schemaInfo.getProperties().get("key.schema.properties"), Map.class))
+                .properties(keyProperties)
                 .name("")
                 .type(SchemaType.AVRO).build();
         Gson valueSchemaGson = new Gson();
+        Map<String, String> valueProperties = Maps.newHashMap();
+        if (schemaInfo.getProperties().get("value.schema.properties") != null) {
+            valueProperties = valueSchemaGson.fromJson(schemaInfo.getProperties().get("value.schema.properties"), Map.class);
+        } else {
+            valueProperties = Collections.emptyMap();
+        }
         SchemaInfo valueSchemaInfo = SchemaInfo.builder().schema(value)
-                .properties(valueSchemaGson.fromJson(schemaInfo.getProperties().get("value.schema.properties"), Map.class))
+                .properties(valueProperties)
                 .name("")
                 .type(SchemaType.AVRO).build();
         return new KeyValue<>(keySchemaInfo, valueSchemaInfo);
