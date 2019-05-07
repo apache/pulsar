@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -207,9 +208,18 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+        updateFunction(functionConfig, fileName, null);
+    }
+
+        @Override
+    public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
             RequestBuilder builder = put(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
+
+            if (updateOptions != null) {
+                   builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+            }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -226,20 +236,35 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
+            mp.bodyPart(new FormDataBodyPart(
+                    "functionConfig",
+                    ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
+
+            if (updateOptions != null) {
+                mp.bodyPart(new FormDataBodyPart(
+                        "updateOptions",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
                     .path(functionConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
-                            ErrorData.class);
+                    ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    @Override
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
+        updateFunctionWithUrl(functionConfig, pkgUrl, null);
     }
 
     @Override

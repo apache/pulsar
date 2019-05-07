@@ -66,6 +66,7 @@ dependencies = [
     'grpcio',
     'protobuf>=3.6.1',
     'six',
+    'certifi',
 
     # functions dependencies
     "apache-bookkeeper-client>=4.9.1",

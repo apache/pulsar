@@ -133,7 +133,7 @@ public class FunctionsImplV2 {
         }
 
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientRole, null);
+                functionPkgUrl, functionConfigJson, clientRole, null, null);
         return Response.ok().build();
     }
 
