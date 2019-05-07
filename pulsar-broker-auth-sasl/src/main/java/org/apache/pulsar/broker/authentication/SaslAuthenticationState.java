@@ -21,8 +21,11 @@ package org.apache.pulsar.broker.authentication;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import javax.naming.AuthenticationException;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -31,10 +34,14 @@ import org.apache.pulsar.common.api.AuthData;
  * It is basically holding the the authentication state.
  * It tell broker whether the authentication is completed or not,
  */
+@Slf4j
 public class SaslAuthenticationState implements AuthenticationState {
-    private SaslAuthenticationDataSource authenticationDataSource;
+    private final long stateId;
+    private static final AtomicLong stateIdGenerator = new AtomicLong(0L);
+    private final SaslAuthenticationDataSource authenticationDataSource;
 
     public SaslAuthenticationState(AuthenticationDataSource authenticationDataSource) {
+        stateId = stateIdGenerator.incrementAndGet();
         checkArgument(authenticationDataSource instanceof SaslAuthenticationDataSource);
         this.authenticationDataSource = (SaslAuthenticationDataSource)authenticationDataSource;
     }
@@ -58,8 +65,14 @@ public class SaslAuthenticationState implements AuthenticationState {
      * Returns null if authentication has completed, and no auth data is required to send back to client.
      * Do auth and Returns the auth data back to client, if authentication has not completed.
      */
+    @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
         return authenticationDataSource.authenticate(authData);
+    }
+
+    @Override
+    public long getStateId() {
+        return stateId;
     }
 
 

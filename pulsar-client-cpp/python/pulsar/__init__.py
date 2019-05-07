@@ -112,6 +112,7 @@ _schema = schema
 import re
 _retype = type(re.compile('x'))
 
+import certifi
 
 class MessageId:
     """
@@ -323,7 +324,8 @@ class Client:
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
           set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
-          Set the path to the trusted TLS certificate file.
+          Set the path to the trusted TLS certificate file. If empty defaults to
+          certifi.
         * `tls_allow_insecure_connection`:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
@@ -352,6 +354,8 @@ class Client:
             conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
+        else:
+            conf.tls_trust_certs_file_path(certifi.where())
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
         self._client = _pulsar.Client(service_url, conf)
         self._consumers = []

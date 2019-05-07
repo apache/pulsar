@@ -71,12 +71,14 @@ public class RabbitMQAbstractConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "guest",
+        sensitive = true,
         help = "The username used to authenticate to RabbitMQ")
     private String username = "guest";
 
     @FieldDoc(
         required = false,
         defaultValue = "guest",
+        sensitive = true,
         help = "The password used to authenticate to RabbitMQ")
     private String password = "guest";
 

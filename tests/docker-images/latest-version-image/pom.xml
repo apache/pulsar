@@ -41,6 +41,11 @@
       </activation>
       <dependencies>
         <dependency>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>java-test-functions</artifactId>
+          <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
@@ -55,6 +60,17 @@
             <version>${exec-maven-plugin.version}</version>
             <executions>
               <execution>
+                <id>build-deb</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <workingDirectory>${project.basedir}/target</workingDirectory>
+                  <executable>${project.basedir}/../../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh</executable>
+                </configuration>
+              </execution>
+              <execution>
                 <id>build-pulsar-go-schema</id>
                 <phase>compile</phase>
                 <goals>
@@ -62,7 +78,7 @@
                 </goals>
                 <configuration>
                   <workingDirectory>${project.basedir}/go-test-schema</workingDirectory>
-                  <executable>docker_build_go_schema_test.sh</executable>
+                  <executable>${project.basedir}/go-test-schema/docker_build_go_schema_test.sh</executable>
                 </configuration>
               </execution>
             </executions>

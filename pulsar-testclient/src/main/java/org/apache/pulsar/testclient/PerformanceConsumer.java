@@ -131,7 +131,7 @@ public class PerformanceConsumer {
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-consumer");
+        jc.setProgramName("pulsar-perf consume");
 
         try {
             jc.parse(args);
