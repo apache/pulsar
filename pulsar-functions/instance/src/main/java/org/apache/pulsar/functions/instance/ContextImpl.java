@@ -529,6 +529,18 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return this;
         }
 
+        @Override
+        public TypedMessageBuilder<O> deliverAfter(long delay, TimeUnit unit) {
+            underlyingBuilder.deliverAfter(delay, unit);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> deliverAt(long timestamp) {
+            underlyingBuilder.deliverAt(timestamp);
+            return this;
+        }
+
         public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
             this.underlyingBuilder = underlyingBuilder;
         }
