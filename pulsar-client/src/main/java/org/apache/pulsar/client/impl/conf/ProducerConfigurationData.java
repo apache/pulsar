@@ -25,6 +25,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -39,6 +42,9 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;

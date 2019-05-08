@@ -89,6 +89,10 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
             Class<? extends SpecificRecord> recordClazz) {
         this.clientConfigurationData = checkNotNull(clientConfigurationData, "client config can not be null");
         this.producerConfigurationData = checkNotNull(producerConfigurationData, "producer config can not be null");
+
+        checkArgument(StringUtils.isNotBlank(clientConfigurationData.getServiceUrl()), "Service url not set");
+        checkArgument(StringUtils.isNotBlank(producerConfigurationData.getTopicName()), "Topic is null");
+
         this.routingKeyFieldName = routingKeyFieldName;
         this.recordClazz = recordClazz;
     }

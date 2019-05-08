@@ -269,12 +269,14 @@ public class PulsarSourceBuilder<T> {
 
 
     public SourceFunction<T> build() {
-        Preconditions.checkNotNull(this.clientConfigurationData.getServiceUrl(), "a service url is required");
+        Preconditions.checkArgument(StringUtils.isNotBlank(this.clientConfigurationData.getServiceUrl()),
+                "a service url is required");
         Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null &&
                         !this.consumerConfigurationData.getTopicNames().isEmpty()) ||
                         this.consumerConfigurationData.getTopicsPattern() != null,
                 "At least one topic or topics pattern is required");
-        Preconditions.checkNotNull(this.consumerConfigurationData.getSubscriptionName(), "a subscription name is required");
+        Preconditions.checkArgument(StringUtils.isNotBlank(this.consumerConfigurationData.getSubscriptionName()),
+                "a subscription name is required");
         return new PulsarConsumerSource<>(this);
     }
 
