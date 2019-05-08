@@ -326,10 +326,14 @@ public abstract class ComponentImpl {
             final TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
 
             String qualifiedNamespace = tenant + "/" + namespace;
-            if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifiedNamespace)) {
-                log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace,
-                        componentName, namespace);
-                throw new RestException(Status.BAD_REQUEST, "Namespace does not exist");
+            List<String> namespaces = worker().getBrokerAdmin().namespaces().getNamespaces(tenant);
+            if (namespaces != null && !namespaces.contains(qualifiedNamespace)) {
+                String qualifiedNamespaceWithCluster = String.format("%s/%s/%s", tenant,
+                        worker().getWorkerConfig().getPulsarFunctionsCluster(), namespace);
+                if (namespaces != null && !namespaces.contains(qualifiedNamespaceWithCluster)) {
+                    log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace, componentName, namespace);
+                    throw new RestException(Status.BAD_REQUEST, "Namespace does not exist");
+                }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
             log.error("{}/{}/{} Client [{}] is not admin and authorized to operate {} on tenant", tenant, namespace,
