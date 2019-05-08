@@ -42,6 +42,13 @@ public interface Record<T> {
     }
 
     /**
+     * Return a record id if the record has one associated.
+     */
+    default Optional<byte[]> getId() {
+        return Optional.empty();
+    }
+
+    /**
      * Retrieves the actual data of the record.
      *
      * @return The record data
