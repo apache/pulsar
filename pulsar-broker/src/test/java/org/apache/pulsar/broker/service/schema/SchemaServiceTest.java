@@ -294,10 +294,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private List<SchemaData> getAllSchemas(String schemaId) throws Exception {
-        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> allSchemas =
-                schemaRegistryService.getAllSchemas(schemaId);
         List<SchemaData> result = new ArrayList<>();
-        for (CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema : allSchemas) {
+        for (CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema :
+                schemaRegistryService.getAllSchemas(schemaId).get()) {
             result.add(schema.get().schema);
         }
         return result;

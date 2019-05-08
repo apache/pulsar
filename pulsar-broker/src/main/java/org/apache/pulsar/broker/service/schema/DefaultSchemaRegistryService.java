@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.schema;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.schema.SchemaData;
@@ -38,9 +37,10 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public List<CompletableFuture<SchemaAndMetadata>> getAllSchemas(String schemaId) {
-        return Collections.emptyList();
+    public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return completedFuture(null);
     }
+
 
     @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,

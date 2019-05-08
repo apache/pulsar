@@ -83,12 +83,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public List<CompletableFuture<SchemaAndMetadata>> getAllSchemas(String schemaId) {
-        return schemaStorage.getAll(schemaId).stream().map(future -> future.thenCompose(stored ->
-            Functions.bytesToSchemaInfo(stored.data)
-                    .thenApply(Functions::schemaInfoToSchema)
-                    .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
-        )).collect(Collectors.toList());
+    public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return schemaStorage.getAll(schemaId).thenApply(schemas ->
+                schemas.stream().map(future -> future.thenCompose(stored ->
+                    Functions.bytesToSchemaInfo(stored.data)
+                        .thenApply(Functions::schemaInfoToSchema)
+                        .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+        )).collect(Collectors.toList()));
     }
 
     @Override
@@ -189,12 +190,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                                  SchemaCompatibilityStrategy strategy) {
 
         List<SchemaData> schemas = new ArrayList<>();
-        for (CompletableFuture<SchemaAndMetadata> schemaAndMetadataCompletableFuture : getAllSchemas(schemaId)) {
-            try {
+        try {
+            for (CompletableFuture<SchemaAndMetadata> schemaAndMetadataCompletableFuture : getAllSchemas(schemaId).get()) {
                 schemas.add(schemaAndMetadataCompletableFuture.get().schema);
-            } catch (Exception e) {
-                return completedFuture(false);
             }
+        } catch (Exception e) {
+            return completedFuture(false);
         }
 
         return completedFuture(compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)

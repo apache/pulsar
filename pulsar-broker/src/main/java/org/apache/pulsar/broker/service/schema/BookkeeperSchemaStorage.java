@@ -121,8 +121,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @Override
-    public List<CompletableFuture<StoredSchema>> getAll(String key) {
-        List<CompletableFuture<StoredSchema>> result = new ArrayList<>();
+    public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
+        CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
         getSchemaLocator(getSchemaPath(key)).thenAccept(locator -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
@@ -133,19 +133,16 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             }
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
-
-            schemaLocator.getIndexList().forEach(indexEntry -> {
-                CompletableFuture<StoredSchema> future = new CompletableFuture<>();
-                readSchemaEntry(indexEntry.getPosition()).thenAccept(entry ->
-                    future.complete(
-                        new StoredSchema(
-                                entry.getSchemaData().toByteArray(),
-                                new LongSchemaVersion(schemaLocator.getInfo().getVersion())
-                        )
+            List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
+            schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition())
+                .thenApply(entry -> new StoredSchema
+                    (
+                        entry.getSchemaData().toByteArray(),
+                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
                     )
-                );
-                result.add(future);
-            });
+                )
+            ));
+            result.complete(list);
         });
         return result;
     }

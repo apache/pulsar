@@ -28,7 +28,7 @@ public interface SchemaStorage {
 
     CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
 
-    List<CompletableFuture<StoredSchema>> getAll(String key);
+    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
 
     CompletableFuture<SchemaVersion> delete(String key);
 
