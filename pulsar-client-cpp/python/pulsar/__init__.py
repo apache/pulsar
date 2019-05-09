@@ -289,7 +289,7 @@ class Client:
                  use_tls=False,
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
-                 tls_validate_hostname=True,
+                 tls_validate_hostname=False,
                  ):
         """
         Create a new Pulsar client instance.
