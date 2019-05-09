@@ -108,5 +108,5 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
-    public Optional<byte[]> getId() { return Optional.of(message.getMessageId().toByteArray()); }
+    public Optional<byte[]> getRecordId() { return Optional.of(message.getMessageId().toByteArray()); }
 }

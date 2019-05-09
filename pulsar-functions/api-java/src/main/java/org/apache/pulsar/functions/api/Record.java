@@ -44,7 +44,7 @@ public interface Record<T> {
     /**
      * Return a record id if the record has one associated.
      */
-    default Optional<byte[]> getId() {
+    default Optional<byte[]> getRecordId() {
         return Optional.empty();
     }
 

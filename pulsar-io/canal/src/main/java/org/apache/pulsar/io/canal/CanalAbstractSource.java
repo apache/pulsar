@@ -135,7 +135,7 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
                     } else {
                         if (flatMessages != null) {
                             CanalRecord<V> canalRecord = new CanalRecord<>(connector);
-                            canalRecord.setRecordId(batchId);
+                            canalRecord.setId(batchId);
                             canalRecord.setRecord(extractValue(flatMessages));
                             consume(canalRecord);
                         }
@@ -159,7 +159,7 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
     static private class CanalRecord<V> implements Record<V> {
 
         private V record;
-        private Long recordId;
+        private Long id;
         private CanalConnector connector;
 
         public CanalRecord(CanalConnector connector) {
@@ -168,7 +168,7 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<String> getKey() {
-            return Optional.of(Long.toString(recordId));
+            return Optional.of(Long.toString(id));
         }
 
         @Override
@@ -178,13 +178,13 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<Long> getRecordSequence() {
-            return Optional.of(recordId);
+            return Optional.of(id);
         }
 
         @Override
         public void ack() {
-            log.info("CanalRecord ack id is {}", this.recordId);
-            connector.ack(this.recordId);
+            log.info("CanalRecord ack id is {}", this.id);
+            connector.ack(this.id);
         }
 
     }
