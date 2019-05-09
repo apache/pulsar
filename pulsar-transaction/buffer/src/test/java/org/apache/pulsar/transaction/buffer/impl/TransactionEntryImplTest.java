@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.pulsar.transaction.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.testng.annotations.Test;
 
 /**

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
+import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
@@ -25,6 +26,7 @@ import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException
 /**
  * A reader to read entries of a given transaction from transaction buffer.
  */
+@Beta
 public interface TransactionBufferReader extends AutoCloseable {
 
     /**

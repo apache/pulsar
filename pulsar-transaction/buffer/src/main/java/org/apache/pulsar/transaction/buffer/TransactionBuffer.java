@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
+import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A class represent a transaction buffer. The transaction buffer
@@ -43,6 +44,7 @@ import org.apache.pulsar.transaction.common.TxnID;
  * as open. The broker can keep retry until the TC (transaction coordinator) eventually
  * commits the buffer again.
  */
+@Beta
 public interface TransactionBuffer extends AutoCloseable {
 
     /**

@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
+import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.transaction.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A class represents an entry appended to a transaction.
  */
+@Beta
 public interface TransactionEntry extends AutoCloseable {
 
     /**

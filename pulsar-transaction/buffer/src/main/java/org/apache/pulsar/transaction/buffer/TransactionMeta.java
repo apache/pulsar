@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
-import org.apache.pulsar.transaction.common.TxnID;
-import org.apache.pulsar.transaction.common.TxnStatus;
+import com.google.common.annotations.Beta;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * The metadata for the transaction in the transaction buffer.
  */
+@Beta
 public interface TransactionMeta {
 
     /**

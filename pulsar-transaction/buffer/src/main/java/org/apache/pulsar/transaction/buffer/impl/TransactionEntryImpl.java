@@ -20,7 +20,7 @@ package org.apache.pulsar.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.transaction.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A simple implementation of {@link TransactionEntry}.

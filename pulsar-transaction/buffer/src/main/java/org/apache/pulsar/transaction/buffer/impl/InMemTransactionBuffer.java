@@ -37,8 +37,8 @@ import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundExcept
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusException;
-import org.apache.pulsar.transaction.common.TxnID;
-import org.apache.pulsar.transaction.common.TxnStatus;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * The in-memory implementation of {@link TransactionBuffer}.

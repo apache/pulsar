@@ -35,7 +35,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
-import org.apache.pulsar.transaction.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.testng.annotations.Test;
 
 /**
