@@ -1489,7 +1489,13 @@ public abstract class ComponentImpl {
         return value;
     }
 
-    public void uploadFunction(final InputStream uploadedInputStream, final String path) {
+    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // skip authorization if client role is super-user
+            if (!isSuperUser(clientRole)) {
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        }
         // validate parameters
         try {
             if (uploadedInputStream == null || path == null) {
@@ -1510,8 +1516,15 @@ public abstract class ComponentImpl {
         }
     }
 
-    public StreamingOutput downloadFunction(final String path) {
+    public StreamingOutput downloadFunction(final String path, String clientRole) {
 
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // skip authorization if client role is super-user
+            if (!isSuperUser(clientRole)) {
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        }
+        
         final StreamingOutput streamingOutput = new StreamingOutput() {
             @Override
             public void write(final OutputStream output) throws IOException {

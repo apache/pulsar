@@ -1419,7 +1419,7 @@ public class FunctionApiV3ResourceTest {
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImpl function = new FunctionsImpl(null);
-        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl);
+        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1434,7 +1434,7 @@ public class FunctionApiV3ResourceTest {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImpl function = new FunctionsImpl(null);
-        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation);
+        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
