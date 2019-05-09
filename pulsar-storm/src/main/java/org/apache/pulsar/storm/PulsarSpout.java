@@ -103,6 +103,11 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     public void close() {
         try {
             LOG.info("[{}] Closing Pulsar consumer for topic {}", spoutId, pulsarSpoutConf.getTopic());
+            
+            if (pulsarSpoutConf.isAutoUnsubscribe()) {
+                consumer.unsubscribe();
+            }
+            
             if (!pulsarSpoutConf.isSharedConsumerEnabled() && consumer != null) {
                 consumer.close();
             }
