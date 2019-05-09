@@ -29,7 +29,7 @@ public interface SchemaCompatibilityCheck {
      * @param to the future schema i.e. the schema sent by the producer
      * @return whether the schemas are well-formed
      */
-    Boolean isWellFormed(SchemaData to);
+    boolean isWellFormed(SchemaData to);
 
     /**
      *
@@ -47,7 +47,7 @@ public interface SchemaCompatibilityCheck {
         }
 
         @Override
-        public Boolean isWellFormed(SchemaData to) {
+        public boolean isWellFormed(SchemaData to) {
             return true;
         }
 

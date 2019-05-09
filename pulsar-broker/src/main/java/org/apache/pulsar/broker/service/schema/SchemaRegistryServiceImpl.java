@@ -145,7 +145,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .build();
     }
 
-    private Boolean isWellFormed(SchemaData schema) {
+    private boolean isWellFormed(SchemaData schema) {
         return compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
             .isWellFormed(schema);
     }

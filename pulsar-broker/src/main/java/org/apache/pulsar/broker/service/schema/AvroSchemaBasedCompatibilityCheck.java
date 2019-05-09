@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
     @Override
-    public Boolean isWellFormed(SchemaData to) {
+    public boolean isWellFormed(SchemaData to) {
         try {
             Schema.Parser toParser = new Schema.Parser();
             Schema toSchema = toParser.parse(new String(to.getData(), UTF_8));
