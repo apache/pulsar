@@ -66,20 +66,16 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.functions.utils.ComponentType;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
@@ -660,6 +656,36 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             if (!StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
                 pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
+            } else {
+                switch (InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails())) {
+                    case FUNCTION:
+                        Class<?>[] functionTypes = FunctionCommon.getFunctionTypes(instanceConfig.getFunctionDetails(), Thread.currentThread().getContextClassLoader());
+                        pulsarSourceConfig.setTypeClassName(functionTypes[0].getName());
+                        break;
+                    case SINK:
+                        List<String> serdes = new LinkedList<>();
+                        List<String> schemas = new LinkedList<>();
+                        if (instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassName() != null) {
+                            instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassName().forEach((topicName, serde) -> serdes.add(serde));
+                        }
+                        if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
+                            instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().forEach((topicName, spec) -> {
+                                if (!StringUtils.isEmpty(spec.getSerdeClassName())) {
+                                    serdes.add(spec.getSerdeClassName());
+                                }
+                                if (!StringUtils.isEmpty(spec.getSchemaType())) {
+                                    schemas.add(spec.getSchemaType());
+                                }
+                            });
+                        }
+                        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.extractedSinkDetails(instanceConfig.getFunctionDetails().getSink().getClassName(), null, new File(jarFile),
+                                serdes, schemas);
+                        pulsarSourceConfig.setTypeClassName(sinkDetails.getTypeArg());
+                        break;
+                    case SOURCE:
+                    default:
+                        throw new RuntimeException("Invalid componentType");
+                }
             }
 
             if (sourceSpec.getTimeoutMs() > 0 ) {
@@ -670,7 +696,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.instanceConfig.getFunctionDetails(), this.jarFile);
+            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties);
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
@@ -716,6 +742,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 if (!StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
                     pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                } else {
+                    switch (InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails())) {
+                        case FUNCTION:
+                            Class<?>[] functionTypes = FunctionCommon.getFunctionTypes(instanceConfig.getFunctionDetails(), Thread.currentThread().getContextClassLoader());
+                            pulsarSinkConfig.setTypeClassName(functionTypes[1].getName());
+                            break;
+                        case SOURCE:
+                            SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.extractedSourceDetails(instanceConfig.getFunctionDetails().getSource().getClassName(), null, new File(jarFile),
+                                    instanceConfig.getFunctionDetails().getSink().getSerDeClassName(), instanceConfig.getFunctionDetails().getSink().getSchemaType());
+                            pulsarSinkConfig.setTypeClassName(sourceDetails.getTypeArg());
+                            break;
+                        case SINK:
+                        default:
+                            throw new RuntimeException("Invalid componentType");
+                    }
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.instanceConfig.getFunctionDetails(), this.jarFile);
