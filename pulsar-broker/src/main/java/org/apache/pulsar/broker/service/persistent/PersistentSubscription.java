@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,6 +29,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -43,6 +46,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -241,26 +245,28 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
 
-            positions.forEach(position -> {
-                // If single ack try to ack message in pending_ack status, fail the ack.
-                if (this.pendingAckMessages.contains(position)) {
-                    log.warn("[{}][{}] Invalid acks position witnin cumulative ack position of an ongoing " +
-                                    "transaction:{}{}.", topicName, subName, this.txnID.getMostSigBits(),
-                            this.txnID.getLeastSigBits());
-                    return;
-                }
+            synchronized (PersistentSubscription.this) {
+                positions.forEach(position -> {
+                    // If single ack try to ack message in pending_ack status, fail the ack.
+                    if (this.pendingAckMessages.contains(position)) {
+                        log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}{}.",
+                                topicName, subName, this.txnID.getMostSigBits(),
+                                this.txnID.getLeastSigBits());
+                        return;
+                    }
 
-                // If single ack is within range of cumulative ack of an ongoing transaction, fail the ack.
-                if (null != this.pendingCumulativeAckMessage &&
-                        ((PositionImpl) position).compareTo((PositionImpl) this.pendingCumulativeAckMessage) < 0) {
-                    log.warn("[{}][{}] Invalid acks position witnin cumulative ack position of an ongoing " +
-                            "transaction:{}{}.", topicName, subName, this.txnID.getMostSigBits(),
-                            this.txnID.getLeastSigBits());
-                    return;
-                }
-            });
+                    // If single ack is within range of cumulative ack of an ongoing transaction, fail the ack.
+                    if (null != this.pendingCumulativeAckMessage &&
+                            ((PositionImpl) position).compareTo((PositionImpl) this.pendingCumulativeAckMessage) < 0) {
+                        log.warn("[{}][{}] Invalid acks position within cumulative ack position of an ongoing " +
+                                        "transaction:{}{}.", topicName, subName, this.txnID.getMostSigBits(),
+                                this.txnID.getLeastSigBits());
+                        return;
+                    }
+                });
+                cursor.asyncDelete(positions, deleteCallback, positions);
+            }
 
-            cursor.asyncDelete(positions, deleteCallback, positions);
             dispatcher.getRedeliveryTracker().removeBatch(positions);
         }
 
@@ -290,13 +296,13 @@ public class PersistentSubscription implements Subscription {
      * @param ackType                {@link AckType}.
      * @throws TransactionConflictException   Throw InvalidAckException when transaction try to ack message when it shouldn't.
      */
-    public void acknowledgeMessage(TxnID txnID, List<Position> positions, AckType ackType) throws TransactionConflictException {
+    public synchronized void acknowledgeMessage(TxnID txnID, List<Position> positions, AckType ackType) throws TransactionConflictException {
         checkArgument(txnID != null, "TransactionID can not be null.");
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
             if (this.txnID != null && this.txnID != txnID) {
                 String errorMsg = String.format("[%s][%s] Transaction:%l%l try to cumulative ack message while" +
-                        " transaction:%l%l already cumulative acked messages. ", topicName, subName,
+                                " transaction:%l%l already cumulative acked messages. ", topicName, subName,
                         this.txnID.getMostSigBits(), this.txnID.getLeastSigBits(), txnID.getMostSigBits(),
                         txnID.getLeastSigBits());
                 log.error(errorMsg);
@@ -317,15 +323,13 @@ public class PersistentSubscription implements Subscription {
                         txnID.getLeastSigBits(), position);
             }
 
-            synchronized (PersistentSubscription.this) {
-                if (this.txnID == null) {
-                    // Only set txnID if no transaction is doing cumulative ack.
-                    TXNID_UPDATER.set(this, txnID);
-                    POSITION_UPDATER.set(this, position);
-                } else if (((PositionImpl)position).compareTo((PositionImpl)this.pendingCumulativeAckMessage) > 0) {
-                    // If new cumulative ack position is greater than current one, update it.
-                    POSITION_UPDATER.set(this, position);
-                }
+             if (this.txnID == null) {
+                // Only set txnID if no transaction is doing cumulative ack.
+                TXNID_UPDATER.set(this, txnID);
+                POSITION_UPDATER.set(this, position);
+            } else if (((PositionImpl)position).compareTo((PositionImpl)this.pendingCumulativeAckMessage) > 0) {
+                // If new cumulative ack position is greater than current one, update it.
+                POSITION_UPDATER.set(this, position);
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -797,15 +801,40 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         // Check if message is in pending_ack status.
+        ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
+        List<PositionImpl> pendingPositions = new ArrayList<>();
+        PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage? null :
+                                                        (PositionImpl)this.pendingCumulativeAckMessage;
 
-        dispatcher.redeliverUnacknowledgedMessages(consumer);
+        positionMap.asMap().entrySet().forEach(entry -> {
+            long batchSize = entry.getValue().first;
+            LongStream.range(0, batchSize).forEach(index -> {
+                PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
+                if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
+                        position.compareTo(cumulativeAckPosition) > 0)) {
+                    pendingPositions.add(position);
+                }
+            });
+        });
+
+        dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
     }
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // Check if message is in pending_ack status.
+        List<PositionImpl> pendingPositions = new ArrayList<>();
+        PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage? null :
+                (PositionImpl)this.pendingCumulativeAckMessage;
 
-        dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
+        positions.forEach(position -> {
+            if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
+                    position.compareTo(cumulativeAckPosition) > 0)) {
+                pendingPositions.add(position);
+            }
+        });
+
+        dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
     }
 
     @Override
