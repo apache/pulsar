@@ -759,7 +759,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     }
                 }
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.instanceConfig.getFunctionDetails(), this.jarFile);
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats);
             }
         } else {
             object = Reflections.createInstance(
