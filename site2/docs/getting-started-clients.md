@@ -10,8 +10,6 @@ Pulsar supports the following client libraries:
 - [Go client](#go-client)
 - [Python client](#python-client)
 - [C++ client](#c-client)
-- [Feature Matrix](#feature-matrix)
-- [Thirdparty Clients](#thirdparty-clients)
 
 ## Java client
 
