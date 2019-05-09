@@ -34,7 +34,7 @@ import org.apache.pulsar.common.net.ServiceURI;
  * The default implementation of {@link ServiceNameResolver}.
  */
 @Slf4j
-class PulsarServiceNameResolver implements ServiceNameResolver {
+public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private volatile ServiceURI serviceUri;
     private volatile String serviceUrl;
