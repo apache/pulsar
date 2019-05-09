@@ -70,11 +70,6 @@ public class FlinkPulsarProducer<IN>
     protected final PulsarKeyExtractor<IN> flinkPulsarKeyExtractor;
 
     /**
-     * {@link Producer} configuration map (will be materialized as a {@link ProducerConfigurationData} instance)
-     */
-//    protected final Map<String, Object> producerConfig;
-
-    /**
      * Produce Mode.
      */
     protected PulsarProduceMode produceMode = PulsarProduceMode.AT_LEAST_ONCE;
