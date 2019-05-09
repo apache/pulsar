@@ -27,15 +27,13 @@ import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.common.schema.SchemaData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
  */
+@Slf4j
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
-    Logger log = LoggerFactory.getLogger(SchemaRegistryService.class);
-
     @Override
     public Boolean isWellFormed(SchemaData to) {
         try {
