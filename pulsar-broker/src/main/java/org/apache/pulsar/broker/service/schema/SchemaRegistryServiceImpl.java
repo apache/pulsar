@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toMap;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -37,6 +38,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
+
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -97,6 +100,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
+<<<<<<< HEAD
             .thenApply(
                 (existingSchema) -> {
                     try {
@@ -105,6 +109,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             || (isCompatible(schemaId, schema, strategy).get());
                     } catch (Exception e) {
                         return false;
+=======
+            .thenCompose(
+                (existingSchema) ->
+                {
+                    if (existingSchema == null || existingSchema.schema.isDeleted()) {
+                        return completedFuture(true);
+                    } else {
+                        return isCompatible(schemaId, schema, strategy);
+>>>>>>> [schema] avoid doing synchronous calls in async callbacks or methods
                     }
                 }
             )
@@ -188,18 +201,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private CompletableFuture<Boolean> checkCompatibilityWithAll(String schemaId, SchemaData schema,
                                                                  SchemaCompatibilityStrategy strategy) {
-
-        List<SchemaData> schemas = new ArrayList<>();
-        try {
-            for (CompletableFuture<SchemaAndMetadata> schemaAndMetadataCompletableFuture : getAllSchemas(schemaId).get()) {
-                schemas.add(schemaAndMetadataCompletableFuture.get().schema);
-            }
-        } catch (Exception e) {
-            return completedFuture(false);
-        }
-
-        return completedFuture(compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                .isCompatible(schemas, schema, strategy));
+        return getAllSchemas(schemaId)
+                .thenCompose(FutureUtils::collect)
+                .thenApply(schemaAndMetadataList -> schemaAndMetadataList
+                        .stream()
+                        .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                        .collect(Collectors.toList()))
+                .thenApply(schemas -> compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                        .isCompatible(schemas, schema, strategy));
     }
 
     interface Functions {
