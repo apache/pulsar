@@ -21,6 +21,8 @@ package org.apache.flink.batch.connectors.pulsar;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
 /**
  * Pulsar Output Format to write Flink DataSets into a Pulsar topic in user-defined format.
@@ -31,6 +33,12 @@ public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     public PulsarOutputFormat(String serviceUrl, String topicName, Authentication authentication, final SerializationSchema<T> serializationSchema) {
         super(serviceUrl, topicName, authentication);
+        Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
+        this.serializationSchema = serializationSchema;
+    }
+
+    public PulsarOutputFormat(ClientConfigurationData clientConfigurationData, ProducerConfigurationData producerConfigurationData) {
+        super(clientConfigurationData, producerConfigurationData);
         Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
         this.serializationSchema = serializationSchema;
     }
