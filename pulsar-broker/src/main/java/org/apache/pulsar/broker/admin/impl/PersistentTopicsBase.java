@@ -1934,6 +1934,10 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNullValue()) {
             responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
         }
+        if (metadata.getNumChunksFromMsg() > 0) {
+            responseBuilder.header("X-Pulsar-PROPERTY-TOTAL-CHUNKS", Integer.toString(metadata.getNumChunksFromMsg()));
+            responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
+        }
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());

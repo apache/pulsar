@@ -488,6 +488,9 @@ public class Commands {
         if (txnIdMostBits > 0) {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
+        if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
+            sendBuilder.setIsChunk(true);
+        }
         CommandSend send = sendBuilder.build();
 
         ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
@@ -512,6 +515,9 @@ public class Commands {
         }
         if (txnIdMostBits > 0) {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
+            sendBuilder.setIsChunk(true);
         }
         CommandSend send = sendBuilder.build();
 

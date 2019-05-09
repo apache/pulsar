@@ -246,7 +246,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
             currentConsumer
                     .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), redeliveryTracker)
+                            sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                            redeliveryTracker)
                     .addListener(future -> {
                         if (future.isSuccess()) {
                             // acquire message-dispatch permits for already delivered messages
