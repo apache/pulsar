@@ -464,7 +464,8 @@ The Apache Software License, Version 2.0
     - io.kubernetes-client-java-api-2.0.0.jar
     - io.kubernetes-client-java-proto-2.0.0.jar
   * Joda Time
-    - joda-time-joda-time-2.9.3.jar
+    - joda-time-2.10.1.jar
+    - joda-time-joda-time-2.10.1.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-3.1.0.jar
     - io.dropwizard.metrics-metrics-graphite-3.1.0.jar
