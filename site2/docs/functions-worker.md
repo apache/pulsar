@@ -1,6 +1,6 @@
 ---
 id: functions-worker
-title: Deploying and Managing Functions Worker
+title: Deploy and manage functions worker
 sidebar_label: Functions Worker
 ---
 
@@ -10,7 +10,7 @@ This document describes the options, steps and configurations to set up Pulsar
 
 Before continuing the documentation, please be noted with a few things:
 
-1. The `--- Service Uris ---` lines in the following diagrams represents that Pulsar
+1. The `--- Service Urls---` lines in the following diagrams represents that Pulsar
    service urls that Pulsar client and admin use to connect to a Pulsar cluster.
    
 ## Deployment options
@@ -49,12 +49,12 @@ Below are the required settings you need to pay attentions to in configuring fun
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in broker configuration).
 
 
-If authentication is enabled on the bookkeeper cluster, you should also configure the bookkeeper authentication settings.
+If authentication is enabled on the BookKeeper cluster, you should also configure the BookKeeper authentication settings.
 They are:
 
-- `bookkeeperClientAuthenticationPlugin`: the bookkeeper client authentication plugin name.
-- `bookkeeperClientAuthenticationParametersName`: the bookkeeper client authentication plugin parameters name.
-- `bookkeeperClientAuthenticationParameters`: the bookkeeper client authentication plugin parameters.
+- `bookkeeperClientAuthenticationPlugin`: the BookKeeper client authentication plugin name.
+- `bookkeeperClientAuthenticationParametersName`: the BookKeeper client authentication plugin parameters name.
+- `bookkeeperClientAuthenticationParameters`: the BookKeeper client authentication plugin parameters.
 
 #### Start Functions-Worker with broker
 
@@ -99,24 +99,95 @@ Following are the instructions for configuring function-worker.
 
 ##### Function metadata management
 
-- `pulsarServiceUrl`: The pulsar service url for your broker cluster.
+- `pulsarServiceUrl`: The Pulsar service url for your broker cluster.
 - `pulsarWebServiceUrl`: The pulser web service url for your broker cluster.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in broker configuration).
 
+If your broker cluster enables authentication, you *should* also configure the authentication
+plugin and parameters for the functions worker to talk to the brokers.
+
+- `clientAuthenticationPlugin`
+- `clientAuthenticationParameters`
+
 ##### Security Settings
+
+If you want to enable security on functions workers, you *should* configure followings:
+
+*Enable TLS transport encryption*
+
+You should configure following settings to enable TLS transport encryption.
+
+```
+tlsEnabled: true
+tlsCertificateFilePath: /path/to/functions-worker.cert.pem
+tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
+tlsTrustCertsFilePath:  /path/to/ca.cert.pem
+```
+
+See [Transport Encryption using TLS](security-tls-transport.md) for more details about TLS encryption.
+
+*Enable Authentication Provider*
+
+You should configure following settings to enable authentication on Functions Worker
+(substituting the providers list with the providers you would like to enable).
+
+```
+authenticationEnabled: true
+authenticationProviders: [ provider1, provider2 ]
+```
+
+For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
+under `properties` if needed. 
+
+```
+properties:
+  saslJaasClientAllowedIds: .*pulsar.*
+  saslJaasBrokerSectionName: Broker
+```
+
+For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
+See [Token Authentication](security-token-admin.md) for more details.
+```
+properties:
+  tokenSecretKey:       file://my/secret.key 
+  # If using public/private
+  # tokenPublicKey:     file:///path/to/public.key 
+```
+
+*Enable Authorization Provider*
+
+You should configure `authorizationEnabled` and `configurationStoreServers` to enable
+authorization on Functions Worker. The authentication provider will connect to
+`configurationStoreServers` to receive namespace policies.
+
+```yaml
+authorizationEnabled: true
+configurationStoreServers: <configuration-store-servers>
+```
+
+You should also configure a list of superuser roles. The superuser roles are able to access
+any admin apis. Example configuration is shown as below:
+
+```yaml
+superUserRoles:
+  - role1
+  - role2
+  - role3
+```
 
 ##### BookKeeper Authentication
 
-If authentication is enabled on the bookkeeper cluster, you should also configure the bookkeeper authentication settings.
+If authentication is enabled on the BookKeeper cluster, you should also configure the BookKeeper authentication settings.
 They are:
 
-- `bookkeeperClientAuthenticationPlugin`: the bookkeeper client authentication plugin name.
-- `bookkeeperClientAuthenticationParametersName`: the bookkeeper client authentication plugin parameters name.
-- `bookkeeperClientAuthenticationParameters`: the bookkeeper client authentication plugin parameters.
+- `bookkeeperClientAuthenticationPlugin`: the BookKeeper client authentication plugin name.
+- `bookkeeperClientAuthenticationParametersName`: the BookKeeper client authentication plugin parameters name.
+- `bookkeeperClientAuthenticationParameters`: the BookKeeper client authentication plugin parameters.
 
 #### Start Functions-Worker
 
-Once you have configured the `functions_worker.yml`, you can use following command to start a `functions-worker`:
+Once you have finished configuring the `functions_worker.yml` configuration file, you can use following
+command to start a `functions-worker`:
 
 ```bash
 bin/pulsar functions-worker
@@ -130,8 +201,11 @@ by the `functions-worker` cluster, while all the other remaining endpoints are s
 Hence you need to configure your `pulsar-admin` to use the right service url accordingly.
 
 In order to address this inconvenience, you can choose to start a proxy cluster for routing the admin rest
-requests accordingly. If you already have a proxy cluster, continue the reading. If you haven't setup a proxy
-cluster, you can follow the [instructions](http://pulsar.apache.org/docs/en/administration-proxy/) to start proxies.    
+requests accordingly. Hence you will have one central entry point for your admin service.
+
+If you already have a proxy cluster, continue the reading. If you haven't setup a proxy
+cluster before, you can follow the [instructions](http://pulsar.apache.org/docs/en/administration-proxy/) to
+start proxies.    
 
 ![assets/functions-worker-separated.png](assets/functions-worker-separated-proxy.png)
 
@@ -148,11 +222,39 @@ functionWorkerWebServiceURLTLS=<pulsar-functions-worker-web-service-url>
 As described above, it is much convenient to run functions-workers along with brokers. However running functions-workers
 in a separated cluster provides better resource isolation for running functions in `Process` or `Thread` mode.
 
-The recommendation is listed in below:
+The recommendation is listed as below:
 
 - `Run-with-Broker`: Choose this mode when a) if you don't care about resource isolation when running functions in
-  `Process` or `Thread` mode; or b) if you configure the functions-worker to run functions in `kubernetes` (where the 
-  resource isolation problem is addressed by kubernetes).
+  `Process` or `Thread` mode; or b) if you configure the functions-worker to run functions on Kubernetes (where the 
+  resource isolation problem is addressed by Kubernetes).
   
 - `Run-separatedly`: Choose this mode when a) you don't have a kubernetes cluster; and b) if you want to separate
   running functions from brokers.
+
+## Troubleshooting
+
+### Namespace missing local cluster name in clusters list
+
+```
+Failed to get partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException$BrokerMetadataException: Namespace missing local cluster name in clusters list: local_cluster=xyz ns=public/functions clusters=[standalone]
+```
+
+The error message is seen when either a) a broker is started with `functionsWorkerEnabled=true`
+but the `pulsarFunctionsCluster` is not set to the correct cluster in `conf/functions_worker.yaml`;
+or b) setting up a geo-replicated Pulsar cluster with `functionsWorkerEnabled=true`, the brokers in one cluster run well but not the brokers in the other cluster.
+
+If any of these cases happens, follow the instructions below to fix the problem:
+
+1. Get the current clusters list of `public/functions` namespace.
+
+```bash
+bin/pulsar-admin namespaces get-clusters public/functions
+```
+
+2. Check if the cluster is in the clusters list. If the cluster doesn't exist in the list, add it to the list and update the clusters list.
+
+```bash
+bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+```
+
+3. Set the correct cluster name in setting `pulsarFunctionsCluster` in `conf/functions_worker.yml` file. 
