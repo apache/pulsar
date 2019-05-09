@@ -66,7 +66,6 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -113,9 +112,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.utils.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.utils.ComponentType.SINK;
-import static org.apache.pulsar.functions.utils.ComponentType.SOURCE;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
@@ -126,9 +122,9 @@ public abstract class ComponentImpl {
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     protected final Supplier<WorkerService> workerServiceSupplier;
-    protected final ComponentType componentType;
+    protected final Function.FunctionDetails.ComponentType componentType;
 
-    public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, ComponentType componentType) {
+    public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, Function.FunctionDetails.ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
     }
@@ -461,7 +457,7 @@ public abstract class ComponentImpl {
             // For externally managed schedulers, the pkgUrl/builtin stuff should be copied to bk
             if (isBuiltin) {
                 File sinkOrSource;
-                if (componentType.equals(SOURCE)) {
+                if (componentType == FunctionDetails.ComponentType.SOURCE) {
                     String archiveName = functionDetails.getSource().getBuiltin();
                     sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
                 } else {
@@ -567,7 +563,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
         }
 
-        if (componentType.equals(FUNCTION)) {
+        if (componentType.equals(FunctionDetails.ComponentType.FUNCTION)) {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
@@ -582,7 +578,7 @@ public abstract class ComponentImpl {
             } catch (Exception e) {
                 throw new RestException(Status.BAD_REQUEST, e.getMessage());
             }
-        } else if (componentType.equals(SOURCE)) {
+        } else if (componentType.equals(FunctionDetails.ComponentType.SOURCE)) {
             SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingSourceConfig);
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
@@ -1549,7 +1545,7 @@ public abstract class ComponentImpl {
     protected void validateGetFunctionInstanceRequestParams(final String tenant,
                                                             final String namespace,
                                                             final String componentName,
-                                                            final ComponentType componentType,
+                                                            final FunctionDetails.ComponentType componentType,
                                                             final String instanceId) throws IllegalArgumentException {
         validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
         if (instanceId == null) {
@@ -1557,7 +1553,7 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected void validateGetFunctionRequestParams(String tenant, String namespace, String subject, ComponentType componentType)
+    protected void validateGetFunctionRequestParams(String tenant, String namespace, String subject, FunctionDetails.ComponentType componentType)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -1571,7 +1567,7 @@ public abstract class ComponentImpl {
         }
     }
 
-    private void validateDeregisterRequestParams(String tenant, String namespace, String subject, ComponentType componentType)
+    private void validateDeregisterRequestParams(String tenant, String namespace, String subject, FunctionDetails.ComponentType componentType)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -1627,7 +1623,7 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
                                                     final String namespace,
                                                     final String componentName,
                                                     final String componentConfigJson,
-                                                    final ComponentType componentType,
+                                                    final FunctionDetails.ComponentType componentType,
                                                     final File componentPackageFile) throws IOException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
@@ -1639,7 +1635,7 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             throw new IllegalArgumentException(String.format("%s Name is not provided", componentType));
         }
 
-        if (componentType.equals(FUNCTION) && !isEmpty(componentConfigJson)) {
+        if (componentType.equals(FunctionDetails.ComponentType.FUNCTION) && !isEmpty(componentConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
             // The rest end points take precedence over whatever is there in functionconfig
             functionConfig.setTenant(tenant);
@@ -1649,7 +1645,7 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
-        if (componentType.equals(SOURCE)) {
+        if (componentType.equals(FunctionDetails.ComponentType.SOURCE)) {
             Path archivePath = null;
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
             // The rest end points take precedence over whatever is there in sourceconfig
@@ -1671,7 +1667,7 @@ private FunctionDetails validateUpdateRequestParams(final String tenant,
             SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, componentPackageFile);
             return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         }
-        if (componentType.equals(SINK)) {
+        if (componentType.equals(FunctionDetails.ComponentType.SINK)) {
             Path archivePath = null;
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
             // The rest end points take precedence over whatever is there in sinkConfig
