@@ -312,15 +312,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-
-            if (compressedSize > PulsarDecoder.MaxMessageSize) {
+            int maxMessageSize = ClientCnx.NUMBER_OF_MAX_MESSAGE_SIZE.get(this.cnx());
+            if (compressedSize > maxMessageSize) {
                 compressedPayload.release();
                 String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                        ? "Compressed"
-                        : "";
+                                           ? "Compressed"
+                                           : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                        format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                                PulsarDecoder.MaxMessageSize));
+                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                           maxMessageSize));
                 callback.sendComplete(invalidMessageException);
                 return;
             }
@@ -1306,12 +1306,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);
 
-                if (encryptedPayload.readableBytes() > PulsarDecoder.MaxMessageSize) {
+                int maxMessageSize = ClientCnx.NUMBER_OF_MAX_MESSAGE_SIZE.get(this.cnx());
+                if (encryptedPayload.readableBytes() > maxMessageSize) {
                     cmd.release();
                     semaphore.release(numMessagesInBatch);
                     if (op != null) {
                         op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                                "Message size is bigger than " + PulsarDecoder.MaxMessageSize + " bytes"));
+                                "Message size is bigger than " + maxMessageSize + " bytes"));
                     }
                     return;
                 }

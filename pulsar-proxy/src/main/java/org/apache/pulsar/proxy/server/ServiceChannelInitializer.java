@@ -85,7 +85,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             }
         }
 
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+            proxyService.getConfiguration().getMaxMessagesSize() + 10 * 1024, 0, 4, 0, 4));
         ch.pipeline().addLast("handler",
                 new ProxyConnection(proxyService, clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get()));
     }

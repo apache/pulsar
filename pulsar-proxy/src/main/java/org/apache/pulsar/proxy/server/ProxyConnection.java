@@ -218,7 +218,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise));
+            ctx.writeAndFlush(
+                Commands.newConnected(protocolVersionToAdvertise, service.getConfiguration().getMaxMessagesSize()));
         }
     }
 

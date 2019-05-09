@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 
@@ -117,6 +118,10 @@ public class ClientCnx extends PulsarHandler {
             .newUpdater(ClientCnx.class, "numberOfRejectRequests");
     @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
+
+    protected static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_MAX_MESSAGE_SIZE = AtomicIntegerFieldUpdater
+            .newUpdater(ClientCnx.class, "maxMessageSize");
+    private volatile int maxMessageSize = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     private final int protocolVersion;
@@ -275,7 +280,10 @@ public class ClientCnx extends PulsarHandler {
         }
 
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
-
+        int maxFrameSize = connected.getMaxMessageSize() - 10 * 1024;
+        NUMBER_OF_MAX_MESSAGE_SIZE.compareAndSet(this, 0, maxFrameSize);
+        ctx.pipeline()
+           .replace("defaultFrameDecoder", "frameDecoder", new LengthFieldBasedFrameDecoder(maxFrameSize, 0, 4, 0, 4));
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }

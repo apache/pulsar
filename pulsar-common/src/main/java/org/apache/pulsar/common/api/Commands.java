@@ -189,9 +189,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnected(int clientProtocolVersion) {
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
+        connectedBuilder.setMaxMessageSize(maxMessageSize);
 
         // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
         // client supports, to avoid confusing the client.

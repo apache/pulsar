@@ -45,6 +45,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
+import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -138,6 +139,15 @@ public class PulsarBrokerStarter {
             } else {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
+
+            int maxFrameSize = brokerConfig.getMaxMessageSize() + (10 * 1024);
+            if (maxFrameSize < 0) {
+                throw new IllegalArgumentException("Max message size need smaller than 5233640 bytes");
+            }
+            if (maxFrameSize > DirectMemoryUtils.maxDirectMemory()) {
+                throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
+            }
+            brokerConfig.setMaxFrameSize(maxFrameSize);
 
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {

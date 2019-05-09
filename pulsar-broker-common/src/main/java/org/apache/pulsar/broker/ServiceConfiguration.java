@@ -489,6 +489,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Using a value of 0, is disabling maxConsumersPerSubscription-limit check.")
     private int maxConsumersPerSubscription = 0;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "The size of messages.")
+    private int maxMessageSize = 5 * 1024 * 1024;
+
+    private int maxFrameSize = 5242880;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

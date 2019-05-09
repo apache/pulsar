@@ -75,6 +75,16 @@ public class ServiceConfig implements PulsarConfiguration {
     // Authorization provider fully qualified class-name
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
+    public int getMaxMessageSize() {
+        return maxMessageSize;
+    }
+
+    public void setMaxMessageSize(int maxMessageSize) {
+        this.maxMessageSize = maxMessageSize;
+    }
+
+    private int maxMessageSize = 5242880;
+
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;

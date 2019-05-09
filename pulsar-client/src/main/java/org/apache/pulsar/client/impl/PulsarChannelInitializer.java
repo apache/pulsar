@@ -38,6 +38,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     private final Supplier<ClientCnx> clientCnxSupplier;
     private final SslContext sslCtx;
+    private final ClientConfigurationData conf;
 
     public PulsarChannelInitializer(ClientConfigurationData conf, Supplier<ClientCnx> clientCnxSupplier)
             throws Exception {
@@ -57,6 +58,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         } else {
             this.sslCtx = null;
         }
+        this.conf = conf;
     }
 
     @Override
@@ -68,7 +70,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
 
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+        ch.pipeline()
+          .addLast("defaultFrameDecoder", new LengthFieldBasedFrameDecoder(conf.getDefaultMaxFrameSize(), 0, 4, 0, 4));
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.discovery.service;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
@@ -38,6 +39,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final DiscoveryService discoveryService;
     private final boolean enableTls;
     private final NettySslContextBuilder sslCtxRefresher;
+    private final ServiceConfig brokerConf;
 
     public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean e)
             throws Exception {
@@ -53,6 +55,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         } else {
             this.sslCtxRefresher = null;
         }
+        this.brokerConf = serviceConfig;
     }
 
     @Override
@@ -63,7 +66,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                 ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
             }
         }
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+        ch.pipeline().addLast("frameDecoder",
+                              new LengthFieldBasedFrameDecoder(brokerConf.getMaxMessageSize() + 10 * 1024, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerConnection(discoveryService));
     }
 }

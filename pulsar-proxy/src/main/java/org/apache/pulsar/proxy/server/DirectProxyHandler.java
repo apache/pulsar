@@ -99,7 +99,8 @@ public class DirectProxyHandler {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder",
-                        new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+                                      new LengthFieldBasedFrameDecoder(config.getMaxMessagesSize() + 10 * 1024, 0, 4, 0,
+                                                                       4));
                 ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config, protocolVersion));
             }
         });
@@ -259,7 +260,7 @@ public class DirectProxyHandler {
 
             state = BackendState.HandshakeCompleted;
 
-            inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion())).addListener(future -> {
+            inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), config.getMaxMessagesSize())).addListener(future -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
                 }

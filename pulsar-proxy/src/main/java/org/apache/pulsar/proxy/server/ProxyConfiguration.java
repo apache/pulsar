@@ -111,6 +111,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String brokerWebServiceURLTLS;
 
+    @FieldContext(category = CATEGORY_BROKER_DISCOVERY, doc = "")
+    private int maxMessagesSize = 5233640;
+
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The web service url points to the function worker cluster."
