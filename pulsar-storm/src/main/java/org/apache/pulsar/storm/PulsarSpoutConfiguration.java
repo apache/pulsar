@@ -45,6 +45,7 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
     private boolean sharedConsumerEnabled = false;
 
     private SubscriptionType subscriptionType = SubscriptionType.Shared;
+    private boolean autoUnsubscribe = false;
 
     /**
      * @return the subscription name for the consumer in the spout
@@ -145,5 +146,18 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
      */
     public void setSharedConsumerEnabled(boolean sharedConsumerEnabled) {
         this.sharedConsumerEnabled = sharedConsumerEnabled;
+    }
+    
+    public boolean isAutoUnsubscribe() {
+        return autoUnsubscribe;
+    }
+
+    /**
+     * It unsubscribes the subscription when spout gets closed in the topology.
+     * 
+     * @param autoUnsubscribe
+     */
+    public void setAutoUnsubscribe(boolean autoUnsubscribe) {
+        this.autoUnsubscribe = autoUnsubscribe;
     }
 }
