@@ -40,7 +40,7 @@ func main() {
 	defer client.Close()
 
 	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic: "topic-01",
+		Topic: "my-topic",
 	})
 
 	defer producer.Close()

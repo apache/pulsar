@@ -796,9 +796,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
-        // Verify: cache has to be cleared as there is no message needs to be consumed by active subscriber
-        assertEquals(entryCache.getSize(), 0, 1);
-
         /************ usecase-2: *************/
         // 1.b Subscriber slower-subscriber
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
@@ -869,16 +866,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
         // reflection to set/get cache-backlog fields value:
-        final long maxMessageCacheRetentionTimeMillis = 100;
-        Field backlogThresholdField = ManagedLedgerImpl.class.getDeclaredField("maxActiveCursorBacklogEntries");
-        backlogThresholdField.setAccessible(true);
-        Field field = ManagedLedgerImpl.class.getDeclaredField("maxMessageCacheRetentionTimeMillis");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(ledger, maxMessageCacheRetentionTimeMillis);
-        final long maxActiveCursorBacklogEntries = (long) backlogThresholdField.get(ledger);
+        final long maxMessageCacheRetentionTimeMillis = conf.getManagedLedgerCacheEvictionTimeThresholdMillis();
+        final long maxActiveCursorBacklogEntries = conf.getManagedLedgerCursorBackloggedThreshold();
 
         Message<byte[]> msg = null;
         final int totalMsgs = (int) maxActiveCursorBacklogEntries + receiverSize + 1;
@@ -2911,16 +2900,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * This test verifies that broker activates fail-over consumer by considering priority-level as well.
-     * 
+     *
      * <pre>
      * 1. Start two failover consumer with same priority level, broker selects consumer based on name-sorting (consumer1).
      * 2. Switch non-active consumer to active (consumer2): by giving it higher priority
      * Partitioned-topic with 9 partitions:
      * 1. C1 (priority=1)
      * 2. C2,C3,C4 (priority=0)
-     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions. 
+     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions.
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -2997,117 +2986,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer4.close();
         consumer5.close();
         log.info("-- Exiting {} test --", methodName);
-    }
-
-    // Issue 3226: https://github.com/apache/pulsar/issues/3226
-    // Pull 3312: https://github.com/apache/pulsar/pull/3312
-    // Bugfix preventing duplicated consumers on same client cnx with shared subscription mode
-    @Test()
-    public void testPreventDupConsumersOnClientCnxForSingleSub() throws Exception {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
-            if (t1 != null) {
-                future.completeExceptionally(t1);
-                return;
-            }
-
-            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
-                if (t2 != null) {
-                    future.completeExceptionally(t2);
-                    return;
-                }
-                future.complete(null);
-            });
-        });
-
-        future.get(5, TimeUnit.SECONDS);
-        Assert.assertEquals(consumer, consumerB);
-        Assert.assertTrue(future.isDone());
-        Assert.assertFalse(future.isCompletedExceptionally());
-    }
-
-    @Test()
-    public void testPreventDupConsumersOnClientCnxForSingleSub_AllowDifferentTopics() throws Exception {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        // This consumer should be a newly subscription since is it from a different topic
-        // even though has the same subscription name.
-        Consumer<byte[]> consumerC = pulsarClient.newConsumer().topic(topic + "-different-topic")
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        consumer.unsubscribeAsync().whenComplete((aVoid1, t1) -> {
-            if (t1 != null) {
-                future.completeExceptionally(t1);
-                return;
-            }
-
-            consumer.closeAsync().whenComplete((aVoid2, t2) -> {
-                if (t2 != null) {
-                    future.completeExceptionally(t2);
-                    return;
-                }
-                future.complete(null);
-            });
-        });
-
-        future.get(5, TimeUnit.SECONDS);
-        Assert.assertEquals(consumer, consumerB);
-        Assert.assertTrue(future.isDone());
-        Assert.assertFalse(future.isCompletedExceptionally());
-
-        // consumerC is a newly created subscription.
-        Assert.assertNotEquals(consumer, consumerC);
-        Assert.assertTrue(consumerC.isConnected());
-        consumerC.close();
-    }
-
-    @Test
-    public void testRefCount_OnCloseConsumer() throws Exception {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        final String subName = "my-subscription";
-
-        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        Assert.assertEquals(consumerA, consumerB);
-
-        consumerA.close();
-        Assert.assertTrue(consumerA.isConnected());
-        Assert.assertTrue(consumerB.isConnected());
-
-        consumerB.close();
-        Assert.assertFalse(consumerA.isConnected());
-        Assert.assertFalse(consumerB.isConnected());
     }
 }

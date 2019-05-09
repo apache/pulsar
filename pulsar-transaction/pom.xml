@@ -34,6 +34,7 @@
   <modules>
     <module>common</module>
     <module>buffer</module>
+    <module>coordinator</module>
   </modules>
 
   <build>

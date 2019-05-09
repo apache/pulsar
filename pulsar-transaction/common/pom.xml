@@ -69,4 +69,8 @@
             </plugin>
         </plugins>
     </build>
+<<<<<<< HEAD
 </project>
+=======
+</project>
+>>>>>>> apache/master

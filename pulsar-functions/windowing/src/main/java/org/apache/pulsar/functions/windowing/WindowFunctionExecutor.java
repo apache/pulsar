@@ -282,7 +282,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 this.windowManager.add(record, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
-                    context.publish(this.windowConfig.getLateDataTopic(), input);
+                    context.newOutputMessage(this.windowConfig.getLateDataTopic(), null).value(input).sendAsync();
                 } else {
                     log.info(String.format(
                             "Received a late tuple %s with ts %d. This will not be " + "processed"
