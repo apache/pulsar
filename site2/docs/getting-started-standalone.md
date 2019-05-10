@@ -11,7 +11,7 @@ For local development and testing, you can run Pulsar in standalone mode on your
 
 ## Install Pulsar standalone
 
-### System Requirements
+### System requirements
 
 Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 
@@ -38,7 +38,7 @@ $ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-{{pulsar:version}}
 ```
 
-#### What Your Package Contains
+#### What your package contains
 
 The Pulsar binary package initially contains the following directories:
 
@@ -61,7 +61,7 @@ Directory | Contains
 #### Install other optional components
 
 > #### Tip
-> If you want to use bulitin connectors and tiered storage offloaders, you can install them according to the following instructions：
+> If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：
 > 
 > * [Install builtin connectors (optional)](#install-builtin-connectors-optional)
 > * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
@@ -151,7 +151,7 @@ For more details on how to configure tiered storage feature, refer to [Tiered st
 > * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
 > you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-### Start Pulsar Standalone
+### Start Pulsar standalone
 
 Once you have an up-to-date local copy of the release, you can start a local cluster using the [`pulsar`](reference-cli-tools.md#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start Pulsar in standalone mode.
 
@@ -176,7 +176,7 @@ You can also run the service as a background process using the command `pulsar-d
 
 ## Use Pulsar standalone
 
-Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client). The pulsar-client enables you to consume and produce messages to a Pulsar topic in a running cluster. 
+Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client). The pulsar-client tool enables you to consume and produce messages to a Pulsar topic in a running cluster. 
 
 ### Consume a message
 
