@@ -45,6 +45,7 @@ Messages published by producers can be compressed during transportation in order
 * [LZ4](https://github.com/lz4/lz4)
 * [ZLIB](https://zlib.net/)
 * [ZSTD](https://facebook.github.io/zstd/)
+* [SNAPPY](https://google.github.io/snappy/)
 
 ### Batching
 

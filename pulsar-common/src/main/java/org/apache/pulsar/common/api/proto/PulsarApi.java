@@ -14,12 +14,14 @@ public final class PulsarApi {
     LZ4(1, 1),
     ZLIB(2, 2),
     ZSTD(3, 3),
+    SNAPPY(4, 4),
     ;
     
     public static final int NONE_VALUE = 0;
     public static final int LZ4_VALUE = 1;
     public static final int ZLIB_VALUE = 2;
     public static final int ZSTD_VALUE = 3;
+    public static final int SNAPPY_VALUE = 4;
     
     
     public final int getNumber() { return value; }
@@ -30,6 +32,7 @@ public final class PulsarApi {
         case 1: return LZ4;
         case 2: return ZLIB;
         case 3: return ZSTD;
+        case 4: return SNAPPY;
         default: return null;
       }
     }

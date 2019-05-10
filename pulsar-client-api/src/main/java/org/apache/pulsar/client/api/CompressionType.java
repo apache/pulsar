@@ -33,4 +33,7 @@ public enum CompressionType {
 
     /** Compress with Zstandard codec */
     ZSTD,
+
+    /** Compress with Snappy codec */
+    SNAPPY
 }
