@@ -50,6 +50,25 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         return new KeyValue<>(keySchema, valueSchema);
     }
 
+    private SchemaType fetchSchemaType(Map<String, String> properties, String key) {
+        if (properties.get(key) != null) {
+            return SchemaType.valueOf(properties.get("key.schema.type"));
+        }
+        return SchemaType.BYTES;
+    }
+
+    private SchemaData fetchSchemaData(
+            byte[] keyValue, SchemaType schemaType, Gson schemaGson, Map<String, String> properties, String key) {
+        if (properties.get(key) != null) {
+            return SchemaData.builder().data(keyValue)
+                    .type(schemaType)
+                    .props(schemaGson.fromJson(properties.get(key), Map.class)).build();
+        }
+        return SchemaData.builder().data(keyValue)
+                .type(schemaType)
+                .props(Collections.emptyMap()).build();
+    }
+
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.KEY_VALUE;
@@ -60,84 +79,27 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         KeyValue<byte[], byte[]> fromKeyValue = this.splitKeyValueSchemaData(from.getData());
         KeyValue<byte[], byte[]> toKeyValue = this.splitKeyValueSchemaData(to.getData());
 
-        SchemaType fromKeyType;
-        if (from.getProps().get("key.schema.type") != null) {
-            fromKeyType = SchemaType.valueOf(from.getProps().get("key.schema.type"));
-        } else {
-            fromKeyType = SchemaType.BYTES;
-        }
-        SchemaType fromValueType;
-        if (from.getProps().get("value.schema.type") != null) {
-            fromValueType = SchemaType.valueOf(from.getProps().get("value.schema.type"));
-        } else {
-            fromValueType = SchemaType.BYTES;
-        }
-        SchemaType toKeyType;
-        if (to.getProps().get("key.schema.type") != null) {
-            toKeyType = SchemaType.valueOf(to.getProps().get("key.schema.type"));
-        } else {
-            toKeyType = SchemaType.BYTES;
-        }
-        SchemaType toValueType;
-        if (to.getProps().get("value.schema.type") != null) {
-            toValueType = SchemaType.valueOf(to.getProps().get("value.schema.type"));
-        } else {
-            toValueType = SchemaType.BYTES;
-        }
+        Map<String, String> fromProperties = from.getProps();
+        Map<String, String> toProperties = to.getProps();
+
+        SchemaType fromKeyType = fetchSchemaType(fromProperties, "key.schema.type");
+        SchemaType fromValueType = fetchSchemaType(fromProperties, "value.schema.type");
+        SchemaType toKeyType = fetchSchemaType(toProperties, "key.schema.type");
+        SchemaType toValueType = fetchSchemaType(toProperties, "value.schema.type");
 
         if (fromKeyType != toKeyType || fromValueType != toValueType) {
             return false;
         }
 
         Gson schemaGson = new Gson();
-        Map<String, String> keyFromProperties = schemaGson.fromJson(from.getProps().get("key.schema.properties"), Map.class);
-        Map<String, String> valueFromProperties = schemaGson.fromJson(from.getProps().get("value.schema.properties"), Map.class);
-        Map<String, String> keyToProperties = schemaGson.fromJson(to.getProps().get("key.schema.properties"), Map.class);
-        Map<String, String> valueToProperties = schemaGson.fromJson(to.getProps().get("value.schema.properties"), Map.class);
-
-        SchemaData fromKeySchemaData;
-        if (from.getProps().get("key.schema.properties") != null) {
-            fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
-                    .type(fromKeyType)
-                    .props(keyFromProperties).build();
-        } else {
-            fromKeySchemaData = SchemaData.builder().data(fromKeyValue.getKey())
-                    .type(fromKeyType)
-                    .props(Collections.emptyMap()).build();
-        }
-
-        SchemaData fromValueSchemaData;
-        if (from.getProps().get("value.schema.properties") != null) {
-            fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
-                    .type(fromValueType)
-                    .props(valueFromProperties).build();
-        } else {
-            fromValueSchemaData = SchemaData.builder().data(fromKeyValue.getValue())
-                    .type(fromValueType)
-                    .props(Collections.emptyMap()).build();
-        }
-
-        SchemaData toKeySchemaData;
-        if (to.getProps().get("key.schema.properties") != null) {
-            toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
-                    .type(toKeyType)
-                    .props(keyToProperties).build();
-        } else {
-            toKeySchemaData = SchemaData.builder().data(toKeyValue.getKey())
-                    .type(toKeyType)
-                    .props(Collections.emptyMap()).build();
-        }
-
-        SchemaData toValueSchemaData;
-        if (to.getProps().get("value.schema.properties") != null) {
-            toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
-                    .type(toValueType)
-                    .props(valueToProperties).build();
-        } else {
-            toValueSchemaData = SchemaData.builder().data(toKeyValue.getValue())
-                    .type(toValueType)
-                    .props(Collections.emptyMap()).build();
-        }
+        SchemaData fromKeySchemaData = fetchSchemaData(
+                fromKeyValue.getKey(), fromKeyType, schemaGson, fromProperties, "key.schema.properties");
+        SchemaData fromValueSchemaData = fetchSchemaData(
+                fromKeyValue.getValue(), fromKeyType, schemaGson, fromProperties, "value.schema.properties");
+        SchemaData toKeySchemaData = fetchSchemaData(
+                toKeyValue.getKey(), toKeyType, schemaGson, toProperties, "key.schema.properties");
+        SchemaData toValueSchemaData = fetchSchemaData(
+                toKeyValue.getValue(), toKeyType, schemaGson, toProperties, "value.schema.properties");
 
         SchemaCompatibilityCheck keyCheck;
         if (checkers.get(toKeyType) != null) {
