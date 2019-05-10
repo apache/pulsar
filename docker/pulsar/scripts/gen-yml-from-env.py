@@ -76,7 +76,7 @@ for conf_filename in conf_files:
                 modified = True
             i += 1
 
-    containerFactory=os.environ['PF_containerFactory']
+    containerFactory = os.environ.get('PF_containerFactory', None)
     conf.pop('containerFactory', None)
     if containerFactory == 'k8s':
         conf.pop('processContainerFactory', None)
