@@ -120,6 +120,7 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
+      <scope>provided</scope>
     </dependency>
     
     <!-- httpclient-hostname-verification depends on below dependencies  --> 
@@ -139,6 +140,11 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-proto</artifactId>
       <version>${project.parent.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
