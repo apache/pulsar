@@ -14,25 +14,25 @@ and follow the instructions for your OS.
 
 * For MacOS and Linux:
 
->```shell
->$ docker run -it \
->  -p 6650:6650 \
->  -p 8080:8080 \
->  -v $PWD/data:/pulsar/data \
->  apachepulsar/pulsar:{{pulsar:version}} \
->  bin/pulsar standalone
->```
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v $PWD/data:/pulsar/data \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
-* For Windows:
+* For Windows:  
   
->```shell
->$ docker run -it \
->  -p 6650:6650 \
->  -p 8080:8080 \
->  -v "$PWD/data:/pulsar/data".ToLower() \
->  apachepulsar/pulsar:{{pulsar:version}} \
->  bin/pulsar standalone
->```
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v "$PWD/data:/pulsar/data".ToLower() \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
 A few things to note about this command:
  * `$PWD/data` : The docker host directory in Windows operating system must be lowercase.`$PWD/data` provides you with the specified directory, for example: `E:/data`.
