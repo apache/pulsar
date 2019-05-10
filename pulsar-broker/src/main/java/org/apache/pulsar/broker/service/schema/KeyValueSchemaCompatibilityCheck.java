@@ -52,7 +52,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
 
     private SchemaType fetchSchemaType(Map<String, String> properties, String key) {
         if (properties.get(key) != null) {
-            return SchemaType.valueOf(properties.get("key.schema.type"));
+            return SchemaType.valueOf(properties.get(key));
         }
         return SchemaType.BYTES;
     }
