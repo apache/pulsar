@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.net.ssl.SSLSession;
 
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
@@ -80,6 +81,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -119,9 +121,9 @@ public class ClientCnx extends PulsarHandler {
     @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
 
-    protected static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_MAX_MESSAGE_SIZE = AtomicIntegerFieldUpdater
-            .newUpdater(ClientCnx.class, "maxMessageSize");
-    private volatile int maxMessageSize = 0;
+    @Getter
+    private int maxMessageSize = 0;
+
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     private final int protocolVersion;
@@ -280,10 +282,9 @@ public class ClientCnx extends PulsarHandler {
         }
 
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
-        int maxFrameSize = connected.getMaxMessageSize() - 10 * 1024;
-        NUMBER_OF_MAX_MESSAGE_SIZE.compareAndSet(this, 0, maxFrameSize);
-        ctx.pipeline()
-           .replace("defaultFrameDecoder", "frameDecoder", new LengthFieldBasedFrameDecoder(maxFrameSize, 0, 4, 0, 4));
+        this.maxMessageSize = connected.getMaxMessageSize();
+        ctx.pipeline().replace("defaultFrameDecoder", "frameDecoder", new LengthFieldBasedFrameDecoder(
+            connected.getMaxMessageSize() + InternalConfigurationData.MESSAGE_META_SIZE, 0, 4, 0, 4));
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }

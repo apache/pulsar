@@ -1,5 +1,4 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
+/** * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -33,6 +32,10 @@ import com.google.common.collect.Sets;
  *
  */
 public class ServiceConfig implements PulsarConfiguration {
+
+    // Discovery service doesn't send any messages except Command connected.
+    // So it's ok use a default value.
+    public final static int MAX_MESSAGE_SIZE = 5 * 1024 * 1024;
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
@@ -74,16 +77,6 @@ public class ServiceConfig implements PulsarConfiguration {
     private boolean authorizationEnabled = false;
     // Authorization provider fully qualified class-name
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
-
-    public int getMaxMessageSize() {
-        return maxMessageSize;
-    }
-
-    public void setMaxMessageSize(int maxMessageSize) {
-        this.maxMessageSize = maxMessageSize;
-    }
-
-    private int maxMessageSize = 5242880;
 
     /***** --- TLS --- ****/
     @Deprecated

@@ -28,6 +28,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -57,6 +58,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
+        bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + InternalConfigurationData.MESSAGE_META_SIZE);
 
         bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         if (conf.isBookkeeperClientHealthCheckEnabled()) {

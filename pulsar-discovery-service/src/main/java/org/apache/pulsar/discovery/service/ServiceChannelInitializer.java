@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
-import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
@@ -66,8 +64,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                 ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
             }
         }
-        ch.pipeline().addLast("frameDecoder",
-                              new LengthFieldBasedFrameDecoder(brokerConf.getMaxMessageSize() + 10 * 1024, 0, 4, 0, 4));
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+            ServiceConfig.MAX_MESSAGE_SIZE + InternalConfigurationData.MESSAGE_META_SIZE, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerConnection(discoveryService));
     }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 
 import io.netty.channel.ChannelInitializer;
@@ -66,7 +67,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
 
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(brokerConf.getMaxFrameSize(), 0, 4, 0, 4));
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+            brokerConf.getMaxMessageSize() + InternalConfigurationData.MESSAGE_META_SIZE, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerCnx(pulsar));
     }
 }
