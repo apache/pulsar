@@ -27,8 +27,6 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-import java.io.Serializable;
-
 /**
  * Configuration object for all Hbase Sink components.
  */
@@ -38,12 +36,9 @@ import java.io.Serializable;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class HbaseAbstractConfig implements Serializable {
-
-    private static final long serialVersionUID = 6783394446906640112L;
+public class HbaseAbstractConfig {
 
     @FieldDoc(
-        required = false,
         defaultValue = "",
         help = "hbase system configuration 'hbase-site.xml' file")
     private String hbaseConfigResources;
@@ -55,13 +50,11 @@ public class HbaseAbstractConfig implements Serializable {
     private String zookeeperQuorum;
 
     @FieldDoc(
-        required = false,
         defaultValue = "2181",
         help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
     private String zookeeperClientPort = "2181";
 
     @FieldDoc(
-        required = false,
         defaultValue = "/hbase",
         help = "hbase system configuration about zookeeper.znode.parent value")
     private String zookeeperZnodeParent = "/hbase";

@@ -65,13 +65,11 @@ public class HbaseSinkConfig extends HbaseAbstractConfig implements Serializable
     private List<String> qualifierNames;
 
     @FieldDoc(
-       required = false,
        defaultValue = "1000l",
        help = "The hbase operation time in milliseconds")
     private long batchTimeMs = 1000l;
 
     @FieldDoc(
-        required = false,
         defaultValue = "200",
         help = "The batch size of write to the hbase table"
     )
