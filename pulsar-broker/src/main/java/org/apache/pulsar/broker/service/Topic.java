@@ -149,6 +149,11 @@ public interface Topic {
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 
     /**
+     * Delete the schema if this topic has a schema defined for it.
+     */
+    CompletableFuture<SchemaVersion> deleteSchema();
+
+    /**
      * Check if schema is compatible with current topic schema.
      */
     CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);

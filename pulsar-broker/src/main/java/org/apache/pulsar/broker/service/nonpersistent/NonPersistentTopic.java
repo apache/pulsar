@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -151,7 +152,7 @@ public class NonPersistentTopic implements Topic {
         public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
 
         public TopicStats() {
-            remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
+            remotePublishersStats = new ObjectObjectHashMap<>();
             reset();
         }
 
@@ -218,7 +219,7 @@ public class NonPersistentTopic implements Topic {
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
-                ((NonPersistentReplicator) replicator).sendMessage(entry);
+                replicator.sendMessage(entry);
             });
         }
     }
@@ -397,13 +398,9 @@ public class NonPersistentTopic implements Topic {
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
     }
 
-    void removeSubscription(String subscriptionName) {
-        subscriptions.remove(subscriptionName);
-    }
-
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false, false);
+        return delete(false, false, false);
     }
 
     /**
@@ -413,10 +410,12 @@ public class NonPersistentTopic implements Topic {
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, true);
+        return delete(false, true, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
+                                           boolean closeIfClientsConnected,
+                                           boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -461,7 +460,9 @@ public class NonPersistentTopic implements Topic {
                     } else {
                         subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
                     }
-
+                    if (deleteSchema) {
+                        futures.add(deleteSchema().thenApply(schemaVersion -> null));
+                    }
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
@@ -923,7 +924,7 @@ public class NonPersistentTopic implements Topic {
                                 gcIntervalInSeconds);
                     }
 
-                    stopReplProducers().thenCompose(v -> delete(true, false))
+                    stopReplProducers().thenCompose(v -> delete(true, false, true))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 if (e.getCause() instanceof TopicBusyException) {
@@ -932,8 +933,7 @@ public class NonPersistentTopic implements Topic {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
                                                 e.getCause().getMessage());
                                     }
-                                    replicators.forEach((region, replicator) -> ((NonPersistentReplicator) replicator)
-                                            .startProducer());
+                                    replicators.forEach((region, replicator) -> replicator.startProducer());
                                 } else {
                                     log.warn("[{}] Inactive topic deletion failed", topic, e);
                                 }
@@ -1002,8 +1002,8 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Void> unsubscribe(String subName) {
-        // No-op
+    public CompletableFuture<Void> unsubscribe(String subscriptionName) {
+        subscriptions.remove(subscriptionName);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -1038,6 +1038,21 @@ public class NonPersistentTopic implements Topic {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
+        return schemaRegistryService.getSchema(id)
+                .thenCompose(schema -> {
+                    if (schema != null) {
+                        return schemaRegistryService.deleteSchema(id, "");
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     @Override

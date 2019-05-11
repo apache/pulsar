@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -674,7 +675,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptionFuture;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
         return getDurableSubscription(subscriptionName, initialPosition);
@@ -727,11 +727,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false);
+        return delete(false, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
-        return delete(failIfHasSubscriptions, false);
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean deleteSchema) {
+        return delete(failIfHasSubscriptions, false, deleteSchema);
     }
 
     /**
@@ -743,7 +743,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, true);
+        return delete(false, true, false);
     }
 
     /**
@@ -756,11 +756,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected producers/consumers/replicators before trying to delete topic. If
      *            any client is connected to a topic and if this flag is disable then this operation fails.
+     * @param deleteSchema
+     *            Flag indicating whether delete the schema defined for topic if exist.
      *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
+                                           boolean closeIfClientsConnected,
+                                           boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -803,6 +807,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         }
                     } else {
                         subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
+                    }
+                    if (deleteSchema) {
+                        futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     }
 
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
@@ -1470,7 +1477,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState().toString();
+        stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
         ml.getLedgersInfo().forEach((id, li) -> {
@@ -1561,7 +1568,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 replCloseFuture.complete(null);
             }
 
-            replCloseFuture.thenCompose(v -> delete(true))
+            replCloseFuture.thenCompose(v -> delete(true, true))
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1911,6 +1918,21 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
+        return schemaRegistryService.getSchema(id)
+                .thenCompose(schema -> {
+                    if (schema != null) {
+                        return schemaRegistryService.deleteSchema(id, "");
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     @Override
