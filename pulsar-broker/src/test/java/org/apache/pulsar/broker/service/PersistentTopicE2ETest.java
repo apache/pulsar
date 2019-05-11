@@ -628,10 +628,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String base = TopicName.get(topicName).getPartitionedTopicName();
         String schemaName = TopicName.get(base).getSchemaName();
         SchemaRegistry.SchemaAndMetadata result = pulsar.getSchemaRegistryService().getSchema(schemaName).join();
-        System.out.println(result);
-        if (result != null) {
-            System.out.println(result.schema.isDeleted());
-        }
         return result != null && !result.schema.isDeleted();
     }
 
