@@ -18,7 +18,7 @@ $ docker run -it \
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{site.current_version}} \
+  apachepulsar/pulsar:{{pulsar:version}} \
   bin/pulsar standalone
 ```
 
@@ -29,7 +29,7 @@ $ docker run -it \
   -p 6650:6650 \
   -p 8080:8080 \
   -v "$PWD/data:/pulsar/data".ToLower() \
-  apachepulsar/pulsar:{{site.current_version}} \
+  apachepulsar/pulsar:{{pulsar:version}} \
   bin/pulsar standalone
 ```
 
