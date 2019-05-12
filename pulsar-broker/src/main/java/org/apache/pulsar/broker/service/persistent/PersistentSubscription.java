@@ -225,13 +225,14 @@ public class PersistentSubscription implements Subscription {
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (this.txnID != null) {
-                log.warn("[{}][{}] An ongoing transaction is doing cumulative ack, " +
-                                "new cumulative ack is not allowed till the transaction is committed.", topicName, subName);
+                log.warn("[{}][{}] An ongoing transaction:{}{} is doing cumulative ack, " +
+                                "new cumulative ack is not allowed till the transaction is committed.",
+                        this.txnID.getMostSigBits(), this.txnID.getLeastSigBits(), topicName, subName);
                 return;
             }
 
             if (positions.size() != 1) {
-                log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids", topicName, subName);
+                log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids.", topicName, subName);
                 return;
             }
 
@@ -250,8 +251,7 @@ public class PersistentSubscription implements Subscription {
                     // If single ack try to ack message in pending_ack status, fail the ack.
                     if (this.pendingAckMessages.contains(position)) {
                         log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}{}.",
-                                topicName, subName, this.txnID.getMostSigBits(),
-                                this.txnID.getLeastSigBits());
+                                topicName, subName, this.txnID.getMostSigBits(), this.txnID.getLeastSigBits());
                         return;
                     }
 
@@ -264,9 +264,9 @@ public class PersistentSubscription implements Subscription {
                         return;
                     }
                 });
-                cursor.asyncDelete(positions, deleteCallback, positions);
             }
 
+            cursor.asyncDelete(positions, deleteCallback, positions);
             dispatcher.getRedeliveryTracker().removeBatch(positions);
         }
 
@@ -301,17 +301,17 @@ public class PersistentSubscription implements Subscription {
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
             if (this.txnID != null && this.txnID != txnID) {
-                String errorMsg = String.format("[%s][%s] Transaction:%l%l try to cumulative ack message while" +
-                                " transaction:%l%l already cumulative acked messages. ", topicName, subName,
-                        this.txnID.getMostSigBits(), this.txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                        txnID.getLeastSigBits());
+                String errorMsg = String.format("[%s][%s] Transaction:%d%d try to cumulative ack message while" +
+                                " transaction:%d%d already cumulative acked messages.", topicName, subName,
+                        txnID.getMostSigBits(), txnID.getLeastSigBits(), this.txnID.getMostSigBits(),
+                        this.txnID.getLeastSigBits());
                 log.error(errorMsg);
                 throw new TransactionConflictException(errorMsg);
             }
 
             if (positions.size() != 1) {
-                String errorMsg = String.format("[%s][%s] Transaction:%l%l, invalid cumulative ack received with multiple " +
-                                "message ids", topicName, subName, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                String errorMsg = String.format("[%s][%s] Transaction:%d%d, invalid cumulative ack received with multiple " +
+                                "message ids.", topicName, subName, txnID.getMostSigBits(), txnID.getLeastSigBits());
                 log.error(errorMsg);
                 throw new IllegalArgumentException(errorMsg);
             }
@@ -319,7 +319,7 @@ public class PersistentSubscription implements Subscription {
             Position position = positions.get(0);
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] TxnID:[{}{}] Cumulative ack on {}", topicName, subName, txnID.getMostSigBits(),
+                log.debug("[{}][{}] TxnID:[{}{}] Cumulative ack on {}.", topicName, subName, txnID.getMostSigBits(),
                         txnID.getLeastSigBits(), position);
             }
 
@@ -344,7 +344,7 @@ public class PersistentSubscription implements Subscription {
                 // If try to ack message already acked by some transaction(can be itself), throw exception.
                 // Acking single message within range of cumulative ack(if exist) is considered valid operation.
                 if (this.pendingAckMessages.contains(position)) {
-                    String errorMsg = String.format("[%s][%s]  Transaction:%l%l try to ack message:%s already acked before. ",
+                    String errorMsg = String.format("[%s][%s]  Transaction:%d%d try to ack message:%s already acked before.",
                             topicName, subName, txnID.getMostSigBits(), txnID.getLeastSigBits(), position);
                     log.error(errorMsg);
                     throw new TransactionConflictException(errorMsg);
@@ -865,15 +865,15 @@ public class PersistentSubscription implements Subscription {
      */
     public synchronized void commitTxn(TxnID txnID, Map<String,Long> properties) throws TransactionConflictException {
         if (!this.pendingAckMessagesMap.containsKey(txnID)) {
-            String errorMsg = String.format("[%s][%s] Transaction with id:%l%l not found.", topicName, subName,
+            String errorMsg = String.format("[%s][%s] Transaction with id:%d%d not found.", topicName, subName,
                     txnID.getMostSigBits(), txnID.getLeastSigBits());
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
         }
 
-        // This should never happen.
+        // This shouldn't happen.
         if (null != this.pendingCumulativeAckMessage && txnID != this.txnID) {
-            String errorMsg = String.format("[%s][%s] Committing transaction:%l%l but another transaction:%l%l" +
+            String errorMsg = String.format("[%s][%s] Committing transaction:%d%d but another transaction:%d%d" +
                             " cumulative acknowledged.", topicName, subName, txnID.getMostSigBits(),
                     txnID.getLeastSigBits(), this.txnID.getMostSigBits(), this.txnID.getLeastSigBits());
             log.error(errorMsg);
@@ -902,7 +902,7 @@ public class PersistentSubscription implements Subscription {
      */
     public synchronized void abortTxn(TxnID txnID) {
         if (!this.pendingAckMessagesMap.containsKey(txnID)) {
-            String errorMsg = String.format("[%s][%s] Transaction with id:%l%l not found.", topicName, subName,
+            String errorMsg = String.format("[%s][%s] Transaction with id:%d%d not found.", topicName, subName,
                     txnID.getMostSigBits(), txnID.getLeastSigBits());
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
