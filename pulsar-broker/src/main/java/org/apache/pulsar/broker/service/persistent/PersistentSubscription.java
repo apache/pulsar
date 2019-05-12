@@ -800,24 +800,28 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        // Check if message is in pending_ack status.
         ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
-        List<PositionImpl> pendingPositions = new ArrayList<>();
-        PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage? null :
-                                                        (PositionImpl)this.pendingCumulativeAckMessage;
+        // If  Check if message is in pending_ack status.
+        if (null != positionMap) {
+            List<PositionImpl> pendingPositions = new ArrayList<>();
+            PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage ? null :
+                    (PositionImpl) this.pendingCumulativeAckMessage;
 
-        positionMap.asMap().entrySet().forEach(entry -> {
-            long batchSize = entry.getValue().first;
-            LongStream.range(0, batchSize).forEach(index -> {
-                PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
-                if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
-                        position.compareTo(cumulativeAckPosition) > 0)) {
-                    pendingPositions.add(position);
-                }
+            positionMap.asMap().entrySet().forEach(entry -> {
+                long batchSize = entry.getValue().first;
+                LongStream.range(0, batchSize).forEach(index -> {
+                    PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
+                    if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
+                            position.compareTo(cumulativeAckPosition) > 0)) {
+                        pendingPositions.add(position);
+                    }
+                });
             });
-        });
 
-        dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
+        } else {
+            dispatcher.redeliverUnacknowledgedMessages(consumer);
+        }
     }
 
     @Override
