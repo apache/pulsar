@@ -44,6 +44,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -399,6 +400,54 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
+
+        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
+    }
+    
+    @Test
+    public void testSecondaryIsolationGroupsBookiesNegative() throws Exception {
+
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> defaultBookieGroup = new HashMap<>();
+        final String isolatedGroup = "primaryGroup";
+        final String secondaryIsolatedGroup = "secondaryGroup";
+
+        defaultBookieGroup.put(BOOKIE1, new BookieInfo("rack0", null));
+        defaultBookieGroup.put(BOOKIE2, new BookieInfo("rack1", null));
+        defaultBookieGroup.put(BOOKIE3, new BookieInfo("rack1", null));
+        defaultBookieGroup.put(BOOKIE4, new BookieInfo("rack1", null));
+        defaultBookieGroup.put(BOOKIE5, new BookieInfo("rack1", null));
+
+        Map<String, BookieInfo> primaryIsolatedBookieGroup = new HashMap<>();
+        primaryIsolatedBookieGroup.put(BOOKIE1, new BookieInfo("rack1", null));
+
+        bookieMapping.put("default", defaultBookieGroup);
+        bookieMapping.put(isolatedGroup, primaryIsolatedBookieGroup);
+
+        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        Thread.sleep(100);
+
+        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, 30) {
+        });
+        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
+        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                secondaryIsolatedGroup);
+        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.MIN_AVAILABLE_PRIMARY_ISOLATED_BOOKIE, 2);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+                NullStatsLogger.INSTANCE);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        try {
+            List<BookieSocketAddress> ensemble = isolationPolicy
+                    .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+            Assert.fail("Should have thrown BKNotEnoughBookiesException");
+        } catch (BKNotEnoughBookiesException ne) {
+            // Ok..
+        }
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
