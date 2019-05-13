@@ -1963,7 +1963,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void setReadPosition(Position newReadPositionInt) {
         checkArgument(newReadPositionInt instanceof PositionImpl);
-        if (((PositionImpl) newReadPositionInt).compareTo(this.markDeletePosition) > 0) {
+        if (this.markDeletePosition == null
+                || ((PositionImpl) newReadPositionInt).compareTo(this.markDeletePosition) > 0) {
             this.readPosition = (PositionImpl) newReadPositionInt;
         }
     }
