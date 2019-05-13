@@ -23,6 +23,7 @@ import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.pulsar.common.api.Commands;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
     private Map<String, String> statsProviderConfigs = new HashMap<>();
 
@@ -57,6 +59,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
+    }
+
+    @Config("pulsar.max-message-size")
+    public PulsarConnectorConfig setMaxMessageSize(int maxMessageSize) {
+        this.maxMessageSize = maxMessageSize;
+        return this;
+    }
+
+    public int getMaxMessageSize() {
+        return this.maxMessageSize;
     }
 
     @NotNull

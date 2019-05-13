@@ -62,7 +62,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionTimeoutMs = 10000;
     private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
-    private int defaultMaxFrameSize = 5242880;
 
     public ClientConfigurationData clone() {
         try {

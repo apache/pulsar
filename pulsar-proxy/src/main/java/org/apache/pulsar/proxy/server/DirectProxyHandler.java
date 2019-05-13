@@ -98,9 +98,8 @@ public class DirectProxyHandler {
                 if (sslCtx != null) {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
-                ch.pipeline().addLast("frameDecoder",
-                                      new LengthFieldBasedFrameDecoder(config.getMaxMessagesSize() + 10 * 1024, 0, 4, 0,
-                                                                       4));
+                ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+                    Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
                 ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config, protocolVersion));
             }
         });
@@ -260,35 +259,56 @@ public class DirectProxyHandler {
 
             state = BackendState.HandshakeCompleted;
 
-            inboundChannel
-                .writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), connected.getMaxMessageSize()))
-                .addListener(future -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
-                    }
-                    if (ProxyService.proxyLogLevel == 0) {
-                        // direct tcp proxy
-                        inboundChannel.pipeline().remove("defaultFrameDecoder");
-                        outboundChannel.pipeline().remove("defaultFrameDecoder");
-                    } else {
-                        // Enable parsing feature, proxyLogLevel(1 or 2)
-                        // Add parser handler
-                        inboundChannel.pipeline().replace("defaultFrameDecoder", "frameDecoder",
-                                                          new LengthFieldBasedFrameDecoder(
-                                                              connected.getMaxMessageSize()
-                                                              + InternalConfigurationData.MESSAGE_META_SIZE,
-                                                              0, 4, 0, 4));
+            ChannelFuture channelFuture;
+            if (connected.hasMaxMessageSize()) {
+                channelFuture = inboundChannel.writeAndFlush(
+                    Commands.newConnected(connected.getProtocolVersion(), connected.getMaxMessageSize()));
+            } else {
+                channelFuture = inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion()));
+            }
+
+            channelFuture.addListener(future -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
+                }
+                if (ProxyService.proxyLogLevel == 0) {
+                    // direct tcp proxy
+                    inboundChannel.pipeline().remove("frameDecoder");
+                    outboundChannel.pipeline().remove("frameDecoder");
+                } else {
+                    // Enable parsing feature, proxyLogLevel(1 or 2)
+                    // Add parser handler
+                    if (connected.hasMaxMessageSize()) {
+                        inboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
+                                                          new LengthFieldBasedFrameDecoder(connected.getMaxMessageSize()
+                                                                                           + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                                                                           0, 4, 0, 4));
+                        outboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
+                                                           new LengthFieldBasedFrameDecoder(
+                                                               connected.getMaxMessageSize()
+                                                               + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
                                                             new ParserProxyHandler(inboundChannel,
-                                                                                   ParserProxyHandler.FRONTEND_CONN));
+                                                                                   ParserProxyHandler.FRONTEND_CONN,
+                                                                                   connected.getMaxMessageSize()));
                         outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
                                                              new ParserProxyHandler(outboundChannel,
-                                                                                    ParserProxyHandler.BACKEND_CONN));
+                                                                                    ParserProxyHandler.BACKEND_CONN,
+                                                                                    connected.getMaxMessageSize()));
                     }
-                    // Start reading from both connections
-                    inboundChannel.read();
-                    outboundChannel.read();
-                });
+                    inboundChannel.pipeline().addBefore("handler", "inboundParser",
+                                                        new ParserProxyHandler(inboundChannel,
+                                                                               ParserProxyHandler.FRONTEND_CONN,
+                                                                               Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                    outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
+                                                         new ParserProxyHandler(outboundChannel,
+                                                                                ParserProxyHandler.BACKEND_CONN,
+                                                                                Commands.DEFAULT_MAX_MESSAGE_SIZE));                }
+                // Start reading from both connections
+                inboundChannel.read();
+                outboundChannel.read();
+            });
         }
 
         @Override

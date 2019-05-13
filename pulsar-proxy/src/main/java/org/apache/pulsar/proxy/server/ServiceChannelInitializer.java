@@ -22,7 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.util.ClientSslContextRefresher;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 
@@ -84,9 +84,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             }
         }
 
-        ch.pipeline().addLast("defaultFrameDecoder", new LengthFieldBasedFrameDecoder(
-            proxyService.getConfiguration().getMaxMessagesSize() + InternalConfigurationData.MESSAGE_META_SIZE, 0, 4, 0,
-            4));
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+            Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         ch.pipeline().addLast("handler",
                 new ProxyConnection(proxyService, clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get()));
     }

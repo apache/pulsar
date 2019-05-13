@@ -102,7 +102,7 @@ public class ServerConnection extends PulsarHandler {
                 return;
             }
         }
-        ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), ServiceConfig.MAX_MESSAGE_SIZE));
+        ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         state = State.Connected;
         remoteEndpointProtocolVersion = connect.getProtocolVersion();
     }

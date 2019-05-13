@@ -81,7 +81,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -122,7 +121,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private int maxMessageSize = 0;
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
@@ -282,9 +281,15 @@ public class ClientCnx extends PulsarHandler {
         }
 
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
-        this.maxMessageSize = connected.getMaxMessageSize();
-        ctx.pipeline().replace("defaultFrameDecoder", "frameDecoder", new LengthFieldBasedFrameDecoder(
-            connected.getMaxMessageSize() + InternalConfigurationData.MESSAGE_META_SIZE, 0, 4, 0, 4));
+        if (connected.hasMaxMessageSize()) {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Connection has max message size setting, replace old frameDecoder with "
+                          + "server frame size {}", ctx.channel(), connected.getMaxMessageSize());
+            }
+            this.maxMessageSize = connected.getMaxMessageSize();
+            ctx.pipeline().replace("frameDecoder", "newFrameDecoder", new LengthFieldBasedFrameDecoder(
+                connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        }
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }

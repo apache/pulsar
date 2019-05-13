@@ -29,6 +29,7 @@ import io.netty.handler.ssl.SslContext;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
 
@@ -71,7 +72,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         }
 
         ch.pipeline()
-          .addLast("defaultFrameDecoder", new LengthFieldBasedFrameDecoder(conf.getDefaultMaxFrameSize(), 0, 4, 0, 4));
+          .addLast("frameDecoder",
+                   new LengthFieldBasedFrameDecoder(
+                       Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                       0, 4, 0, 4));
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
 }

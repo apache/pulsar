@@ -33,10 +33,6 @@ import com.google.common.collect.Sets;
  */
 public class ServiceConfig implements PulsarConfiguration {
 
-    // Discovery service doesn't send any messages except Command connected.
-    // So it's ok use a default value.
-    public final static int MAX_MESSAGE_SIZE = 5 * 1024 * 1024;
-
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string

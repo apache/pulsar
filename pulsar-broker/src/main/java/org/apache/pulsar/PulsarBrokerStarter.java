@@ -50,6 +50,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -141,7 +142,7 @@ public class PulsarBrokerStarter {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
 
-            int maxFrameSize = brokerConfig.getMaxMessageSize() + InternalConfigurationData.MESSAGE_META_SIZE;
+            int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
             if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }

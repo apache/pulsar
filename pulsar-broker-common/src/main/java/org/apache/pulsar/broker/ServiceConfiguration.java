@@ -33,6 +33,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -493,8 +494,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Max size of messages.",
-        maxValue = Integer.MAX_VALUE - InternalConfigurationData.MESSAGE_META_SIZE)
-    private int maxMessageSize = 5 * 1024 * 1024;
+        maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    public int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     /***** --- TLS --- ****/
     @FieldContext(
