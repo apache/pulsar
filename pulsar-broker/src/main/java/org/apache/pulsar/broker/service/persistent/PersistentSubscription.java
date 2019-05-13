@@ -294,24 +294,25 @@ public class PersistentSubscription implements Subscription {
      * @param txnID                  TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link Position}(s) it try to ack.
      * @param ackType                {@link AckType}.
-     * @throws TransactionConflictException   Throw InvalidAckException when transaction try to ack message when it shouldn't.
+     * @throws TransactionConflictException
+     * @throws IllegalArgumentException
      */
     public synchronized void acknowledgeMessage(TxnID txnID, List<Position> positions, AckType ackType) throws TransactionConflictException {
         checkArgument(txnID != null, "TransactionID can not be null.");
         if (AckType.Cumulative == ackType) {
             // Check if another transaction is already using cumulative ack on this subscription.
             if (this.txnID != null && this.txnID != txnID) {
-                String errorMsg = String.format("[%s][%s] Transaction:%d%d try to cumulative ack message while" +
-                                " transaction:%d%d already cumulative acked messages.", topicName, subName,
-                        txnID.getMostSigBits(), txnID.getLeastSigBits(), this.txnID.getMostSigBits(),
-                        this.txnID.getLeastSigBits());
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID.getMostSigBits() +
+                        txnID.getLeastSigBits() + " try to cumulative ack message while transaction:"
+                        + this.txnID.getMostSigBits() + this.txnID.getLeastSigBits()
+                        + " already cumulative acked messages.";
                 log.error(errorMsg);
                 throw new TransactionConflictException(errorMsg);
             }
 
             if (positions.size() != 1) {
-                String errorMsg = String.format("[%s][%s] Transaction:%d%d, invalid cumulative ack received with multiple " +
-                                "message ids.", topicName, subName, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID.getMostSigBits() +
+                txnID.getLeastSigBits() + " invalid cumulative ack received with multiple message ids.";
                 log.error(errorMsg);
                 throw new IllegalArgumentException(errorMsg);
             }
@@ -344,8 +345,8 @@ public class PersistentSubscription implements Subscription {
                 // If try to ack message already acked by some transaction(can be itself), throw exception.
                 // Acking single message within range of cumulative ack(if exist) is considered valid operation.
                 if (this.pendingAckMessages.contains(position)) {
-                    String errorMsg = String.format("[%s][%s]  Transaction:%d%d try to ack message:%s already acked before.",
-                            topicName, subName, txnID.getMostSigBits(), txnID.getLeastSigBits(), position);
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID.getMostSigBits() +
+                            txnID.getLeastSigBits() + " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
                     throw new TransactionConflictException(errorMsg);
                 }
@@ -866,20 +867,22 @@ public class PersistentSubscription implements Subscription {
      *
      * @param txnID         {@link TxnID} to identify the transaction.
      * @param properties    Additional user-defined properties that can be associated with a particular cursor position.
+     * @throws IllegalArgumentException
+     * @throws TransactionConflictException
      */
     public synchronized void commitTxn(TxnID txnID, Map<String,Long> properties) throws TransactionConflictException {
         if (!this.pendingAckMessagesMap.containsKey(txnID)) {
-            String errorMsg = String.format("[%s][%s] Transaction with id:%d%d not found.", topicName, subName,
-                    txnID.getMostSigBits(), txnID.getLeastSigBits());
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnID.getMostSigBits()
+                            + txnID.getLeastSigBits() + " not found.";
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
         }
 
         // This shouldn't happen.
         if (null != this.pendingCumulativeAckMessage && txnID != this.txnID) {
-            String errorMsg = String.format("[%s][%s] Committing transaction:%d%d but another transaction:%d%d" +
-                            " cumulative acknowledged.", topicName, subName, txnID.getMostSigBits(),
-                    txnID.getLeastSigBits(), this.txnID.getMostSigBits(), this.txnID.getLeastSigBits());
+            String errorMsg = "[" + topicName + "][" + subName + "] Committing transaction:" + txnID.getMostSigBits()
+                    + txnID.getLeastSigBits() + "but another transaction:" + this.txnID.getMostSigBits()
+                    + this.txnID.getLeastSigBits() + " cumulative acknowledged.";
             log.error(errorMsg);
             throw new TransactionConflictException(errorMsg);
         }
@@ -903,12 +906,12 @@ public class PersistentSubscription implements Subscription {
      * Abort a transaction.
      *
      * @param txnID  {@link TxnID} to identify the transaction.
+     * @throws IllegalArgumentException
      */
     public synchronized void abortTxn(TxnID txnID) {
         if (!this.pendingAckMessagesMap.containsKey(txnID)) {
-            String errorMsg = String.format("[%s][%s] Transaction with id:%d%d not found.", topicName, subName,
-                    txnID.getMostSigBits(), txnID.getLeastSigBits());
-            log.error(errorMsg);
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnID.getMostSigBits()
+                            +txnID.getLeastSigBits() + " not found.";
             throw new IllegalArgumentException(errorMsg);
         }
 

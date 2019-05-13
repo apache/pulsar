@@ -215,7 +215,7 @@ public class PersistentSubscriptionTest {
             persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (TransactionConflictException e) {
-            assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName]  " +
+            assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:12 try to ack message:1:1 already acked before.");
         }
 
