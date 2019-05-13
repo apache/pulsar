@@ -1212,7 +1212,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             updateSubscriptionMessageDispatchRate();
         });
         // add listener to update message-dispatch-rate in byte
-        registerConfigurationListener("dispatchThrottlingRatePerSubscribeInByte", (dispatchRatePerTopicInByte) -> {
+        registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInByte", (dispatchRatePerTopicInByte) -> {
             updateSubscriptionMessageDispatchRate();
         });
         // add more listeners here

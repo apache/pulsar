@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -40,11 +41,13 @@ import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -58,6 +61,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
+
+    private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private int readBatchSize;
 
@@ -574,6 +579,19 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             return;
         }
         expiryMonitor.expireMessages(messageTTLInSeconds);
+    }
+
+    @Override
+    public Optional<DispatchRateLimiter> getRateLimiter() {
+        return dispatchRateLimiter;
+    }
+
+    @Override
+    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
+            .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.REPLICATOR)) {
+            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);

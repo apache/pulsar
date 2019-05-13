@@ -378,6 +378,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
@@ -389,7 +390,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Default number of message-bytes dispatching throttling-limit for a subscription. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling.")
-    private long dispatchThrottlingRatePerSubscribeInByte = 0;
+    private long dispatchThrottlingRatePerSubscriptionInByte = 0;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message dispatch-throttling")
+    private int dispatchThrottlingRatePerReplicatorInMsg = 0;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message-bytes dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message-byte dispatch-throttling")
+    private long dispatchThrottlingRatePerReplicatorInByte = 0;
 
     @FieldContext(
         dynamic = true,

@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -274,17 +275,23 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         synchronized (dispatchRateLimiter) {
+            // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
-                    .isDispatchRateNeeded(brokerService, policies, topic, null)) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this));
+                    .isDispatchRateNeeded(brokerService, policies, topic, Type.TOPIC)) {
+                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
             if (!subscribeRateLimiter.isPresent() && SubscribeRateLimiter
                     .isDispatchRateNeeded(brokerService, policies, topic)) {
                 this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
             }
-            subscriptions.forEach((name, subscription) -> {
-                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies);
-            });
+
+            // dispatch rate limiter for each subscription
+            subscriptions.forEach((name, subscription) ->
+                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies));
+
+            // dispatch rate limiter for each replicator
+            replicators.forEach((name, replicator) ->
+                replicator.initializeDispatchRateLimiterIfNeeded(policies));
         }
     }
 
