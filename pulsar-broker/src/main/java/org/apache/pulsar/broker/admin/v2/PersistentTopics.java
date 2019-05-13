@@ -133,11 +133,10 @@ public class PersistentTopics extends PersistentTopicsBase {
         @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @PathParam("topic") @Encoded String encodedTopic, int numPartitions) {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     @PUT
