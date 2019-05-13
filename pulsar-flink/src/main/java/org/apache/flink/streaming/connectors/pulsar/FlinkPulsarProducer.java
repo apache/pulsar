@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.pulsar;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.Map;
 
@@ -82,9 +83,14 @@ public class FlinkPulsarProducer<IN>
     // -------------------------------- Runtime fields ------------------------------------------
 
     /**
-     * Pulsar Producer instance.
+     * Shared Pulsar Producer instance.
      */
-    protected transient Producer<byte[]> producer;
+    protected static volatile Producer<byte[]> producer;
+
+    /**
+     * Reference counter for Shared Pulsar Producer.
+     */
+    private static AtomicInteger producerRefCnt;
 
     /**
      * The callback than handles error propagation or logging callbacks.
@@ -187,9 +193,14 @@ public class FlinkPulsarProducer<IN>
         }
     }
 
-    private Producer<byte[]> createProducer() throws Exception {
-        PulsarClientImpl client = new PulsarClientImpl(clientConf);
-        return client.createProducerAsync(producerConf).get();
+    private void createProducer() throws Exception {
+        synchronized (FlinkPulsarProducer.class) {
+            if (producer == null) {
+                producerRefCnt = new AtomicInteger(0);
+                PulsarClientImpl client = new PulsarClientImpl(clientConf);
+                producer = client.createProducerAsync(producerConf).get();
+            }
+        }
     }
 
     /**
@@ -200,7 +211,8 @@ public class FlinkPulsarProducer<IN>
      */
     @Override
     public void open(Configuration parameters) throws Exception {
-        this.producer = createProducer();
+        createProducer();
+        producerRefCnt.incrementAndGet();
 
         RuntimeContext ctx = getRuntimeContext();
 
@@ -267,7 +279,13 @@ public class FlinkPulsarProducer<IN>
     @Override
     public void close() throws Exception {
         if (producer != null) {
-            producer.close();
+            if (producerRefCnt.decrementAndGet() == 0) {
+                synchronized (FlinkPulsarProducer.class) {
+                    producer.close();
+                    producer = null;
+                    LOG.info("Pulsar producer is closed.");
+                }
+            }
         }
 
         // make sure we propagate pending errors

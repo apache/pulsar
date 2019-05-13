@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
@@ -47,6 +48,10 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     private transient Function<Throwable, MessageId> failureCallback;
     private static volatile Producer<byte[]> producer;
+    /**
+     * Reference counter for Shared Pulsar Producer.
+     */
+    private static AtomicInteger producerRefCnt;
 
     protected SerializationSchema<T> serializationSchema;
 
@@ -85,7 +90,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
-        this.producer = getProducerInstance();
+        producer = getProducerInstance();
+        producerRefCnt.incrementAndGet();
 
         this.failureCallback = cause -> {
             LOG.error("Error while sending record to Pulsar: " + cause.getMessage(), cause);
@@ -102,7 +108,15 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     @Override
     public void close() throws IOException {
-
+        if (producer != null) {
+            if (producerRefCnt.decrementAndGet() == 0) {
+                synchronized (PulsarOutputFormat.class) {
+                    producer.close();
+                    producer = null;
+                    LOG.info("Pulsar producer is closed.");
+                }
+            }
+        }
     }
 
     private Producer<byte[]> getProducerInstance()
@@ -112,6 +126,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
                 if(producer == null){
                     producer = Preconditions.checkNotNull(createPulsarProducer(),
                             "Pulsar producer cannot be null.");
+                    producerRefCnt = new AtomicInteger(0);
                 }
             }
         }
