@@ -296,7 +296,7 @@ public class DirectProxyHandler {
                                                              new ParserProxyHandler(outboundChannel,
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     connected.getMaxMessageSize()));
-                    }
+                    } else {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
                                                         new ParserProxyHandler(inboundChannel,
                                                                                ParserProxyHandler.FRONTEND_CONN,
@@ -304,7 +304,9 @@ public class DirectProxyHandler {
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
                                                          new ParserProxyHandler(outboundChannel,
                                                                                 ParserProxyHandler.BACKEND_CONN,
-                                                                                Commands.DEFAULT_MAX_MESSAGE_SIZE));                }
+                                                                                Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                    }
+                }
                 // Start reading from both connections
                 inboundChannel.read();
                 outboundChannel.read();
