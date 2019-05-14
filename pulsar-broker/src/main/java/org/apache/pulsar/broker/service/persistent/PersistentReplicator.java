@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -106,6 +108,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
+        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+
         startProducer();
     }
 
@@ -154,6 +158,29 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     protected void readMoreEntries() {
         int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
+
+        // handle rate limit
+        if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
+            DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
+            // no permits for rate limit
+            if (!rateLimiter.hasMessageDispatchPermit()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{} -> {}] message-read exceeded topic replicator message-rate {}/{}, schedule after a {}",
+                        topicName, localCluster, remoteCluster,
+                        rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                        MESSAGE_RATE_BACKOFF_MS);
+                }
+                topic.getBrokerService().executor().schedule(
+                    () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                return;
+            }
+
+            // have permits for rate limit
+            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+            if (availablePermitsOnMsg > 0) {
+                availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
+            }
+        }
 
         if (availablePermits > 0) {
             int messagesToRead = Math.min(availablePermits, readBatchSize);
@@ -270,6 +297,10 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entry.release();
                     msg.recycle();
                     continue;
+                }
+
+                if (dispatchRateLimiter.isPresent()) {
+                    dispatchRateLimiter.get().tryDispatchPermit(1, entry.getLength());
                 }
 
                 // Increment pending messages for messages produced locally

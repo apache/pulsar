@@ -1650,6 +1650,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 sub.getDispatcher().getRateLimiter().get().onPoliciesUpdate(data);
             }
         });
+        replicators.forEach((name, replicator) ->
+            replicator.getRateLimiter().get().onPoliciesUpdate(data)
+        );
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();

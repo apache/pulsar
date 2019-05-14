@@ -657,7 +657,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetTopicDispatchRate(DispatchRate dispatchRate) {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         validateSuperUserAccess();
 
@@ -694,7 +694,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected DispatchRate internalGetDispatchRate() {
+    protected DispatchRate internalGetTopicDispatchRate() {
         validateAdminAccessForTenant(namespaceName.getTenant());
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -803,6 +803,56 @@ public abstract class NamespacesBase extends AdminResource {
         } else {
             throw new RestException(Status.NOT_FOUND,
                     "Subscribe-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        }
+    }
+
+    protected void internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+        log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
+        validateSuperUserAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path).orElseThrow(
+                () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
+
+            log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}: does not exist",
+                clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                "[{}] Failed to update the replicatorDispatchRate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected DispatchRate internalGetReplicatorDispatchRate() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        DispatchRate dispatchRate = policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        if (dispatchRate != null) {
+            return dispatchRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                "replicator-Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
         }
     }
 
