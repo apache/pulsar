@@ -211,7 +211,7 @@ If the message has been successfully published to the topic, you will see a conf
 
 ## Stop Pulsar standalone
 
-Use `ctrl + c` to stop a local standalone Pulsar.
+Press `Ctrl+C` to stop a local standalone Pulsar.
 
 > #### Tip
 > 
