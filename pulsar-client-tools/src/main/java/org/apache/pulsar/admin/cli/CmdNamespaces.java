@@ -548,7 +548,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--sub-msg-dispatch-rate",
+        @Parameter(names = { "--msg-dispatch-rate",
             "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
         private int msgDispatchRate = -1;
 
