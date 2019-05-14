@@ -18,16 +18,22 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.mockito.Mockito.times;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import java.lang.reflect.Field;
 import java.util.EnumSet;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.Bookies;
@@ -38,11 +44,15 @@ import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -57,6 +67,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
@@ -774,6 +785,52 @@ public class PulsarAdminToolTest {
         verify(mockBookies).updateBookieRackInfo("my-bookie:3181", "my-group", new BookieInfo("rack-1", "host-1"));
     }
 
+    @Test
+    void testAuthTlsWithJsonParam() throws Exception {
+
+        Properties properties = new Properties();
+        properties.put("authPlugin", AuthenticationTls.class.getName());
+        Map<String, String> paramMap = Maps.newHashMap();
+        final String certFilePath = "/my-file:role=name.cert";
+        final String keyFilePath = "/my-file:role=name.key";
+        paramMap.put("tlsCertFile", certFilePath);
+        paramMap.put("tlsKeyFile", keyFilePath);
+        final String paramStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(paramMap);
+        properties.put("authParams", paramStr);
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+        try {
+            tool.run("brokers list use".split(" "));
+        } catch (Exception e) {
+            // Ok
+        }
+
+        // validate Athentication-tls has been configured
+        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
+        adminBuilderField.setAccessible(true);
+        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        Field confField = PulsarAdminBuilderImpl.class.getDeclaredField("conf");
+        confField.setAccessible(true);
+        ClientConfigurationData conf = (ClientConfigurationData) confField.get(builder);
+        AuthenticationTls atuh = (AuthenticationTls) conf.getAuthentication();
+        assertEquals(atuh.getCertFilePath(), certFilePath);
+        assertEquals(atuh.getKeyFilePath(), keyFilePath);
+
+        properties.put("authParams", String.format("tlsCertFile:%s,tlsKeyFile:%s", certFilePath, keyFilePath));
+        tool = new PulsarAdminTool(properties);
+        try {
+            tool.run("brokers list use".split(" "));
+        } catch (Exception e) {
+            // Ok
+        }
+
+        builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        conf = (ClientConfigurationData) confField.get(builder);
+        atuh = (AuthenticationTls) conf.getAuthentication();
+        assertNull(atuh.getCertFilePath());
+        assertNull(atuh.getKeyFilePath());
+    }
+    
     String[] split(String s) {
         return s.split(" ");
     }
