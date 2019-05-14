@@ -19,9 +19,9 @@ Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you ne
 
 To get started with Pulsar, download a binary tarball release in one of the following ways:
 
-* download the release from an Apache mirror (<a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>)
+* download from the Apache mirror (<a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>)
 
-* download from the Pulsar [downloads page](pulsar:download_page_url)
+* download from the Pulsar [downloads page](pulsar:download_page_url)  
   
 * download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
   
@@ -66,20 +66,20 @@ Directory | Contains
 > * [Install builtin connectors (optional)](#install-builtin-connectors-optional)
 > * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
 > 
-> Otherwise, skip this step. Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
+> Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
 
 ##### Install builtin connectors (optional)
 
 Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 To enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
 
-* by clicking the link below and downloading the release from an Apache mirror:
+* download from the Apache mirror <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
 
-  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
+* download from the Pulsar [downloads page](pulsar:download_page_url)
 
-* from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
-* using [wget](https://www.gnu.org/software/wget):
+* download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+
+* use [wget](https://www.gnu.org/software/wget):
 
   ```shell
   $ wget pulsar:connector_release_url/{connector}-{{pulsar:version}}.nar
@@ -112,16 +112,15 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 > Since `2.2.0` release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
 > To enable tiered storage feature, follow the instructions below; otherwise skip this section.
 
-To get started with [tiered storage offloaders](concepts-tiered-storage.md), you need to download the offloaders tarball release on every broker node in
-one of the following ways:
+To get started with [tiered storage offloaders](concepts-tiered-storage.md), you need to download the offloaders tarball release on every broker node in one of the following ways:
 
-* by clicking the link below and downloading the release from an Apache mirror:
+* download from the Apache mirror <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders {{pulsar:version}} release</a>
 
-  * <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders {{pulsar:version}} release</a>
+* download from the Pulsar [downloads page](pulsar:download_page_url)
 
-* from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
-* using [wget](https://www.gnu.org/software/wget):
+* download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+
+* use [wget](https://www.gnu.org/software/wget):
 
   ```shell
   $ wget pulsar:offloader_release_url
@@ -142,7 +141,7 @@ $ ls offloaders
 tiered-storage-jcloud-{{pulsar:version}}.nar
 ```
 
-For more details on how to configure tiered storage feature, refer to [Tiered storage cookbook](cookbooks-tiered-storage.md).
+For more information on how to configure tiered storage, see [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 > #### Note
 >
@@ -151,7 +150,7 @@ For more details on how to configure tiered storage feature, refer to [Tiered st
 > * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
 > you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-### Start Pulsar standalone
+## Start Pulsar standalone
 
 Once you have an up-to-date local copy of the release, you can start a local cluster using the [`pulsar`](reference-cli-tools.md#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start Pulsar in standalone mode.
 
@@ -170,7 +169,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 > #### Tip
 > 
 > * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
-You can also run the service as a background process using the command `pulsar-daemon start standalone`. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
+You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
 
@@ -209,3 +208,13 @@ If the message has been successfully published to the topic, you will see a conf
 ```
 13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 ```
+
+## Stop Pulsar standalone
+
+Use `ctrl + c` to stop a local standalone Pulsar.
+
+> #### Tip
+> 
+> If the service runs as a background process using the `pulsar-daemon start standalone` command, then use the `pulsar-daemon stop standalone`  command to stop the service.
+> 
+> For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
