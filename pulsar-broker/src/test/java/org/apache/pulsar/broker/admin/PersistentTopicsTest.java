@@ -103,7 +103,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             Assert.assertEquals("Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has zero partitions", e.getMessage());
         }
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3, true);
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3);
         try {
             persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
         } catch (Exception e) {
