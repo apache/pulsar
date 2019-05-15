@@ -93,6 +93,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
         this.consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
+        this.consumerConf.setReceiverQueueSize(pulsarSpoutConf.getConsumerReceiverQueueSize());
 
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
