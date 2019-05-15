@@ -74,13 +74,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     public RackawareEnsemblePlacementPolicyImpl initialize(ClientConfiguration conf,
             Optional<DNSToSwitchMapping> optionalDnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
             StatsLogger statsLogger) {
-        bookieMappingCache = getAndSetZkCache(conf);
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
             String isolationGroupsString = (String) conf.getProperty(ISOLATION_BOOKIE_GROUPS);
             if (!isolationGroupsString.isEmpty()) {
                 for (String isolationGroup : isolationGroupsString.split(",")) {
                     primaryIsolationGroups.add(isolationGroup);
                 }
+                bookieMappingCache = getAndSetZkCache(conf);
             }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
