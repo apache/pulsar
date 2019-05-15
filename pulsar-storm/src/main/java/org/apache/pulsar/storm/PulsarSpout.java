@@ -58,6 +58,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     public static final String NO_OF_PENDING_FAILED_MESSAGES = "numberOfPendingFailedMessages";
     public static final String NO_OF_MESSAGES_RECEIVED = "numberOfMessagesReceived";
     public static final String NO_OF_MESSAGES_EMITTED = "numberOfMessagesEmitted";
+    public static final String NO_OF_MESSAGES_FAILED = "numberOfMessagesFailed";
+    public static final String MESSAGE_NOT_AVAILABLE_COUNT = "messageNotAvailableCount";
     public static final String NO_OF_PENDING_ACKS = "numberOfPendingAcks";
     public static final String CONSUMER_RATE = "consumerRate";
     public static final String CONSUMER_THROUGHPUT_BYTES = "consumerThroughput";
@@ -78,6 +80,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private Consumer<byte[]> consumer;
     private volatile long messagesReceived = 0;
     private volatile long messagesEmitted = 0;
+    private volatile long messagesFailed = 0;
+    private volatile long messageNotAvailableCount = 0;
     private volatile long pendingAcks = 0;
     private volatile long messageSizeReceived = 0;
 
@@ -157,7 +161,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 pendingMessageRetries.putIfAbsent(id, messageRetries);
                 failedMessages.add(msg);
                 --pendingAcks;
-
+                messagesFailed++;
             } else {
                 LOG.warn("[{}] Number of retries limit reached, dropping the message {}", spoutId, id);
                 ack(msg);
@@ -203,6 +207,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     } else {
                         // queue is empty and nothing to emit
                         done = true;
+                        messageNotAvailableCount++;
                     }
                 }
             } catch (PulsarClientException e) {
@@ -334,6 +339,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         metricsMap.put(NO_OF_PENDING_FAILED_MESSAGES, (long) pendingMessageRetries.size());
         metricsMap.put(NO_OF_MESSAGES_RECEIVED, messagesReceived);
         metricsMap.put(NO_OF_MESSAGES_EMITTED, messagesEmitted);
+        metricsMap.put(NO_OF_MESSAGES_FAILED, messagesFailed);
+        metricsMap.put(MESSAGE_NOT_AVAILABLE_COUNT, messageNotAvailableCount);
         metricsMap.put(NO_OF_PENDING_ACKS, pendingAcks);
         metricsMap.put(CONSUMER_RATE, ((double) messagesReceived) / pulsarSpoutConf.getMetricsTimeIntervalInSecs());
         metricsMap.put(CONSUMER_THROUGHPUT_BYTES,
@@ -345,6 +352,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         messagesReceived = 0;
         messagesEmitted = 0;
         messageSizeReceived = 0;
+        messagesFailed = 0;
+        messageNotAvailableCount = 0;
     }
 
     @SuppressWarnings("rawtypes")
