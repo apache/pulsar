@@ -33,6 +33,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -488,6 +490,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerSubscription-limit check.")
     private int maxConsumersPerSubscription = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max size of messages.",
+        maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     /***** --- TLS --- ****/
     @FieldContext(
