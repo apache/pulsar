@@ -343,7 +343,11 @@ public class SinkConfigUtils {
                 tmptypeArg = getSinkType(sinkClassName, narClassLoader);
                 tmpclassLoader = narClassLoader;
             } catch (Exception e) {
-                tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
+                try {
+                    tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
+                } catch (ClassNotFoundException e1) {
+                    throw new IllegalArgumentException(e1);
+                }
                 tmpclassLoader = jarClassLoader;
             }
             typeArg = tmptypeArg;
@@ -360,7 +364,11 @@ public class SinkConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
             }
-            typeArg = getSinkType(sinkClassName, classLoader);
+            try {
+                typeArg = getSinkType(sinkClassName, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {

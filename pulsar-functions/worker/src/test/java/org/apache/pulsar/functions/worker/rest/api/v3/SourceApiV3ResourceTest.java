@@ -929,7 +929,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSourceWithUrl() throws IOException {
+    public void testUpdateSourceWithUrl() throws IOException, ClassNotFoundException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;

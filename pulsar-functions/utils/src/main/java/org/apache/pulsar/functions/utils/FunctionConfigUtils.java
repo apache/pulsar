@@ -50,7 +50,11 @@ public class FunctionConfigUtils {
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             if (classLoader != null) {
-                typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
+                try {
+                    typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException(e);
+                }
             }
         }
 
@@ -360,7 +364,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) throws ClassNotFoundException {
         Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
         // inputs use default schema, so there is no check needed there
 
@@ -612,7 +616,11 @@ public class FunctionConfigUtils {
             } else {
                 throw new IllegalArgumentException("Function Package is not provided");
             }
-            doJavaChecks(functionConfig, classLoader);
+            try {
+                doJavaChecks(functionConfig, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(e);
+            }
             return classLoader;
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
             doGolangChecks(functionConfig);

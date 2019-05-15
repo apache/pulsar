@@ -248,7 +248,11 @@ public class SourceConfigUtils {
                 tmptypeArg = getSourceType(sourceClassName, narClassLoader);
                 tmpclassLoader = narClassLoader;
             } catch (Exception e) {
-                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                try {
+                    tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                } catch (ClassNotFoundException e1) {
+                    throw new IllegalArgumentException(e1);
+                }
                 tmpclassLoader = jarClassLoader;
             }
             typeArg = tmptypeArg;
@@ -265,7 +269,11 @@ public class SourceConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
-            typeArg = getSourceType(sourceClassName, classLoader);
+            try {
+                typeArg = getSourceType(sourceClassName, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
 
         // Only one of serdeClassName or schemaType should be set
