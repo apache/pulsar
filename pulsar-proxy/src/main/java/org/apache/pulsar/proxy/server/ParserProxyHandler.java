@@ -51,15 +51,18 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
     private String connType;
 
+    private int maxMessageSize;
+
 
     //producerid+channelid as key
     //or consumerid+channelid as key
     private static Map<String, String> producerHashMap = new ConcurrentHashMap<>();
     private static Map<String, String> consumerHashMap = new ConcurrentHashMap<>();
 
-    public ParserProxyHandler(Channel channel, String type){
+    public ParserProxyHandler(Channel channel, String type, int maxMessageSize){
         this.channel = channel;
         this.connType=type;
+        this.maxMessageSize = maxMessageSize;
     }
 
     private void logging(Channel conn, PulsarApi.BaseCommand.Type cmdtype, String info, List<RawMessage> messages) throws Exception{
@@ -118,7 +121,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     MessageParser.parseMessage(topicName,  -1L,
                             -1L,buffer,(message) -> {
                                 messages.add(message);
-                            });
+                            }, maxMessageSize);
 
                     logging(ctx.channel() , cmd.getType() , "" , messages);
                     break;
@@ -138,7 +141,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     MessageParser.parseMessage(topicName,  -1L,
                                 -1L,buffer,(message) -> {
                                     messages.add(message);
-                                });
+                                }, maxMessageSize);
 
 
                     logging(ctx.channel() , cmd.getType() , "" , messages);

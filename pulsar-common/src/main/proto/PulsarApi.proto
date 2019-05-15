@@ -213,6 +213,7 @@ message CommandConnect {
 message CommandConnected {
 	required string server_version = 1;
 	optional int32 protocol_version = 2 [default = 0];
+	optional int32 max_message_size = 3;
 }
 
 message CommandAuthResponse {
