@@ -143,6 +143,8 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
         }
 
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SOURCE);
+
         return functionDetailsBuilder.build();
     }
 

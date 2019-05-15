@@ -289,7 +289,8 @@ class Client:
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
-                 tls_allow_insecure_connection=False
+                 tls_allow_insecure_connection=False,
+                 tls_validate_hostname=False,
                  ):
         """
         Create a new Pulsar client instance.
@@ -329,6 +330,10 @@ class Client:
         * `tls_allow_insecure_connection`:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
+        * `tls_validate_hostname`:
+          Configure whether the Pulsar client validates that the hostname of the
+          endpoint, matches the common name on the TLS certificate presented by
+          the endpoint.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -340,6 +345,7 @@ class Client:
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
+        _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -357,6 +363,7 @@ class Client:
         else:
             conf.tls_trust_certs_file_path(certifi.where())
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
+        conf.tls_validate_hostname(tls_validate_hostname)
         self._client = _pulsar.Client(service_url, conf)
         self._consumers = []
 

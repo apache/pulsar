@@ -204,6 +204,8 @@ public class SinkConfigUtils {
             functionDetailsBuilder.setRuntimeFlags(sinkConfig.getRuntimeFlags());
         }
 
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SINK);
+
         return functionDetailsBuilder.build();
     }
 

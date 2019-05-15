@@ -226,6 +226,8 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setRuntimeFlags(functionConfig.getRuntimeFlags());
         }
 
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
+
         return functionDetailsBuilder.build();
     }
 
