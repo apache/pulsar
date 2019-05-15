@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -121,8 +123,17 @@ public class AsyncHttpConnector implements Connector {
 
         CompletableFuture<ClientResponse> future = new CompletableFuture<>();
         long startTime = System.currentTimeMillis();
+        Throwable lastException = null;
+        Set<InetSocketAddress> triedAddresses = new HashSet<>();
+
         while (true) {
             InetSocketAddress address = serviceNameResolver.resolveHost();
+            if (triedAddresses.contains(address)) {
+                // We already tried all available addresses
+                throw new ProcessingException((lastException.getMessage()), lastException);
+            }
+
+            triedAddresses.add(address);
             URI requestUri = replaceWithNew(address, jerseyRequest.getUri());
             jerseyRequest.setUri(requestUri);
             CompletableFuture<ClientResponse> tempFuture = new CompletableFuture<>();
@@ -133,15 +144,17 @@ public class AsyncHttpConnector implements Connector {
                         "Request timeout, the last try service url is : " + jerseyRequest.getUri().toString());
                 }
             } catch (ExecutionException ex) {
+                Throwable e = ex.getCause() == null ? ex : ex.getCause();
                 if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
-                    Throwable e = ex.getCause() == null ? ex : ex.getCause();
                     throw new ProcessingException((e.getMessage()), e);
                 }
+                lastException = e;
                 continue;
             } catch (Exception e) {
                 if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
                     throw new ProcessingException(e.getMessage(), e);
                 }
+                lastException = e;
                 continue;
             }
             future = tempFuture;
