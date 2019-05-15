@@ -23,7 +23,6 @@ import java.util.Objects;
 
 public class InternalConfigurationData {
 
-    public final static int MESSAGE_META_SIZE = 10 * 1024;
     private String zookeeperServers;
     private String configurationStoreServers;
     private String ledgersRootPath;

@@ -297,14 +297,14 @@ public class DirectProxyHandler {
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     connected.getMaxMessageSize()));
                     } else {
-                    inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                                                        new ParserProxyHandler(inboundChannel,
-                                                                               ParserProxyHandler.FRONTEND_CONN,
-                                                                               Commands.DEFAULT_MAX_MESSAGE_SIZE));
-                    outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                                                         new ParserProxyHandler(outboundChannel,
-                                                                                ParserProxyHandler.BACKEND_CONN,
-                                                                                Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                        inboundChannel.pipeline().addBefore("handler", "inboundParser",
+                                                            new ParserProxyHandler(inboundChannel,
+                                                                                   ParserProxyHandler.FRONTEND_CONN,
+                                                                                   Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                        outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
+                                                             new ParserProxyHandler(outboundChannel,
+                                                                                    ParserProxyHandler.BACKEND_CONN,
+                                                                                    Commands.DEFAULT_MAX_MESSAGE_SIZE));
                     }
                 }
                 // Start reading from both connections
