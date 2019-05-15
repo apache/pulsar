@@ -121,7 +121,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
@@ -286,7 +286,7 @@ public class ClientCnx extends PulsarHandler {
                 log.debug("{} Connection has max message size setting, replace old frameDecoder with "
                           + "server frame size {}", ctx.channel(), connected.getMaxMessageSize());
             }
-            this.maxMessageSize = connected.getMaxMessageSize();
+            maxMessageSize = connected.getMaxMessageSize();
             ctx.pipeline().replace("frameDecoder", "newFrameDecoder", new LengthFieldBasedFrameDecoder(
                 connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         }
