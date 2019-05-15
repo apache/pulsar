@@ -28,6 +28,8 @@ import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  *
  * This plugin requires these parameters
@@ -76,7 +78,16 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public void configure(String encodedAuthParamString) {
-        setAuthParams(AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString));
+        Map<String, String> authParamsMap = null;
+        try {
+            authParamsMap = AuthenticationUtil.configureFromJsonString(encodedAuthParamString);
+        } catch (Exception e) {
+            // auth-param is not in json format
+        }
+        authParamsMap = (authParamsMap == null || authParamsMap.isEmpty())
+                ? AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString)
+                : authParamsMap;
+        setAuthParams(authParamsMap);
     }
 
     @Override
@@ -93,6 +104,16 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     private void setAuthParams(Map<String, String> authParams) {
         certFilePath = authParams.get("tlsCertFile");
         keyFilePath = authParams.get("tlsKeyFile");
+    }
+    
+    @VisibleForTesting
+    public String getCertFilePath() {
+        return certFilePath;
+    }
+
+    @VisibleForTesting
+    public String getKeyFilePath() {
+        return keyFilePath;
     }
 
 }

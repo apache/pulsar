@@ -1,7 +1,7 @@
 ---
 id: standalone-docker
-title: Start a standalone cluster with Docker
-sidebar_label: Pulsar in Docker
+title: Set up a standalone Pulsar in Docker
+sidebar_label: Run Pulsar in Docker
 ---
 
 For local development and testing, you can run Pulsar in standalone
@@ -10,27 +10,29 @@ mode on your own machine within a Docker container.
 If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition)
 and follow the instructions for your OS.
 
-## Start Pulsar inside Docker
+## Start Pulsar in Docker
 
-```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{pulsar:version}} \
-  bin/pulsar standalone
-```
+* For MacOS and Linux:
 
-For Windows, enter something like the following docker command:
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v $PWD/data:/pulsar/data \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
-```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v "$PWD/data:/pulsar/data".ToLower() \
-  apachepulsar/pulsar:{{pulsar:version}} \
-  bin/pulsar standalone
-```
+* For Windows:  
+  
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v "$PWD/data:/pulsar/data".ToLower() \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
 A few things to note about this command:
  * `$PWD/data` : The docker host directory in Windows operating system must be lowercase.`$PWD/data` provides you with the specified directory, for example: `E:/data`.
@@ -45,13 +47,13 @@ If you start Pulsar successfully, you will see `INFO`-level log messages like th
 ...
 ```
 
-> #### Automatically created namespace
+> #### Tip
+> 
 > When you start a local standalone cluster, a `public/default`
 namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces.
 For more information, see [Topics](concepts-messaging.md#topics).
 
-
-## Start publishing and consuming messages
+## Use Pulsar in Docker
 
 Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
 and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
@@ -69,6 +71,8 @@ Install the Pulsar Python client library directly from [PyPI](https://pypi.org/p
 $ pip install pulsar-client
 ```
 
+### Consume a message
+
 Create a consumer and subscribe to the topic:
 
 ```python
@@ -85,6 +89,8 @@ while True:
 
 client.close()
 ```
+
+### Produce a message
 
 Now start a producer to send some test messages:
 
