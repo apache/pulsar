@@ -95,7 +95,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
-        createProducerInstance();
+        this.producer = getProducerInstance();
         this.failureCallback = cause -> {
             LOG.error("Error while sending record to Pulsar: " + cause.getMessage(), cause);
             return null;
@@ -120,7 +120,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         }
     }
 
-    private void createProducerInstance()
+    private Producer<byte[]> getProducerInstance()
             throws PulsarClientException {
         synchronized (PulsarOutputFormat.class) {
             if (producer == null) {
@@ -128,6 +128,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
                         "Pulsar producer cannot be null.");
             }
         }
+        return producer;
     }
 
     private Producer<byte[]> createPulsarProducer()
