@@ -67,8 +67,10 @@ public class AvroSchema<T> extends StructSchema<T> {
             reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
             reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
         } catch (Throwable t) {
-            LOG.warn("Avro logical types are not available. If you are going to use avro logical types, " +
-                    "you can include `joda-time` in your dependency.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Avro logical types are not available. If you are going to use avro logical types, " +
+                        "you can include `joda-time` in your dependency.");
+            }
         }
     }
 
