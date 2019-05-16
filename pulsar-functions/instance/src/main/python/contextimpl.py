@@ -176,6 +176,12 @@ class ContextImpl(pulsar.Context):
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
 
+    if properties:
+      # The deprecated properties args was passed. Need to merge into message_conf
+      if not message_conf:
+        message_conf = {}
+      message_conf['properties'] = properties
+
     if message_conf:
       self.publish_producers[topic_name].send_async(
         output_bytes, partial(self.callback_wrapper, callback, topic_name, self.get_message_id()), **message_conf)
