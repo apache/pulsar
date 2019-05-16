@@ -34,7 +34,7 @@ public interface FunctionAuthProvider {
      * @param authConfig authentication configs passed to the function instance
      * @param functionAuthData function authentication data that is provider specific
      */
-    void configureAuthenticationConfig(AuthenticationConfig authConfig, FunctionAuthData functionAuthData);
+    void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData);
 
     /**
      * Cache auth data in as part of function metadata for function that runtime may need to configure authentication
@@ -47,6 +47,11 @@ public interface FunctionAuthProvider {
      */
     Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception;
 
+
+
+    Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception;
+
+
     /**
      * Clean up operation for auth when function is terminated
      * @param tenant tenant that the function is running under
@@ -55,5 +60,5 @@ public interface FunctionAuthProvider {
      * @param functionAuthData function auth data
      * @throws Exception
      */
-    void cleanUpAuthData(String tenant, String namespace, String name, FunctionAuthData functionAuthData) throws Exception;
+    void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception;
 }

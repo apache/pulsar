@@ -27,6 +27,7 @@ import java.util.Arrays;
 import org.apache.avro.Schema;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -37,15 +38,16 @@ import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
 /**
  * An append-only table sink to emit a streaming table as a Pulsar stream that serializes data in Avro format.
  */
 public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
-    protected final String serviceUrl;
-    protected final String topic;
-    protected final Authentication authentication;
+    protected ClientConfigurationData clientConfigurationData;
+    protected ProducerConfigurationData producerConfigurationData;
     protected final String routingKeyFieldName;
     protected SerializationSchema<Row> serializationSchema;
     protected String[] fieldNames;
@@ -66,9 +68,31 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
             Authentication authentication,
             String routingKeyFieldName,
             Class<? extends SpecificRecord> recordClazz) {
-        this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
-        this.topic = checkNotNull(topic, "Topic is null");
-        this.authentication = checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url not set");
+        checkArgument(StringUtils.isNotBlank(topic), "Topic is null");
+        checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
+
+        clientConfigurationData = new ClientConfigurationData();
+        producerConfigurationData = new ProducerConfigurationData();
+
+        clientConfigurationData.setServiceUrl(serviceUrl);
+        clientConfigurationData.setAuthentication(authentication);
+        producerConfigurationData.setTopicName(topic);
+        this.routingKeyFieldName = routingKeyFieldName;
+        this.recordClazz = recordClazz;
+    }
+
+    public PulsarAvroTableSink(
+            ClientConfigurationData clientConfigurationData,
+            ProducerConfigurationData producerConfigurationData,
+            String routingKeyFieldName,
+            Class<? extends SpecificRecord> recordClazz) {
+        this.clientConfigurationData = checkNotNull(clientConfigurationData, "client config can not be null");
+        this.producerConfigurationData = checkNotNull(producerConfigurationData, "producer config can not be null");
+
+        checkArgument(StringUtils.isNotBlank(clientConfigurationData.getServiceUrl()), "Service url not set");
+        checkArgument(StringUtils.isNotBlank(producerConfigurationData.getTopicName()), "Topic is null");
+
         this.routingKeyFieldName = routingKeyFieldName;
         this.recordClazz = recordClazz;
     }
@@ -79,9 +103,8 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
     protected FlinkPulsarProducer<Row> createFlinkPulsarProducer() {
         serializationSchema = new AvroRowSerializationSchema(recordClazz);
         return new FlinkPulsarProducer<Row>(
-                serviceUrl,
-                topic,
-                authentication,
+                clientConfigurationData,
+                producerConfigurationData,
                 serializationSchema,
                 keyExtractor);
     }
@@ -114,7 +137,8 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
 
     @Override
     public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-        PulsarAvroTableSink sink = new PulsarAvroTableSink(serviceUrl, topic, authentication, routingKeyFieldName, recordClazz);
+        PulsarAvroTableSink sink = new PulsarAvroTableSink(
+                clientConfigurationData, producerConfigurationData, routingKeyFieldName, recordClazz);
 
         sink.fieldNames = checkNotNull(fieldNames, "Field names are null");
         sink.fieldTypes = checkNotNull(fieldTypes, "Field types are null");

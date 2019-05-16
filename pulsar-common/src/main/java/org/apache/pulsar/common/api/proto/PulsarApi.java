@@ -6533,6 +6533,10 @@ public final class PulsarApi {
     // optional int32 protocol_version = 2 [default = 0];
     boolean hasProtocolVersion();
     int getProtocolVersion();
+    
+    // optional int32 max_message_size = 3 [default = 5242880];
+    boolean hasMaxMessageSize();
+    int getMaxMessageSize();
   }
   public static final class CommandConnected extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -6611,9 +6615,20 @@ public final class PulsarApi {
       return protocolVersion_;
     }
     
+    // optional int32 max_message_size = 3 [default = 5242880];
+    public static final int MAX_MESSAGE_SIZE_FIELD_NUMBER = 3;
+    private int maxMessageSize_;
+    public boolean hasMaxMessageSize() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public int getMaxMessageSize() {
+      return maxMessageSize_;
+    }
+    
     private void initFields() {
       serverVersion_ = "";
       protocolVersion_ = 0;
+      maxMessageSize_ = 5242880;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6642,6 +6657,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeInt32(2, protocolVersion_);
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeInt32(3, maxMessageSize_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6657,6 +6675,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(2, protocolVersion_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(3, maxMessageSize_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6775,6 +6797,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
+        maxMessageSize_ = 5242880;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -6816,6 +6840,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.protocolVersion_ = protocolVersion_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.maxMessageSize_ = maxMessageSize_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6827,6 +6855,9 @@ public final class PulsarApi {
         }
         if (other.hasProtocolVersion()) {
           setProtocolVersion(other.getProtocolVersion());
+        }
+        if (other.hasMaxMessageSize()) {
+          setMaxMessageSize(other.getMaxMessageSize());
         }
         return this;
       }
@@ -6869,6 +6900,11 @@ public final class PulsarApi {
             case 16: {
               bitField0_ |= 0x00000002;
               protocolVersion_ = input.readInt32();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              maxMessageSize_ = input.readInt32();
               break;
             }
           }
@@ -6930,6 +6966,27 @@ public final class PulsarApi {
       public Builder clearProtocolVersion() {
         bitField0_ = (bitField0_ & ~0x00000002);
         protocolVersion_ = 0;
+        
+        return this;
+      }
+      
+      // optional int32 max_message_size = 3 [default = 5242880];
+      private int maxMessageSize_ = 5242880;
+      public boolean hasMaxMessageSize() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public int getMaxMessageSize() {
+        return maxMessageSize_;
+      }
+      public Builder setMaxMessageSize(int value) {
+        bitField0_ |= 0x00000004;
+        maxMessageSize_ = value;
+        
+        return this;
+      }
+      public Builder clearMaxMessageSize() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        maxMessageSize_ = 5242880;
         
         return this;
       }

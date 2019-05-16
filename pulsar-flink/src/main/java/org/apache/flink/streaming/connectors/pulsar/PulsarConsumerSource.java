@@ -22,19 +22,13 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.shaded.curator.org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.IOUtils;
-
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * Pulsar source (consumer) which receives messages from a topic and acknowledges messages.
@@ -58,11 +51,10 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     private static final Logger LOG = LoggerFactory.getLogger(PulsarConsumerSource.class);
 
     private final int messageReceiveTimeoutMs = 100;
-    private final String serviceUrl;
-    private final Set<String> topicNames;
-    private final Authentication authentication;
-    private final Pattern topicsPattern;
-    private final String subscriptionName;
+
+    private ClientConfigurationData clientConfigurationData;
+    private ConsumerConfigurationData<byte[]> consumerConfigurationData;
+
     private final DeserializationSchema<T> deserializer;
 
     private PulsarClient client;
@@ -72,20 +64,19 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private final long acknowledgementBatchSize;
     private long batchCount;
-    private final SubscriptionInitialPosition initialPosition;
 
     private transient volatile boolean isRunning;
 
     PulsarConsumerSource(PulsarSourceBuilder<T> builder) {
         super(MessageId.class);
-        this.serviceUrl = builder.serviceUrl;
-        this.authentication = builder.authentication;
-        this.topicNames = builder.topicNames;
-        this.topicsPattern = builder.topicsPattern;
+
+        clientConfigurationData = new ClientConfigurationData();
+        consumerConfigurationData = new ConsumerConfigurationData<>();
+
+        this.clientConfigurationData = builder.clientConfigurationData;
+        this.consumerConfigurationData = builder.consumerConfigurationData;
         this.deserializer = builder.deserializationSchema;
-        this.subscriptionName = builder.subscriptionName;
         this.acknowledgementBatchSize = builder.acknowledgementBatchSize;
-        this.initialPosition = builder.initialPosition;
     }
 
     @Override
@@ -195,26 +186,10 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
     }
 
     PulsarClient createClient() throws PulsarClientException {
-        return PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .authentication(authentication)
-            .build();
+        return new PulsarClientImpl(clientConfigurationData);
     }
 
     Consumer<byte[]> createConsumer(PulsarClient client) throws PulsarClientException {
-        if (topicsPattern != null) {
-            return client.newConsumer().topicsPattern(topicsPattern)
-                    .subscriptionName(subscriptionName)
-                    .subscriptionType(SubscriptionType.Failover)
-                    .subscriptionInitialPosition(initialPosition)
-                    .subscribe();
-        } else {
-            return client.newConsumer()
-                    .topics(Lists.newArrayList(topicNames))
-                    .subscriptionName(subscriptionName)
-                    .subscriptionType(SubscriptionType.Failover)
-                    .subscriptionInitialPosition(initialPosition)
-                    .subscribe();
-        }
+        return ((PulsarClientImpl)client).subscribeAsync(consumerConfigurationData).join();
     }
 }

@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
+import java.util.Optional;
 
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
@@ -119,7 +120,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -127,13 +128,16 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // configure auth if necessary
-        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new ProcessRuntime(

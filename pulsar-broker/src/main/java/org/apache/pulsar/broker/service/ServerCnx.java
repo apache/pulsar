@@ -136,6 +136,7 @@ public class ServerCnx extends PulsarHandler {
     private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
+    private final int maxMessageSize;
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -156,6 +157,7 @@ public class ServerCnx extends PulsarHandler {
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
         this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
+        this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
     }
 
     @Override
@@ -455,7 +457,7 @@ public class ServerCnx extends PulsarHandler {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
-        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion));
+        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
         remoteEndpointProtocolVersion = clientProtoVersion;
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {

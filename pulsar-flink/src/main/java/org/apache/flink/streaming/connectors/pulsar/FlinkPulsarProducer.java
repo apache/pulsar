@@ -38,10 +38,10 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.util.SerializableObject;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,21 +55,8 @@ public class FlinkPulsarProducer<IN>
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkPulsarProducer.class);
 
-    /**
-     * The pulsar service url.
-     */
-    protected final String serviceUrl;
-
-    /**
-     * The name of the default topic this producer is writing data to.
-     */
-    protected final String defaultTopicName;
-
-    /**
-     * Pulsar client will use this authentication information, if required.
-     */
-    private final Authentication authentication;
-
+    private ClientConfigurationData clientConf;
+    private ProducerConfigurationData producerConf;
 
     /**
      * (Serializable) SerializationSchema for turning objects used with Flink into.
@@ -81,11 +68,6 @@ public class FlinkPulsarProducer<IN>
      * User-provided key extractor for assigning a key to a pulsar message.
      */
     protected final PulsarKeyExtractor<IN> flinkPulsarKeyExtractor;
-
-    /**
-     * {@link Producer} configuration map (will be materialized as a {@link ProducerConfigurationData} instance)
-     */
-    protected final Map<String, Object> producerConfig;
 
     /**
      * Produce Mode.
@@ -131,24 +113,30 @@ public class FlinkPulsarProducer<IN>
                                Authentication authentication,
                                SerializationSchema<IN> serializationSchema,
                                PulsarKeyExtractor<IN> keyExtractor) {
-        this(serviceUrl, defaultTopicName, authentication, serializationSchema, keyExtractor, null);
-    }
-
-    public FlinkPulsarProducer(String serviceUrl,
-                               String defaultTopicName,
-                               Authentication authentication,
-                               SerializationSchema<IN> serializationSchema,
-                               PulsarKeyExtractor<IN> keyExtractor,
-                               Map<String, Object> producerConfig) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
-        this.serviceUrl = serviceUrl;
-        this.defaultTopicName = defaultTopicName;
-        this.authentication = authentication;
+        checkNotNull(authentication, "auth cannot be null, set disabled for no auth");
+
+        clientConf = new ClientConfigurationData();
+        producerConf = new ProducerConfigurationData();
+
+        this.clientConf.setServiceUrl(serviceUrl);
+        this.clientConf.setAuthentication(authentication);
+        this.producerConf.setTopicName(defaultTopicName);
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
-        this.producerConfig = producerConfig;
+    }
+
+    public FlinkPulsarProducer(ClientConfigurationData clientConfigurationData,
+                               ProducerConfigurationData producerConfigurationData,
+                               SerializationSchema<IN> serializationSchema,
+                               PulsarKeyExtractor<IN> keyExtractor) {
+        this.clientConf = checkNotNull(clientConfigurationData, "client conf can not be null");
+        this.producerConf = checkNotNull(producerConfigurationData, "producer conf can not be null");
+        this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
+        this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
+        ClosureCleaner.ensureSerializable(serializationSchema);
     }
 
     // ---------------------------------- Properties --------------------------
@@ -200,12 +188,8 @@ public class FlinkPulsarProducer<IN>
     }
 
     private Producer<byte[]> createProducer() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).authentication(authentication).build();
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer();
-        if (producerConfig != null) {
-            producerBuilder = producerBuilder.loadConf(producerConfig);
-        }
-        return producerBuilder.topic(defaultTopicName).create();
+        PulsarClientImpl client = new PulsarClientImpl(clientConf);
+        return client.createProducerAsync(producerConf).get();
     }
 
     /**
@@ -221,7 +205,7 @@ public class FlinkPulsarProducer<IN>
         RuntimeContext ctx = getRuntimeContext();
 
         LOG.info("Starting FlinkPulsarProducer ({}/{}) to produce into pulsar topic {}",
-                ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicName);
+                ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), producerConf.getTopicName());
 
         if (flushOnCheckpoint && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
             LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");

@@ -51,4 +51,9 @@ public class ManagedLedgerFactoryConfig {
      * Threshould to consider a cursor as "backlogged"
      */
     private long thresholdBackloggedCursor = 1000;
+
+    /**
+     * Whether we should make a copy of the entry payloads when inserting in cache
+     */
+    private boolean copyEntriesInCache = false;
 }

@@ -43,6 +43,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -185,7 +186,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -193,13 +194,16 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                throw new UnsupportedOperationException();
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // adjust the auth config to support auth
-        if (authenticationEnabled && instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new KubernetesRuntime(

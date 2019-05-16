@@ -29,6 +29,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class SupportVersioningAvroSchemaTest {
     private MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider;
@@ -59,6 +60,7 @@ public class SupportVersioningAvroSchemaTest {
         SchemaTestUtils.FooV2 fooV2 = new SchemaTestUtils.FooV2();
         fooV2.setField1(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING);
         SchemaTestUtils.Foo foo = (SchemaTestUtils.Foo)schema.decode(avroFooV2Schema.encode(fooV2), new byte[10]);
+        assertTrue(schema.supportSchemaVersioning());
         assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING, foo.getField1());
         assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_DEFAULT_STRING, foo.getFieldUnableNull());
     }

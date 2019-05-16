@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -30,7 +32,7 @@ import java.util.Map;
  * to publish to a desired topic based on config and setting various message configurations to be passed along.
  *
  */
-public class PublishFunctionWithMessageConf implements Function<String, Void> {
+public class TypedMessageBuilderPublish implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
         String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
@@ -40,13 +42,16 @@ public class PublishFunctionWithMessageConf implements Function<String, Void> {
         properties.put("input_topic", context.getCurrentRecord().getTopicName().get());
         properties.putAll(context.getCurrentRecord().getProperties());
 
-        Map<String, Object> messageConf = new HashMap<>();
-        messageConf.put(TypedMessageBuilder.CONF_PROPERTIES, properties);
-        if (context.getCurrentRecord().getKey().isPresent()) {
-            messageConf.put(TypedMessageBuilder.CONF_KEY, context.getCurrentRecord().getKey().get());
+        try {
+            TypedMessageBuilder messageBuilder = context.newOutputMessage(publishTopic, Schema.STRING).
+                    value(output).properties(properties);
+            if (context.getCurrentRecord().getKey().isPresent()){
+                messageBuilder.key(context.getCurrentRecord().getKey().get());
+            }
+            messageBuilder.eventTime(System.currentTimeMillis()).sendAsync();
+        } catch (PulsarClientException e) {
+            context.getLogger().error(e.toString());
         }
-        messageConf.put(TypedMessageBuilder.CONF_EVENT_TIME, System.currentTimeMillis());
-        context.publish(publishTopic, output, null, messageConf);
         return null;
     }
 }

@@ -26,6 +26,8 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.api.mockito.PowerMockito;
@@ -83,7 +85,10 @@ public class PulsarJsonTableSinkTest {
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
-        PulsarJsonTableSink sink = new PulsarJsonTableSink(SERVICE_URL, TOPIC_NAME, AUTHENTICATION, ROUTING_KEY);
+        PulsarJsonTableSink sink = new PulsarJsonTableSink(
+                ClientConfigurationData.builder().serviceUrl(SERVICE_URL).build(),
+                ProducerConfigurationData.builder().topicName(TOPIC_NAME).build(),
+                ROUTING_KEY);
         FlinkPulsarProducer producer = Mockito.mock(FlinkPulsarProducer.class);
         PowerMockito.whenNew(
                 FlinkPulsarProducer.class

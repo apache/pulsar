@@ -27,6 +27,7 @@ import io.kubernetes.client.models.V1Secret;
 import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -43,6 +44,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
+@Slf4j
 public class KubernetesSecretsTokenAuthProviderTest {
 
     @Test
@@ -59,7 +61,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
                                 new V1PodSpec().containers(
                                         Collections.singletonList(new V1Container())))));
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
-        kubernetesSecretsTokenAuthProvider.configureAuthDataStatefulSet(statefulSet, functionAuthData);
+        kubernetesSecretsTokenAuthProvider.configureAuthDataStatefulSet(statefulSet, Optional.of(functionAuthData));
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().size(), 1);
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getName(), "function-auth");
@@ -99,9 +101,53 @@ public class KubernetesSecretsTokenAuthProviderTest {
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
-        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, functionAuthData);
+        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
 
         Assert.assertEquals(authenticationConfig.getClientAuthenticationPlugin(), AuthenticationToken.class.getName());
         Assert.assertEquals(authenticationConfig.getClientAuthenticationParameters(), "file:///etc/auth/token");
+    }
+
+    @Test
+    public void testUpdateAuthData() throws Exception {
+        CoreV1Api coreV1Api = mock(CoreV1Api.class);
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
+
+        // test when existingFunctionAuthData is empty
+        Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
+        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData("test-tenant",
+                "test-ns", "test-func", existingFunctionAuthData, new AuthenticationDataSource() {
+                    @Override
+                    public boolean hasDataFromCommand() {
+                        return true;
+                    }
+
+                    @Override
+                    public String getCommandData() {
+                        return "test-token";
+                    }
+                });
+
+
+        Assert.assertTrue(functionAuthData.isPresent());
+        Assert.assertTrue(StringUtils.isNotBlank(new String(functionAuthData.get().getData())));
+
+        // test when existingFunctionAuthData is NOT empty
+        existingFunctionAuthData = Optional.of(new FunctionAuthData("pf-secret-z7mxx".getBytes(), null));
+        functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData("test-tenant",
+                "test-ns", "test-func", existingFunctionAuthData, new AuthenticationDataSource() {
+                    @Override
+                    public boolean hasDataFromCommand() {
+                        return true;
+                    }
+
+                    @Override
+                    public String getCommandData() {
+                        return "test-token";
+                    }
+                });
+
+
+        Assert.assertTrue(functionAuthData.isPresent());
+        Assert.assertEquals(new String(functionAuthData.get().getData()), "pf-secret-z7mxx");
     }
 }

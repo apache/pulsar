@@ -673,7 +673,9 @@ void ProducerImpl::start() { HandlerBase::start(); }
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
     state_ = Closed;
-    sendTimer_->cancel();
+    if (sendTimer_) {
+        sendTimer_->cancel();
+    }
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
 

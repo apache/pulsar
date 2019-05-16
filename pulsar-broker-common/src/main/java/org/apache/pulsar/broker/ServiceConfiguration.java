@@ -33,6 +33,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -489,6 +491,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Using a value of 0, is disabling maxConsumersPerSubscription-limit check.")
     private int maxConsumersPerSubscription = 0;
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max size of messages.",
+        maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -763,6 +771,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when inserting in cache")
+    private boolean managedLedgerCacheCopyEntries = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"

@@ -108,6 +108,9 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-auth-sasl</module>
     <module>pulsar-client-auth-sasl</module>
 
+    <!-- transaction related modules -->
+    <module>pulsar-transaction</module>
+
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
 
