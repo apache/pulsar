@@ -75,6 +75,11 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     }
 
     @Override
+    public boolean isWellFormed(SchemaData to) {
+        return true;
+    }
+
+    @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         KeyValue<byte[], byte[]> fromKeyValue = this.splitKeyValueSchemaData(from.getData());
         KeyValue<byte[], byte[]> toKeyValue = this.splitKeyValueSchemaData(to.getData());
