@@ -50,7 +50,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
 
-    private volatile Producer<byte[]> producer;
+    private transient Producer<byte[]> producer;
 
     private final String producerName;
 

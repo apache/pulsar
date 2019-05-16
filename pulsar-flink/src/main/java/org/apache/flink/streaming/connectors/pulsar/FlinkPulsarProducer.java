@@ -84,7 +84,7 @@ public class FlinkPulsarProducer<IN>
 
     private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
 
-    protected volatile Producer<byte[]> producer;
+    protected transient Producer<byte[]> producer;
 
     private final String producerName;
 
@@ -193,7 +193,7 @@ public class FlinkPulsarProducer<IN>
         }
     }
 
-    private void createProducer() throws Exception {
+    private Producer<byte[]> createProducer() throws Exception {
         synchronized (FlinkPulsarProducer.class) {
             Producer<byte[]> createdProducer;
             if (!producerPool.contains(producerName)) {
@@ -203,7 +203,7 @@ public class FlinkPulsarProducer<IN>
             } else {
                 createdProducer = producerPool.getProducer(producerName);
             }
-            producer = createdProducer;
+            return createdProducer;
         }
     }
 
@@ -215,7 +215,7 @@ public class FlinkPulsarProducer<IN>
      */
     @Override
     public void open(Configuration parameters) throws Exception {
-        createProducer();
+        this.producer = createProducer();
 
         RuntimeContext ctx = getRuntimeContext();
 
