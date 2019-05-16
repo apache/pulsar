@@ -201,6 +201,7 @@ public class FlinkPulsarProducer<IN>
                 producer = client.createProducerAsync(producerConf).get();
             }
         }
+        producerRefCnt.incrementAndGet();
     }
 
     /**
@@ -212,7 +213,6 @@ public class FlinkPulsarProducer<IN>
     @Override
     public void open(Configuration parameters) throws Exception {
         createProducer();
-        producerRefCnt.incrementAndGet();
 
         RuntimeContext ctx = getRuntimeContext();
 
