@@ -132,75 +132,81 @@ public class ValidatorUtils {
         }
     }
 
-//    public static void validateFunctionClassTypes(ClassLoader classLoader, Function.FunctionDetails.Builder functionDetailsBuilder) {
-//
-//        // validate only if classLoader is provided
-//        if (classLoader == null) {
-//            return;
-//        }
-//
-//        if (isBlank(functionDetailsBuilder.getClassName())) {
-//            throw new IllegalArgumentException("Function class-name can't be empty");
-//        }
-//
-//        // validate function class-type
-//        Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
-//        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionObject, false);
-//
-//        if (!(functionObject instanceof org.apache.pulsar.functions.api.Function)
-//                && !(functionObject instanceof java.util.function.Function)) {
-//            throw new RuntimeException("User class must either be Function or java.util.Function");
-//        }
-//
-//        if (functionDetailsBuilder.hasSource() && functionDetailsBuilder.getSource() != null
-//                && isNotBlank(functionDetailsBuilder.getSource().getClassName())) {
-//            try {
-//                String sourceClassName = functionDetailsBuilder.getSource().getClassName();
-//                String argClassName = FunctionCommon.getTypeArg(sourceClassName, Source.class, classLoader).getName();
-//                functionDetailsBuilder
-//                        .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
-//
-//                // if sink-class not present then set same arg as source
-//                if (!functionDetailsBuilder.hasSink() || isBlank(functionDetailsBuilder.getSink().getClassName())) {
-//                    functionDetailsBuilder
-//                            .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
-//                }
-//
-//            } catch (IllegalArgumentException ie) {
-//                throw ie;
-//            } catch (Exception e) {
-//                log.error("Failed to validate source class", e);
-//                throw new IllegalArgumentException("Failed to validate source class-name", e);
-//            }
-//        } else if (isBlank(functionDetailsBuilder.getSourceBuilder().getTypeClassName())) {
-//            // if function-src-class is not present then set function-src type-class according to function class
-//            functionDetailsBuilder
-//                    .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(typeArgs[0].getName()));
-//        }
-//
-//        if (functionDetailsBuilder.hasSink() && functionDetailsBuilder.getSink() != null
-//                && isNotBlank(functionDetailsBuilder.getSink().getClassName())) {
-//            try {
-//                String sinkClassName = functionDetailsBuilder.getSink().getClassName();
-//                String argClassName = FunctionCommon.getTypeArg(sinkClassName, Sink.class, classLoader).getName();
-//                functionDetailsBuilder.setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
-//
-//                // if source-class not present then set same arg as sink
-//                if (!functionDetailsBuilder.hasSource() || isBlank(functionDetailsBuilder.getSource().getClassName())) {
-//                    functionDetailsBuilder
-//                            .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
-//                }
-//
-//            } catch (IllegalArgumentException ie) {
-//                throw ie;
-//            } catch (Exception e) {
-//                log.error("Failed to validate sink class", e);
-//                throw new IllegalArgumentException("Failed to validate sink class-name", e);
-//            }
-//        } else if (isBlank(functionDetailsBuilder.getSinkBuilder().getTypeClassName())) {
-//            // if function-sink-class is not present then set function-sink type-class according to function class
-//            functionDetailsBuilder
-//                    .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(typeArgs[1].getName()));
-//        }
-//    }
+    public static void validateFunctionClassTypes(ClassLoader classLoader, Function.FunctionDetails.Builder functionDetailsBuilder) {
+
+        // validate only if classLoader is provided
+        if (classLoader == null) {
+            return;
+        }
+
+        if (isBlank(functionDetailsBuilder.getClassName())) {
+            throw new IllegalArgumentException("Function class-name can't be empty");
+        }
+
+        // validate function class-type
+        Class functionClass;
+        try {
+            functionClass = classLoader.loadClass(functionDetailsBuilder.getClassName());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionDetailsBuilder.getClassName()), e);
+        }
+        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionClass, false);
+
+        if (!(org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass))
+                && !(java.util.function.Function.class.isAssignableFrom(functionClass))) {
+            throw new RuntimeException("User class must either be Function or java.util.Function");
+        }
+
+        if (functionDetailsBuilder.hasSource() && functionDetailsBuilder.getSource() != null
+                && isNotBlank(functionDetailsBuilder.getSource().getClassName())) {
+            try {
+                String sourceClassName = functionDetailsBuilder.getSource().getClassName();
+                String argClassName = FunctionCommon.getTypeArg(sourceClassName, Source.class, classLoader).getName();
+                functionDetailsBuilder
+                        .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
+
+                // if sink-class not present then set same arg as source
+                if (!functionDetailsBuilder.hasSink() || isBlank(functionDetailsBuilder.getSink().getClassName())) {
+                    functionDetailsBuilder
+                            .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
+                }
+
+            } catch (IllegalArgumentException ie) {
+                throw ie;
+            } catch (Exception e) {
+                log.error("Failed to validate source class", e);
+                throw new IllegalArgumentException("Failed to validate source class-name", e);
+            }
+        } else if (isBlank(functionDetailsBuilder.getSourceBuilder().getTypeClassName())) {
+            // if function-src-class is not present then set function-src type-class according to function class
+            functionDetailsBuilder
+                    .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(typeArgs[0].getName()));
+        }
+
+        if (functionDetailsBuilder.hasSink() && functionDetailsBuilder.getSink() != null
+                && isNotBlank(functionDetailsBuilder.getSink().getClassName())) {
+            try {
+                String sinkClassName = functionDetailsBuilder.getSink().getClassName();
+                String argClassName = FunctionCommon.getTypeArg(sinkClassName, Sink.class, classLoader).getName();
+                functionDetailsBuilder.setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
+
+                // if source-class not present then set same arg as sink
+                if (!functionDetailsBuilder.hasSource() || isBlank(functionDetailsBuilder.getSource().getClassName())) {
+                    functionDetailsBuilder
+                            .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
+                }
+
+            } catch (IllegalArgumentException ie) {
+                throw ie;
+            } catch (Exception e) {
+                log.error("Failed to validate sink class", e);
+                throw new IllegalArgumentException("Failed to validate sink class-name", e);
+            }
+        } else if (isBlank(functionDetailsBuilder.getSinkBuilder().getTypeClassName())) {
+            // if function-sink-class is not present then set function-sink type-class according to function class
+            functionDetailsBuilder
+                    .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(typeArgs[1].getName()));
+        }
+    }
 }
