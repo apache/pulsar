@@ -346,18 +346,19 @@ public class PulsarCluster {
         }
     }
 
-    public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {
+    public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, boolean functionValidationEnabled, int numFunctionWorkers) {
         switch (runtimeType) {
             case THREAD:
-                startFunctionWorkersWithThreadContainerFactory(suffix, numFunctionWorkers);
+                startFunctionWorkersWithThreadContainerFactory(suffix, functionValidationEnabled, numFunctionWorkers);
                 break;
             case PROCESS:
-                startFunctionWorkersWithProcessContainerFactory(suffix, numFunctionWorkers);
+                startFunctionWorkersWithProcessContainerFactory(suffix, functionValidationEnabled, numFunctionWorkers);
                 break;
         }
     }
 
-    private void startFunctionWorkersWithProcessContainerFactory(String suffix, int numFunctionWorkers) {
+    private void startFunctionWorkersWithProcessContainerFactory(String suffix, Boolean functionValidationEnabled,
+                                                                 int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
@@ -378,11 +379,13 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME)
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("PF_additionalJavaChecks", functionValidationEnabled.toString())
         ));
         this.startWorkers();
     }
 
-    private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {
+    private void startFunctionWorkersWithThreadContainerFactory(String suffix, Boolean functionValidationEnabled,
+                                                                int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
@@ -404,6 +407,7 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME)
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("PF_additionalJavaChecks", functionValidationEnabled.toString())
         ));
         this.startWorkers();
     }

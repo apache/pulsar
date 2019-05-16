@@ -41,13 +41,20 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     }
 
     protected final FunctionRuntimeType functionRuntimeType;
+    protected final boolean functionValidationEnabled;
 
     public PulsarFunctionsTestBase() {
-        this(FunctionRuntimeType.PROCESS);
+        this(FunctionRuntimeType.PROCESS, false);
     }
 
     protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType) {
         this.functionRuntimeType = functionRuntimeType;
+        this.functionValidationEnabled = false;
+    }
+
+    protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType, boolean functionValidationEnabled) {
+        this.functionRuntimeType = functionRuntimeType;
+        this.functionValidationEnabled = functionValidationEnabled;
     }
 
     @BeforeClass
@@ -55,7 +62,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
         final int numFunctionWorkers = 3;
         log.info("Setting up {} function workers : function runtime type = {}",
             numFunctionWorkers, functionRuntimeType);
-        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
+        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, functionValidationEnabled, numFunctionWorkers);
         log.info("{} function workers has started", numFunctionWorkers);
     }
 
