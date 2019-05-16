@@ -346,7 +346,8 @@ public class SinkConfigUtils {
                 try {
                     tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
                 } catch (ClassNotFoundException e1) {
-                    throw new IllegalArgumentException(e1);
+                    throw new IllegalArgumentException(
+                            String.format("Sink class %s must be in class path", sinkClassName), e1);
                 }
                 tmpclassLoader = jarClassLoader;
             }
@@ -367,7 +368,8 @@ public class SinkConfigUtils {
             try {
                 typeArg = getSinkType(sinkClassName, classLoader);
             } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException(
+                        String.format("Sink class %s must be in class path", sinkClassName), e);
             }
         }
 

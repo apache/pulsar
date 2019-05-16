@@ -251,7 +251,8 @@ public class SourceConfigUtils {
                 try {
                     tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
                 } catch (ClassNotFoundException e1) {
-                    throw new IllegalArgumentException(e1);
+                    throw new IllegalArgumentException(
+                            String.format("Source class %s must be in class path", sourceClassName), e1);
                 }
                 tmpclassLoader = jarClassLoader;
             }
@@ -272,7 +273,8 @@ public class SourceConfigUtils {
             try {
                 typeArg = getSourceType(sourceClassName, classLoader);
             } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException(
+                        String.format("Source class %s must be in class path", sourceClassName), e);
             }
         }
 

@@ -53,7 +53,8 @@ public class FunctionConfigUtils {
                 try {
                     typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
                 } catch (ClassNotFoundException e) {
-                    throw new IllegalArgumentException(e);
+                    throw new IllegalArgumentException(
+                            String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
                 }
             }
         }
@@ -364,8 +365,15 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) throws ClassNotFoundException {
-        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
+    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+
+        Class<?>[] typeArgs;
+        try {
+            typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+        }
         // inputs use default schema, so there is no check needed there
 
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
@@ -616,11 +624,8 @@ public class FunctionConfigUtils {
             } else {
                 throw new IllegalArgumentException("Function Package is not provided");
             }
-            try {
-                doJavaChecks(functionConfig, classLoader);
-            } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(e);
-            }
+
+            doJavaChecks(functionConfig, classLoader);
             return classLoader;
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
             doGolangChecks(functionConfig);

@@ -226,7 +226,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testRegisterSinkMissingFunctionName() {
+    public void testRegisterSinkMissingSinkName() {
         try {
             testRegisterSinkMissingArguments(
                 tenant,
@@ -258,6 +258,26 @@ public class SinkApiV3ResourceTest {
             parallelism,
                 null
             );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink class UnknownClass must be in class path")
+    public void testRegisterSinkWrongClassName() {
+            try {
+                testRegisterSinkMissingArguments(
+                        tenant,
+                        namespace,
+                        sink,
+                        mockedInputStream,
+                        mockedFormData,
+                        topicsToSerDeClassName,
+                        "UnknownClass",
+                        parallelism,
+                        null
+                );
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -490,7 +510,7 @@ public class SinkApiV3ResourceTest {
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
-            .setMessage("source registered");
+            .setMessage("sink registered");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
