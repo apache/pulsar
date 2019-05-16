@@ -16,21 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.transaction.coordinator.impl;
 
-public enum ComponentType {
-    FUNCTION("Function"),
-    SOURCE("Source"),
-    SINK("Sink");
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 
-    private final String componentName;
-
-    ComponentType(String componentName) {
-        this.componentName = componentName;
-    }
+/**
+ * The provider that offers in-memory implementation of {@link TransactionMetadataStore}.
+ */
+public class InMemTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
     @Override
-    public String toString() {
-        return componentName;
+    public CompletableFuture<TransactionMetadataStore>
+        openStore(TransactionCoordinatorID transactionCoordinatorId) {
+        return CompletableFuture.completedFuture(
+            new InMemTransactionMetadataStore(transactionCoordinatorId));
     }
+
 }

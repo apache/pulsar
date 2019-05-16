@@ -51,6 +51,12 @@ message FunctionDetails {
         PYTHON = 1;
         GO = 3;
     }
+    enum ComponentType {
+        UNKNOWN = 0;
+        FUNCTION = 1;
+        SOURCE = 2;
+        SINK = 3;
+    }
     string tenant = 1;
     string namespace = 2;
     string name = 3;
@@ -68,6 +74,7 @@ message FunctionDetails {
     string packageUrl = 14; //present only if function submitted with package-url
     RetryDetails retryDetails = 15;
     string runtimeFlags = 17;
+    ComponentType componentType = 18;
 }
 
 message ConsumerSpec {

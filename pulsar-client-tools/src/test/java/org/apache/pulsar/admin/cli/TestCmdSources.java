@@ -40,6 +40,7 @@ import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.*;
 import org.powermock.api.mockito.PowerMockito;
@@ -586,7 +587,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .build()), eq(updateSource.archive));
+                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
 
 
         updateSource.archive = null;
@@ -595,6 +596,11 @@ public class TestCmdSources {
 
         updateSource.processArguments();
 
+        updateSource.updateAuthData = true;
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+
         updateSource.runCmd();
 
         verify(source).updateSource(eq(SourceConfig.builder()
@@ -602,7 +608,9 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
-                .build()), eq(null));
+                .build()), eq(null), eq(updateOptions));
+
+
 
     }
 }
