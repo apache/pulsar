@@ -123,10 +123,12 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     private Producer<byte[]> getProducerInstance()
             throws PulsarClientException {
-        synchronized (PulsarOutputFormat.class) {
-            if (producer == null) {
-                producer = Preconditions.checkNotNull(createPulsarProducer(),
-                        "Pulsar producer cannot be null.");
+        if (producer == null) {
+            synchronized (PulsarOutputFormat.class) {
+                if (producer == null) {
+                    producer = Preconditions.checkNotNull(createPulsarProducer(),
+                            "Pulsar producer cannot be null.");
+                }
             }
         }
         return producer;
