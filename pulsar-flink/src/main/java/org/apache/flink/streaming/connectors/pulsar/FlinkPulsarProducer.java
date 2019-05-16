@@ -21,7 +21,6 @@ package org.apache.flink.streaming.connectors.pulsar;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.Map;
 
@@ -29,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.common.ProducerPool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -82,15 +82,11 @@ public class FlinkPulsarProducer<IN>
 
     // -------------------------------- Runtime fields ------------------------------------------
 
-    /**
-     * Shared Pulsar Producer instance.
-     */
-    protected static volatile Producer<byte[]> producer;
+    private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
 
-    /**
-     * Reference counter for Shared Pulsar Producer.
-     */
-    private static AtomicInteger producerRefCnt;
+    protected volatile Producer<byte[]> producer;
+
+    private final String producerName;
 
     /**
      * The callback than handles error propagation or logging callbacks.
@@ -129,6 +125,8 @@ public class FlinkPulsarProducer<IN>
         this.clientConf.setServiceUrl(serviceUrl);
         this.clientConf.setAuthentication(authentication);
         this.producerConf.setTopicName(defaultTopicName);
+        // use topic name as producer name
+        this.producerName = defaultTopicName;
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
@@ -142,6 +140,8 @@ public class FlinkPulsarProducer<IN>
         this.producerConf = checkNotNull(producerConfigurationData, "producer conf can not be null");
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
+        // use topic name as producer name
+        this.producerName = producerConfigurationData.getTopicName();
         ClosureCleaner.ensureSerializable(serializationSchema);
     }
 
@@ -195,13 +195,16 @@ public class FlinkPulsarProducer<IN>
 
     private void createProducer() throws Exception {
         synchronized (FlinkPulsarProducer.class) {
-            if (producer == null) {
-                producerRefCnt = new AtomicInteger(0);
+            Producer<byte[]> createdProducer;
+            if (!producerPool.contains(producerName)) {
                 PulsarClientImpl client = new PulsarClientImpl(clientConf);
-                producer = client.createProducerAsync(producerConf).get();
+                createdProducer = client.createProducerAsync(producerConf).get();
+                producerPool.addProducer(producerName, createdProducer);
+            } else {
+                createdProducer = producerPool.getProducer(producerName);
             }
+            producer = createdProducer;
         }
-        producerRefCnt.incrementAndGet();
     }
 
     /**
@@ -279,8 +282,8 @@ public class FlinkPulsarProducer<IN>
     @Override
     public void close() throws Exception {
         if (producer != null) {
-            if (producerRefCnt.decrementAndGet() == 0) {
-                synchronized (FlinkPulsarProducer.class) {
+            synchronized (FlinkPulsarProducer.class) {
+                if (producerPool.removeProducer(producerName)) {
                     producer.close();
                     producer = null;
                     LOG.info("Pulsar producer is closed.");

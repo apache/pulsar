@@ -21,6 +21,7 @@ package org.apache.flink.batch.connectors.pulsar;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.common.ProducerPool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 import org.apache.pulsar.client.api.MessageId;
@@ -47,11 +48,12 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     private static final long serialVersionUID = 2304601727522060427L;
 
     private transient Function<Throwable, MessageId> failureCallback;
-    private static volatile Producer<byte[]> producer;
-    /**
-     * Reference counter for Shared Pulsar Producer.
-     */
-    private static AtomicInteger producerRefCnt;
+
+    private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
+
+    private volatile Producer<byte[]> producer;
+
+    private final String producerName;
 
     protected SerializationSchema<T> serializationSchema;
 
@@ -69,6 +71,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         this.clientConf.setServiceUrl(serviceUrl);
         this.clientConf.setAuthentication(authentication);
         this.producerConf.setTopicName(topicName);
+        // use topic name to identify a producer
+        this.producerName = topicName;
 
         LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}", this.producerConf.getTopicName());
     }
@@ -80,6 +84,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         Preconditions.checkArgument(StringUtils.isNotBlank(clientConf.getServiceUrl()), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(producerConf.getTopicName()),  "topicName cannot be blank.");
 
+        // use topic name to identify a producer
+        this.producerName = producerConf.getTopicName();
         LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}", this.producerConf.getTopicName());
     }
 
@@ -107,11 +113,9 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     @Override
     public void close() throws IOException {
         if (producer != null) {
-            if (producerRefCnt.decrementAndGet() == 0) {
-                synchronized (PulsarOutputFormat.class) {
+            synchronized (PulsarOutputFormat.class) {
+                if (producerPool.removeProducer(this.producerName)) {
                     producer.close();
-                    producer = null;
-                    LOG.info("Pulsar producer is closed.");
                 }
             }
         }
@@ -123,17 +127,22 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
             if (producer == null) {
                 producer = Preconditions.checkNotNull(createPulsarProducer(),
                         "Pulsar producer cannot be null.");
-                producerRefCnt = new AtomicInteger(0);
             }
         }
-        producerRefCnt.incrementAndGet();
     }
 
     private Producer<byte[]> createPulsarProducer()
             throws PulsarClientException {
         try {
-            PulsarClientImpl client = new PulsarClientImpl(clientConf);
-            return client.createProducerAsync(producerConf).get();
+            Producer<byte[]> createdProducer;
+            if (!producerPool.contains(producerName)) {
+                PulsarClientImpl client = new PulsarClientImpl(clientConf);
+                createdProducer = client.createProducerAsync(producerConf).get();
+                producerPool.addProducer(this.producerName, createdProducer);
+            } else {
+                createdProducer = producerPool.getProducer(producerName);
+            }
+            return createdProducer;
         } catch (PulsarClientException | InterruptedException | ExecutionException e) {
             LOG.error("Pulsar producer cannot be created.", e);
             throw new PulsarClientException(e);
