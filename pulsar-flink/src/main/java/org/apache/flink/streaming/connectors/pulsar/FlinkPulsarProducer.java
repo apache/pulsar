@@ -82,9 +82,12 @@ public class FlinkPulsarProducer<IN>
 
     // -------------------------------- Runtime fields ------------------------------------------
 
-    private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
-
+    /**
+     * Pulsar Producer instance.
+     */
     protected transient Producer<byte[]> producer;
+
+    private static final ProducerPool<byte[]> producerPool = new ProducerPool<>();
 
     private final String producerName;
 

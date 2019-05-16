@@ -96,6 +96,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
         this.producer = getProducerInstance();
+
         this.failureCallback = cause -> {
             LOG.error("Error while sending record to Pulsar: " + cause.getMessage(), cause);
             return null;
