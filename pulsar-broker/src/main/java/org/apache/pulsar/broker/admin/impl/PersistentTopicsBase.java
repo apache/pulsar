@@ -308,7 +308,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative) {
-        validateAdminOperationOnTopic(true);
+        validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
         try {
             topic.deleteForcefully().get();

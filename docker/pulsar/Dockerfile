@@ -20,7 +20,7 @@
 FROM openjdk:8-jdk
 
 # Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3 python3-pip python3-yaml python3-pip
+RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip python3 python3-kazoo python3-yaml python3-pip
 
 ARG PULSAR_TARBALL
 

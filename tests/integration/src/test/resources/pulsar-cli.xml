@@ -25,6 +25,7 @@
             <class name="org.apache.pulsar.tests.integration.cli.CLITest" />
             <class name="org.apache.pulsar.tests.integration.cli.HealthcheckTest" />
             <class name="org.apache.pulsar.tests.integration.compaction.TestCompaction" />
+            <class name="org.apache.pulsar.tests.integration.cli.AdminMultiHostTest"/>
         </classes>
     </test>
 </suite>

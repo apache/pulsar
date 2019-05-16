@@ -22,27 +22,42 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Arrays;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.common.schema.SchemaData;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
  */
+@Slf4j
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
+    @Override
+    public boolean isWellFormed(SchemaData to) {
+        try {
+            Schema.Parser toParser = new Schema.Parser();
+            Schema toSchema = toParser.parse(new String(to.getData(), UTF_8));
+        } catch (SchemaParseException e) {
+            log.error("Error during schema parsing: {}", e.getMessage(), e);
+            return false;
+        }
+        return true;
+    }
 
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        Schema.Parser fromParser = new Schema.Parser();
-        Schema fromSchema = fromParser.parse(new String(from.getData(), UTF_8));
-        Schema.Parser toParser = new Schema.Parser();
-        Schema toSchema =  toParser.parse(new String(to.getData(), UTF_8));
-
-        SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
         try {
+            Schema.Parser fromParser = new Schema.Parser();
+            Schema fromSchema = fromParser.parse(new String(from.getData(), UTF_8));
+            Schema.Parser toParser = new Schema.Parser();
+            Schema toSchema = toParser.parse(new String(to.getData(), UTF_8));
+
+            SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
             schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
-        } catch (SchemaValidationException e) {
+        } catch (SchemaParseException | SchemaValidationException e) {
+            log.error("Error during schema compatibility check: {}", e.getMessage(), e);
             return false;
         }
         return true;
