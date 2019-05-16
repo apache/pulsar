@@ -52,6 +52,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import lombok.Getter;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
@@ -102,8 +103,8 @@ public class ClientCnx extends PulsarHandler {
     private final Queue<Pair<Long, Pair<ByteBuf, CompletableFuture<LookupDataResult>>>> waitingLookupRequests;
     private final ConcurrentLongHashMap<CompletableFuture<BatchLookupDataResult>> pendingBatchLookupRequests =
             new ConcurrentLongHashMap<>(16, 1);
-    // LookupRequests that waiting in client side.
-    private final BlockingQueue<Pair<Long, Pair<ByteBuf, CompletableFuture<BatchLookupDataResult>>>> waitingBatchLookupRequests;
+    // BatchLookupRequests that waiting in client side.
+    private final Queue<Pair<Long, Pair<ByteBuf, CompletableFuture<BatchLookupDataResult>>>> waitingBatchLookupRequests;
     private final ConcurrentLongHashMap<CompletableFuture<MessageIdData>> pendingGetLastMessageIdRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests =
@@ -117,8 +118,8 @@ public class ClientCnx extends PulsarHandler {
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
+    private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
-    private final Semaphore pendingBatchLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER = AtomicIntegerFieldUpdater
@@ -163,11 +164,10 @@ public class ClientCnx extends PulsarHandler {
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
+        this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
         this.maxLookupRequestSemaphore = new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
-        this.pendingBatchLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
-        this.waitingBatchLookupRequests = Queues
-            .newArrayBlockingQueue((conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest()));
+        this.waitingBatchLookupRequests = Queues.newConcurrentLinkedQueue();
         this.authentication = conf.getAuthentication();
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
@@ -230,6 +230,7 @@ public class ClientCnx extends PulsarHandler {
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
         waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
+        waitingBatchLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
         pendingGetLastMessageIdRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingGetTopicsRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingGetSchemaRequests.forEach((key, future) -> future.completeExceptionally(e));
@@ -241,6 +242,7 @@ public class ClientCnx extends PulsarHandler {
         pendingRequests.clear();
         pendingLookupRequests.clear();
         waitingLookupRequests.clear();
+        waitingBatchLookupRequests.clear();
         pendingGetLastMessageIdRequests.clear();
         pendingGetTopicsRequests.clear();
 
@@ -748,7 +750,9 @@ public class ClientCnx extends PulsarHandler {
                 log.debug("Failed to add batch lookup request:{} into pending queue", requestId);
             }
 
-            if (!waitingBatchLookupRequests.offer(Pair.of(requestId, Pair.of(requestPayload, future)))) {
+            if (maxLookupRequestSemaphore.tryAcquire()) {
+                waitingBatchLookupRequests.add(Pair.of(requestId, Pair.of(requestPayload, future)));
+            } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Failed to add batch lookup request:{} into waiting queue", requestId);
                 }
