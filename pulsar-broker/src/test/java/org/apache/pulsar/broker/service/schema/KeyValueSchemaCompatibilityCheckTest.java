@@ -25,6 +25,7 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -32,7 +33,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
 import java.util.Map;
 
 public class KeyValueSchemaCompatibilityCheckTest {
@@ -470,5 +470,41 @@ public class KeyValueSchemaCompatibilityCheckTest {
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testCheckSchemaTypeFullCompatibility() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        StringSchema stringSchema = new StringSchema();
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.STRING)
+                .data(stringSchema.getSchemaInfo().getSchema()).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testCheckSchemaTypeAlwaysCompatibility() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        StringSchema stringSchema = new StringSchema();
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.STRING)
+                .data(stringSchema.getSchemaInfo().getSchema()).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
+    }
+
+    @Test
+    public void testCheckSchemaTypeOtherCompatibility() {
+        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        StringSchema stringSchema = new StringSchema();
+        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.STRING)
+                .data(stringSchema.getSchemaInfo().getSchema()).build();
+        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
     }
 }

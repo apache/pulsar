@@ -69,6 +69,19 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
                 .props(Collections.emptyMap()).build();
     }
 
+    private KeyValue<SchemaData, SchemaData> parseSchemaData(SchemaData schemaData) {
+        KeyValue<byte[], byte[]> keyValue = this.splitKeyValueSchemaData(schemaData.getData());
+        Map<String, String> properties = schemaData.getProps();
+        SchemaType keyType = fetchSchemaType(properties, "key.schema.type");
+        SchemaType valueType = fetchSchemaType(properties, "value.schema.type");
+        Gson schemaGson = new Gson();
+        SchemaData keySchemaData = fetchSchemaData(
+                keyValue.getKey(), keyType, schemaGson, properties, "key.schema.properties");
+        SchemaData valueSchemaData = fetchSchemaData(
+                keyValue.getValue(), valueType, schemaGson, properties, "value.schema.properties");
+        return new KeyValue<>(keySchemaData, valueSchemaData);
+    }
+
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.KEY_VALUE;
@@ -76,35 +89,35 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
 
     @Override
     public boolean isWellFormed(SchemaData to) {
-        return true;
+        KeyValue<SchemaData, SchemaData> keyValue = parseSchemaData(to);
+        SchemaCompatibilityCheck valueCheck;
+        if (checkers.get(keyValue.getValue().getType()) != null) {
+            valueCheck = checkers.get(keyValue.getValue().getType());
+        } else {
+            valueCheck = SchemaCompatibilityCheck.DEFAULT;
+        }
+        return valueCheck.isWellFormed(keyValue.getKey()) && valueCheck.isWellFormed(keyValue.getValue());
     }
 
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        KeyValue<byte[], byte[]> fromKeyValue = this.splitKeyValueSchemaData(from.getData());
-        KeyValue<byte[], byte[]> toKeyValue = this.splitKeyValueSchemaData(to.getData());
+        if (from.getType() != SchemaType.KEY_VALUE || to.getType() != SchemaType.KEY_VALUE) {
+            if (strategy == SchemaCompatibilityStrategy.FULL || strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
+                return true;
+            }
+            return false;
+        }
+        KeyValue<SchemaData, SchemaData> fromKeyValue = parseSchemaData(from);
+        KeyValue<SchemaData, SchemaData> toKeyValue = parseSchemaData(to);
 
-        Map<String, String> fromProperties = from.getProps();
-        Map<String, String> toProperties = to.getProps();
-
-        SchemaType fromKeyType = fetchSchemaType(fromProperties, "key.schema.type");
-        SchemaType fromValueType = fetchSchemaType(fromProperties, "value.schema.type");
-        SchemaType toKeyType = fetchSchemaType(toProperties, "key.schema.type");
-        SchemaType toValueType = fetchSchemaType(toProperties, "value.schema.type");
+        SchemaType fromKeyType = fromKeyValue.getKey().getType();
+        SchemaType fromValueType = fromKeyValue.getValue().getType();
+        SchemaType toKeyType = toKeyValue.getKey().getType();
+        SchemaType toValueType = toKeyValue.getValue().getType();
 
         if (fromKeyType != toKeyType || fromValueType != toValueType) {
             return false;
         }
-
-        Gson schemaGson = new Gson();
-        SchemaData fromKeySchemaData = fetchSchemaData(
-                fromKeyValue.getKey(), fromKeyType, schemaGson, fromProperties, "key.schema.properties");
-        SchemaData fromValueSchemaData = fetchSchemaData(
-                fromKeyValue.getValue(), fromKeyType, schemaGson, fromProperties, "value.schema.properties");
-        SchemaData toKeySchemaData = fetchSchemaData(
-                toKeyValue.getKey(), toKeyType, schemaGson, toProperties, "key.schema.properties");
-        SchemaData toValueSchemaData = fetchSchemaData(
-                toKeyValue.getValue(), toKeyType, schemaGson, toProperties, "value.schema.properties");
 
         SchemaCompatibilityCheck keyCheck;
         if (checkers.get(toKeyType) != null) {
@@ -118,7 +131,8 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         } else {
             valueCheck = SchemaCompatibilityCheck.DEFAULT;
         }
-        return keyCheck.isCompatible(fromKeySchemaData, toKeySchemaData, strategy)
-                && valueCheck.isCompatible(fromValueSchemaData, toValueSchemaData, strategy);
+
+        return keyCheck.isCompatible(fromKeyValue.getKey(), toKeyValue.getKey(), strategy)
+                && valueCheck.isCompatible(fromKeyValue.getValue(), toKeyValue.getValue(), strategy);
     }
 }
