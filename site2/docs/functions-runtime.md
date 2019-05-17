@@ -4,16 +4,15 @@ title: Configure Functions runtime
 sidebar_label: Configure Functions runtime
 ---
 
-Currently, Pulsar Functions supports running functions in three runtimes.
+Currently, Pulsar Functions support the following three methods to run functions.
 
 - *Thread*: Invoke functions in threads in Functions Worker.
 - *Process*: Invoke functions in processes forked by Functions Worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
 
-## Configure Thread runtime
+## Configure thread runtime
 
-*Thread* runtime is the most simplest runtime to configure. At most of the time, you don't need
-to configure anything. You can customize the thread group name by setting following settings:
+*Thread* runtime is easy to configure. In most cases, you don't need to configure anything. You can customize the thread group name with the following settings:
 
 ```yaml
 threadContainerFactory:
@@ -22,10 +21,9 @@ threadContainerFactory:
 
 *Thread* runtime only supports Java language.
 
-## Configure Process runtime
+## Configure process runtime
 
-Similar as *Thread* runtime, at most of the time, you don't need to configure anything special when
-enabling *Process* runtime.
+Similar as *Thread* runtime, you don't need to configure anything special when enabling *Process* runtime.
 
 ```yaml
 processContainerFactory:
@@ -39,12 +37,11 @@ processContainerFactory:
   extraFunctionDependenciesDir:
 ```
 
-Currently Pulsar supports running Java, Python, and Go functions in Process runtime mode.
+Currently Pulsar supports running Java, Python, and Go Functions in process runtime mode.
 
 ## Configure Kubernetes runtime
 
-Configuring Kubernetes runtime is as simple as configuring the other two runtimes. You can just uncomment
-the settings of `kubernetesContainerFactory` in `functions_worker.yaml`. Example is shown below.
+It is easy to configure Kubernetes runtime. You can just uncomment the settings of `kubernetesContainerFactory` in the `functions_worker.yaml` file. The following is an example.
 
 ```yaml
 kubernetesContainerFactory:
@@ -76,10 +73,10 @@ kubernetesContainerFactory:
   percentMemoryPadding: 10
 ```
 
-If you already run a Pulsar cluster on Kubernetes, you can just leave the settings unchanged at most of time.
+If you have already run a Pulsar cluster on Kubernetes, you can keep the settings unchanged at most of time.
 
-However if you enable RBAC on deploying your Pulsar cluster, please make sure the service account you use for
-running Functions Workers (or Brokers if Functions Workers co-run with brokers) have permissions on following
+However, if you enable RBAC on deploying your Pulsar cluster, make sure the service account you use for
+running Functions Workers (or brokers, if Functions Workers run along with brokers) have permissions on the following
 kubernetes APIs.
 
 - services 
@@ -87,7 +84,7 @@ kubernetes APIs.
 - pods
 - apps.statefulsets
 
-Otherwise you will not be able to create any functions. Example error message is shown as below.
+Otherwise, you will not be able to create any functions. The following is an example of error message.
 
 ```bash
 22:04:27.696 [Timer-0] ERROR org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory - Error while trying to fetch configmap example-pulsar-4qvmb5gur3c6fc9dih0x1xn8b-function-worker-config at namespace pulsar
@@ -101,11 +98,7 @@ io.kubernetes.client.ApiException: Forbidden
 	at java.util.TimerThread.mainLoop(Timer.java:555) [?:1.8.0_212]
 	at java.util.TimerThread.run(Timer.java:505) [?:1.8.0_212]
 ```
-
-If this happens, you need to grant the required permissions to the service
-account used for running Functions Workers. An example to grant permissions
-is shown below: a service account `functions-worker` is granted with permissions
-to acccess Kubernetes resources `services`, `configmaps`, `pods` and `apps.statefulsets`.
+If this happens, you need to grant the required permissions to the service account used for running Functions Workers. An example to grant permissions is shown below: a service account `functions-worker` is granted with permissions to access Kubernetes resources `services`, `configmaps`, `pods` and `apps.statefulsets`.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -127,13 +120,11 @@ rules:
   verbs:
   - '*'
 ---
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: functions-worker
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
