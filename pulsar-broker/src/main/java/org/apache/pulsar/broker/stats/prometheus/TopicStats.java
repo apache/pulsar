@@ -196,7 +196,7 @@ class TopicStats {
             String topic,
             String name, String remoteCluster, double value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
-        stream.write("\",topic=\"").write(topic).write("remote_cluster=\"").write(remoteCluster).write("\"} ");
+        stream.write("\",topic=\"").write(topic).write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }
