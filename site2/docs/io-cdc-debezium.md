@@ -66,7 +66,7 @@ tenant: "public"
 namespace: "default"
 name: "debezium-kafka-source"
 topicName: "kafka-connect-topic"
-archive: "connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar.nar"
+archive: "connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar"
 
 ##autoAck: true
 parallelism: 1
