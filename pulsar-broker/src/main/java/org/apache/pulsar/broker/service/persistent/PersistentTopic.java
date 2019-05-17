@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -55,6 +56,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -186,6 +188,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         SchemaCompatibilityStrategy.FULL;
     // schema validation enforced flag
     private volatile boolean schemaValidationEnforced = false;
+    private StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
@@ -1384,7 +1387,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
-
+        
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
@@ -1399,6 +1402,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // Close topic object
         topicStatsStream.endObject();
+        
+        // add publish-latency metrics
+        this.addEntryLatencyStatsUsec.refresh();
+        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        this.addEntryLatencyStatsUsec.reset();
     }
 
     public TopicStats getStats() {
@@ -1449,6 +1457,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         stats.storageSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
+        
         return stats;
     }
 
@@ -1932,5 +1941,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         return addSchema(schema).thenApply((ignore) -> true);
                     }
                 });
+    }
+
+    @Override
+    public void recordAddLatency(long latencyUSec) {
+        addEntryLatencyStatsUsec.addValue(latencyUSec);
     }
 }
