@@ -390,7 +390,7 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException {
+    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException, ClassNotFoundException {
         if (functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
@@ -423,7 +423,7 @@ public class FunctionActioner {
     }
 
     private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSourceType(className, ncl).getName();
 
@@ -441,7 +441,7 @@ public class FunctionActioner {
     }
 
     private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSinkType(className, ncl).getName();
 
