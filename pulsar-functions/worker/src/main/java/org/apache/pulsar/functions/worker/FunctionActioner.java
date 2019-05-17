@@ -59,6 +59,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -285,14 +286,16 @@ public class FunctionActioner {
             functionRuntimeInfo.getRuntimeSpawner().close();
 
             // cleanup any auth data cached
-            if (workerConfig.isAuthenticationEnabled() && functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
+            if (workerConfig.isAuthenticationEnabled()) {
                 try {
                     log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
                     functionRuntimeInfo.getRuntimeSpawner()
                             .getRuntimeFactory().getAuthProvider()
                             .cleanUpAuthData(
                                     details.getTenant(), details.getNamespace(), details.getName(),
-                                    getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
+                                    Optional.ofNullable(getFunctionAuthData(
+                                            Optional.ofNullable(
+                                                    functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
 
                 } catch (Exception e) {
                     log.error("Failed to cleanup auth data for function: {}", fqfn, e);
@@ -474,6 +477,8 @@ public class FunctionActioner {
                 return fileName + ".jar";
             case PYTHON:
                 return fileName + ".py";
+            case GO:
+                return fileName + ".go";
             default:
                 throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }

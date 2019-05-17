@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -121,6 +122,23 @@ public interface Sink {
 
     /**
      * Update the configuration for a sink.
+     * <p>
+     *
+     * @param sinkConfig
+     *            the sink configuration object
+     * @param updateOptions
+     *            options for the update operations
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a sink.
      * <pre>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
@@ -140,6 +158,30 @@ public interface Sink {
      *             Unexpected error
      */
     void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a sink.
+     * <pre>
+     * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param sinkConfig
+     *            the sink configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @param updateOptions
+     *            options for the update operations
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Delete an existing sink

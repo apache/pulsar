@@ -19,6 +19,7 @@
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM busybox as pulsar
+
 ARG PULSAR_TARBALL
 
 ADD ${PULSAR_TARBALL} /

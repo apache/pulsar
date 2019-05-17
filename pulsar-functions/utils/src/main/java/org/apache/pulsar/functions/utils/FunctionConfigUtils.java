@@ -227,6 +227,8 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setRuntimeFlags(functionConfig.getRuntimeFlags());
         }
 
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
+
         return functionDetailsBuilder.build();
     }
 
@@ -290,7 +292,8 @@ public class FunctionConfigUtils {
         }
         Map<String, Object> userConfig;
         if (!isEmpty(functionDetails.getUserConfig())) {
-            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
             userConfig = new Gson().fromJson(functionDetails.getUserConfig(), type);
         } else {
             userConfig = new HashMap<>();
@@ -308,7 +311,8 @@ public class FunctionConfigUtils {
         functionConfig.setUserConfig(userConfig);
 
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             functionConfig.setSecrets(secretsMap);
         }
@@ -347,6 +351,8 @@ public class FunctionConfigUtils {
             functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         } else if (functionConfig.getPy() != null) {
             functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        } else if (functionConfig.getGo() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.GO);
         }
 
         WindowConfig windowConfig = functionConfig.getWindowConfig();
@@ -429,6 +435,20 @@ public class FunctionConfigUtils {
         }
     }
 
+    private static void doGolangChecks(FunctionConfig functionConfig) {
+        if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            throw new RuntimeException("Effectively-once processing guarantees not yet supported in Go function");
+        }
+
+        if (functionConfig.getWindowConfig() != null) {
+            throw new IllegalArgumentException("Windowing is not supported in Go function yet");
+        }
+
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
+            throw new IllegalArgumentException("Message retries not yet supported in Go function");
+        }
+    }
+
     private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
         if (inputTopics.contains(outputTopic)) {
             throw new IllegalArgumentException(
@@ -447,8 +467,11 @@ public class FunctionConfigUtils {
         if (isEmpty(functionConfig.getName())) {
             throw new IllegalArgumentException("Function name cannot be null");
         }
-        if (isEmpty(functionConfig.getClassName())) {
-            throw new IllegalArgumentException("Function classname cannot be null");
+        // go doesn't need className
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
+            if (isEmpty(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("Function classname cannot be null");
+            }
         }
 
         Collection<String> allInputTopics = collectAllInputTopics(functionConfig);
@@ -530,6 +553,12 @@ public class FunctionConfigUtils {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
         }
+        if (!isEmpty(functionConfig.getGo()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getGo())
+                && functionConfig.getGo().startsWith(BUILTIN)) {
+            if (!new File(functionConfig.getGo()).exists()) {
+                throw new IllegalArgumentException("The supplied go file does not exist");
+            }
+        }
 
         if (functionConfig.getInputSpecs() != null) {
             functionConfig.getInputSpecs().forEach((topicName, conf) -> {
@@ -587,6 +616,9 @@ public class FunctionConfigUtils {
             }
             doJavaChecks(functionConfig, classLoader);
             return classLoader;
+        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
+            doGolangChecks(functionConfig);
+            return null;
         } else {
             doPythonChecks(functionConfig);
             return null;
@@ -615,7 +647,7 @@ public class FunctionConfigUtils {
         if (mergedConfig.getInputSpecs() == null) {
             mergedConfig.setInputSpecs(new HashMap<>());
         }
-        
+
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
                 newConfig.getInputSpecs().put(topicName,

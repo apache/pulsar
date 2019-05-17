@@ -1,54 +1,53 @@
 ---
 id: client-libraries
 title: Pulsar client libraries
-sidebar_label: Client libraries
+sidebar_label: Use Pulsar with client libraries
 ---
 
-Pulsar currently has client libraries available for following languages:
+Pulsar supports the following client libraries:
 
-* [Java](#java-client)
-* [Go](#go-client)
-* [Python](#python-client)
-* [C++](#c-client)
+- [Java client](#java-client)
+- [Go client](#go-client)
+- [Python client](#python-client)
+- [C++ client](#c-client)
 
 ## Java client
 
-For a tutorial on using the Pulsar Java client to produce and consume messages, see [The Pulsar Java client](client-libraries-java.md).
+For instructions on how to use the Pulsar Java client to produce and consume messages, see [Pulsar Java client](client-libraries-java.md).
 
-There are also two independent sets of Javadoc API docs available:
+Two independent sets of Javadoc API docs are available.
 
 Library | Purpose
 :-------|:-------
-[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java.md) for producing and consuming messages on Pulsar topics
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview.md)
+[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java.md) is used to produce and consume messages on Pulsar topics.
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview.md).
 
 
 ## Go client
 
-For a tutorial on using the Pulsar Go client, see [The Pulsar Go client](client-libraries-go.md).
+For a tutorial on using the Pulsar Go client, see [Pulsar Go client](client-libraries-go.md).
 
 
 ## Python client
 
-For a tutorial on using the Pulsar Python client, see [The Pulsar Python client](client-libraries-python.md).
+For a tutorial on using the Pulsar Python client, see [Pulsar Python client](client-libraries-python.md).
 
 There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python).
 
 ## C++ client
 
-For a tutorial on using the Pulsar C++ clent, see [The Pulsar C++ client](client-libraries-cpp.md).
+For a tutorial on using the Pulsar C++ clent, see [Pulsar C++ client](client-libraries-cpp.md).
 
 There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here](/api/cpp).
 
 ## Feature Matrix
-
-This matrix listing all the features among different languages in Pulsar master can be found [here](https://github.com/apache/pulsar/wiki/Client-Features-Matrix).
+Pulsar client feature matrix for different languages is listed on [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
 
 ## Thirdparty Clients
 
 Besides the official released clients, there are also multiple projects on developing a Pulsar client in different languages.
 
-> if you have developed a Pulsar client, but it doesn't show up here. Feel free to submit a pull request to add your client to the list below.
+> If you have developed a new Pulsar client, feel free to submit a pull request and add your client to the list below.
 
 | Language | Project | Maintainer | License | Description |
 |----------|---------|------------|---------|-------------|
