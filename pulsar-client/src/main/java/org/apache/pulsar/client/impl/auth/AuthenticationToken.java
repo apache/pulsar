@@ -22,7 +22,6 @@ package org.apache.pulsar.client.impl.auth;
 import com.google.common.base.Charsets;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
