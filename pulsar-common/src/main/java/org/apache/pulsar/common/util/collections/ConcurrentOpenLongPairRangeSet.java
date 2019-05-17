@@ -30,9 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeProcessor;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 
@@ -95,67 +92,105 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
         @Override
         public boolean get(int bitIndex) {
-            return super.get(bitIndex);
+            long stamp = rwLock.tryOptimisticRead();
+            boolean isSet = super.get(bitIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    isSet = super.get(bitIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
+            }
+            return isSet;
         }
 
         @Override
         public void set(int bitIndex) {
-            long stamp = rwLock.writeLock();
-            try {
-                super.set(bitIndex);
-            } finally {
-                rwLock.unlockWrite(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            super.set(bitIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    super.set(bitIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
         }
 
         @Override
         public void set(int fromIndex, int toIndex) {
-            long stamp = rwLock.writeLock();
-            try {
-                super.set(fromIndex, toIndex);
-            } finally {
-                rwLock.unlockWrite(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            super.set(fromIndex, toIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    super.set(fromIndex, toIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
         }
 
         @Override
         public int nextSetBit(int fromIndex) {
-            long stamp = rwLock.readLock();
-            try {
-                return super.nextSetBit(fromIndex);
-            } finally {
-                rwLock.unlockRead(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            int bit = super.nextSetBit(fromIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    bit = super.nextSetBit(fromIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
+            return bit;
         }
 
         @Override
         public int nextClearBit(int fromIndex) {
-            long stamp = rwLock.readLock();
-            try {
-                return super.nextClearBit(fromIndex);
-            } finally {
-                rwLock.unlockRead(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            int bit = super.nextClearBit(fromIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    bit = super.nextClearBit(fromIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
+            return bit;
         }
 
         @Override
         public int previousSetBit(int fromIndex) {
-            long stamp = rwLock.readLock();
-            try {
-                return super.previousSetBit(fromIndex);
-            } finally {
-                rwLock.unlockRead(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            int bit = super.previousSetBit(fromIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    bit = super.previousSetBit(fromIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
+            return bit;
         }
 
         @Override
         public int previousClearBit(int fromIndex) {
-            long stamp = rwLock.readLock();
-            try {
-                return super.previousClearBit(fromIndex);
-            } finally {
-                rwLock.unlockRead(stamp);
+            long stamp = rwLock.tryOptimisticRead();
+            int bit = super.previousClearBit(fromIndex);
+            if (!rwLock.validate(stamp)) {
+                stamp = rwLock.readLock();
+                try {
+                    bit = super.previousClearBit(fromIndex);
+                } finally {
+                    rwLock.unlockRead(stamp);
+                }
             }
+            return bit;
         }
 
         @Override
