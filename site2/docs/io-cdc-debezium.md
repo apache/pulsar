@@ -55,7 +55,7 @@ Here is a configuration Json example:
         "pulsar.service.url": "pulsar://127.0.0.1:6650",
         "offset.storage.topic": "offset-topic"
     },
-    "archive": "connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"
+    "archive": "connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar"
 }
 ```
 
@@ -66,7 +66,7 @@ tenant: "public"
 namespace: "default"
 name: "debezium-kafka-source"
 topicName: "kafka-connect-topic"
-archive: "connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"
+archive: "connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar.nar"
 
 ##autoAck: true
 parallelism: 1
@@ -110,7 +110,7 @@ Here is a simple example to store MySQL change data using above example config.
  bin/pulsar standalone
 ```
 
-- Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar`.
+- Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar`.
 ```$bash
  bin/pulsar-admin source localrun  --sourceConfigFile debezium-mysql-source-config.yaml
 ```
