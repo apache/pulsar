@@ -156,13 +156,30 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
 
-    protected void readMoreEntries() {
+    /**
+     * Calculate available permits for read entries.
+     *
+     * @return
+     *   0:  Producer queue is full, no permits.
+     *  -1:  Rate Limiter reaches limit.
+     *  >0:  available permits for read entries.
+     */
+    private int getAvailablePermits() {
         int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
+
+        // return 0, if Producer queue is full, it will pause read entries.
+        if (availablePermits <= 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{} -> {}] Producer queue is full, availablePermits: {}, pause reading",
+                    topicName, localCluster, remoteCluster, availablePermits);
+            }
+            return 0;
+        }
 
         // handle rate limit
         if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
             DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
-            // no permits for rate limit
+            // no permits from rate limit
             if (!rateLimiter.hasMessageDispatchPermit()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] message-read exceeded topic replicator message-rate {}/{}, schedule after a {}",
@@ -170,17 +187,21 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                         rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
                         MESSAGE_RATE_BACKOFF_MS);
                 }
-                topic.getBrokerService().executor().schedule(
-                    () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                return;
+                return -1;
             }
 
-            // have permits for rate limit
+            // if dispatch-rate is in msg then read only msg according to available permit
             long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
             if (availablePermitsOnMsg > 0) {
                 availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
             }
         }
+
+        return availablePermits;
+    }
+
+    protected void readMoreEntries() {
+        int availablePermits = getAvailablePermits();
 
         if (availablePermits > 0) {
             int messagesToRead = Math.min(availablePermits, readBatchSize);
@@ -206,10 +227,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                             localCluster, remoteCluster, messagesToRead);
                 }
             }
+        } else if (availablePermits == -1) {
+            // no permits from rate limit
+            topic.getBrokerService().executor().schedule(
+                () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] Producer queue is full, pause reading", topicName, localCluster,
-                        remoteCluster);
+                log.debug("[{}][{} -> {}] No Permits for reading. availablePermits: {}",
+                    topicName, localCluster, remoteCluster, availablePermits);
             }
         }
     }
