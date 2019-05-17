@@ -19,47 +19,25 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
-
-import java.util.List;
-
-import static org.testng.Assert.fail;
-
-import java.lang.reflect.Method;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.SecurityUtility;
-
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Method;
+
+import static org.testng.Assert.fail;
 
 @Slf4j
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
@@ -143,6 +121,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant",
                                          new TenantInfo(ImmutableSet.of("admin"),
                                                         ImmutableSet.of("test")));
