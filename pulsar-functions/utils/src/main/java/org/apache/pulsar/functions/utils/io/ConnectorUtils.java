@@ -58,8 +58,8 @@ public class ConnectorUtils {
 
         try {
             // Try to load source class and check it implements Source interface
-            Object instance = ncl.loadClass(conf.getSourceClass()).newInstance();
-            if (!(instance instanceof Source)) {
+            Class sourceClass = ncl.loadClass(conf.getSourceClass());
+            if (!(Source.class.isAssignableFrom(sourceClass))) {
                 throw new IOException("Class " + conf.getSourceClass() + " does not implement interface "
                         + Source.class.getName());
             }
@@ -86,8 +86,8 @@ public class ConnectorUtils {
 
         try {
             // Try to load source class and check it implements Sink interface
-            Object instance = ncl.loadClass(conf.getSinkClass()).newInstance();
-            if (!(instance instanceof Sink)) {
+            Class sinkClass = ncl.loadClass(conf.getSinkClass());
+            if (!(Sink.class.isAssignableFrom(sinkClass))) {
                 throw new IOException(
                         "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());
             }
