@@ -68,7 +68,7 @@ dependencies = [
     'six',
 
     # functions dependencies
-    "apache-bookkeeper-client>=4.9.1",
+    "apache-bookkeeper-client>=4.9.2",
     "prometheus_client",
     "ratelimit"
 ]
