@@ -25,6 +25,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private transient Authentication authentication;
+    private transient Authentication authentication = new AuthenticationDisabled();
     @JsonIgnore
     private transient String authPluginClassName;
     @JsonIgnore
