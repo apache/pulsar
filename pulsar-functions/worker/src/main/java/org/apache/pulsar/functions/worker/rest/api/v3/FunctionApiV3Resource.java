@@ -297,13 +297,13 @@ public class FunctionApiV3Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path, clientAppId());
+        functions.uploadFunction(uploadedInputStream, path);
     }
 
     @GET
     @Path("/download")
     public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path, clientAppId());
+        return functions.downloadFunction(path);
     }
 
     @GET

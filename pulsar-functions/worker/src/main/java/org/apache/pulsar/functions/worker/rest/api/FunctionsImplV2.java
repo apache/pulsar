@@ -190,13 +190,13 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
-    public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole) {
-        delegate.uploadFunction(uploadedInputStream, path, clientRole);
+    public Response uploadFunction(InputStream uploadedInputStream, String path) {
+        delegate.uploadFunction(uploadedInputStream, path);
         return Response.ok().build();
     }
 
     public Response downloadFunction(String path, String clientRole) {
-        return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path, clientRole)).build();
+        return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path)).build();
     }
 
     public List<ConnectorDefinition> getListOfConnectors() {
