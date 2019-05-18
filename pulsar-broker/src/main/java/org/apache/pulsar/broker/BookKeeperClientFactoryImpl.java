@@ -93,6 +93,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setEnsemblePlacementPolicy(ZkIsolatedBookieEnsemblePlacementPolicy.class);
             bkConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientIsolationGroups());
+            bkConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientSecondaryIsolationGroups());
+            bkConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.MIN_AVAILABLE_PRIMARY_ISOLATED_BOOKIE,
+                    conf.getBookkeeperClientMinAvailableBookiesInIsolationGroups());
             if (bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) == null) {
                 ZooKeeperCache zkc = new ZooKeeperCache(zkClient, conf.getZooKeeperOperationTimeoutSeconds()) {
                 };
