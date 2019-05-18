@@ -32,7 +32,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
@@ -169,7 +171,8 @@ public class Producer {
 
         startPublishOperation();
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize));
+                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                        System.nanoTime()));
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
@@ -243,6 +246,7 @@ public class Producer {
         private Rate rateIn;
         private int msgSize;
         private long batchSize;
+        private long startTimeNs;
 
         private String originalProducerName;
         private long originalSequenceId;
@@ -304,6 +308,7 @@ public class Producer {
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
                 producer.cnx.ctx().channel().eventLoop().execute(this);
+                producer.topic.recordAddLatency(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTimeNs));
             }
         }
 
@@ -328,7 +333,7 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                long batchSize) {
+                long batchSize, long startTimeNs) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -337,6 +342,7 @@ public class Producer {
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
             callback.originalSequenceId = -1;
+            callback.startTimeNs = startTimeNs;
             return callback;
         }
 
@@ -360,6 +366,7 @@ public class Producer {
             ledgerId = -1;
             entryId = -1;
             batchSize = 0;
+            startTimeNs = -1;
             recyclerHandle.recycle(this);
         }
     }

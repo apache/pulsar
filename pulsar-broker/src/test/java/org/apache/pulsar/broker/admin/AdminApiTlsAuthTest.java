@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
@@ -80,6 +81,10 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientTlsEnabled(true);
 
         super.internalSetup();
+
+        PulsarAdmin admin = buildAdminClient("admin");
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.close();
     }
 
     @AfterMethod

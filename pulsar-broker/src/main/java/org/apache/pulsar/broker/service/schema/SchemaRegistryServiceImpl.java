@@ -88,11 +88,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return getSchema(schemaId)
             .thenApply(
                 (existingSchema) ->
-                    existingSchema == null
-                        || existingSchema.schema.isDeleted()
-                        || isCompatible(existingSchema, schema, strategy))
-            .thenCompose(isCompatible -> {
-                    if (isCompatible) {
+                    existingSchema == null ||
+                    existingSchema.schema.isDeleted() ||
+                    (isWellFormed(schema) &&
+                    isCompatible(existingSchema, schema, strategy)))
+            .thenCompose(isValid -> {
+                    if (isValid) {
                         byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
                         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
                             .setType(Functions.convertFromDomainType(schema.getType()))
@@ -142,6 +143,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setDeleted(true)
             .setTimestamp(clock.millis())
             .build();
+    }
+
+    private boolean isWellFormed(SchemaData schema) {
+        return compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
+            .isWellFormed(schema);
     }
 
     private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,

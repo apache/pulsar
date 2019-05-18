@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -150,6 +151,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
+
+            brokerAdmin.clusters().createCluster(configClusterName, new ClusterData(brokerUrl.toString()));
 
             brokerAdmin.tenants().createTenant("tenant1",
                                                new TenantInfo(ImmutableSet.of("user1"),

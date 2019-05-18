@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -99,10 +100,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("functionConfig") String functionConfigJson) {
+                               final @FormDataParam("functionConfig") String functionConfigJson,
+                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
     }
 
 
@@ -258,7 +260,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @GET
     @ApiOperation(
         value = "Fetch the current state associated with a Pulsar Function",
-        response = String.class
+        response = FunctionState.class
     )
     @ApiResponses(value = {
         @ApiResponse(code = 400, message = "Invalid request"),

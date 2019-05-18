@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,9 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
@@ -372,4 +376,49 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testAddBrokerLatencyStats() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        int numMessages = 11;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        pulsar.getBrokerService().updateRates();
+
+        JsonArray metrics = admin.brokerStats().getMetrics();
+
+        boolean latencyCaptured = false;
+        for (int i = 0; i < metrics.size(); i++) {
+            try {
+                String data = metrics.get(i).getAsJsonObject().get("metrics").toString();
+                if (data.contains(NamespaceStats.BRK_ADD_ENTRY_LATENCY_PREFIX)) {
+                    JsonObject stat = metrics.get(i).getAsJsonObject().get("metrics").getAsJsonObject();
+                    for (String key : stat.keySet()) {
+                        if (key.startsWith(NamespaceStats.BRK_ADD_ENTRY_LATENCY_PREFIX)) {
+                            double val = stat.get(key).getAsDouble();
+                            if (val > 0.0) {
+                                latencyCaptured = true;
+                            }
+                        }
+                    }
+                    System.out.println(stat.toString());
+                }
+            } catch (Exception e) {
+                //Ok
+            }
+        }
+
+        assertTrue(latencyCaptured);
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

@@ -29,11 +29,13 @@ Currently Pulsar supports two authentication providers:
 
 - [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
+- [Kerberos](security-kerberos.md)
 
 ## Contents
 
 - [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
 - [Authentication using Athenz](security-athenz.md)
+- [Authentication using Kerberos](security-kerberos.md)
 - [Authorization and ACLs](security-authorization.md)
 - [End-to-End Encryption](security-encryption.md)
 

@@ -85,6 +85,9 @@ public class LoadSimulationController {
 
     // JCommander arguments for starting a controller via main.
     private static class MainArguments {
+        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        boolean help;
+
         @Parameter(names = { "--cluster" }, description = "Cluster to test on", required = true)
         String cluster;
 
@@ -711,12 +714,13 @@ public class LoadSimulationController {
     public static void main(String[] args) throws Exception {
         final MainArguments arguments = new MainArguments();
         final JCommander jc = new JCommander(arguments);
+        jc.setProgramName("pulsar-perf simulation-controller");
         try {
             jc.parse(args);
         } catch (Exception ex) {
+            System.out.println(ex.getMessage());
             jc.usage();
-            ex.printStackTrace();
-            System.exit(1);
+            System.exit(-1);
         }
         (new LoadSimulationController(arguments)).run();
     }

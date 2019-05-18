@@ -22,6 +22,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -52,6 +55,8 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -60,6 +65,7 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
@@ -97,6 +103,15 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
+
+    private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, SchemaInfoProvider>() {
+
+                @Override
+                public SchemaInfoProvider load(String topicName) {
+                    return newSchemaProvider(topicName);
+                }
+            });
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
         this(conf, getEventLoopGroup(conf));
@@ -291,32 +306,15 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        if (schema instanceof AutoConsumeSchema) {
-            AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
-            return lookup.getSchema(TopicName.get(conf.getSingleTopic()))
-                    .thenCompose(schemaInfoOptional -> {
-                        if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
-                            GenericSchemaImpl genericSchema = GenericSchemaImpl.of(schemaInfoOptional.get());
-                            log.info("Auto detected schema for topic {} : {}",
-                                conf.getSingleTopic(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
-                            autoConsumeSchema.setSchema(genericSchema);
-                            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
-                        } else {
-                            return FutureUtil.failedFuture(
-                                new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
-                        }
-                    });
-        } else {
-            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
+        try {
+            preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic());
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
         }
+        return doSingleTopicSubscribeAsync(conf, schema, interceptors);
     }
 
     private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        Optional<ConsumerBase<T>> subscriber = subscriptionExist(conf);
-        if (subscriber.isPresent()) {
-            return CompletableFuture.completedFuture(subscriber.get());
-        }
-
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
@@ -423,24 +421,12 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        if (schema instanceof AutoConsumeSchema) {
-            AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
-            return lookup.getSchema(TopicName.get(conf.getTopicName()))
-                    .thenCompose(schemaInfoOptional -> {
-                        if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
-                            GenericSchemaImpl genericSchema = GenericSchemaImpl.of(schemaInfoOptional.get());
-                            log.info("Auto detected schema for topic {} : {}",
-                                conf.getTopicName(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
-                            autoConsumeSchema.setSchema(genericSchema);
-                            return doCreateReaderAsync(conf, schema);
-                        } else {
-                            return FutureUtil.failedFuture(
-                                new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
-                        }
-                    });
-        } else {
-            return doCreateReaderAsync(conf, schema);
+        try {
+            preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName());
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
         }
+        return doCreateReaderAsync(conf, schema);
     }
     <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
@@ -676,20 +662,6 @@ public class PulsarClientImpl implements PulsarClient {
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> Optional<ConsumerBase<T>> subscriptionExist(ConsumerConfigurationData<?> conf) {
-        synchronized (consumers) {
-            Optional<ConsumerBase<?>> subscriber = consumers.keySet().stream()
-                    .filter(c -> c.getSubType().equals(PulsarApi.CommandSubscribe.SubType.Shared))
-                    .filter(c -> conf.getTopicNames().contains(c.getTopic()))
-                    .filter(c -> c.getSubscription().equals(conf.getSubscriptionName()))
-                    .filter(Consumer::isConnected)
-                    .findFirst();
-            subscriber.ifPresent(ConsumerBase::incrRefCount);
-            return subscriber.map(ConsumerBase.class::cast);
-        }
-    }
-
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
         return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
@@ -737,4 +709,39 @@ public class PulsarClientImpl implements PulsarClient {
             return null;
         }
     }
+
+    private SchemaInfoProvider newSchemaProvider(String topicName) {
+        return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
+    }
+
+    private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
+        return schemaProviderLoadingCache;
+    }
+
+    protected void preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl, Schema schema, String topicName) throws Throwable {
+        if (schema != null && schema.supportSchemaVersioning()) {
+            SchemaInfoProvider schemaInfoProvider = null;
+            try {
+                schemaInfoProvider = pulsarClientImpl.getSchemaProviderLoadingCache().get(topicName);
+            } catch (ExecutionException e) {
+                log.error("Failed to load schema info provider for topic {}", topicName, e);
+                throw e.getCause();
+            }
+
+            if (schema instanceof AutoConsumeSchema) {
+                SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
+                if (schemaInfo.getType() != SchemaType.AVRO){
+                    throw new RuntimeException("Currently schema detection only works for topics with avro schemas");
+
+                }
+                GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoProvider.getLatestSchema());
+                log.info("Auto detected schema for topic {} : {}",
+                        topicName, new String(schemaInfo.getSchema(), UTF_8));
+                ((AutoConsumeSchema) schema).setSchema(genericSchema);
+            }
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+
+    }
+
 }

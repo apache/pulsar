@@ -72,6 +72,9 @@ public class PerformanceProducer {
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
 
+    private static final LongAdder totalMessagesSent = new LongAdder();
+    private static final LongAdder totalBytesSent = new LongAdder();
+
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
@@ -89,7 +92,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
+        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
@@ -113,6 +116,9 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = 1000;
+
+        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
+        public int maxPendingMessagesAcrossPartitions = 50000;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -159,7 +165,7 @@ public class PerformanceProducer {
 
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-producer");
+        jc.setProgramName("pulsar-perf produce");
 
         try {
             jc.parse(args);
@@ -264,6 +270,7 @@ public class PerformanceProducer {
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .compressionType(arguments.compression) //
                 .maxPendingMessages(arguments.maxOutstanding) //
+                .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                 // enable round robin message routing if it is a partitioned topic
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
@@ -301,8 +308,11 @@ public class PerformanceProducer {
 
         log.info("Created {} producers", producers.size());
 
+        long start = System.nanoTime();
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                printAggregatedThroughput(start);
                 printAggregatedStats();
             }
         });
@@ -348,6 +358,9 @@ public class PerformanceProducer {
                         producer.sendAsync(payloadData).thenRun(() -> {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
+
+                            totalMessagesSent.increment();
+                            totalBytesSent.add(payloadData.length);
 
                             long now = System.nanoTime();
                             if (now > warmupEndTime) {
@@ -421,6 +434,17 @@ public class PerformanceProducer {
         client.close();
     }
 
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double rate = totalMessagesSent.sum() / elapsed;
+        double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
+        log.info(
+            "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
+            totalMessagesSent,
+            totalFormat.format(rate),
+            totalFormat.format(throughput));
+    }
+
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
@@ -438,5 +462,6 @@ public class PerformanceProducer {
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 }

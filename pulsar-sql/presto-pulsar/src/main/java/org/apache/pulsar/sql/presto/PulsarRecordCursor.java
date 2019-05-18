@@ -138,6 +138,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 pulsarSplit.getTableName());
         this.metricsTracker = pulsarConnectorMetricsTracker;
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
+        this.pulsarConnectorConfig = pulsarConnectorConfig;
 
         Schema schema = PulsarConnectorUtils.parseSchema(pulsarSplit.getSchema());
 
@@ -260,7 +261,7 @@ public class PulsarRecordCursor implements RecordCursor {
                                             } catch (InterruptedException e) {
                                                 //no-op
                                             }
-                                        });
+                                        }, pulsarConnectorConfig.getMaxMessageSize());
                             } catch (IOException e) {
                                 log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
                                 throw new RuntimeException(e);

@@ -187,4 +187,12 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit);
 
+    /**
+     * This sets the server request time out for the pulsar admin client for any request.
+     *
+     * @param requestTimeout
+     * @param requestTimeoutUnit
+     */
+    PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit);
+
 }

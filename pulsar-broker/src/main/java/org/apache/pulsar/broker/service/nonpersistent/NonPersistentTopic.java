@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -43,6 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -127,6 +129,7 @@ public class NonPersistentTopic implements Topic {
             .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
+    private StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -139,6 +142,8 @@ public class NonPersistentTopic implements Topic {
     private volatile boolean isEncryptionRequired = false;
     private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
         SchemaCompatibilityStrategy.FULL;
+    // schema validation enforced flag
+    private volatile boolean schemaValidationEnforced = false;
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -183,6 +188,7 @@ public class NonPersistentTopic implements Topic {
             isEncryptionRequired = policies.encryption_required;
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                     policies.schema_auto_update_compatibility_strategy);
+            schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
@@ -830,7 +836,10 @@ public class NonPersistentTopic implements Topic {
         bundleStats.msgRateOut += topicStats.aggMsgRateOut;
         bundleStats.msgThroughputIn += topicStats.aggMsgThroughputIn;
         bundleStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
-
+        // add publish-latency metrics
+        this.addEntryLatencyStatsUsec.refresh();
+        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        this.addEntryLatencyStatsUsec.reset();
         // Close topic object
         topicStatsStream.endObject();
     }
@@ -955,6 +964,7 @@ public class NonPersistentTopic implements Topic {
         isEncryptionRequired = data.encryption_required;
         schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                 data.schema_auto_update_compatibility_strategy);
+        schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {
             producer.checkPermissions();
@@ -988,6 +998,9 @@ public class NonPersistentTopic implements Topic {
     public boolean isEncryptionRequired() {
         return isEncryptionRequired;
     }
+
+    @Override
+    public boolean getSchemaValidationEnforced() { return schemaValidationEnforced; }
 
     @Override
     public boolean isReplicated() {
@@ -1052,5 +1065,10 @@ public class NonPersistentTopic implements Topic {
                         return addSchema(schema).thenApply((ignore) -> true);
                     }
                 });
+    }
+    
+    @Override
+    public void recordAddLatency(long latencyUSec) {
+        addEntryLatencyStatsUsec.addValue(latencyUSec);
     }
 }

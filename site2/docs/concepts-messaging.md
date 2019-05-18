@@ -150,6 +150,8 @@ In *Key_Shared* mode, multiple consumers can attach to the same subscription. Me
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
+**Key_Shared subscription is a beta feature. You can disable it at broker.config.**
+
 ## Multi-topic subscriptions
 
 When a consumer subscribes to a Pulsar topic, by default it subscribes to one specific topic, such as `persistent://public/default/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:

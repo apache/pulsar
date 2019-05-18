@@ -59,6 +59,9 @@ public class PerformanceConsumer {
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
+    private static final LongAdder totalMessagesReceived = new LongAdder();
+    private static final LongAdder totalBytesReceived = new LongAdder();
+
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
@@ -131,7 +134,7 @@ public class PerformanceConsumer {
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-consumer");
+        jc.setProgramName("pulsar-perf consume");
 
         try {
             jc.parse(args);
@@ -194,6 +197,9 @@ public class PerformanceConsumer {
         MessageListener<byte[]> listener = (consumer, msg) -> {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
+
+            totalMessagesReceived.increment();
+            totalBytesReceived.add(msg.getData().length);
 
             if (limiter != null) {
                 limiter.acquire();
@@ -280,8 +286,11 @@ public class PerformanceConsumer {
         log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
                 arguments.numTopics);
 
+        long start = System.nanoTime();
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                printAggregatedThroughput(start);
                 printAggregatedStats();
             }
         });
@@ -318,6 +327,17 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
+    }
+
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double rate = totalMessagesReceived.sum() / elapsed;
+        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        log.info(
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+            totalMessagesReceived,
+            dec.format(rate),
+            dec.format(throughput));
     }
 
     private static void printAggregatedStats() {

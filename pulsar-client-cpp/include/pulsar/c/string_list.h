@@ -19,24 +19,22 @@
 
 #pragma once
 
+#include <pulsar/defines.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#pragma GCC visibility push(default)
-
 typedef struct _pulsar_string_list pulsar_string_list_t;
 
-pulsar_string_list_t *pulsar_string_list_create();
-void pulsar_string_list_free(pulsar_string_list_t *list);
+PULSAR_PUBLIC pulsar_string_list_t *pulsar_string_list_create();
+PULSAR_PUBLIC void pulsar_string_list_free(pulsar_string_list_t *list);
 
-int pulsar_string_list_size(pulsar_string_list_t *list);
+PULSAR_PUBLIC int pulsar_string_list_size(pulsar_string_list_t *list);
 
-void pulsar_string_list_append(pulsar_string_list_t *list, const char *item);
+PULSAR_PUBLIC void pulsar_string_list_append(pulsar_string_list_t *list, const char *item);
 
-const char *pulsar_string_list_get(pulsar_string_list_t *map, int index);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC const char *pulsar_string_list_get(pulsar_string_list_t *map, int index);
 
 #ifdef __cplusplus
 }

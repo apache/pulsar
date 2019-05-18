@@ -529,9 +529,9 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * 
+     *
      * Ledger-Op (Create/Delete) timeout
-     * 
+     *
      * @return
      */
     public long getMetadataOperationsTimeoutSeconds() {
@@ -540,17 +540,17 @@ public class ManagedLedgerConfig {
 
     /**
      * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
-     * 
+     *
      * @param metadataOperationsTimeoutSeconds
      */
     public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
         this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
         return this;
     }
-    
+
     /**
      * Ledger read-entry timeout
-     * 
+     *
      * @return
      */
     public long getReadEntryTimeoutSeconds() {
@@ -560,7 +560,7 @@ public class ManagedLedgerConfig {
     /**
      * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
      * readTimeoutSeconds <= 0)
-     * 
+     *
      * @param readTimeoutSeconds
      * @return
      */
@@ -568,14 +568,14 @@ public class ManagedLedgerConfig {
         this.readEntryTimeoutSeconds = readEntryTimeoutSeconds;
         return this;
     }
-    
+
     public long getAddEntryTimeoutSeconds() {
         return addEntryTimeoutSeconds;
     }
 
     /**
      * Add-entry timeout after which add-entry callback will be failed if add-entry is not succeeded.
-     * 
+     *
      * @param addEntryTimeoutSeconds
      */
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {

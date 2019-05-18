@@ -22,8 +22,7 @@
 
 #include <iosfwd>
 #include <memory>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
@@ -106,7 +105,7 @@ enum SchemaType
 };
 
 // Return string representation of result code
-const char *strSchemaType(SchemaType schemaType);
+PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType);
 
 class SchemaInfoImpl;
 
@@ -115,7 +114,7 @@ typedef std::map<std::string, std::string> StringMap;
 /**
  * Encapsulates data around the schema definition
  */
-class SchemaInfo {
+class PULSAR_PUBLIC SchemaInfo {
    public:
     SchemaInfo();
 
@@ -155,6 +154,4 @@ class SchemaInfo {
 
 }  // namespace pulsar
 
-std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType);

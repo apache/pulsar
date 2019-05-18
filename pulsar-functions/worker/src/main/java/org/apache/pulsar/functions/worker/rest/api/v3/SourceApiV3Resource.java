@@ -23,6 +23,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -73,10 +74,11 @@ public class SourceApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                             final @FormDataParam("sourceConfig") String sourceConfigJson,
+                             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
     }
 
 
