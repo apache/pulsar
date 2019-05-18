@@ -31,12 +31,18 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.avro.reflect.AvroDefault;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+
+import java.math.BigDecimal;
 
 /**
  * Keep a list of schemas for testing.
@@ -90,6 +96,30 @@ public final class Schemas {
         private int gpa;
         private int grade;
 
+    }
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    @Builder
+    public static class AvroLogicalType{
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
+        BigDecimal decimal;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
+        LocalDate date;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
+        DateTime timestampMillis;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
+        LocalTime timeMillis;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
+        long timestampMicros;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"time-micros\"}")
+        long timeMicros;
     }
 
     private Schemas() {}
