@@ -73,7 +73,7 @@ public class CmdSources extends CmdBase {
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
-        super("source", admin);
+        super("sources", admin);
         createSource = new CreateSource();
         updateSource = new UpdateSource();
         deleteSource = new DeleteSource();

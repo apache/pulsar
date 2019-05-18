@@ -70,7 +70,7 @@ public class CmdSinks extends CmdBase {
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
-        super("sink", admin);
+        super("sinks", admin);
         createSink = new CreateSink();
         updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
