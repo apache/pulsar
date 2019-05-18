@@ -25,7 +25,6 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -44,19 +43,16 @@ public class ZipFiles {
     /**
      * Returns true if the given file is a gzip file.
      */
-   @SuppressWarnings("deprecation")
-   public static boolean isZip(File f) {
-
-       InputStream input = null;
+    public static boolean isZip(File f) {
+        DataInputStream in = null;
         try {
-            DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)));
+            in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)));
             int test = in.readInt();
-            in.close();
             return test == 0x504b0304;
         } catch (final Exception e) {
             return false;
         } finally {
-            IOUtils.closeQuietly(input);
+            IOUtils.closeQuietly(in);
         }
     }
 
