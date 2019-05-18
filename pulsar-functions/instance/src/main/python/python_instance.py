@@ -328,6 +328,7 @@ class PythonInstance(object):
   def setup_state(self):
     table_ns = "%s_%s" % (str(self.instance_config.function_details.tenant),
                           str(self.instance_config.function_details.namespace))
+    table_ns = table_ns.replace("-", "_")
     table_name = str(self.instance_config.function_details.name)
     return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 
