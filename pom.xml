@@ -983,6 +983,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>elasticsearch-rest-high-level-client</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
+      <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>${joda.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
