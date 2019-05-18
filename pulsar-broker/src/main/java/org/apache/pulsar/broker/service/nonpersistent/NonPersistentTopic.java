@@ -773,7 +773,6 @@ public class NonPersistentTopic implements Topic {
 
                 topicStatsStream.startList("consumers");
 
-                subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
                     consumer.updateRates();
@@ -798,8 +797,9 @@ public class NonPersistentTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getRate());
+                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
                 }
 
                 // Close consumers
