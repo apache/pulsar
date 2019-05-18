@@ -196,7 +196,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             entries.forEach(entry -> {
                 int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), subscription, -1);
                 if (totalMsgs > 0) {
-                    msgDrop.recordEvent();
+                    msgDrop.recordEvent(totalMsgs);
                 }
                 entry.release();
             });

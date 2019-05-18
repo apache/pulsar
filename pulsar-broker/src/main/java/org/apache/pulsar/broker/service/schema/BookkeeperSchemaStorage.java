@@ -611,7 +611,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     public static Exception bkException(String operation, int rc, long ledgerId, long entryId) {
-        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc) + " -  ledger=" + ledgerId;
+        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc)
+                + " -  ledger=" + ledgerId + " - operation=" + operation;
 
         if (entryId != -1) {
             message += " - entry=" + entryId;

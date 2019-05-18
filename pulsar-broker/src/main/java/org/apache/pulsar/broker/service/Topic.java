@@ -82,6 +82,13 @@ public interface Topic {
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
+    
+    /**
+     * record add-latency in micro-seconds.
+     * 
+     * @param latencyUSec
+     */
+    void recordAddLatency(long latencyUSec);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,

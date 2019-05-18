@@ -86,46 +86,33 @@ public class FunctionCommon {
         }
     }
 
-    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) {
-        Object userClass = createInstance(functionConfig.getClassName(), classLoader);
+    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) throws ClassNotFoundException {
         boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
-        return getFunctionTypes(userClass, isWindowConfigPresent);
+        Class functionClass = classLoader.loadClass(functionConfig.getClassName());
+        return getFunctionTypes(functionClass, isWindowConfigPresent);
     }
     
-    public static Class<?>[] getFunctionTypes(Object userClass, boolean isWindowConfigPresent) {
-
+    public static Class<?>[] getFunctionTypes(Class userClass, boolean isWindowConfigPresent) {
         Class<?>[] typeArgs;
         // if window function
         if (isWindowConfigPresent) {
-            if (userClass instanceof WindowFunction) {
-                WindowFunction function = (WindowFunction) userClass;
-                if (function == null) {
-                    throw new IllegalArgumentException(
-                            String.format("The WindowFunction class %s could not be instantiated", userClass));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, function.getClass());
+            if (WindowFunction.class.isAssignableFrom(userClass)) {
+                typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, userClass);
             } else {
-                java.util.function.Function function = (java.util.function.Function) userClass;
-                if (function == null) {
-                    throw new IllegalArgumentException(
-                            String.format("The Java util function class %s could not be instantiated", userClass));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
                 if (!typeArgs[0].equals(Collection.class)) {
                     throw new IllegalArgumentException("Window function must take a collection as input");
                 }
-                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, userClass);
                 Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
                 Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
                 typeArgs[0] = (Class<?>) actualInputType;
             }
         } else {
-            if (userClass instanceof Function) {
-                Function pulsarFunction = (Function) userClass;
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
+            if (Function.class.isAssignableFrom(userClass)) {
+                typeArgs = TypeResolver.resolveRawArguments(Function.class, userClass);
             } else {
-                java.util.function.Function function = (java.util.function.Function) userClass;
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
             }
         }
 
@@ -200,30 +187,20 @@ public class FunctionCommon {
     }
 
 
-    public static Class<?> getSourceType(String className, ClassLoader classloader) {
+    public static Class<?> getSourceType(String className, ClassLoader classLoader) throws ClassNotFoundException {
 
-        Object userClass = Reflections.createInstance(className, classloader);
-        Class<?> typeArg;
-        Source source = (Source) userClass;
-        if (source == null) {
-            throw new IllegalArgumentException(String.format("The Pulsar source class %s could not be instantiated",
-                    className));
-        }
-        typeArg = TypeResolver.resolveRawArgument(Source.class, source.getClass());
+        Class userClass = classLoader.loadClass(className);
+
+        Class<?> typeArg = TypeResolver.resolveRawArgument(Source.class, userClass);
 
         return typeArg;
     }
 
-    public static Class<?> getSinkType(String className, ClassLoader classLoader) {
+    public static Class<?> getSinkType(String className, ClassLoader classLoader) throws ClassNotFoundException {
 
-        Object userClass = Reflections.createInstance(className, classLoader);
-        Class<?> typeArg;
-        Sink sink = (Sink) userClass;
-        if (sink == null) {
-            throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated",
-                    className));
-        }
-        typeArg = TypeResolver.resolveRawArgument(Sink.class, sink.getClass());
+        Class userClass = classLoader.loadClass(className);
+
+        Class<?> typeArg = TypeResolver.resolveRawArgument(Sink.class, userClass);
 
         return typeArg;
     }

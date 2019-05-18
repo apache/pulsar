@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import lombok.Data;
+import java.io.Serializable;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -44,10 +43,15 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     private String serviceUrl;
     @JsonIgnore
-    private ServiceUrlProvider serviceUrlProvider;
+    private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private Authentication authentication = new AuthenticationDisabled();
+    private transient Authentication authentication = new AuthenticationDisabled();
+    @JsonIgnore
+    private transient String authPluginClassName;
+    @JsonIgnore
+    private transient Map<String, String> authParams;
+
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
 
