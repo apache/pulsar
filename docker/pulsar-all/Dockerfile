@@ -17,10 +17,10 @@
 # under the License.
 #
 
+FROM busybox as pulsar-all
+
 ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
-
-FROM busybox as pulsar-all
 
 ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
