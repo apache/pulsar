@@ -32,8 +32,6 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
-import org.apache.commons.io.IOUtils;
-
 /**
  * Helper class that provides helper methods for working with
  * zip-formatted files.
@@ -44,15 +42,11 @@ public class ZipFiles {
      * Returns true if the given file is a gzip file.
      */
     public static boolean isZip(File f) {
-        DataInputStream in = null;
-        try {
-            in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)));
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)))){
             int test = in.readInt();
             return test == 0x504b0304;
         } catch (final Exception e) {
             return false;
-        } finally {
-            IOUtils.closeQuietly(in);
         }
     }
 
