@@ -90,13 +90,11 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     @Override
     public boolean isWellFormed(SchemaData to) {
         KeyValue<SchemaData, SchemaData> keyValue = parseSchemaData(to);
-        SchemaCompatibilityCheck valueCheck;
-        if (checkers.get(keyValue.getValue().getType()) != null) {
-            valueCheck = checkers.get(keyValue.getValue().getType());
-        } else {
-            valueCheck = SchemaCompatibilityCheck.DEFAULT;
-        }
-        return valueCheck.isWellFormed(keyValue.getKey()) && valueCheck.isWellFormed(keyValue.getValue());
+        SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(
+                keyValue.getKey().getType(), SchemaCompatibilityCheck.DEFAULT);
+        SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(
+                keyValue.getValue().getType(), SchemaCompatibilityCheck.DEFAULT);
+        return keyCheck.isWellFormed(keyValue.getKey()) && valueCheck.isWellFormed(keyValue.getValue());
     }
 
     @Override
@@ -118,19 +116,8 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         if (fromKeyType != toKeyType || fromValueType != toValueType) {
             return false;
         }
-
-        SchemaCompatibilityCheck keyCheck;
-        if (checkers.get(toKeyType) != null) {
-            keyCheck = checkers.get(toKeyType);
-        } else {
-            keyCheck = SchemaCompatibilityCheck.DEFAULT;
-        }
-        SchemaCompatibilityCheck valueCheck;
-        if (checkers.get(toValueType) != null) {
-            valueCheck = checkers.get(toValueType);
-        } else {
-            valueCheck = SchemaCompatibilityCheck.DEFAULT;
-        }
+        SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(toKeyType, SchemaCompatibilityCheck.DEFAULT);
+        SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
 
         return keyCheck.isCompatible(fromKeyValue.getKey(), toKeyValue.getKey(), strategy)
                 && valueCheck.isCompatible(fromKeyValue.getValue(), toKeyValue.getValue(), strategy);
