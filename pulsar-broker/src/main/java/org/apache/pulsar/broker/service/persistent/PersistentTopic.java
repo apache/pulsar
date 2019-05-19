@@ -188,7 +188,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         SchemaCompatibilityStrategy.FULL;
     // schema validation enforced flag
     private volatile boolean schemaValidationEnforced = false;
-    private StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+    private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
