@@ -100,16 +100,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
-<<<<<<< HEAD
-            .thenApply(
-                (existingSchema) -> {
-                    try {
-                        return existingSchema == null
-                            || existingSchema.schema.isDeleted()
-                            || (isCompatible(schemaId, schema, strategy).get());
-                    } catch (Exception e) {
-                        return false;
-=======
             .thenCompose(
                 (existingSchema) ->
                 {
@@ -117,7 +107,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         return completedFuture(true);
                     } else {
                         return isCompatible(schemaId, schema, strategy);
->>>>>>> [schema] avoid doing synchronous calls in async callbacks or methods
                     }
                 }
             )
