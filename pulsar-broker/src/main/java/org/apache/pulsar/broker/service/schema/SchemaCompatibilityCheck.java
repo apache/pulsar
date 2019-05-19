@@ -22,14 +22,8 @@ import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public interface SchemaCompatibilityCheck {
-    SchemaType getSchemaType();
 
-    /**
-     *
-     * @param to the future schema i.e. the schema sent by the producer
-     * @return whether the schemas are well-formed
-     */
-    boolean isWellFormed(SchemaData to);
+    SchemaType getSchemaType();
 
     /**
      *
@@ -50,14 +44,10 @@ public interface SchemaCompatibilityCheck {
     boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy);
 
     SchemaCompatibilityCheck DEFAULT = new SchemaCompatibilityCheck() {
+
         @Override
         public SchemaType getSchemaType() {
             return SchemaType.NONE;
-        }
-
-        @Override
-        public boolean isWellFormed(SchemaData to) {
-            return true;
         }
 
         @Override
