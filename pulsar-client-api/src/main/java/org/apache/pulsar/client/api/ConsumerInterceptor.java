@@ -107,4 +107,15 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param messageIds message to ack, null if acknowledge fail.
      */
     void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     *
+     * This method will be called when a redelivery from an acknowledge timeout occurs.
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param messageIds message to ack, null if acknowledge fail.
+     */
+    void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
 }

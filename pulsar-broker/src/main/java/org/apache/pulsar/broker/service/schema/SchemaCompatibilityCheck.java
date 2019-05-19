@@ -26,6 +26,13 @@ public interface SchemaCompatibilityCheck {
 
     /**
      *
+     * @param to the future schema i.e. the schema sent by the producer
+     * @return whether the schemas are well-formed
+     */
+    boolean isWellFormed(SchemaData to);
+
+    /**
+     *
      * @param from the current schema i.e. schema that the broker has
      * @param to the future schema i.e. the schema sent by the producer
      * @param strategy the strategy to use when comparing schemas
@@ -37,6 +44,11 @@ public interface SchemaCompatibilityCheck {
         @Override
         public SchemaType getSchemaType() {
             return SchemaType.NONE;
+        }
+
+        @Override
+        public boolean isWellFormed(SchemaData to) {
+            return true;
         }
 
         @Override

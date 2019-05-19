@@ -169,6 +169,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -185,6 +187,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -200,6 +204,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         AuthenticationBasic authPassword = new AuthenticationBasic();
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));

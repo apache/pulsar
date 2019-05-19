@@ -39,7 +39,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -178,7 +177,7 @@ public class SinkApiV3ResourceTest {
 
         this.resource = spy(new SinkImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(ComponentType.SINK);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SINK);
     }
 
     //
@@ -226,7 +225,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
-    public void testRegisterSinkMissingFunctionName() {
+    public void testRegisterSinkMissingSinkName() {
         try {
             testRegisterSinkMissingArguments(
                 tenant,
@@ -258,6 +257,26 @@ public class SinkApiV3ResourceTest {
             parallelism,
                 null
             );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink class UnknownClass must be in class path")
+    public void testRegisterSinkWrongClassName() {
+            try {
+                testRegisterSinkMissingArguments(
+                        tenant,
+                        namespace,
+                        sink,
+                        mockedInputStream,
+                        mockedFormData,
+                        topicsToSerDeClassName,
+                        "UnknownClass",
+                        parallelism,
+                        null
+                );
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -490,7 +509,7 @@ public class SinkApiV3ResourceTest {
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
-            .setMessage("source registered");
+            .setMessage("sink registered");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
@@ -915,7 +934,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkWithUrl() throws IOException {
+    public void testUpdateSinkWithUrl() throws IOException, ClassNotFoundException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -1336,9 +1355,9 @@ public class SinkApiV3ResourceTest {
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
 
         mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(ComponentType.SOURCE);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(ComponentType.FUNCTION);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(ComponentType.SINK);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.SINK);
 
         List<String> sinkList = listDefaultSinks();
         assertEquals(functions, sinkList);

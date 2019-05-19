@@ -123,6 +123,7 @@ public class UnAckedMessageTracker implements Closeable {
                     writeLock.unlock();
                 }
                 if (messageIds.size() > 0) {
+                    consumerBase.onAckTimeoutSend(messageIds);
                     consumerBase.redeliverUnacknowledgedMessages(messageIds);
                 }
                 timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);

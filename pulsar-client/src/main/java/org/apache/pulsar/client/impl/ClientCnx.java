@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.net.ssl.SSLSession;
 
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
@@ -117,6 +119,10 @@ public class ClientCnx extends PulsarHandler {
             .newUpdater(ClientCnx.class, "numberOfRejectRequests");
     @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
+
+    @Getter
+    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     private final int protocolVersion;
@@ -275,7 +281,15 @@ public class ClientCnx extends PulsarHandler {
         }
 
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
-
+        if (connected.hasMaxMessageSize()) {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Connection has max message size setting, replace old frameDecoder with "
+                          + "server frame size {}", ctx.channel(), connected.getMaxMessageSize());
+            }
+            maxMessageSize = connected.getMaxMessageSize();
+            ctx.pipeline().replace("frameDecoder", "newFrameDecoder", new LengthFieldBasedFrameDecoder(
+                connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        }
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }

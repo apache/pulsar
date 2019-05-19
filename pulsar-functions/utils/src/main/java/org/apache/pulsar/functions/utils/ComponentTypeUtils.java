@@ -16,21 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.utils;
 
-public enum ComponentType {
-    FUNCTION("Function"),
-    SOURCE("Source"),
-    SINK("Sink");
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
-    private final String componentName;
-
-    ComponentType(String componentName) {
-        this.componentName = componentName;
-    }
-
-    @Override
-    public String toString() {
-        return componentName;
+public class ComponentTypeUtils {
+    public static String toString(FunctionDetails.ComponentType componentType) {
+        switch (componentType) {
+            case FUNCTION:
+                return "Function";
+            case SOURCE:
+                return "Source";
+            case SINK:
+                return "Sink";
+            default:
+                throw new RuntimeException("Unknown componentType " + componentType);
+        }
     }
 }
