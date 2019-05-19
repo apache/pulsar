@@ -95,7 +95,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "--replicated" }, description = "Wether the subscription status should be replicated")
+        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
