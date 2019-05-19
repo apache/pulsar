@@ -76,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -1413,7 +1414,11 @@ public class FunctionApiV3ResourceTest {
     public void testDownloadFunctionHttpUrl() throws Exception {
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionsImpl function = new FunctionsImpl(null);
+        WorkerService worker = mock(WorkerService.class);
+        WorkerConfig config = mock(WorkerConfig.class);
+        when(config.isAuthorizationEnabled()).thenReturn(false);
+        when(worker.getWorkerConfig()).thenReturn(config);
+        FunctionsImpl function = new FunctionsImpl(()-> worker);
         StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
@@ -1428,7 +1433,11 @@ public class FunctionApiV3ResourceTest {
     public void testDownloadFunctionFile() throws Exception {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionsImpl function = new FunctionsImpl(null);
+        WorkerService worker = mock(WorkerService.class);
+        WorkerConfig config = mock(WorkerConfig.class);
+        when(config.isAuthorizationEnabled()).thenReturn(false);
+        when(worker.getWorkerConfig()).thenReturn(config);
+        FunctionsImpl function = new FunctionsImpl(() -> worker);
         StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
