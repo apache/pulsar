@@ -182,7 +182,7 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 <p>There are different builtin schema types that can be used in Pulsar. All the definitions are in the <code>pulsar.schema</code> package.</p>
 <table>
 <thead>
-<tr><th>Schema</th><th>Notes</th></tr>
+<tr><th>Schema</th><th>Remarques</th></tr>
 </thead>
 <tbody>
 <tr><td><code>BytesSchema</code></td><td>Get the raw payload as a <code>bytes</code> object. No serialization/deserialization are performed. This is the default schema mode</td></tr>
@@ -196,7 +196,7 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 <p>This class can have a number of fields which can be of either <code>pulsar.schema.Field</code> type or even another nested <code>Record</code>. All the fields are also specified in the <code>pulsar.schema</code> package. The fields are matching the AVRO fields types.</p>
 <table>
 <thead>
-<tr><th>Field Type</th><th>Python Type</th><th>Notes</th></tr>
+<tr><th>Field Type</th><th>Python Type</th><th>Remarques</th></tr>
 </thead>
 <tbody>
 <tr><td><code>Boolean</code></td><td><code>bool</code></td><td></td></tr>
@@ -215,7 +215,7 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 <p>When adding a field these parameters can be used in the constructor:</p>
 <table>
 <thead>
-<tr><th>Argument</th><th>Default</th><th>Notes</th></tr>
+<tr><th>Argument</th><th>Default</th><th>Remarques</th></tr>
 </thead>
 <tbody>
 <tr><td><code>default</code></td><td><code>None</code></td><td>Set a default value for the field. Eg: <code>a = Integer(default=5)</code></td></tr>
