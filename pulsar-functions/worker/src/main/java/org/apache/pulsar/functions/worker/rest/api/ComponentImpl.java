@@ -1441,7 +1441,7 @@ public abstract class ComponentImpl {
 
         // validate parameters
         try {
-            validateGetFunctionStateParams(tenant, namespace, functionName, key);
+            validateFunctionStateParams(tenant, namespace, functionName, key);
         } catch (IllegalArgumentException e) {
             log.error("Invalid getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
@@ -1470,9 +1470,13 @@ public abstract class ComponentImpl {
                     throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
                 } else {
                     if (kv.isNumber()) {
-                        value = new FunctionState(key, null, kv.numberValue(), kv.version());
+                        value = new FunctionState(key, null, null, kv.numberValue(), kv.version());
                     } else {
-                        value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value()), UTF_8), null, kv.version());
+                        try {
+                            value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value(), kv.value().readerIndex(), kv.value().readableBytes()), UTF_8), null, null, kv.version());
+                        } catch (Exception e) {
+                            value = new FunctionState(key, null, ByteBufUtil.getBytes(kv.value()), null, kv.version());
+                        }
                     }
                 }
             }
@@ -1488,6 +1492,87 @@ public abstract class ComponentImpl {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
         return value;
+    }
+
+    public void putFunctionState(final String tenant,
+                                 final String namespace,
+                                 final String functionName,
+                                 final String key,
+                                 final String stateJson,
+                                 final String clientRole,
+                                 final AuthenticationDataSource clientAuthenticationDataHttps) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to put state for {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        if (null == worker().getStateStoreAdminClient()) {
+            throwStateStoreUnvailableResponse();
+        }
+
+        FunctionState state = new Gson().fromJson(stateJson, FunctionState.class);
+        if (!key.equals(state.getKey())) {
+            log.error("{}/{}/{} Bad putFunction Request, path key doesn't match key in json", tenant, namespace, functionName);
+            throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");
+        }
+        if (state.getStringValue() == null && state.getByteValue() == null) {
+            throw new RestException(Status.BAD_REQUEST, "Setting Counter values not supported in put state");
+        }
+
+        // validate parameters
+        try {
+            validateFunctionStateParams(tenant, namespace, functionName, key);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid putFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+
+        String tableNs = getStateNamespace(tenant, namespace);
+        String tableName = functionName;
+
+        String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
+
+        if (storageClient.get() == null) {
+            storageClient.compareAndSet(null, StorageClientBuilder.newBuilder()
+                    .withSettings(StorageClientSettings.newBuilder()
+                            .serviceUri(stateStorageServiceUrl)
+                            .clientName("functions-admin")
+                            .build())
+                    .withNamespace(tableNs)
+                    .build());
+        }
+
+        ByteBuf value;
+        if (!isEmpty(state.getStringValue())) {
+            value = Unpooled.wrappedBuffer(state.getStringValue().getBytes());
+        } else {
+            value = Unpooled.wrappedBuffer(state.getByteValue());
+        }
+        try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
+            result(table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), value));
+        } catch (RestException e) {
+            throw e;
+        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException e) {
+            log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+            throw new RestException(Status.NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     public void uploadFunction(final InputStream uploadedInputStream, final String path) {
@@ -1586,10 +1671,10 @@ public abstract class ComponentImpl {
         }
     }
 
-    private void validateGetFunctionStateParams(final String tenant,
-                                                final String namespace,
-                                                final String functionName,
-                                                final String key)
+    private void validateFunctionStateParams(final String tenant,
+                                             final String namespace,
+                                             final String functionName,
+                                             final String key)
             throws IllegalArgumentException {
 
         if (tenant == null) {

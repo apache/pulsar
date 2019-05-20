@@ -71,6 +71,7 @@ public class CmdFunctions extends CmdBase {
     private final StartFunction start;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
+    private final StatePutter statePutter;
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
@@ -799,7 +800,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function running in cluster mode")
+    @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function")
     class StateGetter extends FunctionCommand {
 
         @Parameter(names = { "-k", "--key" }, description = "key")
@@ -827,6 +828,20 @@ public class CmdFunctions extends CmdBase {
                     Thread.sleep(1000);
                 }
             } while (watch);
+        }
+    }
+
+    @Parameters(commandDescription = "Put the state associated with a Pulsar Function")
+    class StatePutter extends FunctionCommand {
+
+        @Parameter(names = { "-s", "--state" }, description = "The FunctionState that needs to be put", required = true)
+        private String state = null;
+
+        @Override
+        void runCmd() throws Exception {
+            FunctionState stateRepr = new Gson().fromJson(state, FunctionState.class);
+            admin.functions()
+                    .putFunctionState(tenant, namespace, functionName, stateRepr);
         }
     }
 
@@ -943,6 +958,7 @@ public class CmdFunctions extends CmdBase {
         functionStats = new GetFunctionStats();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
+        statePutter = new StatePutter();
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
@@ -962,6 +978,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
+        jcommander.addCommand("putstate", getStatePutter());
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
@@ -998,6 +1015,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     ListFunctions getLister() {
         return lister;
+    }
+
+    @VisibleForTesting
+    StatePutter getStatePutter() {
+        return statePutter;
     }
 
     @VisibleForTesting

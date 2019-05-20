@@ -324,4 +324,15 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                           final @PathParam("key") String key) throws IOException {
         return functions.getFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
     }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void putFunctionState(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("functionName") String functionName,
+                                 final @PathParam("key") String key,
+                                 final @FormDataParam("state") String stateJson) throws IOException {
+        functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
+    }
 }
