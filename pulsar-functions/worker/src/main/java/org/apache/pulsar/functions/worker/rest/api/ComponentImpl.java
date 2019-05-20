@@ -1573,8 +1573,6 @@ public abstract class ComponentImpl {
         }
         try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
             result(table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), value));
-        } catch (RestException e) {
-            throw e;
         } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException | org.apache.bookkeeper.clients.exceptions.StreamNotFoundException e) {
             log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
