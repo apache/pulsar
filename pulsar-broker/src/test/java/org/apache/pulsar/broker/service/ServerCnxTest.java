@@ -51,8 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import javax.naming.AuthenticationException;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -1275,7 +1273,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1303,7 +1301,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1333,7 +1331,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1368,7 +1366,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
