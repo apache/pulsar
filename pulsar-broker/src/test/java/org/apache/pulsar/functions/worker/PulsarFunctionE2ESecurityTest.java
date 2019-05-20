@@ -103,7 +103,7 @@ public class PulsarFunctionE2ESecurityTest {
     private static final String ADMIN_SUBJECT = "superUser";
     private static final String ANONYMOUS_ROLE = "anonymousUser";
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
+    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ESecurityTest.class);
     private String adminToken;
     private String brokerServiceUrl;
 
