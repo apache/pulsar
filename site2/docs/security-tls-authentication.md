@@ -26,9 +26,10 @@ $ openssl pkcs8 -topk8 -inform PEM -outform PEM \
       -in admin.key.pem -out admin.key-pk8.pem -nocrypt
 ```
 
-Generate the certificate request. When asked for a **common name**, enter the **role token** which you want this key pair to authenticate a client as.
+Generate the certificate request. When asked for a **common name**, enter the **role token** which you want this key pair to authenticate a client as. 
 
 ```bash
+$ cp /etc/pki/tls/openssl.cnf ./
 $ openssl req -config openssl.cnf \
       -key admin.key.pem -new -sha256 -out admin.csr.pem
 ```
@@ -42,6 +43,15 @@ $ openssl ca -config openssl.cnf -extensions usr_cert \
 ```
 
 This will give you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`, which, with `ca.cert.pem`, can be used by clients to authenticate themselves to brokers and proxies as the role token ``admin``.
+
+> If got "unable to load CA private key" error and the reason is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Please try :
+>
+> ```bash
+> $ cd /etc/pki/tls/misc/CA
+> $ ./CA -newca
+> ```
+>
+> to generate `cakey.pem` .
 
 ## Enabling TLS Authentication ...
 
