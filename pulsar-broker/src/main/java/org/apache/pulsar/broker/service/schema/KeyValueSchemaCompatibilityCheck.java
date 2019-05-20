@@ -100,7 +100,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         if (from.getType() != SchemaType.KEY_VALUE || to.getType() != SchemaType.KEY_VALUE) {
-            if (strategy == SchemaCompatibilityStrategy.FULL || strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
+            if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
                 return true;
             }
             return false;
