@@ -44,6 +44,8 @@ public interface Subscription {
 
     String getTopicName();
 
+    boolean isReplicated();
+
     Dispatcher getDispatcher();
 
     long getNumberOfEntriesInBacklog();

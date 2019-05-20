@@ -92,9 +92,11 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition);
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
