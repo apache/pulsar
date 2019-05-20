@@ -24,6 +24,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -235,6 +236,12 @@ public class Consumer {
             return sentMessages;
         }
 
+        if (sentMessages.totalSentMessages == 0) {
+            // Everything was filtered out
+            writePromise.setSuccess();
+            return sentMessages;
+        }
+
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
@@ -264,19 +271,16 @@ public class Consumer {
                             consumerId, pos.getLedgerId(), pos.getEntryId());
                 }
 
-                // We only want to pass the "real" promise on the last entry written
-                ChannelPromise promise = ctx.voidPromise();
-                if (i == (entries.size() - 1)) {
-                    promise = writePromise;
-                }
-                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker().getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), promise);
+                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker()
+                        .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
             }
 
-            ctx.flush();
+            // Use an empty write here so that we can just tie the flush with the write promise for last entry
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
         });
 
         return sentMessages;

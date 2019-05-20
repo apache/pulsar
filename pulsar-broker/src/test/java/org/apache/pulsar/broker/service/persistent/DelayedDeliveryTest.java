@@ -158,4 +158,53 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(delayedMessages.contains("delayed-msg-" + i));
         }
     }
+
+    @Test
+    public void testEverythingFilteredInMultipleReads()
+            throws Exception {
+        String topic = "testEverythingFilteredInMultipleReads-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        Thread.sleep(1000);
+
+        // Write a 2nd batch of messages
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
+        assertEquals(msg, null);
+
+        Set<String> receivedMsgs = new TreeSet<>();
+        for (int i = 0; i < 20; i++) {
+            msg = sharedConsumer.receive(10, TimeUnit.SECONDS);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 20);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
+        }
+    }
 }
