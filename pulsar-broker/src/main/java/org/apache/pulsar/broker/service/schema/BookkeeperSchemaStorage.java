@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 
@@ -116,6 +118,33 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             LongSchemaVersion longVersion = (LongSchemaVersion) version;
             return getSchema(key, longVersion.getVersion());
         }
+    }
+
+    @Override
+    public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
+        CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
+        getSchemaLocator(getSchemaPath(key)).thenAccept(locator -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get all schemas - locator: {}", key, locator);
+            }
+
+            if (!locator.isPresent()) {
+                result.complete(Collections.emptyList());
+            }
+
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+            List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
+            schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition())
+                .thenApply(entry -> new StoredSchema
+                    (
+                        entry.getSchemaData().toByteArray(),
+                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
+                    )
+                )
+            ));
+            result.complete(list);
+        });
+        return result;
     }
 
     @Override
@@ -611,7 +640,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     public static Exception bkException(String operation, int rc, long ledgerId, long entryId) {
-        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc) + " -  ledger=" + ledgerId;
+        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc)
+                + " -  ledger=" + ledgerId + " - operation=" + operation;
 
         if (entryId != -1) {
             message += " - entry=" + entryId;

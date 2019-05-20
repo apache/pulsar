@@ -109,22 +109,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
-    private Integer brokerServicePort = 6650;
+    private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf requests"
     )
-    private Integer brokerServicePortTls = null;
+    private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.of(8080);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private Integer webServicePortTls = null;
+    private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -380,6 +380,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
@@ -391,7 +392,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Default number of message-bytes dispatching throttling-limit for a subscription. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling.")
-    private long dispatchThrottlingRatePerSubscribeInByte = 0;
+    private long dispatchThrottlingRatePerSubscriptionInByte = 0;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message dispatch-throttling")
+    private int dispatchThrottlingRatePerReplicatorInMsg = 0;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message-bytes dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message-byte dispatch-throttling")
+    private long dispatchThrottlingRatePerReplicatorInByte = 0;
 
     @FieldContext(
         dynamic = true,
@@ -711,6 +725,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable bookie isolation by specifying a list of bookie groups to choose from. \n\n"
             + "Any bookie outside the specified groups will not be used by the broker")
     private String bookkeeperClientIsolationGroups;
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            required = false,
+            doc = "Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available."
+                )
+    private String bookkeeperClientSecondaryIsolationGroups;
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            required = false,
+            doc = "Minimum bookies that should be available as part of bookkeeperClientIsolationGroups \n\n"
+                + "else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.")
+    private int bookkeeperClientMinAvailableBookiesInIsolationGroups = 0;
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
@@ -1248,18 +1274,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getBrokerServicePort() {
-        return Optional.ofNullable(brokerServicePort);
+        return brokerServicePort;
     }
 
     public Optional<Integer> getBrokerServicePortTls() {
-        return Optional.ofNullable(brokerServicePortTls);
+        return brokerServicePortTls;
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 }

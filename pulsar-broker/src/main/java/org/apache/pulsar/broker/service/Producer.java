@@ -307,8 +307,8 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
-                producer.cnx.ctx().channel().eventLoop().execute(this);
                 producer.topic.recordAddLatency(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTimeNs));
+                producer.cnx.ctx().channel().eventLoop().execute(this);
             }
         }
 

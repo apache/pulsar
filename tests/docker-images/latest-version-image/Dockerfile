@@ -19,7 +19,7 @@
 
 FROM apachepulsar/pulsar-all:latest
 
-RUN apt-get update && apt-get install -y supervisor vim
+RUN apt-get update && apt-get install -y supervisor vim procps
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 

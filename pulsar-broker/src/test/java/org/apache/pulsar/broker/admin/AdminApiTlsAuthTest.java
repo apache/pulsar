@@ -19,6 +19,18 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
+
+import java.util.List;
+import java.util.Optional;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.SSLContext;
+import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -41,16 +53,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import java.security.cert.X509Certificate;
-import java.util.List;
-
 @Slf4j
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
@@ -62,8 +64,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));

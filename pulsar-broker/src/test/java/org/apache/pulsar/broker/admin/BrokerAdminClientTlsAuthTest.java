@@ -19,6 +19,12 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
+
+import java.util.Optional;
+
+import static org.testng.Assert.fail;
+
+import java.lang.reflect.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
@@ -34,10 +40,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Method;
-
-import static org.testng.Assert.fail;
 
 @Slf4j
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
@@ -55,8 +57,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
         buildConf(conf);
         super.internalSetup();
     }
@@ -109,10 +111,10 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBrokerServicePort(PortManager.nextFreePort());
-        conf.setBrokerServicePortTls(PortManager.nextFreePort());
-        conf.setWebServicePort(PortManager.nextFreePort());
-        conf.setWebServicePortTls(PortManager.nextFreePort());
+        conf.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");

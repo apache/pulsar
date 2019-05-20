@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -171,11 +172,11 @@ public class PulsarFunctionStateTest {
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser");
         config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(brokerWebServicePort);
-        config.setWebServicePortTls(brokerWebServiceTlsPort);
+        config.setWebServicePort(Optional.of(brokerWebServicePort));
+        config.setWebServicePortTls(Optional.of(brokerWebServiceTlsPort));
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
-        config.setBrokerServicePortTls(brokerServiceTlsPort);
+        config.setBrokerServicePort(Optional.of(brokerServicePort));
+        config.setBrokerServicePortTls(Optional.of(brokerServiceTlsPort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
@@ -238,7 +239,8 @@ public class PulsarFunctionStateTest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
+        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
+                FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
     }
 

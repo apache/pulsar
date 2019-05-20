@@ -233,7 +233,7 @@ public class NonPersistentTopic implements Topic {
         lock.readLock().lock();
         try {
             brokerService.checkTopicNsOwnership(getName());
-            
+
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -315,10 +315,11 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-        
+
         try {
             brokerService.checkTopicNsOwnership(getName());
         } catch (Exception e) {
@@ -396,7 +397,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
     }
 
@@ -773,7 +774,6 @@ public class NonPersistentTopic implements Topic {
 
                 topicStatsStream.startList("consumers");
 
-                subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
                     consumer.updateRates();
@@ -798,8 +798,9 @@ public class NonPersistentTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getRate());
+                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
                 }
 
                 // Close consumers
@@ -1052,7 +1053,7 @@ public class NonPersistentTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
+            .isCompatible(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
