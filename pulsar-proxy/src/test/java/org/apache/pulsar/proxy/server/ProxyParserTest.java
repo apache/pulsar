@@ -66,7 +66,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
 
 
-        proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.of(PortManager.nextFreePort()));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         //enable full parsing feature

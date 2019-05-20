@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -47,7 +48,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test
-    public void testBuild() {
+    public void testBuild() throws PulsarClientException {
         SourceFunction sourceFunction = pulsarSourceBuilder
                 .serviceUrl("testServiceUrl")
                 .topic("testTopic")
@@ -59,7 +60,7 @@ public class PulsarSourceBuilderTest {
 
 
     @Test
-    public void testBuildWithConfPojo() {
+    public void testBuildWithConfPojo() throws PulsarClientException {
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
                 .topicNames(new HashSet<>(Arrays.asList("testTopic")))
@@ -74,7 +75,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testBuildWithoutSettingRequiredProperties() {
+    public void testBuildWithoutSettingRequiredProperties() throws PulsarClientException {
         pulsarSourceBuilder.build();
     }
 
@@ -158,7 +159,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testServiceUrlNullWithConfPojo() {
+    public void testServiceUrlNullWithConfPojo() throws PulsarClientException {
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl(null).build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
                 .topicNames(new HashSet<String>(Arrays.asList("testServiceUrl")))
@@ -172,7 +173,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testServiceUrlWithBlankWithConfPojo() {
+    public void testServiceUrlWithBlankWithConfPojo() throws PulsarClientException {
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl(StringUtils.EMPTY).build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
                 .topicNames(new HashSet<String>(Arrays.asList("testTopic")))
@@ -186,7 +187,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTopicPatternWithNullWithConfPojo() {
+    public void testTopicPatternWithNullWithConfPojo() throws PulsarClientException {
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
                 .topicsPattern(null)
@@ -200,7 +201,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSubscriptionNameWithNullWithConfPojo() {
+    public void testSubscriptionNameWithNullWithConfPojo() throws PulsarClientException {
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
                 .topicNames(new HashSet<String>(Arrays.asList("testTopic")))
@@ -214,7 +215,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSubscriptionNameWithBlankWithConfPojo() {
+    public void testSubscriptionNameWithBlankWithConfPojo() throws PulsarClientException {
         pulsarSourceBuilder.topic(null);
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
@@ -229,7 +230,7 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSubscriptionInitialPositionWithConfPojo() {
+    public void testSubscriptionInitialPositionWithConfPojo() throws PulsarClientException {
         pulsarSourceBuilder.topic(null);
         ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
         ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()

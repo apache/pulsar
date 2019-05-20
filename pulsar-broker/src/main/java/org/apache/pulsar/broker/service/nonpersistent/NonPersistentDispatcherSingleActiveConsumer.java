@@ -42,7 +42,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final Subscription subscription;
     private final ServiceConfiguration serviceConfig;
     private final RedeliveryTracker redeliveryTracker;
-
+    
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName());
@@ -62,7 +62,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             entries.forEach(entry -> {
                 int totalMsgs = Consumer.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription, -1);
                 if (totalMsgs > 0) {
-                    msgDrop.recordEvent();
+                    msgDrop.recordEvent(totalMsgs);
                 }
                 entry.release();
             });

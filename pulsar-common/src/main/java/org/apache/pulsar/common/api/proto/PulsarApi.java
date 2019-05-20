@@ -6590,6 +6590,10 @@ public final class PulsarApi {
     // optional int32 protocol_version = 2 [default = 0];
     boolean hasProtocolVersion();
     int getProtocolVersion();
+    
+    // optional int32 max_message_size = 3 [default = 5242880];
+    boolean hasMaxMessageSize();
+    int getMaxMessageSize();
   }
   public static final class CommandConnected extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -6668,9 +6672,20 @@ public final class PulsarApi {
       return protocolVersion_;
     }
     
+    // optional int32 max_message_size = 3 [default = 5242880];
+    public static final int MAX_MESSAGE_SIZE_FIELD_NUMBER = 3;
+    private int maxMessageSize_;
+    public boolean hasMaxMessageSize() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public int getMaxMessageSize() {
+      return maxMessageSize_;
+    }
+    
     private void initFields() {
       serverVersion_ = "";
       protocolVersion_ = 0;
+      maxMessageSize_ = 5242880;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6699,6 +6714,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeInt32(2, protocolVersion_);
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeInt32(3, maxMessageSize_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6714,6 +6732,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(2, protocolVersion_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(3, maxMessageSize_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6832,6 +6854,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
+        maxMessageSize_ = 5242880;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -6873,6 +6897,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.protocolVersion_ = protocolVersion_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.maxMessageSize_ = maxMessageSize_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6884,6 +6912,9 @@ public final class PulsarApi {
         }
         if (other.hasProtocolVersion()) {
           setProtocolVersion(other.getProtocolVersion());
+        }
+        if (other.hasMaxMessageSize()) {
+          setMaxMessageSize(other.getMaxMessageSize());
         }
         return this;
       }
@@ -6926,6 +6957,11 @@ public final class PulsarApi {
             case 16: {
               bitField0_ |= 0x00000002;
               protocolVersion_ = input.readInt32();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              maxMessageSize_ = input.readInt32();
               break;
             }
           }
@@ -6987,6 +7023,27 @@ public final class PulsarApi {
       public Builder clearProtocolVersion() {
         bitField0_ = (bitField0_ & ~0x00000002);
         protocolVersion_ = 0;
+        
+        return this;
+      }
+      
+      // optional int32 max_message_size = 3 [default = 5242880];
+      private int maxMessageSize_ = 5242880;
+      public boolean hasMaxMessageSize() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public int getMaxMessageSize() {
+        return maxMessageSize_;
+      }
+      public Builder setMaxMessageSize(int value) {
+        bitField0_ |= 0x00000004;
+        maxMessageSize_ = value;
+        
+        return this;
+      }
+      public Builder clearMaxMessageSize() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        maxMessageSize_ = 5242880;
         
         return this;
       }
@@ -8471,6 +8528,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
     boolean hasInitialPosition();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
+    
+    // optional bool replicate_subscription_state = 14;
+    boolean hasReplicateSubscriptionState();
+    boolean getReplicateSubscriptionState();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -8802,6 +8863,16 @@ public final class PulsarApi {
       return initialPosition_;
     }
     
+    // optional bool replicate_subscription_state = 14;
+    public static final int REPLICATE_SUBSCRIPTION_STATE_FIELD_NUMBER = 14;
+    private boolean replicateSubscriptionState_;
+    public boolean hasReplicateSubscriptionState() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    public boolean getReplicateSubscriptionState() {
+      return replicateSubscriptionState_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -8816,6 +8887,7 @@ public final class PulsarApi {
       readCompacted_ = false;
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+      replicateSubscriptionState_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -8911,6 +8983,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         output.writeEnum(13, initialPosition_.getNumber());
       }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        output.writeBool(14, replicateSubscriptionState_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -8970,6 +9045,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(13, initialPosition_.getNumber());
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(14, replicateSubscriptionState_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -9110,6 +9189,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000800);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
         bitField0_ = (bitField0_ & ~0x00001000);
+        replicateSubscriptionState_ = false;
+        bitField0_ = (bitField0_ & ~0x00002000);
         return this;
       }
       
@@ -9196,6 +9277,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000800;
         }
         result.initialPosition_ = initialPosition_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.replicateSubscriptionState_ = replicateSubscriptionState_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9247,6 +9332,9 @@ public final class PulsarApi {
         }
         if (other.hasInitialPosition()) {
           setInitialPosition(other.getInitialPosition());
+        }
+        if (other.hasReplicateSubscriptionState()) {
+          setReplicateSubscriptionState(other.getReplicateSubscriptionState());
         }
         return this;
       }
@@ -9397,6 +9485,11 @@ public final class PulsarApi {
                 bitField0_ |= 0x00001000;
                 initialPosition_ = value;
               }
+              break;
+            }
+            case 112: {
+              bitField0_ |= 0x00002000;
+              replicateSubscriptionState_ = input.readBool();
               break;
             }
           }
@@ -9837,6 +9930,27 @@ public final class PulsarApi {
       public Builder clearInitialPosition() {
         bitField0_ = (bitField0_ & ~0x00001000);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        
+        return this;
+      }
+      
+      // optional bool replicate_subscription_state = 14;
+      private boolean replicateSubscriptionState_ ;
+      public boolean hasReplicateSubscriptionState() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public boolean getReplicateSubscriptionState() {
+        return replicateSubscriptionState_;
+      }
+      public Builder setReplicateSubscriptionState(boolean value) {
+        bitField0_ |= 0x00002000;
+        replicateSubscriptionState_ = value;
+        
+        return this;
+      }
+      public Builder clearReplicateSubscriptionState() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        replicateSubscriptionState_ = false;
         
         return this;
       }

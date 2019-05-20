@@ -50,7 +50,12 @@ public class FunctionConfigUtils {
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             if (classLoader != null) {
-                typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
+                try {
+                    typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException(
+                            String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+                }
             }
         }
 
@@ -363,7 +368,14 @@ public class FunctionConfigUtils {
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
-        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
+
+        Class<?>[] typeArgs;
+        try {
+            typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+        }
         // inputs use default schema, so there is no check needed there
 
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
@@ -614,6 +626,7 @@ public class FunctionConfigUtils {
             } else {
                 throw new IllegalArgumentException("Function Package is not provided");
             }
+
             doJavaChecks(functionConfig, classLoader);
             return classLoader;
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {

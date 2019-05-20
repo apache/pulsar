@@ -50,7 +50,7 @@ public class MessageParser {
      * provided {@link MessageProcessor} will be invoked for each individual message.
      */
     public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
-            MessageProcessor processor) throws IOException {
+            MessageProcessor processor, int maxMessageSize) throws IOException {
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
@@ -74,7 +74,7 @@ public class MessageParser {
             }
 
             uncompressedPayload = uncompressPayloadIfNeeded(topicName, msgMetadata, headersAndPayload, ledgerId,
-                    entryId);
+                    entryId, maxMessageSize);
 
             if (uncompressedPayload == null) {
                 // Message was discarded on decompression error
@@ -115,11 +115,11 @@ public class MessageParser {
     }
 
     public static ByteBuf uncompressPayloadIfNeeded(TopicName topic, MessageMetadata msgMetadata,
-            ByteBuf payload, long ledgerId, long entryId) {
+            ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(msgMetadata.getCompression());
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (payloadSize > PulsarDecoder.MaxMessageSize) {
+        if (payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}] Got corrupted payload message size {} at {}:{}", topic, payloadSize,
                     ledgerId, entryId);

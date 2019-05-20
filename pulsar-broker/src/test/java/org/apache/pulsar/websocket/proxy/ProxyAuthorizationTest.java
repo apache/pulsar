@@ -23,6 +23,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -62,7 +63,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setConfigurationStoreServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
-        config.setWebServicePort(TEST_PORT);
+        config.setWebServicePort(Optional.of(TEST_PORT));
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();

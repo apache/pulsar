@@ -41,7 +41,7 @@ public class ConfigHelper {
         );
     }
 
-    public static DispatchRate dispatchRate(ServiceConfiguration configuration) {
+    public static DispatchRate topicDispatchRate(ServiceConfiguration configuration) {
         return new DispatchRate(
                 configuration.getDispatchThrottlingRatePerTopicInMsg(),
                 configuration.getDispatchThrottlingRatePerTopicInByte(),
@@ -52,8 +52,16 @@ public class ConfigHelper {
     public static DispatchRate subscriptionDispatchRate(ServiceConfiguration configuration) {
         return new DispatchRate(
                 configuration.getDispatchThrottlingRatePerSubscriptionInMsg(),
-                configuration.getDispatchThrottlingRatePerSubscribeInByte(),
+                configuration.getDispatchThrottlingRatePerSubscriptionInByte(),
                 1
+        );
+    }
+
+    public static DispatchRate replicatorDispatchRate(ServiceConfiguration configuration) {
+        return new DispatchRate(
+            configuration.getDispatchThrottlingRatePerReplicatorInMsg(),
+            configuration.getDispatchThrottlingRatePerReplicatorInByte(),
+            1
         );
     }
 

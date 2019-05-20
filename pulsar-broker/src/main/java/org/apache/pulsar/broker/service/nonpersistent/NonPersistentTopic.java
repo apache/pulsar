@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -43,6 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -127,6 +129,7 @@ public class NonPersistentTopic implements Topic {
             .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
+    private StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -230,7 +233,7 @@ public class NonPersistentTopic implements Topic {
         lock.readLock().lock();
         try {
             brokerService.checkTopicNsOwnership(getName());
-            
+
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -312,10 +315,11 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-        
+
         try {
             brokerService.checkTopicNsOwnership(getName());
         } catch (Exception e) {
@@ -393,7 +397,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
     }
 
@@ -770,7 +774,6 @@ public class NonPersistentTopic implements Topic {
 
                 topicStatsStream.startList("consumers");
 
-                subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
                     consumer.updateRates();
@@ -795,8 +798,9 @@ public class NonPersistentTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getRate());
+                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
                 }
 
                 // Close consumers
@@ -833,7 +837,10 @@ public class NonPersistentTopic implements Topic {
         bundleStats.msgRateOut += topicStats.aggMsgRateOut;
         bundleStats.msgThroughputIn += topicStats.aggMsgThroughputIn;
         bundleStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
-
+        // add publish-latency metrics
+        this.addEntryLatencyStatsUsec.refresh();
+        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        this.addEntryLatencyStatsUsec.reset();
         // Close topic object
         topicStatsStream.endObject();
     }
@@ -1046,7 +1053,7 @@ public class NonPersistentTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
+            .isCompatible(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
@@ -1059,5 +1066,10 @@ public class NonPersistentTopic implements Topic {
                         return addSchema(schema).thenApply((ignore) -> true);
                     }
                 });
+    }
+    
+    @Override
+    public void recordAddLatency(long latencyUSec) {
+        addEntryLatencyStatsUsec.addValue(latencyUSec);
     }
 }

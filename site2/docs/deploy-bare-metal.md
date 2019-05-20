@@ -342,7 +342,7 @@ webServicePortTls=8443
 
 If you want to enable [Pulsar Functions](functions-overview.md), you can follow the instructions as below:
 
-1. Edit `conf/broker.conf` to enable function worker, by setting `functionsWorkerEnabled` to `true`.
+1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
     ```conf
     functionsWorkerEnabled=true
@@ -353,6 +353,8 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
     ```conf
     pulsarFunctionsCluster: pulsar-cluster-1
     ```
+
+If you would like to learn more options about deploying functions worker, please checkout [Deploy and manage functions worker](functions-worker.md).
 
 ### Starting Brokers
 

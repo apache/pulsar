@@ -299,8 +299,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(curosr);
         // (4.2) Validate: validate cursor name
         assertEquals(subName, curosr.getName());
-        // (4.3) Validate: entryCache should have cached messages
-        assertTrue(entryCache.getSize() != 0);
 
         /************* Validation on empty active-cursor **************/
         // (5) Close consumer: which (1)removes activeConsumer and (2)clears the entry-cache

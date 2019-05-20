@@ -34,8 +34,9 @@ public class Policies {
     public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles;
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
-    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
     public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
@@ -70,7 +71,8 @@ public class Policies {
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map, clusterDispatchRate,
+                backlog_quota_map,
+                topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
@@ -90,7 +92,9 @@ public class Policies {
             return Objects.equals(auth_policies, other.auth_policies)
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
-                    && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equals(topicDispatchRate, other.topicDispatchRate)
+                    && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
+                    && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
@@ -136,7 +140,9 @@ public class Policies {
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
-                .add("clusterDispatchRate", clusterDispatchRate)
+                .add("topicDispatchRate", topicDispatchRate)
+                .add("subscriptionDispatchRate", subscriptionDispatchRate)
+                .add("replicatorDispatchRate", replicatorDispatchRate)
                 .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)

@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -779,6 +780,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String namespace = "prop/use/expiry";
         final String topicName = "persistent://" + namespace + "/expiry";
         final String subName = "expiredSub";
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
 
         admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespace);
