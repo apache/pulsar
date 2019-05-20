@@ -45,11 +45,11 @@ SharedBuffer CompressionCodecSnappy::encode(const SharedBuffer& raw) {
 }
 
 bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                                  SharedBuffer& decoded) {
+                                    SharedBuffer& decoded) {
     SharedBuffer decompressed = SharedBuffer::allocate(uncompressedSize);
 
-    snappy_status status =
-        snappy_uncompress(encoded.data(), encoded.readableBytes(), decompressed.mutableData(), uncompressedSize);
+    snappy_status status = snappy_uncompress(encoded.data(), encoded.readableBytes(),
+                                             decompressed.mutableData(), uncompressedSize);
 
     if (status == SNAPPY_OK) {
         decoded = decompressed;
@@ -66,10 +66,12 @@ bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncomp
 
 namespace pulsar {
 
-SharedBuffer CompressionCodecSnappy::encode(const SharedBuffer& raw) { throw "Snappy compression not supported"; }
+SharedBuffer CompressionCodecSnappy::encode(const SharedBuffer& raw) {
+    throw "Snappy compression not supported";
+}
 
 bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                                  SharedBuffer& decoded) {
+                                    SharedBuffer& decoded) {
     throw "Snappy compression not supported";
 }
 }  // namespace pulsar
