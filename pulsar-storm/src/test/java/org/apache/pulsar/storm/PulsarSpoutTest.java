@@ -45,6 +45,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.PooledByteBufAllocator;
+import org.apache.pulsar.storm.PulsarSpout.SpoutConsumer;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -84,12 +85,13 @@ public class PulsarSpoutTest {
         
         Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), null, Schema.BYTES);
         Consumer<byte[]> consumer = mock(Consumer.class);
+        SpoutConsumer spoutConsumer = new SpoutConsumer(consumer);
         CompletableFuture<Void> future = new CompletableFuture<>();
         future.complete(null);
         doReturn(future).when(consumer).acknowledgeAsync(msg.getMessageId());
         Field consField = PulsarSpout.class.getDeclaredField("consumer");
         consField.setAccessible(true);
-        consField.set(spout, consumer);
+        consField.set(spout, spoutConsumer);
         
         spout.fail(msg);
         spout.ack(msg);
