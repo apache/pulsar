@@ -94,7 +94,7 @@
 <li><code>EFFECTIVELY_ONCE</code></li>
 </ul>
 <blockquote>
-<p>默认情况下，Pulsar Functions 提供 at-most-once 保证，即发送给函数的每个消息最多会被处理一次。 因此，如果创建函数时不为<code>--processingGuarantees</code>设置标志值，那么该函数将应用 at-most-once 保证。</p>
+<p>By default, Pulsar Functions provide at-least-once delivery guarantees. So if you create a function without supplying a value for the <code>--processingGuarantees</code> flag, then the function will provide at-least-once guarantees.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="在-function-中更新-processing-guarantees"></a><a href="#在-function-中更新-processing-guarantees" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 function 中更新 processing guarantees</h2>
 <p>创建 function 后，可使用<a href="/docs/zh-CN/next/pulsar-admin#update-1"><code>update</code></a>命令更改应用于 function 的 processing guarantees。示例如下：</p>

@@ -2404,6 +2404,65 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/replicatorDispatchRate" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get replicator dispatch-rate configured for the namespace, -1 represents not configured yet",
+        "description" : "",
+        "operationId" : "getReplicatorDispatchRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/DispatchRate"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set replicator dispatch-rate throttling for all topics of the namespace",
+        "description" : "",
+        "operationId" : "setReplicatorDispatchRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/retention" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -2496,7 +2555,7 @@
             "description" : "successful operation",
             "schema" : {
               "type" : "string",
-              "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
+              "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible", "BackwardTransitive", "ForwardTransitive", "FullTransitive" ]
             }
           },
           "403" : {
@@ -4105,7 +4164,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "403" : {
@@ -7164,38 +7223,38 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
         },
         "overLoaded" : {
           "type" : "boolean"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "loadReportType" : {
           "type" : "string"
@@ -7789,13 +7848,19 @@
             "$ref" : "#/definitions/BacklogQuota"
           }
         },
-        "clusterDispatchRate" : {
+        "topicDispatchRate" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/DispatchRate"
           }
         },
         "subscriptionDispatchRate" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
+        },
+        "replicatorDispatchRate" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/DispatchRate"
@@ -7866,7 +7931,7 @@
         },
         "schema_auto_update_compatibility_strategy" : {
           "type" : "string",
-          "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible" ]
+          "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible", "BackwardTransitive", "ForwardTransitive", "FullTransitive" ]
         },
         "schema_validation_enforced" : {
           "type" : "boolean"
@@ -8183,11 +8248,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },

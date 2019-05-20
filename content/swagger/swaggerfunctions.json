@@ -1185,30 +1185,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
@@ -1220,17 +1196,41 @@
             "format" : "byte"
           }
         },
-        "topicName" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
         },
         "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
