@@ -21,6 +21,8 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import java.util.Optional;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableMap;
 
@@ -65,8 +67,8 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
         conf.setTlsCertificateFilePath(getTlsFile("broker.cert"));
         conf.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));
@@ -80,10 +82,10 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(true);
-        proxyConfig.setServicePort(PortManager.nextFreePort());
-        proxyConfig.setServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setWebServicePort(PortManager.nextFreePort());
-        proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy

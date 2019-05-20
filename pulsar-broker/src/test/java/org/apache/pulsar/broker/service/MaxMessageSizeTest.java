@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.test.PortManager;
@@ -60,9 +62,9 @@ public class MaxMessageSizeTest {
             configuration = new ServiceConfiguration();
             configuration.setZookeeperServers("127.0.0.1:" + ZOOKEEPER_PORT);
             configuration.setAdvertisedAddress("localhost");
-            configuration.setWebServicePort(BROKER_WEBSERVER_PORT);
+            configuration.setWebServicePort(Optional.of(BROKER_WEBSERVER_PORT));
             configuration.setClusterName("max_message_test");
-            configuration.setBrokerServicePort(BROKER_SERVICE_PORT);
+            configuration.setBrokerServicePort(Optional.of(BROKER_SERVICE_PORT));
             configuration.setAuthorizationEnabled(false);
             configuration.setAuthenticationEnabled(false);
             configuration.setManagedLedgerMaxEntriesPerLedger(5);

@@ -27,6 +27,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -49,10 +51,10 @@ public class AdvertisedAddressTest {
         bkEnsemble.start();
         ServiceConfiguration config = new ServiceConfiguration();
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setWebServicePort(BROKER_WEBSERVICE_PORT);
+        config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
         config.setClusterName("usc");
         config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(BROKER_SERVICE_PORT);
+        config.setBrokerServicePort(Optional.ofNullable(BROKER_SERVICE_PORT));
         config.setAdvertisedAddress(advertisedAddress);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);

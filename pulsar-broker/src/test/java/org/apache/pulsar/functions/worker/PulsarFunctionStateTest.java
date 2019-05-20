@@ -171,11 +171,11 @@ public class PulsarFunctionStateTest {
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser");
         config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(brokerWebServicePort);
-        config.setWebServicePortTls(brokerWebServiceTlsPort);
+        config.setWebServicePort(Optional.of(brokerWebServicePort));
+        config.setWebServicePortTls(Optional.of(brokerWebServiceTlsPort));
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
-        config.setBrokerServicePortTls(brokerServiceTlsPort);
+        config.setBrokerServicePort(Optional.of(brokerServicePort));
+        config.setBrokerServicePortTls(Optional.of(brokerServiceTlsPort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");

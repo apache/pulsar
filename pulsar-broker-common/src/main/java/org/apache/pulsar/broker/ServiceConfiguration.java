@@ -109,22 +109,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
-    private Integer brokerServicePort = 6650;
+    private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf requests"
     )
-    private Integer brokerServicePortTls = null;
+    private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.of(8080);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private Integer webServicePortTls = null;
+    private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1274,18 +1274,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getBrokerServicePort() {
-        return Optional.ofNullable(brokerServicePort);
+        return brokerServicePort;
     }
 
     public Optional<Integer> getBrokerServicePortTls() {
-        return Optional.ofNullable(brokerServicePortTls);
+        return brokerServicePortTls;
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 }

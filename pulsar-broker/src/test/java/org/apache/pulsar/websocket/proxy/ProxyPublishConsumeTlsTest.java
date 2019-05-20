@@ -26,6 +26,7 @@ import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -65,8 +66,8 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         port = PortManager.nextFreePort();
         tlsPort = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(port);
-        config.setWebServicePortTls(tlsPort);
+        config.setWebServicePort(Optional.of(port));
+        config.setWebServicePortTls(Optional.of(tlsPort));
         config.setBrokerClientTlsEnabled(true);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
