@@ -36,9 +36,9 @@ public class JavaInstanceTest {
     public void testLambda() {
         JavaInstance instance = new JavaInstance(
             mock(ContextImpl.class),
-            (Function<String, String>) (input, context) -> input + "-lambda");
+            (Function<String, String>) (input, context) -> input + "-lambda", false);
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        JavaExecutionResult result = instance.handleMessage(() -> testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
         instance.close();

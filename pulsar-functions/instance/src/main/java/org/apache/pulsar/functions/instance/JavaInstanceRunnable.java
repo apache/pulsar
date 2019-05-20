@@ -64,6 +64,7 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
+import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -166,6 +167,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // metrics collection especially in threaded mode
         // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
         this.collectorRegistry = collectorRegistry;
+
+
     }
 
     /**
@@ -191,6 +194,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 
+        // check if input is Message<T>
+        boolean isMessageInput = FunctionCommon.isFunctionInputMessage(object.getClass());
+
         // start the state table
         setupStateTable();
         // start the output producer
@@ -200,7 +206,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(contextImpl, object);
+        return new JavaInstance(contextImpl, object, isMessageInput);
     }
 
     ContextImpl setupContext() {
@@ -254,7 +260,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.processTimeStart();
 
                 // process the message
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                result = javaInstance.handleMessage(currentRecord);
 
                 // register end time
                 stats.processTimeEnd();

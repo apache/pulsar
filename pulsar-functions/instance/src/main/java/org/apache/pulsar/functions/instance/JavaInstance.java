@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.PulsarRecord;
 
 import java.util.Map;
 
@@ -39,8 +40,9 @@ public class JavaInstance implements AutoCloseable {
     private final ContextImpl context;
     private Function function;
     private java.util.function.Function javaUtilFunction;
+    private boolean isMessageInput;
 
-    public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
+    public JavaInstance(ContextImpl contextImpl, Object userClassObject, boolean isMessageInput) {
 
         this.context = contextImpl;
 
@@ -50,14 +52,21 @@ public class JavaInstance implements AutoCloseable {
         } else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
+        this.isMessageInput = isMessageInput;
     }
 
-    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+    public JavaExecutionResult handleMessage(Record<?> record) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
         JavaExecutionResult executionResult = new JavaExecutionResult();
+        Object input;
         try {
+            if (isMessageInput) {
+                input = ((PulsarRecord) record).getMessage();
+            } else {
+                input = record.getValue();
+            }
             Object output;
             if (function != null) {
                 output = function.process(input, context);

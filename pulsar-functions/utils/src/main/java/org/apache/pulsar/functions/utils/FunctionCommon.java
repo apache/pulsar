@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -98,6 +99,7 @@ public class FunctionCommon {
         if (isWindowConfigPresent) {
             if (WindowFunction.class.isAssignableFrom(userClass)) {
                 typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, userClass);
+
             } else {
                 typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
                 if (!typeArgs[0].equals(Collection.class)) {
@@ -108,15 +110,49 @@ public class FunctionCommon {
                 Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
                 typeArgs[0] = (Class<?>) actualInputType;
             }
+            if(typeArgs[0].equals(Message.class)) {
+                throw new IllegalArgumentException("Window function does no support input as Message");
+            }
         } else {
             if (Function.class.isAssignableFrom(userClass)) {
                 typeArgs = TypeResolver.resolveRawArguments(Function.class, userClass);
+                // check if input is of Message.class if so extract nested type
+                if (typeArgs[0].equals(Message.class)) {
+                    typeArgs[0] = getMessageType(Function.class, userClass);
+                }
             } else {
                 typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
+                // check if input is of Message.class if so extract nested type
+                if (typeArgs[0].equals(Message.class)) {
+                    typeArgs[0] = getMessageType(java.util.function.Function.class, userClass);
+                }
             }
         }
 
         return typeArgs;
+    }
+
+    public static Class<?> getMessageType(Class functionType, Class userClass) {
+        ParameterizedType type = (ParameterizedType) TypeResolver.resolveGenericType(functionType, userClass);
+        ParameterizedType nestedType = (ParameterizedType) type.getActualTypeArguments()[0];
+        Type actualType = nestedType.getActualTypeArguments()[0];
+        return (Class<?>) actualType;
+    }
+
+    public static boolean isFunctionInputMessage(Class userClass) {
+        Class<?>[] typeArgs;
+        if (Function.class.isAssignableFrom(userClass)) {
+            typeArgs = TypeResolver.resolveRawArguments(Function.class, userClass);
+            if (typeArgs[0].equals(Message.class)) {
+                return true;
+            }
+        } else {
+            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
+            if (typeArgs[0].equals(Message.class)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Object createInstance(String userClassName, ClassLoader classLoader) {

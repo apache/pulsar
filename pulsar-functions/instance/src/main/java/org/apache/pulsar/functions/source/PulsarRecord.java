@@ -40,6 +40,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final String topicName;
     private final int partition;
 
+    @Getter
     private final Message<T> message;
 
     private final Runnable failFunction;
