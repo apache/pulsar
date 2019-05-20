@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.hbase;
 
 import com.google.common.base.Preconditions;
+import java.io.Serializable;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -36,12 +37,14 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class HbaseAbstractConfig {
+public class HbaseAbstractConfig implements Serializable {
+
+    private static final long serialVersionUID = -8945930873383593712L;
 
     @FieldDoc(
-        defaultValue = "",
+        defaultValue = "hbase-site.xml",
         help = "hbase system configuration 'hbase-site.xml' file")
-    private String hbaseConfigResources;
+    private String hbaseConfigResources = "hbase-site.xml";
 
     @FieldDoc(
         required = true,
