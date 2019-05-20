@@ -46,6 +46,8 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.io.PulsarFunctionE2ETest;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -195,8 +197,6 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
-        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
-
         Thread.sleep(100);
     }
 
@@ -212,6 +212,9 @@ public class PulsarFunctionE2ESecurityTest {
 
     private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
+        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
+                FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+        
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
