@@ -27,6 +27,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -54,6 +55,7 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -839,7 +841,9 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            FunctionState stateRepr = new Gson().fromJson(state, FunctionState.class);
+            TypeReference<FunctionState> typeRef
+                    = new TypeReference<FunctionState>() {};
+            FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
             admin.functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
         }

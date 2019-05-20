@@ -375,6 +375,19 @@ public class PulsarFunctionStateTest {
             Assert.assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         }
 
+        FunctionState newState = new FunctionState("foobar", "foobarvalue", null, 0l, 0l);
+        try {
+            admin.functions().putFunctionState(tenant, namespacePortion, functionName + "bar", newState);
+            Assert.fail("Should have failed since function doesn't exist");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
+        }
+
+        // This succeeds because function name is correct
+        admin.functions().putFunctionState(tenant, namespacePortion, functionName, newState);
+        state = admin.functions().getFunctionState(tenant, namespacePortion, functionName, "foobar");
+        Assert.assertTrue(state.getStringValue().equals("foobarvalue"));
+
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
         assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,

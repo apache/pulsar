@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
@@ -56,6 +57,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -1506,6 +1508,10 @@ public abstract class ComponentImpl {
             throwUnavailableException();
         }
 
+        if (null == worker().getStateStoreAdminClient()) {
+            throwStateStoreUnvailableResponse();
+        }
+
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to put state for {}", tenant, namespace,
@@ -1517,11 +1523,16 @@ public abstract class ComponentImpl {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
-        if (null == worker().getStateStoreAdminClient()) {
-            throwStateStoreUnvailableResponse();
+        FunctionState state;
+        try {
+            TypeReference<FunctionState> typeRef
+                    = new TypeReference<FunctionState>() {
+            };
+            state = ObjectMapperFactory.getThreadLocal().readValue(stateJson, typeRef);
+        } catch (Exception e) {
+            log.error("{}/{}/{} Bad putFunction Request, unable to decipher state", tenant, namespace, functionName);
+            throw new RestException(Status.BAD_REQUEST, "Unable to decipher state");
         }
-
-        FunctionState state = new Gson().fromJson(stateJson, FunctionState.class);
         if (!key.equals(state.getKey())) {
             log.error("{}/{}/{} Bad putFunction Request, path key doesn't match key in json", tenant, namespace, functionName);
             throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");
@@ -1564,7 +1575,7 @@ public abstract class ComponentImpl {
             result(table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), value));
         } catch (RestException e) {
             throw e;
-        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException e) {
+        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException | org.apache.bookkeeper.clients.exceptions.StreamNotFoundException e) {
             log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.NOT_FOUND, e.getMessage());
