@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
 
 import java.util.List;
 
@@ -31,7 +30,9 @@ import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
+import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -43,10 +44,10 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final Subscription subscription;
     private final ServiceConfiguration serviceConfig;
     private final RedeliveryTracker redeliveryTracker;
-    
+
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName());
+        super(subscriptionType, partitionIndex, topic.getName(), subscription);
         this.topic = topic;
         this.subscription = subscription;
         this.msgDrop = new Rate();
@@ -58,10 +59,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     public void sendMessages(List<Entry> entries) {
         Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
-            currentConsumer.sendMessages(entries);
+            SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+            int[] batchSizes = getThreadLocalBatchSizes(entries.size());
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
+            currentConsumer.sendMessages(entries, batchSizes, sendMessageInfo);
         } else {
             entries.forEach(entry -> {
-                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), subscription, -1);
+                int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent(totalMsgs);
                 }
