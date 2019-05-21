@@ -18,7 +18,10 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertNotNull;
@@ -53,6 +56,72 @@ public class PulsarAvroOutputFormatTest {
     public void testPulsarAvroOutputFormatConstructor() {
         PulsarAvroOutputFormat pulsarAvroOutputFormat =
                 new PulsarAvroOutputFormat("testServiceUrl", "testTopic", new AuthenticationDisabled());
+        assertNotNull(pulsarAvroOutputFormat);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testPulsarAvroOutputFormatConstructorV2WhenServiceUrlIsNull() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl(null)
+                .build();
+
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName("testTopic")
+                .build();
+
+        new PulsarAvroOutputFormat(clientConf, producerConf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testPulsarAvroOutputFormatConstructorV2WhenTopicNameIsNull() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl("testServiceUrl")
+                .build();
+
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName(null)
+                .build();
+
+        new PulsarAvroOutputFormat(clientConf, producerConf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testPulsarAvroOutputFormatConstructorV2WhenTopicNameIsBlank() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl("testServiceUrl")
+                .build();
+
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName(StringUtils.EMPTY)
+                .build();
+
+        new PulsarAvroOutputFormat(clientConf, producerConf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testPulsarAvroOutputFormatConstructorV2WhenServiceUrlIsBlank() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl(StringUtils.EMPTY)
+                .build();
+
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName(StringUtils.EMPTY)
+                .build();
+
+        new PulsarAvroOutputFormat(clientConf, producerConf);
+    }
+
+    @Test
+    public void testPulsarAvroOutputFormatConstructorV2() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl("testServiceUrl")
+                .build();
+
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName("testTopic")
+                .build();
+
+        PulsarAvroOutputFormat pulsarAvroOutputFormat = new PulsarAvroOutputFormat(clientConf, producerConf);
         assertNotNull(pulsarAvroOutputFormat);
     }
 }

@@ -218,9 +218,9 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         // Initiate lookup once validation completes
-        validationFuture.thenAccept(validaitonFailureResponse -> {
-            if (validaitonFailureResponse != null) {
-                lookupfuture.complete(validaitonFailureResponse);
+        validationFuture.thenAccept(validationFailureResponse -> {
+            if (validationFailureResponse != null) {
+                lookupfuture.complete(validationFailureResponse);
             } else {
                 pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, authoritative)
                         .thenAccept(lookupResult -> {

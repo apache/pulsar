@@ -471,8 +471,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw getApiException(response);
             }
-            String value = response.readEntity(String.class);
-            return new Gson().fromJson(value, new TypeToken<FunctionState>() {}.getType());
+            return response.readEntity(FunctionState.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

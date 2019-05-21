@@ -260,7 +260,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @GET
     @ApiOperation(
         value = "Fetch the current state associated with a Pulsar Function",
-        response = String.class
+        response = FunctionState.class
     )
     @ApiResponses(value = {
         @ApiResponse(code = 400, message = "Invalid request"),

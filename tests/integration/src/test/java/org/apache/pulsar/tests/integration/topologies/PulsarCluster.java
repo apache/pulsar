@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
 
@@ -28,6 +29,7 @@ import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -175,6 +177,19 @@ public class PulsarCluster {
 
     public String getHttpServiceUrl() {
         return proxyContainer.getHttpServiceUrl();
+    }
+
+    public String getAllBrokersHttpServiceUrl() {
+        String multiUrl = "http://";
+        Iterator<BrokerContainer> brokers = getBrokers().iterator();
+        while (brokers.hasNext()) {
+            BrokerContainer broker = brokers.next();
+            multiUrl += broker.getContainerIpAddress() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
+            if (brokers.hasNext()) {
+                multiUrl += ",";
+            }
+        }
+        return multiUrl;
     }
 
     public String getZKConnString() {

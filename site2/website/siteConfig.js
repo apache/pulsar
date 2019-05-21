@@ -82,6 +82,7 @@ const siteVariables = {
 
 const siteConfig = {
   title: 'Apache Pulsar' /* title for your website */,
+  disableTitleTagline: true,
   tagline: '',
   url: url /* your website url */,
   baseUrl: baseUrl /* base url for your project */,

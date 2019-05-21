@@ -35,6 +35,7 @@ class CompressionCodecNone;
 class CompressionCodecLZ4;
 class CompressionCodecZLib;
 class CompressionCodecZstd;
+class CompressionCodecSnappy;
 
 class PULSAR_PUBLIC CompressionCodecProvider {
    public:
@@ -48,6 +49,7 @@ class PULSAR_PUBLIC CompressionCodecProvider {
     static CompressionCodecLZ4 compressionCodecLZ4_;
     static CompressionCodecZLib compressionCodecZLib_;
     static CompressionCodecZstd compressionCodecZstd_;
+    static CompressionCodecSnappy compressionCodecSnappy_;
 };
 
 class PULSAR_PUBLIC CompressionCodec {

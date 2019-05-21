@@ -26,6 +26,7 @@ enum CompressionType
     CompressionLZ4 = 1,
     CompressionZLib = 2,
     CompressionZSTD = 3,
+    CompressionSNAPPY = 4
 };
 }
 
