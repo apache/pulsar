@@ -65,53 +65,57 @@ Messages can be received from [brokers](reference-terminology.md#broker) either 
 
 ### Listeners
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](client-libraries-java.md), for example, provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java.md) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Acknowledgement
 
-When a consumer has successfully processed a message, it needs to send an acknowledgement to the broker so that the broker can discard the message (otherwise it [stores](concepts-architecture-overview.md#persistent-storage) the message).
+When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker, so that the broker will discard the message. Otherwise, it [stores](concepts-architecture-overview.md#persistent-storage) the message.
 
 Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.
 
 
 > Cumulative acknowledgement cannot be used with [shared subscription mode](#subscription-modes), because shared mode involves multiple consumers having access to the same subscription.
 
-In Shared subscription mode, messages can be acknowledged individually.
+In the shared subscription mode, messages can be acknowledged individually.
 
-### Negative Acknowledgement
+### Negative acknowledgement
 
-When a consumer can't successfully process a message at this time and looking forward to another chance to process the message, consumer can send a negative acknowledgement to the broker so that the broker can redeliver the message.
+When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer can send a negative acknowledgement to the broker, and then the broker will redeliver the message.
 
-Messages can be negative acknowledged one by one or cumulatively or negative acknowledged individually, this is related to the consumption subscription mode. 
+Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.
 
-In Exclusive/Failover subscription mode, the consumer only needs to negative acknowledge the last message it received.
+In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.
 
-In Shared/Key_Shared subscription mode, messages can be  negative acknowledge individually.
+In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
-### Acknowledgement Timeout
+### Acknowledgement timeout
 
-If you want the message which process failed can be redeliver automatically,  pulsar provide an unacknowledged message automatic redelivery mechanism. Client will track the unacknowledged messages within the entire acktimeout time range and send redeliver unacknowledged messages request to broker automatically when specify a acknowledgement timeout.
+When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire `acktimeout` time range, and send a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
-> We also encourage users to use negative acknowledgement instead of acknowledgement timeout. Negative acknowledgement can precise control redelivery of individual messages and avoid unnecessary invalid redeliveries caused by message processing time exceeding acknowledgement timeout.
+> Note    
+> Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
 
-### Dead Letter Topic
+### Dead letter topic
 
-Dead letter topic provides the ability to continue to consume new messages when some messages cannot be processed successfully by the consumer. This mechanism will store the messages which consume failed to a separated topic called dead letter topic. User can decide how to handle the messages in the dead letter topic.
+Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.
 
-Here is a simple example to show how to enable dead letter topic in java client:
+The following example shows how to enable dead letter topic in Java client.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
-                .subscriptionName("my-subscription")
-                .subscriptionType(SubscriptionType.Shared)
-             .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
-                .subscribe();
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .build())
+              .subscribe();
+                
 ```
+Dead letter topic depends on message re-delivery. You need to confirm message re-delivery method: negative acknowledgement or acknowledgement timeout. Use negative acknowledgement prior to acknowledgement timeout. 
 
-Dead letter topic is depends on message redelivery, if you want dead letter topic to work properly. You Need to confirm that you have used one way of the message redelivery. As mentioned by acknowledgement timeout, we also encourage users  to use negative acknowledgement of acknowledgement timeout. 
-
-> Currently, dead letter topic only work well with Shared subscription mode.
+> Note    
+> Currently, dead letter topic is enabled only in the shared subscription mode.
 
 ## Topics
 
