@@ -185,7 +185,7 @@ public class Consumer {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
 
-        if (entries.isEmpty()) {
+        if (entries.isEmpty() || sendMessageInfo.getTotalMessages() == 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         topicName, subscription, consumerId);
