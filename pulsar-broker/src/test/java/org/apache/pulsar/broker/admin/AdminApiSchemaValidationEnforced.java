@@ -151,6 +151,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         }  catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
+        Assert.assertEquals(admin.schemas().getSchemaInfo(topicName).getName(), schemaInfo.getName());
         Assert.assertEquals(admin.schemas().getSchemaInfo(topicName).getType(), schemaInfo.getType());
     }
 
@@ -177,6 +178,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         try (Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
             p.send("test schemaValidationEnforced");
         }
+        Assert.assertEquals(admin.schemas().getSchemaInfo(topicName).getName(), schemaInfo.getName());
         Assert.assertEquals(admin.schemas().getSchemaInfo(topicName).getType(), schemaInfo.getType());
     }
 

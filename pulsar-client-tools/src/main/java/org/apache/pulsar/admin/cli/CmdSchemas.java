@@ -22,9 +22,19 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
@@ -53,11 +63,24 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
+            Gson customGson = new GsonBuilder().registerTypeHierarchyAdapter(byte[].class,
+                    new ByteArrayToStringAdapter()).create();
             if (version == null) {
-                System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(admin.schemas().getSchemaInfo(topic)));
+                System.out.println(customGson.toJson(admin.schemas().getSchemaInfo(topic)));
             } else {
-                System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(admin.schemas().getSchemaInfo(topic, version)));
+                System.out.println(customGson.toJson(admin.schemas().getSchemaInfo(topic, version)));
             }
+        }
+    }
+
+    // Using Android's base64 libraries. This can be replaced with any base64 library.
+    private class ByteArrayToStringAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
+        public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            return json.getAsString().getBytes();
+        }
+
+        public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(new String(src));
         }
     }
 

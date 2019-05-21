@@ -32,6 +32,6 @@ public class GetSchemaResponse {
     private long version;
     private SchemaType type;
     private long timestamp;
-    private String data;
+    private byte[] data;
     private Map<String, String> properties;
 }

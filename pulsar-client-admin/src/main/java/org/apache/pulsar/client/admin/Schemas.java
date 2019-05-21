@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.common.schema.GetSchemaResponse;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -34,7 +33,7 @@ public interface Schemas {
      * @return latest schema
      * @throws PulsarAdminException
      */
-    GetSchemaResponse getSchemaInfo(String topic) throws PulsarAdminException;
+    SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException;
 
     /**
      * Retrieve the schema of a topic at a given <tt>version</tt>.
@@ -44,7 +43,7 @@ public interface Schemas {
      * @return the schema info at a given <tt>version</tt>
      * @throws PulsarAdminException
      */
-    GetSchemaResponse getSchemaInfo(String topic, long version) throws PulsarAdminException;
+    SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException;
 
     /**
      * Delete the schema associated with a given <tt>topic</tt>.
