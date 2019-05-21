@@ -207,11 +207,25 @@ public class Consumer {
                     continue;
                 }
 
-                PositionImpl pos = (PositionImpl) entry.getPosition();
+                int batchSize = batchSizes[i];
+
+                if (pendingAcks != null) {
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSizes[i], 0);
+                }
+
+                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
+                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
+                            topicName, subscription,
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                    ctx.close();
+                    entry.release();
+                    continue;
+                }
+
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
                 MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(pos.getLedgerId())
-                    .setEntryId(pos.getEntryId())
+                    .setLedgerId(entry.getLedgerId())
+                    .setEntryId(entry.getEntryId())
                     .setPartition(partitionIdx)
                     .build();
 
@@ -225,7 +239,7 @@ public class Consumer {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
-                            consumerId, pos.getLedgerId(), pos.getEntryId());
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
                 int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker()
