@@ -54,6 +54,12 @@
 
     <dependency>
       <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-broker-auth-sasl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
       <exclusions>
