@@ -497,13 +497,4 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
     }
 
-    @Test
-    public void testCheckIsWellFormed() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isWellFormed(toSchemaData));
-    }
-
 }

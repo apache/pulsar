@@ -19,12 +19,16 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.gson.Gson;
+import org.apache.avro.SchemaParseException;
+import org.apache.avro.SchemaValidationException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.Map;
 
 /**
@@ -88,38 +92,39 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     }
 
     @Override
-    public boolean isWellFormed(SchemaData to) {
-        KeyValue<SchemaData, SchemaData> keyValue = parseSchemaData(to);
-        SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(
-                keyValue.getKey().getType(), SchemaCompatibilityCheck.DEFAULT);
-        SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(
-                keyValue.getValue().getType(), SchemaCompatibilityCheck.DEFAULT);
-        return keyCheck.isWellFormed(keyValue.getKey()) && valueCheck.isWellFormed(keyValue.getValue());
+    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+        return isCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        if (from.getType() != SchemaType.KEY_VALUE || to.getType() != SchemaType.KEY_VALUE) {
-            if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
-                return true;
-            }
+    public boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+        if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
+            return true;
+        }
+        if (to.getType() != SchemaType.KEY_VALUE) {
             return false;
         }
-        KeyValue<SchemaData, SchemaData> fromKeyValue = parseSchemaData(from);
+        LinkedList<SchemaData> fromKeyList = new LinkedList<>();
+        LinkedList<SchemaData> fromValueList = new LinkedList<>();
+        KeyValue<SchemaData, SchemaData> fromKeyValue;
         KeyValue<SchemaData, SchemaData> toKeyValue = parseSchemaData(to);
-
-        SchemaType fromKeyType = fromKeyValue.getKey().getType();
-        SchemaType fromValueType = fromKeyValue.getValue().getType();
         SchemaType toKeyType = toKeyValue.getKey().getType();
         SchemaType toValueType = toKeyValue.getValue().getType();
 
-        if (fromKeyType != toKeyType || fromValueType != toValueType) {
-            return false;
+        for (SchemaData schemaData : from) {
+            if (schemaData.getType() != SchemaType.KEY_VALUE) {
+                return false;
+            }
+            fromKeyValue = parseSchemaData(schemaData);
+            if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
+                return false;
+            }
+            fromKeyList.addFirst(fromKeyValue.getKey());
+            fromValueList.addFirst(fromKeyValue.getValue());
         }
         SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(toKeyType, SchemaCompatibilityCheck.DEFAULT);
         SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
-
-        return keyCheck.isCompatible(fromKeyValue.getKey(), toKeyValue.getKey(), strategy)
-                && valueCheck.isCompatible(fromKeyValue.getValue(), toKeyValue.getValue(), strategy);
+        return keyCheck.isCompatible(fromKeyList, toKeyValue.getKey(), strategy)
+                && valueCheck.isCompatible(fromValueList, toKeyValue.getValue(), strategy);
     }
 }
