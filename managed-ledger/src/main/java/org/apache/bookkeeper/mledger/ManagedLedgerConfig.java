@@ -28,8 +28,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
-
 /**
  * Configuration class for a ManagedLedger.
  */
@@ -245,8 +243,9 @@ public class ManagedLedgerConfig {
         return unackedRangesOpenCacheSetEnabled;
     }
 
-    public void setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
+    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
         this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
+        return this;
     }
 
     /**

@@ -20,15 +20,12 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 
-import java.util.List;
-
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.assertj.core.util.Lists;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {

@@ -26,6 +26,7 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
@@ -33,9 +34,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.netty.util.concurrent.FastThreadLocal;
 
 import java.time.Clock;
 import java.util.ArrayDeque;
@@ -52,7 +54,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
@@ -143,6 +144,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     private RateLimiter markDeleteLimiter;
 
     private boolean alwaysInactive = false;
+    
+    /** used temporary variables to {@link #getNumIndividualDeletedEntriesToSkip(long)} **/
+    private static final FastThreadLocal<Long> tempTotalEntriesToSkip = new FastThreadLocal<>();
+    private static final FastThreadLocal<Long> tempDeletedMessages = new FastThreadLocal<>();
+    private static final FastThreadLocal<PositionImpl> tempStartPosition = new FastThreadLocal<>();
+    private static final FastThreadLocal<PositionImpl> tempEndPosition = new FastThreadLocal<>();
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -1103,8 +1110,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                     return true;
                 } finally {
-                    ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
-                    ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                    if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
+                        ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
+                        ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                    }
                 }
             }, recyclePositionRangeConverter);
         } finally {
@@ -1276,25 +1285,25 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     long getNumIndividualDeletedEntriesToSkip(long numEntries) {
-        AtomicLong totalEntriesToSkip = new AtomicLong(0);
-        AtomicLong deletedMessages = new AtomicLong(0);
+        tempTotalEntriesToSkip.set(0L);
+        tempDeletedMessages.set(0L);
         lock.readLock().lock();
         try {
-            AtomicReference<PositionImpl> startPosition = new AtomicReference<>(markDeletePosition);
-            AtomicReference<PositionImpl> endPosition = new AtomicReference<>(null);
+            tempStartPosition.set(markDeletePosition);
+            tempEndPosition.set(null);
             individualDeletedMessages.forEach((r) -> {
                 try {
-                    endPosition.set(r.lowerEndpoint());
-                    if (startPosition.get().compareTo(endPosition.get()) <= 0) {
-                        Range<PositionImpl> range = Range.openClosed(startPosition.get(), endPosition.get());
+                    tempEndPosition.set(r.lowerEndpoint());
+                    if (tempStartPosition.get().compareTo(tempEndPosition.get()) <= 0) {
+                        Range<PositionImpl> range = Range.openClosed(tempStartPosition.get(), tempEndPosition.get());
                         long entries = ledger.getNumberOfEntries(range);
-                        if (totalEntriesToSkip.get() + entries >= numEntries) {
+                        if (tempTotalEntriesToSkip.get() + entries >= numEntries) {
                             // do not process further
                             return false;
                         }
-                        totalEntriesToSkip.addAndGet(entries);
-                        deletedMessages.addAndGet(ledger.getNumberOfEntries(r));
-                        startPosition.set(r.upperEndpoint());
+                        tempTotalEntriesToSkip.set(tempTotalEntriesToSkip.get() + entries);
+                        tempDeletedMessages.set(tempDeletedMessages.get() + ledger.getNumberOfEntries(r));
+                        tempStartPosition.set(r.upperEndpoint());
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
@@ -1303,14 +1312,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                     return true;
                 } finally {
-                    ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
-                    ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                    if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
+                        ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
+                        ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                    }
                 }
             }, recyclePositionRangeConverter);
         } finally {
             lock.readLock().unlock();
         }
-        return deletedMessages.get();
+        return tempDeletedMessages.get();
     }
 
     boolean hasMoreEntries(PositionImpl position) {
@@ -2488,6 +2499,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    @VisibleForTesting
+    public LongPairRangeSet<PositionImpl> getIndividuallyDeletedMessagesSet() {
+        return individualDeletedMessages;
     }
 
     /**
