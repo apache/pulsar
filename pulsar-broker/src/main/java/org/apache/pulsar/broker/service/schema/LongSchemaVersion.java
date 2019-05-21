@@ -36,7 +36,7 @@ public class LongSchemaVersion implements SchemaVersion {
 
     @Override
     public byte[] bytes() {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.putLong(version);
         buffer.rewind();
         return buffer.array();
