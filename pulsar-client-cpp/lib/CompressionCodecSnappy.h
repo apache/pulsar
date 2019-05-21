@@ -16,24 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+#pragma once
 
-/**
- * The compression type that can be specified on a {@link Producer}.
- */
-public enum CompressionType {
-    /** No compression */
-    NONE,
+#include "CompressionCodec.h"
 
-    /** Compress with LZ4 algorithm. Faster but lower compression than ZLib */
-    LZ4,
+namespace pulsar {
 
-    /** Compress with ZLib */
-    ZLIB,
+class CompressionCodecSnappy : public CompressionCodec {
+   public:
+    SharedBuffer encode(const SharedBuffer& raw);
 
-    /** Compress with Zstandard codec */
-    ZSTD,
-
-    /** Compress with Snappy codec */
-    SNAPPY
-}
+    bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
+};
+}  // namespace pulsar
