@@ -49,8 +49,13 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
+        }
+
+        if (readerConfiguration.isResetIncludeHead()) {
+            consumerConfiguration.setResetIncludeHead(true);
         }
 
         if (readerConfiguration.getReaderListener() != null) {

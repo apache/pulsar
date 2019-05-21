@@ -120,6 +120,8 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
+    // TODO: Add java-doc
+    ReaderBuilder<T> startMessageIdInclusive();
 
     /**
      * Sets a {@link ReaderListener} for the reader
