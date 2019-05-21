@@ -26,8 +26,8 @@
       "functions-guarantees",
       "functions-state",
       "functions-metrics",
-      "functions-runtime",
-      "functions-worker"
+      "functions-worker",
+      "functions-runtime"
     ],
     "Pulsar IO": [
       "io-overview",
