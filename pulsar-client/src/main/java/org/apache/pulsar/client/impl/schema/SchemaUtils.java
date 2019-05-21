@@ -154,7 +154,11 @@ public final class SchemaUtils {
     public static String getStringSchemaVersion(byte[] schemaVersionBytes) {
         if (null == schemaVersionBytes) {
             return "NULL";
-        } else if (schemaVersionBytes.length == Long.BYTES) {
+        } else if (
+            // the length of schema version is 8 bytes post 2.4.0
+            schemaVersionBytes.length == Long.BYTES
+            // the length of schema version is 64 bytes before 2.4.0
+            || schemaVersionBytes.length == Long.SIZE) {
             ByteBuffer bb = ByteBuffer.wrap(schemaVersionBytes);
             return String.valueOf(bb.getLong());
         } else if (schemaVersionBytes.length == 0) {
