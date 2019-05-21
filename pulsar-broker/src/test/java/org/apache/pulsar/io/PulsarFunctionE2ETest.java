@@ -1208,17 +1208,6 @@ public class PulsarFunctionE2ETest {
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
-
-        // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
-
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
         File[] foundFiles = dir.listFiles(new FilenameFilter() {

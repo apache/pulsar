@@ -507,17 +507,6 @@ public class PulsarFunctionE2ESecurityTest {
                 }
 
                 admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
-
-                retryStrategically((test) -> {
-                    try {
-                        return admin1.topics().getStats(sourceTopic).subscriptions.size() == 0;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 5, 150);
-
-                // make sure subscriptions are cleanup
-                assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 0);
             }
         }
     }

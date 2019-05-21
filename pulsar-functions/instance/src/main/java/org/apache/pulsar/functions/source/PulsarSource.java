@@ -102,7 +102,18 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             return cb.subscribeAsync();
         }).collect(Collectors.toList());
 
-        FutureUtil.waitForAll(consumerFutures).get(consumerOpTimeoutMs, TimeUnit.MILLISECONDS);
+        try {
+            FutureUtil.waitForAll(consumerFutures).get(consumerOpTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("Failed to create consumers for {}", pulsarSourceConfig, e);
+            // closing already created consumers
+            for (CompletableFuture<Consumer<T>> consFuture : consumerFutures) {
+                if (consFuture.isDone() && !consFuture.isCompletedExceptionally()) {
+                    consFuture.get().close();
+                }
+            }
+        }
+        
 
         inputConsumers = consumerFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
