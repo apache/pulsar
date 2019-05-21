@@ -28,6 +28,7 @@ import java.net.URLClassLoader;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -53,9 +54,9 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             if (version == null) {
-                print(admin.schemas().getSchemaInfo(topic));
+                System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(admin.schemas().getSchemaInfo(topic)));
             } else {
-                print(admin.schemas().getSchemaInfo(topic, version));
+                System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(admin.schemas().getSchemaInfo(topic, version)));
             }
         }
     }

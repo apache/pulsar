@@ -40,32 +40,20 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     @Override
-    public SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException {
+    public GetSchemaResponse getSchemaInfo(String topic) throws PulsarAdminException {
         try {
             TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
-            SchemaInfo info = new SchemaInfo();
-            info.setSchema(response.getData().getBytes());
-            info.setType(response.getType());
-            info.setProperties(response.getProperties());
-            info.setName(tn.getLocalName());
-            return info;
+            return request(schemaPath(tn)).get(GetSchemaResponse.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException {
+    public GetSchemaResponse getSchemaInfo(String topic, long version) throws PulsarAdminException {
         try {
             TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version))).get(GetSchemaResponse.class);
-            SchemaInfo info = new SchemaInfo();
-            info.setSchema(response.getData().getBytes());
-            info.setType(response.getType());
-            info.setProperties(response.getProperties());
-            info.setName(tn.getLocalName());
-            return info;
+            return request(schemaPath(tn).path(Long.toString(version))).get(GetSchemaResponse.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
