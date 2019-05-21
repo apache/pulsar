@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
@@ -193,9 +194,10 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         Consumer consumer = TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0 ? getNextConsumer() : null;
         if (consumer != null) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            int[] batchSizes = getThreadLocalBatchSizes(entries.size());
+            EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
-            consumer.sendMessages(entries, batchSizes, sendMessageInfo);
+            consumer.sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes());
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {

@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -98,10 +99,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     }
 
                     SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                    int[] batchSizes = getThreadLocalBatchSizes(subList.size());
+                    EntryBatchSizes batchSizes = EntryBatchSizes.get(subList.size());
                     filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
 
-                    consumer.sendMessages(subList, batchSizes, sendMessageInfo);
+                    consumer.sendMessages(subList, batchSizes, sendMessageInfo.getTotalMessages(),
+                            sendMessageInfo.getTotalBytes());
                     entriesWithSameKey.getValue().removeAll(subList);
 
                     totalAvailablePermits -= sendMessageInfo.getTotalMessages();

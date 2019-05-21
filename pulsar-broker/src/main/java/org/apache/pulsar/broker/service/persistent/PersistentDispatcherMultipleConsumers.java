@@ -46,12 +46,13 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
-import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -445,10 +446,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 List<Entry> entriesForThisConsumer = entries.subList(start, start + messagesForC);
 
-                int[] batchSizes = getThreadLocalBatchSizes(entriesForThisConsumer.size());
+                EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo);
 
-                c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo);
+                c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes());
 
                 long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
