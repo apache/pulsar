@@ -16,24 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.service;
 
-/**
- * The compression type that can be specified on a {@link Producer}.
- */
-public enum CompressionType {
-    /** No compression */
-    NONE,
+import io.netty.util.concurrent.FastThreadLocal;
 
-    /** Compress with LZ4 algorithm. Faster but lower compression than ZLib */
-    LZ4,
+import lombok.Data;
 
-    /** Compress with ZLib */
-    ZLIB,
+@Data
+public class SendMessageInfo {
+    private int totalMessages;
+    private long totalBytes;
 
-    /** Compress with Zstandard codec */
-    ZSTD,
+    private SendMessageInfo() {
+        // Private constructor so that all usages are through the thread-local instance
+    }
 
-    /** Compress with Snappy codec */
-    SNAPPY
+    public static SendMessageInfo getThreadLocal() {
+        SendMessageInfo smi = THREAD_LOCAL.get();
+        smi.totalMessages = 0;
+        smi.totalBytes = 0;
+        return smi;
+    }
+
+    private static final FastThreadLocal<SendMessageInfo> THREAD_LOCAL = new FastThreadLocal<SendMessageInfo>() {
+        protected SendMessageInfo initialValue() throws Exception {
+            return new SendMessageInfo();
+        };
+    };
+
 }

@@ -31,7 +31,9 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
+import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -57,6 +59,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
+        super(subscription);
         this.topic = topic;
         this.subscription = subscription;
         this.name = topic.getName() + " / " + subscription.getName();
@@ -189,10 +192,15 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     public void sendMessages(List<Entry> entries) {
         Consumer consumer = TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0 ? getNextConsumer() : null;
         if (consumer != null) {
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getTotalSentMessages());
+            SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+            int[] batchSizes = getThreadLocalBatchSizes(entries.size());
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
+            consumer.sendMessages(entries, batchSizes, sendMessageInfo);
+
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {
             entries.forEach(entry -> {
-                int totalMsgs  = Consumer.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription, -1);
+                int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent(totalMsgs);
                 }

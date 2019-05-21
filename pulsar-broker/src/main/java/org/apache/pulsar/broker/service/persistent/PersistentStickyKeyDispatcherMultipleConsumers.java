@@ -19,19 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
-import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -39,14 +26,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
 
     public static final String NONE_KEY = "NONE_KEY";
 
     private final StickyKeyConsumerSelector selector;
 
-    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
-        super(topic, cursor);
+    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription) {
+        super(topic, cursor, subscription);
         //TODO: Consumer selector Pluggable
         selector = new HashRangeStickyKeyConsumerSelector();
     }
@@ -94,12 +96,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     if (readType == ReadType.Replay) {
                         subList.forEach(entry -> messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId()));
                     }
-                    final SendMessageInfo sentMsgInfo = consumer.sendMessages(subList);
+
+                    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+                    int[] batchSizes = getThreadLocalBatchSizes(subList.size());
+                    filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
+
+                    consumer.sendMessages(subList, batchSizes, sendMessageInfo);
                     entriesWithSameKey.getValue().removeAll(subList);
-                    final long msgSent = sentMsgInfo.getTotalSentMessages();
-                    totalAvailablePermits -= msgSent;
-                    totalMessagesSent += sentMsgInfo.getTotalSentMessages();
-                    totalBytesSent += sentMsgInfo.getTotalSentMessageBytes();
+
+                    totalAvailablePermits -= sendMessageInfo.getTotalMessages();
+                    totalMessagesSent += sendMessageInfo.getTotalMessages();
+                    totalBytesSent += sendMessageInfo.getTotalBytes();
 
                     if (entriesWithSameKey.getValue().size() == 0) {
                         iterator.remove();

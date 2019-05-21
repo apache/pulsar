@@ -140,12 +140,12 @@ public class PersistentSubscription implements Subscription {
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic);
+                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor);
+                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             case Failover:
@@ -157,12 +157,12 @@ public class PersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
-                            topic);
+                            topic, this);
                 }
                 break;
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor);
+                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             default:

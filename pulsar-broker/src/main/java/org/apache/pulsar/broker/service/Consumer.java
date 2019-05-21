@@ -25,14 +25,12 @@ import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,16 +44,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -107,10 +102,6 @@ public class Consumer {
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
-
-    public interface SendListener {
-        void sendComplete(ChannelFuture future, SendMessageInfo sendMessageInfo);
-    }
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -190,25 +181,9 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public SendMessageInfo sendMessages(final List<Entry> entries) {
-        // Empty listener
-        return sendMessages(entries, null);
-    }
-
-    /**
-     * Dispatch a list of entries to the consumer. <br/>
-     * <b>It is also responsible to release entries data and recycle entries object.</b>
-     *
-     * @return a SendMessageInfo object that contains the detail of what was sent to consumer
-     */
-    public SendMessageInfo sendMessages(final List<Entry> entries, SendListener listener) {
+    public ChannelPromise sendMessages(final List<Entry> entries, int[] batchSizes, SendMessageInfo sendMessageInfo) {
         final ChannelHandlerContext ctx = cnx.ctx();
-        final SendMessageInfo sentMessages = new SendMessageInfo();
-        final ChannelPromise writePromise = listener != null ? ctx.newPromise() : ctx.voidPromise();
-
-        if (listener != null) {
-            writePromise.addListener(future -> listener.sendComplete(writePromise, sentMessages));
-        }
+        final ChannelPromise writePromise = ctx.newPromise();
 
         if (entries.isEmpty()) {
             if (log.isDebugEnabled()) {
@@ -216,37 +191,19 @@ public class Consumer {
                         topicName, subscription, consumerId);
             }
             writePromise.setSuccess();
-            sentMessages.totalSentMessages = 0;
-            sentMessages.totalSentMessageBytes = 0;
-            return sentMessages;
+            return writePromise;
         }
 
-        try {
-            updatePermitsAndFilterMessages(entries, sentMessages);
-        } catch (PulsarServerException pe) {
-            log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
-                    cnx.getRemoteEndpointProtocolVersion());
-
-            subscription.markTopicWithBatchMessagePublished();
-            sentMessages.totalSentMessages = 0;
-            sentMessages.totalSentMessageBytes = 0;
-            // disconnect consumer: it will update dispatcher's availablePermits and resend pendingAck-messages of this
-            // consumer to other consumer
-            disconnect();
-            return sentMessages;
-        }
-
-        if (sentMessages.totalSentMessages == 0) {
-            // Everything was filtered out
-            writePromise.setSuccess();
-            return sentMessages;
-        }
+        // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
+        MESSAGE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
+        incrementUnackedMessages(sendMessageInfo.getTotalMessages());
+        msgOut.recordMultipleEvents(sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 if (entry == null) {
-                    // Skip deleted entry
+                    // Entry was filtered out
                     continue;
                 }
 
@@ -283,104 +240,13 @@ public class Consumer {
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
         });
 
-        return sentMessages;
+        return writePromise;
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
         if (shouldBlockConsumerOnUnackMsgs() && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
-    }
-
-    public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, Subscription subscription,
-            long consumerId) {
-        MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
-        if (msgMetadata == null) {
-            return -1;
-        } else {
-            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
-            msgMetadata.recycle();
-            return numMessagesInBatch;
-        }
-    }
-
-    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, Subscription subscription,
-            long consumerId) {
-        try {
-            // save the reader index and restore after parsing
-            int readerIdx = metadataAndPayload.readerIndex();
-            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-            metadataAndPayload.readerIndex(readerIdx);
-
-            return metadata;
-        } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
-            return null;
-        }
-    }
-
-    private void updatePermitsAndFilterMessages(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
-        int permitsToReduce = 0;
-        boolean unsupportedVersion = false;
-        long totalReadableBytes = 0;
-        boolean clientSupportBatchMessages = cnx.isBatchMessageCompatibleVersion();
-
-        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
-            Entry entry = entries.get(i);
-            ByteBuf metadataAndPayload = entry.getDataBuffer();
-            PositionImpl pos = (PositionImpl) entry.getPosition();
-
-            int batchSize;
-            MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
-
-            try {
-                if (msgMetadata == null) {
-                    // Message metadata was corrupted
-                    entries.set(i, null);
-                    entry.release();
-                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                            Collections.emptyMap());
-                    continue;
-                } else if (msgMetadata.hasDeliverAtTime()
-                        && subscription.getDispatcher()
-                                .trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
-                    // The message is marked for delayed delivery. Ignore for now.
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                }
-
-                batchSize = msgMetadata.getNumMessagesInBatch();
-            } finally {
-                msgMetadata.recycle();
-            }
-
-            if (pendingAcks != null) {
-                pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
-            }
-            // check if consumer supports batch message
-            if (batchSize > 1 && !clientSupportBatchMessages) {
-                unsupportedVersion = true;
-            }
-            totalReadableBytes += metadataAndPayload.readableBytes();
-            permitsToReduce += batchSize;
-        }
-        // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        int permits = MESSAGE_PERMITS_UPDATER.addAndGet(this, -permitsToReduce);
-        incrementUnackedMessages(permitsToReduce);
-        if (unsupportedVersion) {
-            throw new PulsarServerException("Consumer does not support batch-message");
-        }
-        if (permits < 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] [{}] message permits dropped below 0 - {}", topicName, subscription, consumerId,
-                        permits);
-            }
-        }
-
-        msgOut.recordMultipleEvents(permitsToReduce, totalReadableBytes);
-        sentMessages.totalSentMessages = permitsToReduce;
-        sentMessages.totalSentMessageBytes = totalReadableBytes;
     }
 
     public boolean isWritable() {
@@ -713,27 +579,6 @@ public class Consumer {
     private void clearUnAckedMsgs(Consumer consumer) {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
-    }
-
-    public static final class SendMessageInfo {
-        private int totalSentMessages;
-        private long totalSentMessageBytes;
-
-        public int getTotalSentMessages() {
-            return totalSentMessages;
-        }
-
-        public void setTotalSentMessages(int totalSentMessages) {
-            this.totalSentMessages = totalSentMessages;
-        }
-
-        public long getTotalSentMessageBytes() {
-            return totalSentMessageBytes;
-        }
-
-        public void setTotalSentMessageBytes(long totalSentMessageBytes) {
-            this.totalSentMessageBytes = totalSentMessageBytes;
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
