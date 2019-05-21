@@ -42,7 +42,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         this.checkers = checkers;
     }
 
-    private KeyValue<byte[], byte[]> splitKeyValueSchemaData(byte[] bytes) {
+    private KeyValue<byte[], byte[]> splitKeyValueSchema(byte[] bytes) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         int keyLength = byteBuffer.getInt();
         byte[] keySchema = new byte[keyLength];
@@ -73,8 +73,8 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
                 .props(Collections.emptyMap()).build();
     }
 
-    private KeyValue<SchemaData, SchemaData> parseSchemaData(SchemaData schemaData) {
-        KeyValue<byte[], byte[]> keyValue = this.splitKeyValueSchemaData(schemaData.getData());
+    private KeyValue<SchemaData, SchemaData> splitKeyValueSchemaData(SchemaData schemaData) {
+        KeyValue<byte[], byte[]> keyValue = this.splitKeyValueSchema(schemaData.getData());
         Map<String, String> properties = schemaData.getProps();
         SchemaType keyType = fetchSchemaType(properties, "key.schema.type");
         SchemaType valueType = fetchSchemaType(properties, "value.schema.type");
@@ -107,7 +107,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         LinkedList<SchemaData> fromKeyList = new LinkedList<>();
         LinkedList<SchemaData> fromValueList = new LinkedList<>();
         KeyValue<SchemaData, SchemaData> fromKeyValue;
-        KeyValue<SchemaData, SchemaData> toKeyValue = parseSchemaData(to);
+        KeyValue<SchemaData, SchemaData> toKeyValue = splitKeyValueSchemaData(to);
         SchemaType toKeyType = toKeyValue.getKey().getType();
         SchemaType toValueType = toKeyValue.getValue().getType();
 
@@ -115,7 +115,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
             if (schemaData.getType() != SchemaType.KEY_VALUE) {
                 return false;
             }
-            fromKeyValue = parseSchemaData(schemaData);
+            fromKeyValue = splitKeyValueSchemaData(schemaData);
             if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
                 return false;
             }
