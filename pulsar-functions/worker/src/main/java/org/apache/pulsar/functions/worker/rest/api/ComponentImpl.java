@@ -1500,7 +1500,7 @@ public abstract class ComponentImpl {
                                  final String namespace,
                                  final String functionName,
                                  final String key,
-                                 final String stateJson,
+                                 final FunctionState state,
                                  final String clientRole,
                                  final AuthenticationDataSource clientAuthenticationDataHttps) {
 
@@ -1522,17 +1522,7 @@ public abstract class ComponentImpl {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
-        FunctionState state;
-        try {
-            TypeReference<FunctionState> typeRef
-                    = new TypeReference<FunctionState>() {
-            };
-            state = ObjectMapperFactory.getThreadLocal().readValue(stateJson, typeRef);
-        } catch (Exception e) {
-            log.error("{}/{}/{} Bad putFunction Request, unable to decipher state", tenant, namespace, functionName);
-            throw new RestException(Status.BAD_REQUEST, "Unable to decipher state");
-        }
+        
         if (!key.equals(state.getKey())) {
             log.error("{}/{}/{} Bad putFunction Request, path key doesn't match key in json", tenant, namespace, functionName);
             throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");

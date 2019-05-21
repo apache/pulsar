@@ -332,7 +332,7 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                  final @PathParam("namespace") String namespace,
                                  final @PathParam("functionName") String functionName,
                                  final @PathParam("key") String key,
-                                 final @FormDataParam("state") String stateJson) throws IOException {
+                                 final @FormDataParam("state") FunctionState stateJson) throws IOException {
         functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
     }
 }

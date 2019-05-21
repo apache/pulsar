@@ -292,7 +292,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                  final @PathParam("namespace") String namespace,
                                  final @PathParam("functionName") String functionName,
                                  final @PathParam("key") String key,
-                                 final @FormDataParam("state") String stateJson) {
+                                 final @FormDataParam("state") FunctionState stateJson) {
         functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
     }
 
