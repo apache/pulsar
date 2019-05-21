@@ -23,9 +23,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 @Getter
-@AllArgsConstructor
+@Setter
+@Data
+@EqualsAndHashCode
 @ToString
-@JsonInclude(JsonInclude.Include.USE_DEFAULTS)
+@Builder(toBuilder=true)
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionState {
     private String key;

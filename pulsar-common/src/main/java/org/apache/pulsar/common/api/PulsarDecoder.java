@@ -66,11 +66,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
-    // Max message size is limited by max BookKeeper entry size which is 5MB, and we need to account
-    // for headers as well.
-    public final static int MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024));
-    public final static int MaxFrameSize = 5 * 1024 * 1024;
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         // Get a buffer that contains the full frame

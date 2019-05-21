@@ -94,6 +94,11 @@ import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class Commands {
 
+    // default message size for transfer
+    public static final int DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024;
+    public static final int MESSAGE_SIZE_FRAME_PADDING = 10 * 1024;
+    public static final int INVALID_MAX_MESSAGE_SIZE = -1;
+
     public static final short magicCrc32c = 0x0e01;
     private static final int checksumSize = 4;
 
@@ -189,9 +194,16 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConnected(int clientProtocolVersion) {
+    public static ByteBuf newConnected(int clientProtocoVersion) {
+        return newConnected(clientProtocoVersion, INVALID_MAX_MESSAGE_SIZE);
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
+        if (INVALID_MAX_MESSAGE_SIZE != maxMessageSize) {
+            connectedBuilder.setMaxMessageSize(maxMessageSize);
+        }
 
         // If the broker supports a newer version of the protocol, it will anyway advertise the max version that the
         // client supports, to avoid confusing the client.
@@ -406,12 +418,14 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
+                false /* isReplicated */, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+            InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -423,6 +437,7 @@ public class Commands {
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
+        subscribeBuilder.setReplicateSubscriptionState(isReplicated);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }

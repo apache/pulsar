@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
 import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
         port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(port));
         config.setClusterName("test");
         config.setAuthenticationEnabled(true);
         // If this is not set, 500 error occurs.

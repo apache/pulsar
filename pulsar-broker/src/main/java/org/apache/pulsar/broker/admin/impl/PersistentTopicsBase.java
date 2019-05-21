@@ -308,7 +308,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative) {
-        validateAdminOperationOnTopic(true);
+        validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
         try {
             topic.deleteForcefully().get();
@@ -917,7 +917,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalCreateSubscription(String subscriptionName, MessageIdImpl messageId, boolean authoritative) {
+    protected void internalCreateSubscription(String subscriptionName, MessageIdImpl messageId, boolean authoritative, boolean replicated) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -968,7 +968,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
-                        .createSubscription(subscriptionName, InitialPosition.Latest).get();
+                        .createSubscription(subscriptionName, InitialPosition.Latest, replicated).get();
                 // Mark the cursor as "inactive" as it was created without a real consumer connected
                 subscription.deactivateCursor();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
