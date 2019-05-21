@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -308,7 +309,8 @@ public class AuthorizationService {
     }
 
     public CompletableFuture<List<TopicName>> canBatchLookupAsync(List<TopicName> topicNames, String role,
-                                                                  AuthenticationDataSource authenticationData) {
+                                                                  AuthenticationDataSource authenticationData,
+                                                                  long requestId) {
         CompletableFuture<List<TopicName>> finalResult = new CompletableFuture<>();
         List<TopicName> unAuthorizedTopicNames = new ArrayList<>();
         List<CompletableFuture<Boolean>> results = new ArrayList<>();
@@ -324,8 +326,8 @@ public class AuthorizationService {
                         unAuthorizedTopicNames.add(topicNames.get(i));
                     }
                 } catch (Exception e) {
-                    log.warn("Error occurred while checking authorization on {}, retry needed. ",
-                                                                                    topicNames.get(i).toString());
+                    log.warn("Batch lookup request[{}]:Error occurred while checking authorization on {}, " +
+                                                            "retry needed.", requestId, topicNames.get(i).toString());
                     unAuthorizedTopicNames.add(topicNames.get(i));
                 }
             };
@@ -335,25 +337,19 @@ public class AuthorizationService {
         return finalResult;
     }
 
-    public List<TopicName> canBatchLookup(List<TopicName> topicNames, String role,
-                                          AuthenticationDataSource authenticationData) {
-        List<TopicName> unAuthorizedTopicNames = new ArrayList<>();
-        topicNames.forEach(topicName -> {
-            try {
-                if (canLookup(topicName, role, authenticationData)) {
-                    unAuthorizedTopicNames.add(topicName);
-                }
-            }  catch (InterruptedException e) {
-                log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                        topicName.toString());
-                unAuthorizedTopicNames.add(topicName);
-            } catch (Exception e) {
-                log.warn("Pulsar-client with Role - {} don't have permissions to do lookup for topic - {}. {}", role,
-                        topicName.toString(), e.getMessage());
-                unAuthorizedTopicNames.add(topicName);
-            }
-        });
-        return unAuthorizedTopicNames;
+    public List<TopicName> canBatchLookup(List<TopicName> topicNames, String role, AuthenticationDataSource
+                                                authenticationData, long requestId) throws Exception {
+        try {
+            return canBatchLookupAsync(topicNames, role, authenticationData, requestId).get();
+        } catch (InterruptedException e) {
+            log.warn("Batch lookup request[{}]: Time out {} sec while checking authorization for batch look up.",
+                                                                requestId, conf.getZooKeeperOperationTimeoutSeconds());
+            throw e;
+        } catch (ExecutionException e) {
+            log.warn("Batch lookup request[{}]: Failed to check authorization for batch lookup cause by: {}",
+                                                                                            requestId, e.getCause());
+            throw e;
+        }
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,

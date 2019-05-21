@@ -313,6 +313,14 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxConcurrentLookupRequests(int maxConcurrentLookupRequests);
 
     /**
+     * Number of concurrent batch lookup request allowed to send on each broker-connection to prevent overload on
+     * broker.  <i>(default: 50)</i>
+     * @param maxConcurrentBatchLookupRequests
+     * @return the client builder instance
+     */
+    ClientBuilder maxConcurrentBatchLookupRequests(int maxConcurrentBatchLookupRequests);
+
+    /**
      * Number of max lookup-requests allowed on each broker-connection to prevent overload on broker.
      * <i>(default: 50000)</i> It should be bigger than maxConcurrentLookupRequests.
      * Requests that inside maxConcurrentLookupRequests already send to broker, and requests beyond

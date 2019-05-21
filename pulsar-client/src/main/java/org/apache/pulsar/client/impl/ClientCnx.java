@@ -119,6 +119,7 @@ public class ClientCnx extends PulsarHandler {
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
     private final Semaphore pendingLookupRequestSemaphore;
+    private final Semaphore pendingBatchLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
 
@@ -165,6 +166,7 @@ public class ClientCnx extends PulsarHandler {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
+        this.pendingBatchLookupRequestSemaphore = new Semaphore(conf.getConcurrentBatchLookupRequest(), false);
         this.maxLookupRequestSemaphore = new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
         this.waitingBatchLookupRequests = Queues.newConcurrentLinkedQueue();
@@ -622,7 +624,7 @@ public class ClientCnx extends PulsarHandler {
                     });
                 });
             } else {
-                pendingLookupRequestSemaphore.release();
+                pendingBatchLookupRequestSemaphore.release();
             }
         }
         return future;
@@ -735,7 +737,7 @@ public class ClientCnx extends PulsarHandler {
     public CompletableFuture<BatchLookupDataResult> newBatchLookup(ByteBuf requestPayload, long requestId) {
         CompletableFuture<BatchLookupDataResult> future = new CompletableFuture<>();
 
-        if (pendingLookupRequestSemaphore.tryAcquire()) {
+        if (pendingBatchLookupRequestSemaphore.tryAcquire()) {
             addPendingBatchLookupRequests(requestId, future);
             ctx.writeAndFlush(requestPayload).addListener(writeFuture -> {
                if (!writeFuture.isSuccess()) {

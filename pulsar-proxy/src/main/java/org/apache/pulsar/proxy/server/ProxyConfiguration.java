@@ -222,6 +222,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int maxConcurrentLookupRequests = 50000;
 
+    private int maxConcurrentBatchLookupRequests = 50;
+
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers"

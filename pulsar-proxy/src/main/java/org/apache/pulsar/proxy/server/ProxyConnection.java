@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandBatchLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -380,12 +381,18 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     /**
-     * handles discovery request from client ands sends next active broker address
+     * handles discovery request from client and sends next active broker address
      */
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
         checkArgument(state == State.ProxyLookupRequests);
         lookupProxyHandler.handleLookup(lookup);
+    }
+
+    @Override
+    protected void handleBatchLookup(CommandBatchLookupTopic batchLookup) {
+        checkArgument(state == State.ProxyLookupRequests);
+        lookupProxyHandler.handleBatchLookup(batchLookup);
     }
 
     private void close() {

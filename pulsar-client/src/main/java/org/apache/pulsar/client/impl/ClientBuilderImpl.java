@@ -185,6 +185,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder maxConcurrentBatchLookupRequests(int concurrentBatchLookupRequests) {
+        conf.setConcurrentBatchLookupRequest(concurrentBatchLookupRequests);
+        return this;
+    }
+
+    @Override
     public ClientBuilder maxLookupRequests(int maxLookupRequests) {
         conf.setMaxLookupRequest(maxLookupRequests);
         return this;

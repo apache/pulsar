@@ -70,6 +70,8 @@ public class ProxyService implements Closeable {
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
+    private final AtomicReference<Semaphore> batchLookupRequestSemaphore;
+
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
     static final Gauge activeConnections = Gauge
@@ -97,6 +99,9 @@ public class ProxyService implements Closeable {
 
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
+
+        this.batchLookupRequestSemaphore = new AtomicReference<>(
+                new Semaphore(proxyConfig.getMaxConcurrentBatchLookupRequests(), false));
 
         String hostname;
         try {
@@ -209,6 +214,10 @@ public class ProxyService implements Closeable {
 
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
+    }
+
+    public Semaphore getBatchLookupRequestsSemehpore() {
+        return this.batchLookupRequestSemaphore.get();
     }
 
     public EventLoopGroup getWorkerGroup() {

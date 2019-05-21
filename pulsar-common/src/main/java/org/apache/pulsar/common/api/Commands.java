@@ -740,19 +740,28 @@ public class Commands {
         return commandLookupTopicResponse;
     }
 
-    public static ByteBuf newBatchLookupResponse(List<CommandLookupTopicResponse> lookupTopicResponses,
-                                                 ResponseType responseType, List<String> unauthorizedTopics,
-                                                 long requestId, boolean authoritative) {
+    public static CommandBatchLookupTopicResponse newCommandBatchLookupResponse(List<CommandLookupTopicResponse> lookupTopicResponses,
+                                                  ResponseType responseType, List<String> unauthorizedTopics,
+                                                  long requestId, boolean authoritative) {
         CommandBatchLookupTopicResponse.Builder commandBatchLookupTopicResponseBuilder = CommandBatchLookupTopicResponse.newBuilder();
         commandBatchLookupTopicResponseBuilder.addAllLookupResponses(lookupTopicResponses);
         commandBatchLookupTopicResponseBuilder.addAllUnauthorizedTopics(unauthorizedTopics);
         commandBatchLookupTopicResponseBuilder.setResponse(responseType);
         commandBatchLookupTopicResponseBuilder.setRequestId(requestId);
         commandBatchLookupTopicResponseBuilder.setAuthoritative(authoritative);
+
         CommandBatchLookupTopicResponse commandBatchLookupTopicResponse = commandBatchLookupTopicResponseBuilder.build();
+        commandBatchLookupTopicResponseBuilder.recycle();
+        return commandBatchLookupTopicResponse;
+    }
+
+    public static ByteBuf newBatchLookupResponse(List<CommandLookupTopicResponse> lookupTopicResponses,
+                                                 ResponseType responseType, List<String> unauthorizedTopics,
+                                                 long requestId, boolean authoritative) {
+        CommandBatchLookupTopicResponse commandBatchLookupTopicResponse = newCommandBatchLookupResponse(lookupTopicResponses,
+                                                            responseType, unauthorizedTopics, requestId, authoritative);
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.BATCH_LOOKUP_RESPONSE).
                                                         setBatchLookupTopicResponse(commandBatchLookupTopicResponse));
-        commandBatchLookupTopicResponseBuilder.recycle();
         commandBatchLookupTopicResponse.recycle();
         return res;
     }

@@ -39,6 +39,7 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -345,7 +346,8 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<List<TopicName>> unauthorizedTopicNamesFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 unauthorizedTopicNamesFuture = service.getAuthorizationService().canBatchLookupAsync(topicNames,
-                                                                                        authRole, authenticationData);
+                                                                                        authRole, authenticationData,
+                                                                                            batchLookup.getRequestId());
             } else {
                 unauthorizedTopicNamesFuture = CompletableFuture.completedFuture(new ArrayList<>());
             }
@@ -356,20 +358,20 @@ public class ServerCnx extends PulsarHandler {
                 invalidTopicNames.addAll(unauthorizedTopicNames);
                 // Remove unauthorized topic names from list of topic names need to be looked up.
                 topicNames.removeAll(unauthorizedTopicNames);
-                List<CompletableFuture<CommandLookupTopicResponse>> batchLookResults = batchLookupTopicAsync(getBrokerService().pulsar(),
+                List<CompletableFuture<CommandLookupTopicResponse>> lookResults = batchLookupTopicAsync(getBrokerService().pulsar(),
                         topicNames, authoritative, finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole,
                         authenticationData, requestId);
-                FutureUtil.waitForAll(batchLookResults).handle((future, ex) -> {
+                FutureUtil.waitForAll(lookResults).handle((future, ex) -> {
                     if (ex == null) {
                         List<CommandLookupTopicResponse> lookupTopicResponses = new ArrayList<>();
-                        batchLookResults.forEach(batchLookResult -> {
+                        lookResults.forEach(lookResult -> {
                             try {
-                                lookupTopicResponses.add(batchLookResult.get());
+                                lookupTopicResponses.add(lookResult.get());
                             } catch (Exception e) {
                                 log.warn("[{}] lookup for some topics failed with error for requestId {}, {}",
                                         remoteAddress, requestId, ex.getMessage(), ex);
                                 lookupTopicResponses.add(newCommandLookupErrorResponse(ServerError.UnknownError,
-                                        ex.getMessage(), requestId, null));
+                                        ex.getMessage(), requestId, Collections.emptyList()));
                             }
                         });
                         ctx.writeAndFlush(newBatchLookupResponse(lookupTopicResponses, ResponseType.Success,

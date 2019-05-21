@@ -184,7 +184,7 @@ enum ProtocolVersion {
 	v13 = 13; // Schema-registry : added avro schema format for json
 	v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
 	          // Added Key_Shared subscription
-	v15 = 15; // Add batch lookup support
+	v15 = 15; // Add batch lookup support to v14
 }
 
 message CommandConnect {

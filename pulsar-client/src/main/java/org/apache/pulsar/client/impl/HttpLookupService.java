@@ -44,8 +44,11 @@ import org.apache.pulsar.common.schema.GetSchemaResponse;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.pulsar.client.impl.BinaryProtoLookupService.BatchLookupDataResult;
 
 class HttpLookupService implements LookupService {
 
@@ -99,6 +102,17 @@ class HttpLookupService implements LookupService {
                 return FutureUtil.failedFuture(e);
             }
         });
+    }
+
+    /**
+     * Calls http batch lookup api to find broker-service addresses that serve given list of topics.
+     *
+     * @param topicNames List of topic name need to lookup.
+     * @return BatchLookupDataResult batch look up result.
+     */
+    public CompletableFuture<BatchLookupDataResult> getBrokers(List<TopicName> topicNames) {
+        CompletableFuture<BatchLookupDataResult> future = new CompletableFuture<>();
+        return future;
     }
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
