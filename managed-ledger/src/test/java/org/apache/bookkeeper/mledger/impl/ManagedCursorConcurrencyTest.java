@@ -42,11 +42,17 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorConcurrencyTest.class);
+    
+    @DataProvider(name = "useOpenRangeSet")
+    public static Object[][] useOpenRangeSet() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
 
     private final AsyncCallbacks.DeleteCallback deleteCallback = new AsyncCallbacks.DeleteCallback() {
         @Override
@@ -60,9 +66,11 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         }
     };
 
-    @Test
-    public void testMarkDeleteAndRead() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+    @Test(dataProvider = "useOpenRangeSet")
+    public void testMarkDeleteAndRead(boolean useOpenRangeSet) throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
+                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
