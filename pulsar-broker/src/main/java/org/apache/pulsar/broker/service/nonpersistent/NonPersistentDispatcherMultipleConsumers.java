@@ -197,7 +197,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
             consumer.sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes());
+                    sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {

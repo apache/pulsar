@@ -182,7 +182,7 @@ public class Consumer {
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
-            long totalBytes) {
+            long totalBytes, RedeliveryTracker redeliveryTracker) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
 
@@ -244,7 +244,7 @@ public class Consumer {
                             consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
-                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker()
+                int redeliveryCount = redeliveryTracker
                         .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();

@@ -73,7 +73,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToReplay = new ConcurrentSortedLongPairSet(128, 2);
-    private final RedeliveryTracker redeliveryTracker;
+    protected final RedeliveryTracker redeliveryTracker;
 
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
@@ -450,7 +450,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes());
+                        sendMessageInfo.getTotalBytes(), redeliveryTracker);
 
                 long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;

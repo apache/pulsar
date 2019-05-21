@@ -103,7 +103,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
 
                     consumer.sendMessages(subList, batchSizes, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes());
+                            sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
                     entriesWithSameKey.getValue().removeAll(subList);
 
                     totalAvailablePermits -= sendMessageInfo.getTotalMessages();
