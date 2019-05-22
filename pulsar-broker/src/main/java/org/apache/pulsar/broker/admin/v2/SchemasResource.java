@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.apache.pulsar.common.util.Codec.decode;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.DeleteSchemaResponse;
@@ -85,7 +87,7 @@ public class SchemasResource extends AdminResource {
         this.clock = clock;
     }
 
-    private long getLongSchemaVersion(SchemaVersion schemaVersion) {
+    private static long getLongSchemaVersion(SchemaVersion schemaVersion) {
         if (schemaVersion instanceof LongSchemaVersion) {
             return ((LongSchemaVersion) schemaVersion).getVersion();
         } else {
@@ -116,29 +118,7 @@ public class SchemasResource extends AdminResource {
         String schemaId = buildSchemaId(tenant, namespace, topic);
         pulsar().getSchemaRegistryService().getSchema(schemaId)
             .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                )
-                                .build()
-                        );
-                    }
-                } else {
-                    response.resume(error);
-                }
+                handleGetSchemaResponse(response, schema, error);
                 return null;
             });
     }
@@ -170,30 +150,36 @@ public class SchemasResource extends AdminResource {
         SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(bbVersion.array());
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                ).build()
-                        );
-                    }
-                } else {
-                    response.resume(error);
-                }
+                handleGetSchemaResponse(response, schema, error);
                 return null;
             });
+    }
+
+    private static void handleGetSchemaResponse(AsyncResponse response,
+                                                SchemaAndMetadata schema, Throwable error) {
+        if (isNull(error)) {
+            if (isNull(schema)) {
+                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+            } else if (schema.schema.isDeleted()) {
+                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+            } else {
+                response.resume(
+                    Response.ok()
+                        .encoding(MediaType.APPLICATION_JSON)
+                        .entity(GetSchemaResponse.builder()
+                            .version(getLongSchemaVersion(schema.version))
+                            .type(schema.schema.getType())
+                            .timestamp(schema.schema.getTimestamp())
+                            .data(new String(schema.schema.getData(), UTF_8))
+                            .properties(schema.schema.getProps())
+                            .build()
+                        ).build()
+                );
+            }
+        } else {
+            response.resume(error);
+        }
+
     }
 
     @DELETE
