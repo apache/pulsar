@@ -28,17 +28,14 @@ import java.net.URLClassLoader;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -63,24 +60,27 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Gson customGson = new GsonBuilder().registerTypeHierarchyAdapter(byte[].class,
-                    new ByteArrayToStringAdapter()).create();
+            SchemaInfo schemaInfo;
             if (version == null) {
-                System.out.println(customGson.toJson(admin.schemas().getSchemaInfo(topic)));
+                schemaInfo = admin.schemas().getSchemaInfo(topic);
             } else {
-                System.out.println(customGson.toJson(admin.schemas().getSchemaInfo(topic, version)));
+                schemaInfo = admin.schemas().getSchemaInfo(topic, version);
             }
+            Gson customGson = new GsonBuilder().registerTypeHierarchyAdapter(byte[].class,
+                    new ByteArrayToStringAdapter(schemaInfo)).create();
+            System.out.println(customGson.toJson(schemaInfo));
         }
     }
 
     // Using Android's base64 libraries. This can be replaced with any base64 library.
-    private class ByteArrayToStringAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
-        public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return json.getAsString().getBytes();
+    private class ByteArrayToStringAdapter implements JsonSerializer<byte[]> {
+        private SchemaInfo schemaInfo;
+        public ByteArrayToStringAdapter(SchemaInfo schemaInfo) {
+            this.schemaInfo = schemaInfo;
         }
 
         public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(new String(src));
+            return new JsonPrimitive(schemaInfo.getSchemaDefinition());
         }
     }
 
