@@ -45,7 +45,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
             TopicName tn = TopicName.get(topic);
             GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
-            info.setSchema(response.getData());
+            info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
             info.setProperties(response.getProperties());
             info.setName(tn.getLocalName());
@@ -61,7 +61,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
             TopicName tn = TopicName.get(topic);
             GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version))).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
-            info.setSchema(response.getData());
+            info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
             info.setProperties(response.getProperties());
             info.setName(tn.getLocalName());
