@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 public class DelayedDeliveryTrackerLoader {
     public static DelayedDeliveryTrackerFactory loadDelayedDeliveryTrackerFactory(ServiceConfiguration conf)
             throws IOException {
-        // try {
         Class<?> factoryClass;
         try {
             factoryClass = Class.forName(conf.getDelayedDeliveryTrackerFactoryClassName());

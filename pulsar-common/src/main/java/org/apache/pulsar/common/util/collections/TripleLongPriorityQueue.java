@@ -43,21 +43,38 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     private int capacity;
     private int size;
 
+    /**
+     * Create a new priority queue with default initial capacity
+     */
     public TripleLongPriorityQueue() {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
+    /**
+     * Create a new priority queue with a given initial capacity
+     * @param initialCapacity
+     */
     public TripleLongPriorityQueue(int initialCapacity) {
         capacity = initialCapacity;
         buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * ITEMS_COUNT * SIZE_OF_LONG);
         size = 0;
     }
 
+    /**
+     * Close the priority queue and free the memory associated
+     */
     @Override
     public void close() {
         buffer.release();
     }
 
+    /**
+     * Add a tuple of 3 long items to the priority queue
+     *
+     * @param n1
+     * @param n2
+     * @param n3
+     */
     public void add(long n1, long n2, long n3) {
         if (size == capacity) {
             increaseCapacity();
@@ -68,16 +85,31 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         ++size;
     }
 
+    /**
+     * Read the 1st long item in the top tuple in the priority queue.
+     * <p>
+     * The tuple will not be extracted
+     */
     public long peekN1() {
         checkArgument(size != 0);
         return buffer.getLong(0);
     }
 
+    /**
+     * Read the 2nd long item in the top tuple in the priority queue.
+     * <p>
+     * The tuple will not be extracted
+     */
     public long peekN2() {
         checkArgument(size != 0);
         return buffer.getLong(0 + 1 * SIZE_OF_LONG);
     }
 
+    /**
+     * Read the 3rd long item in the top tuple in the priority queue.
+     * <p>
+     * The tuple will not be extracted
+     */
     public long peekN3() {
         checkArgument(size != 0);
         return buffer.getLong(0 + 2 * SIZE_OF_LONG);
@@ -93,10 +125,16 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         siftDown(0);
     }
 
+    /**
+     * Returns whether the priority queue is empty
+     */
     public boolean isEmpty() {
         return size == 0;
     }
 
+    /**
+     * Returns the number of tuples in the priority queue
+     */
     public int size() {
         return size;
     }
