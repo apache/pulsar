@@ -48,10 +48,16 @@
               createToggler('#navToggler', '#docsNav', 'docsSliderActive');
               createToggler('#tocToggler', 'body', 'tocActive');
 
-              const headings = document.querySelector('.toc-headings');
+              var headings = document.querySelector('.toc-headings');
               headings && headings.addEventListener('click', function(event) {
-                if (event.target.tagName === 'A') {
-                  document.body.classList.remove('tocActive');
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
                 }
               }, false);
 
@@ -127,15 +133,45 @@
 <tr><td style="text-align:left">异步接收</td><td style="text-align:left">异步接收立即返回future值---例如java中的 <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>，一旦新消息可用，他即刻完成。</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="监听"></a><a href="#监听" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监听</h3>
+<p>Client libraries provide listener implementation for consumers. For example, the <a href="/docs/zh-CN/next/client-libraries-java">Java client</a> provides a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
+ interface. 在这个接口中，一旦接受到新的消息，<code>received</code>方法将被调用。</p>
 <h3><a class="anchor" aria-hidden="true" id="确认"></a><a href="#确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认</h3>
-<p>消费者成功处理了消息，需要发送确认给broker，以让broker丢掉这条消息（否则它将<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">存储</a>着此消息）。</p>
+<p>When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker, so that the broker will discard the message. Otherwise, it <a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">stores</a> the message.</p>
 <p>消息的确认可以一个接一个，也可以累积一起。 累积确认时，消费者只需要确认最后一条他收到的消息。 所有之前（包含此条）的消息，都不会被再次重发给那个消费者。</p>
 <blockquote>
 <p>累积消息确认不能用于<a href="#subscription-modes">共享订阅模式</a>，因为共享模式中，一个订阅会涉及到多个消费者。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="监听"></a><a href="#监听" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监听</h3>
-<p>客户端类库提供了自身对于consumer监听的实现。 举一个 <a href="/docs/zh-CN/next/client-libraries-java">Java客户端</a>的例子，它提供了 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
- 接口。 在这个接口中，一旦接受到新的消息，<code>received</code>方法将被调用。</p>
+<p>In the shared subscription mode, messages can be acknowledged individually.</p>
+<h3><a class="anchor" aria-hidden="true" id="negative-acknowledgement"></a><a href="#negative-acknowledgement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Negative acknowledgement</h3>
+<p>When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer can send a negative acknowledgement to the broker, and then the broker will redeliver the message.</p>
+<p>Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.</p>
+<p>In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.</p>
+<p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
+<h3><a class="anchor" aria-hidden="true" id="acknowledgement-timeout"></a><a href="#acknowledgement-timeout" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledgement timeout</h3>
+<p>When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire <code>acktimeout</code> time range, and send a <code>redeliver unacknowledged messages</code> request to the broker automatically when the acknowledgement timeout is specified.</p>
+<blockquote>
+<p>Note<br>
+Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="dead-letter-topic"></a><a href="#dead-letter-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dead letter topic</h3>
+<p>Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.</p>
+<p>The following example shows how to enable dead letter topic in Java client.</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .build())
+              .subscribe();
+
+</code></pre>
+<p>Dead letter topic depends on message re-delivery. You need to confirm message re-delivery method: negative acknowledgement or acknowledgement timeout. Use negative acknowledgement prior to acknowledgement timeout.</p>
+<blockquote>
+<p>Note<br>
+Currently, dead letter topic is enabled only in the shared subscription mode.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="topics"></a><a href="#topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topics</h2>
 <p>和其他的发布订阅系统一样，Pulsar 中的 topic 是被命名的通道，用做从<a href="/docs/zh-CN/next/reference-terminology#producer">producer</a>到 <a href="/docs/zh-CN/next/reference-terminology#consumer">consumer</a>传输消息。 Topic的名称为符合良好结构的URL:</p>
 <pre><code class="hljs css language-http">{persistent|non-persistent}://tenant/namespace/topic
@@ -327,7 +363,7 @@ Consumer consumer = client.subscribe(npTopic, subscriptionName);
 <blockquote>
 <p>更深入的信息可以参考 <a href="https://streaml.io/blog">Streamlio blog</a>上的<a href="https://streaml.io/blog/pulsar-effectively-once/">此篇博文</a></p>
 </blockquote>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/concepts-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/concepts-architecture-overview"><span>Architecture</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#发送模式">发送模式</a></li><li><a href="#压缩">压缩</a></li><li><a href="#批处理">批处理</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#接收模式">接收模式</a></li><li><a href="#确认">确认</a></li><li><a href="#监听">监听</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#命名空间">命名空间</a></li><li><a href="#订阅模型">订阅模型</a><ul class="toc-headings"><li><a href="#exclusive">Exclusive</a></li><li><a href="#failover-灾备">Failover（灾备）</a></li><li><a href="#shared-共享">Shared（共享）</a></li><li><a href="#key_shared">Key_shared</a></li></ul></li><li><a href="#多主题订阅">多主题订阅</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#路由模式">路由模式</a></li><li><a href="#顺序保证">顺序保证</a></li><li><a href="#散列scheme">散列scheme</a></li></ul></li><li><a href="#非持久topic">非持久topic</a><ul class="toc-headings"><li><a href="#性能">性能</a></li><li><a href="#客户端api">客户端API</a></li></ul></li><li><a href="#消息保留和到期">消息保留和到期</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#生产者幂等">生产者幂等</a></li><li><a href="#去重和实际一次语义">去重和实际一次语义</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/concepts-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/concepts-architecture-overview"><span>Architecture</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#发送模式">发送模式</a></li><li><a href="#压缩">压缩</a></li><li><a href="#批处理">批处理</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#接收模式">接收模式</a></li><li><a href="#监听">监听</a></li><li><a href="#确认">确认</a></li><li><a href="#negative-acknowledgement">Negative acknowledgement</a></li><li><a href="#acknowledgement-timeout">Acknowledgement timeout</a></li><li><a href="#dead-letter-topic">Dead letter topic</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#命名空间">命名空间</a></li><li><a href="#订阅模型">订阅模型</a><ul class="toc-headings"><li><a href="#exclusive">Exclusive</a></li><li><a href="#failover-灾备">Failover（灾备）</a></li><li><a href="#shared-共享">Shared（共享）</a></li><li><a href="#key_shared">Key_shared</a></li></ul></li><li><a href="#多主题订阅">多主题订阅</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#路由模式">路由模式</a></li><li><a href="#顺序保证">顺序保证</a></li><li><a href="#散列scheme">散列scheme</a></li></ul></li><li><a href="#非持久topic">非持久topic</a><ul class="toc-headings"><li><a href="#性能">性能</a></li><li><a href="#客户端api">客户端API</a></li></ul></li><li><a href="#消息保留和到期">消息保留和到期</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#生产者幂等">生产者幂等</a></li><li><a href="#去重和实际一次语义">去重和实际一次语义</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

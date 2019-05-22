@@ -70,7 +70,7 @@
         <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
         <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
     },
-    <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
+    <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-2.3.1.nar"</span>
 }
 </code></pre>
 <p>You could also find the yaml example in this <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml">file</a>, which has similar content below:</p>
@@ -78,7 +78,7 @@
 <span class="hljs-attribute">namespace</span>: <span class="hljs-string">"default"</span>
 <span class="hljs-attribute">name</span>: <span class="hljs-string">"debezium-kafka-source"</span>
 <span class="hljs-attribute">topicName</span>: <span class="hljs-string">"kafka-connect-topic"</span>
-<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
+<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-2.3.1.nar"</span>
 
 ##<span class="hljs-attribute">autoAck</span>: true
 <span class="hljs-attribute">parallelism</span>: <span class="hljs-number">1</span>
@@ -120,7 +120,7 @@
 <pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar </span>standalone
 </code></pre>
 <ul>
-<li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar</code>.</li>
+<li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-debezium-mysql-2.3.1.nar</code>.</li>
 </ul>
 <pre><code class="hljs css language-$bash"> bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --sourceConfigFile debezium-mysql-<span class="hljs-keyword">source</span>-config.yaml
 </code></pre>
