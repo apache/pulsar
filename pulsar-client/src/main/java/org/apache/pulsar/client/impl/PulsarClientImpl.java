@@ -730,7 +730,7 @@ public class PulsarClientImpl implements PulsarClient {
 
             if (schema instanceof AutoConsumeSchema) {
                 SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
-                if (schemaInfo.getType() != SchemaType.AVRO){
+                if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
                     throw new RuntimeException("Currently schema detection only works for topics with avro schemas");
                 }
 
