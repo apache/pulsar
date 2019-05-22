@@ -1,10 +1,12 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
+import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemEntryBytesReader;
+import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.offload.filesystem.OffloadIndexFileBuilder;
 import org.apache.bookkeeper.mledger.offload.filesystem.TieredStorageConfigurationData;
 import org.apache.hadoop.conf.Configuration;
@@ -27,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     private static final Logger log = LoggerFactory.getLogger(FileSystemManagedLedgerOffloader.class);
-
+    private static final String STORAGE_BASE_PATH = "storageBasePath";
     private static final String[] DRIVER_NAMES = {"hdfs"};
     private final String driverName;
     private final String userName;
@@ -51,12 +53,14 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 scheduler);
     }
 
-    private FileSystemManagedLedgerOffloader(String diverName, String userName, String storageBasePath, String accessUri, OrderedScheduler scheduler) throws IOException{
+    private FileSystemManagedLedgerOffloader(String diverName, String userName, String storageBasePath, String accessUri, OrderedScheduler scheduler) throws IOException {
         this.driverName = diverName;
         this.userName = userName;
         this.storageBasePath = storageBasePath;
         this.scheduler = scheduler;
         Configuration configuration = new Configuration();
+        configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
+        configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         try {
             this.fileSystem = this.userName == null ? FileSystem.get(new URI(accessUri), configuration) :
                     FileSystem.get(new URI(accessUri), configuration, userName);
@@ -65,13 +69,17 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 throw new IOException("File system's uri is wrong");
             } else if (e instanceof InterruptedException) {
                 throw new IOException(e);
+            } else if (e instanceof ClassNotFoundException) {
+                throw new IOException("class exist nar package not load");
             }
         }
     }
 
     @Override
     public Map<String, String> getOffloadDriverMetadata() {
-        return null;
+        return ImmutableMap.of(
+                STORAGE_BASE_PATH, storageBasePath
+        );
     }
 
     @Override
