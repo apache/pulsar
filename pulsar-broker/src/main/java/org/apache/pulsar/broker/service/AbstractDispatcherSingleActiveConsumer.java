@@ -33,7 +33,7 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractDispatcherSingleActiveConsumer {
+public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
     protected final String topicName;
     protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
@@ -53,7 +53,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     private volatile int isClosed = FALSE;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            String topicName) {
+            String topicName, Subscription subscription) {
+        super(subscription);
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
