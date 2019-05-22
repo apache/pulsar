@@ -2048,4 +2048,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
      }
+
+    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+        return replicatedSubscriptionsController;
+    }
 }

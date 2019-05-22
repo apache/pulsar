@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 
 public interface Subscription {
 
@@ -85,4 +86,8 @@ public interface Subscription {
     String getTypeString();
 
     void addUnAckedMessages(int unAckMessages);
+
+    default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
+        // Default is no-op
+    }
 }

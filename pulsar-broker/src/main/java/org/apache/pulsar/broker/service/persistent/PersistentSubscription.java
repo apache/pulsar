@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -84,7 +85,7 @@ public class PersistentSubscription implements Subscription {
     private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
 
-    private volatile boolean isReplicated;
+    private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -105,7 +106,7 @@ public class PersistentSubscription implements Subscription {
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
-        this.isReplicated = replicated;
+        this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -121,11 +122,15 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public boolean isReplicated() {
-        return isReplicated;
+        return replicatedSubscriptionSnapshotCache != null;
     }
 
     void setReplicated(boolean replicated) {
-        this.isReplicated = replicated;
+        this.replicatedSubscriptionSnapshotCache = replicated
+                ? new ReplicatedSubscriptionSnapshotCache(subName,
+                        topic.getBrokerService().pulsar().getConfiguration()
+                                .getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription())
+                : null;
     }
 
     @Override
@@ -217,6 +222,8 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
+        Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
+
         if (ackType == AckType.Cumulative) {
             if (positions.size() != 1) {
                 log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids", topicName, subName);
@@ -234,6 +241,19 @@ public class PersistentSubscription implements Subscription {
             }
             cursor.asyncDelete(positions, deleteCallback, positions);
             dispatcher.getRedeliveryTracker().removeBatch(positions);
+        }
+
+        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            // Mark delete position advance
+            ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
+            if (snapshotCache != null) {
+                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
+                        .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
+                if (snapshot != null) {
+                    topic.getReplicatedSubscriptionController()
+                            .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
+                }
+            }
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
@@ -680,7 +700,7 @@ public class PersistentSubscription implements Subscription {
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
-        subStats.isReplicated = isReplicated;
+        subStats.isReplicated = isReplicated();
         return subStats;
     }
 
@@ -719,7 +739,7 @@ public class PersistentSubscription implements Subscription {
      * (eg. when using compaction subscription) and the subscription properties.
      */
     protected Map<String, Long> mergeCursorProperties(Map<String, Long> userProperties) {
-        Map<String, Long> baseProperties = isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES
+        Map<String, Long> baseProperties = isReplicated() ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES
                 : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
 
         if (userProperties.isEmpty()) {
@@ -732,6 +752,14 @@ public class PersistentSubscription implements Subscription {
             return merged;
         }
 
+    }
+
+    @Override
+    public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
+        ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
+        if (snapshotCache != null) {
+            snapshotCache.addNewSnapshot(snapshot);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

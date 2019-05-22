@@ -69,6 +69,12 @@ public class Markers {
         return msgMetadata.hasMarkerType();
     }
 
+    public static boolean isReplicatedSubscriptionSnapshotMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+                && msgMetadata.hasMarkerType()
+                && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_VALUE;
+    }
+
     @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshotRequest(String snapshotId, String sourceCluster) {
         ReplicatedSubscriptionsSnapshotRequest.Builder builder = ReplicatedSubscriptionsSnapshotRequest.newBuilder();
@@ -226,7 +232,7 @@ public class Markers {
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
         try {
             update.writeTo(outStream);
-            return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.empty(), payload);
+            return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_UPDATE, Optional.empty(), payload);
         } finally {
             payload.release();
             builder.recycle();
