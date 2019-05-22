@@ -19,10 +19,7 @@
 
 package org.apache.pulsar.broker.service;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 
 import java.util.Collections;
 import java.util.List;
@@ -63,8 +60,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * @param subscription
      *            the subscription object
      */
-    public void filterEntriesForConsumer(List<Entry> entries, int[] batchSizes, SendMessageInfo sendMessageInfo) {
-        checkArgument(batchSizes.length >= entries.size());
+    public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo) {
         int totalMessages = 0;
         long totalBytes = 0;
 
@@ -94,7 +90,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
-                batchSizes[i] = batchSize;
+                batchSizes.setBatchSize(i, batchSize);
             } finally {
                 msgMetadata.recycle();
             }
@@ -102,21 +98,5 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
-    }
-
-    private static final FastThreadLocal<int[]> threadLocalBatchSizes = new FastThreadLocal<int[]>() {
-        protected int[] initialValue() throws Exception {
-            return new int[100];
-        };
-    };
-
-    protected int[] getThreadLocalBatchSizes(int entries) {
-        int[] a = threadLocalBatchSizes.get();
-        if (a.length < entries) {
-            a = new int[entries];
-            threadLocalBatchSizes.set(a);
-        }
-
-        return a;
     }
 }

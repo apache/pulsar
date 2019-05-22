@@ -33,14 +33,20 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
     protected final List<Field> fields;
+    // the flag controls whether to use the provided schema as reader schema
+    // to decode the messages. In `AUTO_CONSUME` mode, setting this flag to `false`
+    // allows decoding the messages using the schema associated with the messages.
+    protected final boolean useProvidedSchemaAsReaderSchema;
 
-    protected GenericSchemaImpl(SchemaInfo schemaInfo) {
+    protected GenericSchemaImpl(SchemaInfo schemaInfo,
+                                boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
 
         this.fields = schema.getFields()
                 .stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
+        this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
     }
 
     @Override
@@ -55,11 +61,16 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
      * @return a generic schema instance
      */
     public static GenericSchemaImpl of(SchemaInfo schemaInfo) {
+        return of(schemaInfo, true);
+    }
+
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo,
+                                       boolean useProvidedSchemaAsReaderSchema) {
         switch (schemaInfo.getType()) {
             case AVRO:
-                return new GenericAvroSchema(schemaInfo);
+                return new GenericAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             case JSON:
-                return new GenericJsonSchema(schemaInfo);
+                return new GenericJsonSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
                 throw new UnsupportedOperationException("Generic schema is not supported on schema type "
                     + schemaInfo.getType() + "'");

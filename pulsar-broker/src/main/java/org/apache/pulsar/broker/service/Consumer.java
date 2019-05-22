@@ -181,23 +181,25 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public ChannelPromise sendMessages(final List<Entry> entries, int[] batchSizes, SendMessageInfo sendMessageInfo) {
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
+            long totalBytes, RedeliveryTracker redeliveryTracker) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
 
-        if (entries.isEmpty()) {
+        if (entries.isEmpty() || totalMessages == 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         topicName, subscription, consumerId);
             }
             writePromise.setSuccess();
+            batchSizes.recyle();
             return writePromise;
         }
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        MESSAGE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
-        incrementUnackedMessages(sendMessageInfo.getTotalMessages());
-        msgOut.recordMultipleEvents(sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+        MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
+        incrementUnackedMessages(totalMessages);
+        msgOut.recordMultipleEvents(totalMessages, totalBytes);
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
@@ -207,11 +209,25 @@ public class Consumer {
                     continue;
                 }
 
-                PositionImpl pos = (PositionImpl) entry.getPosition();
+                int batchSize = batchSizes.getBatchSize(i);
+
+                if (pendingAcks != null) {
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                }
+
+                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
+                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
+                            topicName, subscription,
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                    ctx.close();
+                    entry.release();
+                    continue;
+                }
+
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
                 MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(pos.getLedgerId())
-                    .setEntryId(pos.getEntryId())
+                    .setLedgerId(entry.getLedgerId())
+                    .setEntryId(entry.getEntryId())
                     .setPartition(partitionIdx)
                     .build();
 
@@ -225,10 +241,10 @@ public class Consumer {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
-                            consumerId, pos.getLedgerId(), pos.getEntryId());
+                            consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
-                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker()
+                int redeliveryCount = redeliveryTracker
                         .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();
@@ -238,6 +254,7 @@ public class Consumer {
 
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
+            batchSizes.recyle();
         });
 
         return writePromise;

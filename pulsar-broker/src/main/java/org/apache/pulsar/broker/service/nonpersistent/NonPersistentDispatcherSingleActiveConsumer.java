@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
@@ -60,9 +61,10 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            int[] batchSizes = getThreadLocalBatchSizes(entries.size());
+            EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
-            currentConsumer.sendMessages(entries, batchSizes, sendMessageInfo);
+            currentConsumer.sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {
                 int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
