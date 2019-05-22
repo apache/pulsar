@@ -25,6 +25,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.impl.schema.ByteSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -84,13 +86,16 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         return null;
     }
 
-    public void validateSourceResult(Consumer<String> consumer, int number) throws Exception {
+    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {
         int recordsNumber = 0;
-        Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
             log.info("Received message: {}.", msg.getValue());
-            Assert.assertTrue(msg.getValue().contains("dbserver1.inventory.products"));
+            String key = new String(msg.getValue().getKey());
+            String value = new String(msg.getValue().getValue());
+            Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
+            Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
         }

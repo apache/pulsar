@@ -292,9 +292,9 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
-     * statsIntervalSeconds It should be set to at least 1 second
+     * statsInterval It should be set to at least 1 second
      *
-     * @param statsIntervalSeconds
+     * @param statsInterval
      *            the interval between each stat info
      * @param unit
      *            time unit for {@code statsInterval}
@@ -334,13 +334,13 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection);
 
     /**
-     * Set keep alive interval in seconds for each client-broker-connection. <i>(default: 30)</i>.
+     * Set keep alive interval for each client-broker-connection. <i>(default: 30 seconds)</i>.
      *
-     * @param keepAliveIntervalSeconds
-     * @param unit time unit for {@code statsInterval}
+     * @param keepAliveInterval
+     * @param unit the time unit in which the keepAliveInterval is defined
      * @return the client builder instance
      */
-    ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit);
+    ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit);
 
     /**
      * Set the duration of time to wait for a connection to a broker to be established. If the duration passes without a

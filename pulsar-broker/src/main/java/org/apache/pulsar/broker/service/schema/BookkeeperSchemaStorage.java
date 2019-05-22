@@ -194,6 +194,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public SchemaVersion versionFromBytes(byte[] version) {
+        // The schema storage converts the schema from bytes to long
+        // so it handles both cases 1) version is 64 bytes long pre 2.4.0;
+        // 2) version is 8 bytes long post 2.4.0
+        //
+        // NOTE: if you are planning to change the logic here. you should consider
+        //       both 64 bytes and 8 bytes cases.
         ByteBuffer bb = ByteBuffer.wrap(version);
         return new LongSchemaVersion(bb.getLong());
     }
