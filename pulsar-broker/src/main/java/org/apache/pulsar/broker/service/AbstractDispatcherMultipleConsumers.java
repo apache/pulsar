@@ -28,7 +28,7 @@ import com.carrotsearch.hppc.ObjectSet;
 
 /**
  */
-public abstract class AbstractDispatcherMultipleConsumers {
+public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
@@ -39,6 +39,11 @@ public abstract class AbstractDispatcherMultipleConsumers {
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+
+    protected AbstractDispatcherMultipleConsumers(Subscription subscription) {
+        super(subscription);
+    }
+
     public boolean isConsumerConnected() {
         return !consumerList.isEmpty();
     }
@@ -127,7 +132,7 @@ public abstract class AbstractDispatcherMultipleConsumers {
 
     /**
      * Finds index of first available consumer which has higher priority then given targetPriority
-     * 
+     *
      * @param targetPriority
      * @return -1 if couldn't find any available consumer
      */
@@ -187,7 +192,7 @@ public abstract class AbstractDispatcherMultipleConsumers {
 
     /**
      * Finds index of first consumer in list which has same priority as given targetPriority
-     * 
+     *
      * @param targetPriority
      * @return
      */
