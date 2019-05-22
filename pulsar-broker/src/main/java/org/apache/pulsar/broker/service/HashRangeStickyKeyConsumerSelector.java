@@ -92,9 +92,10 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
         Integer removeRange = consumerRange.get(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
-                Consumer lowerConsumer = rangeMap.lowerEntry(removeRange).getValue();
-                rangeMap.put(removeRange, lowerConsumer);
-                consumerRange.put(lowerConsumer, removeRange);
+                Map.Entry<Integer, Consumer> lowerEntry = rangeMap.lowerEntry(removeRange);
+                rangeMap.put(removeRange, lowerEntry.getValue());
+                rangeMap.remove(lowerEntry.getKey());
+                consumerRange.put(lowerEntry.getValue(), removeRange);
             } else {
                 rangeMap.remove(removeRange);
                 consumerRange.remove(consumer);
