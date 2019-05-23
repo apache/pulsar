@@ -32,6 +32,7 @@ from django.utils.dateparse import parse_datetime
 from django.db import connection
 import time
 import argparse
+import random
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 logger = logging.getLogger(__name__)
@@ -356,7 +357,14 @@ def fetch_stats():
 
         cluster_url = get(args.serviceUrl, '/admin/v2/clusters/' + cluster_name)['serviceUrl']
         if cluster_url.find(',')>=0:
-                cluster_url = cluster_url.split(',')[0]
+            cluster_url_list = cluster_url.split(',')
+            index = random.randint(0,len(cluster_url_list)-1)
+            if index==0:
+                cluster_url = cluster_url_list[index]
+            else:
+                protocol = ("https://" if(cluster_url.find("https")>=0) else "http://")
+                cluster_url = protocol+cluster_url_list[index]
+
         logger.info('Cluster:{} -> {}'.format(cluster_name, cluster_url))
         cluster, created = Cluster.objects.get_or_create(name=cluster_name)
         if cluster_url != cluster.serviceUrl:
