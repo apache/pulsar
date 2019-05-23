@@ -262,6 +262,10 @@
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.validation</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>javax.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.activation</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>io.prometheus</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.prometheus</shadedPattern>
                 </relocation>
