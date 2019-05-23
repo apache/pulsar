@@ -118,8 +118,12 @@ message MessageMetadata {
     
 	// Mark the message to be delivered at or after the specified timestamp
 	optional int64 deliver_at_time = 19;
-}
 
+    // Identify whether a message is a "marker" message used for
+    // internal metadata instead of application published data.
+    // Markers will generally not be propagated back to clients
+    optional int32 marker_type = 20;
+}
 
 message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;

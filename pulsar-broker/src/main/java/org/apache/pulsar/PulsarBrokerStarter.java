@@ -106,6 +106,11 @@ public class PulsarBrokerStarter {
             log.error("Malformed configuration file: {}", bookieConfigFile, e);
             throw new IllegalArgumentException("Malformed configuration file");
         }
+
+        if (bookieConf.getMaxPendingReadRequestPerThread() < bookieConf.getRereplicationEntryBatchSize()) {
+            throw new IllegalArgumentException(
+                "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
+        }
         return bookieConf;
     }
 
