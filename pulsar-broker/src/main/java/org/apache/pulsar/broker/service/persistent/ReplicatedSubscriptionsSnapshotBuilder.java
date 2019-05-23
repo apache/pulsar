@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import io.prometheus.client.Summary;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,19 +51,22 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     private final boolean needTwoRounds;
     private boolean firstRoundComplete;
 
-    private long startTimeNanos;
-    private final long timeoutNanos;
+    private long startTimeMillis;
+    private final long timeoutMillis;
+
+    private final Clock clock;
 
     private final static Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
-            List<String> remoteClusters, ServiceConfiguration conf) {
+            List<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
         this.snapshotId = UUID.randomUUID().toString();
         this.controller = controller;
         this.remoteClusters = remoteClusters;
         this.missingClusters = new TreeSet<>(remoteClusters);
-        this.timeoutNanos = TimeUnit.SECONDS.toNanos(conf.getReplicatedSubscriptionsSnapshotTimeoutSeconds());
+        this.clock = clock;
+        this.timeoutMillis = TimeUnit.SECONDS.toMillis(conf.getReplicatedSubscriptionsSnapshotTimeoutSeconds());
 
         // If we have more than 2 cluster, we need to do 2 rounds of snapshots, to make sure
         // we're catching all the messages eventually exchanged between the two.
@@ -78,7 +82,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             log.debug("[{}] Starting new snapshot {} - Clusters: {}", controller.topic().getName(), snapshotId,
                     missingClusters);
         }
-        startTimeNanos = System.nanoTime();
+        startTimeMillis = clock.millis();
         controller.writeMarker(
                 Markers.newReplicatedSubscriptionsSnapshotRequest(snapshotId, controller.localCluster()));
     }
@@ -123,11 +127,11 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
                         p.getLedgerId(), p.getEntryId(), responses));
         controller.snapshotCompleted(snapshotId);
 
-        double latencyMillis = (System.nanoTime() - startTimeNanos) / 1e6;
+        double latencyMillis = clock.millis() - startTimeMillis;
         snapshotMetric.observe(latencyMillis);
     }
 
     boolean isTimedOut() {
-        return (startTimeNanos + timeoutNanos) < System.nanoTime();
+        return (startTimeMillis + timeoutMillis) < clock.millis();
     }
 }

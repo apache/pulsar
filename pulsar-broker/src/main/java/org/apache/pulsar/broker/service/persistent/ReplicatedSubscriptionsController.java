@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -143,7 +144,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         pendingSnapshotsMetric.inc();
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
-                topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration());
+                topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
         pendingSnapshots.put(builder.getSnapshotId(), builder);
         builder.start();
 

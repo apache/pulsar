@@ -384,6 +384,14 @@ public class Commands {
         }
     }
 
+    public static void skipMessageMetadata(ByteBuf buffer) {
+        // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
+        // metadata
+        skipChecksumIfPresent(buffer);
+        int metadataSize = (int) buffer.readUnsignedInt();
+        buffer.skipBytes(metadataSize);
+    }
+
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount, ByteBuf metadataAndPayload) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
