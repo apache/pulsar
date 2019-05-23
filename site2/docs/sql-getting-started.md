@@ -1,7 +1,7 @@
 ---
 id: sql-getting-started
-title: Pulsar SQL Getting Started
-sidebar_label: Getting Started
+title: Pulsar SQL Get Started
+sidebar_label: Get Started
 ---
 
 It is super easy to get started on querying data in Pulsar.  

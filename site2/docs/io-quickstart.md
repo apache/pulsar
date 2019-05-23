@@ -21,7 +21,7 @@ At the end of this tutorial, you will be able to:
 >
 > * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
-# Install Pulsar and builtin connector
+## Install Pulsar and builtin connector
 
 Before connecting Pulsar to a database, we need to install Pulsar and the desired builtin connector.
 
@@ -29,7 +29,7 @@ Before connecting Pulsar to a database, we need to install Pulsar and the desire
 
 * For more information about how to install builtin connector, see [here](https://pulsar.apache.org/docs/en/standalone/#installing-builtin-connectors-optional).
 
-# Start a standalone Pulsar 
+## Start a standalone Pulsar 
 
 1. Start Pulsar locally.
 
@@ -81,16 +81,16 @@ Before connecting Pulsar to a database, we need to install Pulsar and the desire
     If an error occurred while starting Pulsar service, you may be able to seen exception at the terminal you are running `pulsar/standalone`,
     or you can navigate the `logs` directory under the Pulsar directory to view the logs.
 
-# Connect Pulsar to Apache Cassandra
+## Connect Pulsar to Apache Cassandra
 
-> ### Tip
+> #### Tip
 > Make sure you have docker available at your computer. If you don't have docker installed, follow the instructions [here](https://docs.docker.com/docker-for-mac/install/).
 
 We are using `cassandra` docker image to start a single-node cassandra cluster in Docker.
 
-## Setup the Cassandra cluster
+### Setup the Cassandra cluster
 
-### Start a Cassandra cluster
+#### Start a Cassandra cluster
 
 ```bash
 docker run -d --rm --name=cassandra -p 9042:9042 cassandra
@@ -126,7 +126,7 @@ Status=Up/Down
 UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
 ```
 
-### Create keyspace and table
+#### Create keyspace and table
 
 We are using `cqlsh` to connect to the cassandra cluster to create keyspace and table.
 
@@ -140,25 +140,25 @@ cqlsh>
 
 All the following commands are executed in `cqlsh`.
 
-### Create keyspace `pulsar_test_keyspace`
+#### Create keyspace `pulsar_test_keyspace`
 
 ```bash
 cqlsh> CREATE KEYSPACE pulsar_test_keyspace WITH replication = {'class':'SimpleStrategy', 'replication_factor':1};
 ```
 
-### Create table `pulsar_test_table`
+#### Create table `pulsar_test_table`
 
 ```bash
 cqlsh> USE pulsar_test_keyspace;
 cqlsh:pulsar_test_keyspace> CREATE TABLE pulsar_test_table (key text PRIMARY KEY, col text);
 ```
 
-## Configure a Cassandra sink
+### Configure a Cassandra sink
 
 Now that we have a Cassandra cluster running locally. In this section, we will configure a Cassandra sink connector.
 The Cassandra sink connector will read messages from a Pulsar topic and write the messages into a Cassandra table.
 
-In order to run a Cassandra sink connector, you need to prepare a yaml config file including informations that Pulsar IO
+In order to run a Cassandra sink connector, you need to prepare a yaml config file including information that Pulsar IO
 runtime needs to know. For example, how Pulsar IO can find the cassandra cluster, what is the keyspace and table that
 Pulsar IO will be using for writing Pulsar messages to.
 
@@ -175,7 +175,7 @@ configs:
 
 To learn more about Cassandra Connector, see [Cassandra Connector](io-cassandra.md).
 
-## Submit a Cassandra sink
+### Submit a Cassandra sink
 
 Pulsar provides the [CLI](reference-cli-tools.md) for running and managing Pulsar I/O connectors.
 
@@ -194,12 +194,12 @@ bin/pulsar-admin sink create \
 Once the command is executed, Pulsar will create a sink connector named `cassandra-test-sink` and the sink connector will be running
 as a Pulsar Function and write the messages produced in topic `test_cassandra` to Cassandra table `pulsar_test_table`.
 
-## Inspect the Cassandra sink
+### Inspect the Cassandra sink
 
 You can use [sink CLI](reference-pulsar-admin.md#sink) and [source CLI](reference-pulsar-admin.md#source)
 for inspecting and managing the IO connectors.
 
-### Retrieve Sink Info
+#### Retrieve Sink Info
 
 ```bash
 bin/pulsar-admin sink get \
@@ -236,7 +236,7 @@ Example output:
 }
 ```
 
-### Check Sink running status
+#### Check Sink running status
 
 ```bash
 bin/pulsar-admin sink status \
@@ -270,7 +270,7 @@ Example output:
 }
 ```
 
-## Verify the Cassandra sink
+### Verify the Cassandra sink
 
 Now lets produce some messages to the input topic of the Cassandra sink `test_cassandra`.
 
@@ -338,7 +338,7 @@ cqlsh:pulsar_test_keyspace> select * from pulsar_test_table;
   key-8 |  key-8
 ```
 
-## Delete the Cassandra Sink
+### Delete the Cassandra Sink
 
 ```shell
 bin/pulsar-admin sink delete \
@@ -347,24 +347,24 @@ bin/pulsar-admin sink delete \
     --name cassandra-test-sink
 ```
 
-# Connect Pulsar to MySQL
+## Connect Pulsar to MySQL
 
-> ### Tip
+> #### Tip
 > Make sure you have Docker available at your computer. If you don't have Docker installed, follow the instructions [here](https://docs.docker.com/docker-for-mac/install/).
 
-## Setup a MySQL cluster
+### Setup a MySQL cluster
 
 Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
 
 1. Pull the MySQL 5.7 image from Docker Hub.
 
-    ```
+    ```text
     $ docker pull mysql:5.7
     ```
 
 2. Start MySQL.
 
-    ```
+    ```text
     $ docker run -d -it --rm \
     --name pulsar-mysql \
     -p 3306:3306 \
@@ -374,7 +374,7 @@ Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
     mysql:5.7
     ```
 
-    > ### Tip
+    > #### Tip
     >
     > Flag | Description | This example
     > - | - | -
@@ -388,13 +388,13 @@ Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
 
 3. Check if MySQL has been started successfully.
 
-    ```
+    ```text
     $ docker logs -f pulsar-mysql
     ```
 
     MySQL has been started successfully if the following message appears.
 
-    ```
+    ```text
     2019-05-11T10:40:58.709964Z 0 [Note] Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
     2019-05-11T10:40:58.710155Z 0 [Warning] CA certificate ca.pem is self signed.
     2019-05-11T10:40:58.711921Z 0 [Note] Server hostname (bind-address): '*'; port: 3306
@@ -409,14 +409,14 @@ Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
 
 4. Access to MySQL.
 
-    ```
+    ```text
     $ docker exec -it pulsar-mysql /bin/bash
-    mysql -h localhost -uroot -pjdbc
+    mysql -h localhost -uroot -pjdbc 
     ```
 
 5. Create a _pulsar_mysql_jdbc_sink_ table.
 
-    ```
+    ```text
     $ create database pulsar_mysql_jdbc_sink;
 
     $ use pulsar_mysql_jdbc_sink;
@@ -430,7 +430,7 @@ Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
     engine=innodb;
     ```
 
-## Configure a JDBC sink
+### Configure a JDBC sink
 
 Now that we have a MySQL running locally. In this section, we will configure a JDBC sink connector. The JDBC sink connector will read messages from a Pulsar topic and write messages into a MySQL table.
 
@@ -440,7 +440,7 @@ Now that we have a MySQL running locally. In this section, we will configure a J
 
     Create a _pulsar-mysql-jdbc-sink.yaml_ file , copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-    ```
+    ```text
     configs:
       userName: "root"
       password: "jdbc"
@@ -452,7 +452,7 @@ Now that we have a MySQL running locally. In this section, we will configure a J
 
     Create a _avro-schema_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-    ```
+    ```text
     {
       "type": "AVRO",
       "schema": "{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}",
@@ -469,19 +469,19 @@ Now that we have a MySQL running locally. In this section, we will configure a J
 
     This example uploads the _avro-schema_ schema to the _pulsar-mysql-jdbc-sink-topic_ topic.
 
-    ```
+    ```text
     $ bin/pulsar-admin schemas upload pulsar-mysql-jdbc-sink-topic -f ./connectors/avro-schema
     ```
 
 4. Check if the schema has been uploaded successfully.
 
-    ```
+    ```text
     $ bin/pulsar-admin schemas get pulsar-mysql-jdbc-sink-topic
     ```
 
     The schema has been uploaded successfully if the following message appears.
 
-    ```
+    ```text
     {
       "name" : "pulsar-mysql-jdbc-sink-topic",
       "schema" : "eyJ0eXBlIjoicmVjb3JkIiwibmFtZSI6IlRlc3QiLCJmaWVsZHMiOlt7Im5hbWUiOiJpZCIsInR5cGUiOlsibnVsbCIsImludCJdfSx7Im5hbWUiOiJuYW1lIiwidHlwZSI6WyJudWxsIiwic3RyaW5nIl19XX0=",
@@ -490,13 +490,13 @@ Now that we have a MySQL running locally. In this section, we will configure a J
     }
     ```
 
-## Submit a JDBC sink
+### Submit a JDBC sink
 
-Pulsar provides the [CLI](https://pulsar.apache.org/docs/en/pulsar-admin/) for running and managing Pulsar I/O connectors.
+Pulsar provides the [CLI](admin-api-overview.md) for running and managing Pulsar I/O connectors.
 
 This example creates a sink connector and specifies the desired information.
 
-```
+```text
 $ bin/pulsar-admin sink create \
 --archive ./connectors/pulsar-io-jdbc-{{pulsar:version}}.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
@@ -520,17 +520,17 @@ Once the command is executed, Pulsar will create a sink connector named _pulsar-
 
 The sink has been created successfully if the following message appears.
 
-```
+```text
 "Created successfully"
 ```
 
-## Inspect a JDBC sink
+### Inspect a JDBC sink
 
-### List all running JDBC sink(s)
+#### List all running JDBC sink(s)
 
 This example lists all running sink connectors.
 
-```
+```text
 $ bin/pulsar-admin sink list \
 --tenant public \
 --namespace default
@@ -538,17 +538,17 @@ $ bin/pulsar-admin sink list \
 
 The result shows that only the _mysql-jdbc-sink_ sink is running.
 
-```
+```text
 [
  "pulsar-mysql-jdbc-sink"
 ]
 ```
 
-### Get information of a JDBC sink
+#### Get information of a JDBC sink
 
 This example gets the information about the _pulsar-mysql-jdbc-sink_ sink connector.
 
-```
+```text
 $ bin/pulsar-admin sink get \
 --tenant public \
 --namespace default \
@@ -557,7 +557,7 @@ $ bin/pulsar-admin sink get \
 
 The result show the information of the sink connector, including tenant, namespace, topic and so on.
 
-```
+```text
 {
   "tenant": "public",
   "namespace": "default",
@@ -581,11 +581,11 @@ The result show the information of the sink connector, including tenant, namespa
 }
 ```
 
-### Get status of a JDBC sink
+#### Get status of a JDBC sink
 
 This example checks the current status of the _pulsar-mysql-jdbc-sink_ sink connector.
 
-```
+```text
 $ bin/pulsar-admin sink status \
 --tenant public \
 --namespace default \
@@ -594,7 +594,7 @@ $ bin/pulsar-admin sink status \
 
 The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.
 
-```
+```text
 {
   "numInstances" : 1,
   "numRunning" : 1,
@@ -617,11 +617,11 @@ The result shows the current status of sink connector, including the number of i
 }
 ```
 
-## Stop a JDBC sink
+### Stop a JDBC sink
 
 This example stops the _pulsar-mysql-jdbc-sink_ sink instance.
 
-```
+```text
 $ bin/pulsar-admin sink stop \
 --tenant public \
 --namespace default \
@@ -631,15 +631,15 @@ $ bin/pulsar-admin sink stop \
 
 The sink instance has been stopped successfully if the following message disappears.
 
-```
+```text
 "Stopped successfully"
 ```
 
-## Restart a JDBC sink
+### Restart a JDBC sink
 
 This example starts the _pulsar-mysql-jdbc-sink_ sink instance.
 
-```
+```text
 $ bin/pulsar-admin sink start \
 --tenant public \
 --namespace default \
@@ -649,22 +649,22 @@ $ bin/pulsar-admin sink start \
 
 The sink instance has been started successfully if the following message disappears.
 
-```
+```text
 "Started successfully"
 ```
 
-> ### Tip
+> #### Tip
 > Optionally, you can run a standalone sink connector using `pulsar-admin sink localrun options`. 
 > 
-> Note that `pulsar-admin sink localrun options` runs a sink connector locally, while `pulsar-admin sink start options` can run a sink connector locally or in a cluster.
+> Note that `pulsar-admin sink localrun options` runs a sink connector locally, while `pulsar-admin sink start options` starts a sink connector in a cluster.
 >
 > For more information about `pulsar-admin sink localrun options`, see [here](https://pulsar.apache.org/docs/en/pulsar-admin/#localrun-1).
 
-## Update a JDBC sink
+### Update a JDBC sink
 
 This example updates the parallelism of the _pulsar-mysql-jdbc-sink_ sink connector to 2.
 
-```
+```text
 $ bin/pulsar-admin sink update \
 --name pulsar-mysql-jdbc-sink \
 --parallelism 2
@@ -675,13 +675,13 @@ $ bin/pulsar-admin sink update \
 
 The sink connector has been updated successfully if the following message disappears.
 
-```
+```text
 "Updated successfully"
 ```
 
 This example double-checks the information.
 
-```
+```text
 $ bin/pulsar-admin sink get \
 --tenant public \
 --namespace default \
@@ -690,7 +690,7 @@ $ bin/pulsar-admin sink get \
 
 The result shows that the parallelism is 2.
 
-```
+```text
 {
   "tenant": "public",
   "namespace": "default",
@@ -714,11 +714,11 @@ The result shows that the parallelism is 2.
 }
 ```
 
-## Delete a JDBC sink
+### Delete a JDBC sink
 
 This example deletes the _pulsar-mysql-jdbc-sink_ sink connector.
 
-```
+```text
 $ bin/pulsar-admin sink delete \
 --tenant public \
 --namespace default \
@@ -730,13 +730,13 @@ $ bin/pulsar-admin sink delete \
 
 The sink connector has been deleted successfully if the following message appears.
 
-```
+```text
 "Deleted successfully"
 ```
 
 This example double-checks the existence of the sink connector.
 
-```
+```text
 $ bin/pulsar-admin sink get \
 --tenant public \
 --namespace default \
@@ -745,7 +745,7 @@ $ bin/pulsar-admin sink get \
 
 The results shows that the sink connector does not exist.
 
-```
+```text
 HTTP 404 Not Found
 
 Reason: Sink pulsar-mysql-jdbc-sink doesn't exist
