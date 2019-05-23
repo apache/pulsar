@@ -355,6 +355,8 @@ def fetch_stats():
         if cluster_name == 'global': continue
 
         cluster_url = get(args.serviceUrl, '/admin/v2/clusters/' + cluster_name)['serviceUrl']
+        if cluster_url.find(',')>=0:
+                cluster_url = cluster_url.split(',')[0]
         logger.info('Cluster:{} -> {}'.format(cluster_name, cluster_url))
         cluster, created = Cluster.objects.get_or_create(name=cluster_name)
         if cluster_url != cluster.serviceUrl:
