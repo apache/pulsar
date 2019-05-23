@@ -225,9 +225,9 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
     }
 
     if (cmdConnected.has_max_message_size()) {
-        LOG_DEBUG("Connection has max message size setting: "<< cmdConnected.max_message_size());
+        LOG_DEBUG("Connection has max message size setting: " << cmdConnected.max_message_size());
         maxMessageSize = cmdConnected.max_message_size();
-        LOG_DEBUG("Current max message size is: "<< maxMessageSize);
+        LOG_DEBUG("Current max message size is: " << maxMessageSize);
     }
 
     state_ = Ready;
