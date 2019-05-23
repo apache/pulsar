@@ -38,5 +38,5 @@ docker pull $IMAGE
 WORKDIR=/workdir
 docker run -i \
     -v ${COMMON_DIR}:${WORKDIR} $IMAGE \
-    bash -c "cd ${WORKDIR}; /pulsar/protobuf/src/protoc --java_out=src/main/java src/main/proto/PulsarApi.proto"
+    bash -c "cd ${WORKDIR}; PROTOC=/pulsar/protobuf/src/protoc ./generate_protobuf.sh"
 
