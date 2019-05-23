@@ -352,9 +352,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         }
         payload = encryptedPayload;
 
-        if (payloadSize > Commands::MaxMessageSize) {
+        if (payloadSize > maxMessageSize) {
             LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                << Commands::MaxMessageSize << " bytes");
+                                << maxMessageSize << " bytes");
             cb(ResultMessageTooBig, msg);
             return;
         }

@@ -48,6 +48,8 @@ using namespace pulsar;
 
 namespace pulsar {
 
+inline int maxMessageSize = Commands::DefaultMaxMessageSize;
+
 class PulsarFriend;
 
 class ExecutorService;
