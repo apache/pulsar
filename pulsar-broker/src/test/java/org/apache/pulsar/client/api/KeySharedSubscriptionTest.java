@@ -151,6 +151,100 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared_consumer_crash";
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+
+        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer2Slot = consumer1Slot >> 1;
+        int consumer3Slot = consumer2Slot >> 1;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        int consumer1ExpectMessages = 0;
+        int consumer2ExpectMessages = 0;
+        int consumer3ExpectMessages = 0;
+
+        final int totalSend = 100;
+
+        for (int i = 0; i < totalSend; i++) {
+            String key = UUID.randomUUID().toString();
+            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
+                    % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+            if (slot < consumer3Slot) {
+                consumer3ExpectMessages++;
+            } else if (slot < consumer2Slot) {
+                consumer2ExpectMessages++;
+            } else {
+                consumer1ExpectMessages++;
+            }
+            producer.newMessage()
+                    .key(key)
+                    .value(key.getBytes())
+                    .send();
+        }
+
+        int consumer1Received = 0;
+        for (int i = 0; i < consumer1ExpectMessages; i++) {
+            consumer1.receive();
+            consumer1Received++;
+        }
+
+        int consumer2Received = 0;
+        for (int i = 0; i < consumer2ExpectMessages; i++) {
+            consumer2.receive();
+            consumer2Received++;
+        }
+
+        int consumer3Received = 0;
+        for (int i = 0; i < consumer3ExpectMessages; i++) {
+            consumer3.receive();
+            consumer3Received++;
+        }
+        Assert.assertEquals(consumer1ExpectMessages, consumer1Received);
+        Assert.assertEquals(consumer2ExpectMessages, consumer2Received);
+        Assert.assertEquals(consumer3ExpectMessages, consumer3Received);
+
+        consumer1.close();
+        consumer2.close();
+
+        int receivedAfterConsumerCrash = 0;
+        for (int i = 0; i < totalSend; i++) {
+            Message message = consumer3.receive();
+            consumer3.acknowledge(message);
+            receivedAfterConsumerCrash++;
+        }
+
+        Assert.assertEquals(receivedAfterConsumerCrash, totalSend);
+    }
+
+
+    @Test
     public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_none_key";
