@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.broker.service.schema.validator;
 
+import org.apache.pulsar.broker.service.schema.KeyValueSchemaCompatibilityCheck;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A validator to validate the schema data is well formed.
@@ -63,9 +64,14 @@ public interface SchemaDataValidator {
                 throw new InvalidSchemaDataException(
                     "Schema " + schemaData.getType() + " is a client-side schema type");
             case KEY_VALUE:
+                KeyValue<SchemaData, SchemaData> kvSchema =
+                    KeyValueSchemaCompatibilityCheck.splitKeyValueSchemaData(schemaData);
+                validateSchemaData(kvSchema.getKey());
+                validateSchemaData(kvSchema.getValue());
+                break;
+            default:
+                break;
         }
-
-
     }
 
     /**

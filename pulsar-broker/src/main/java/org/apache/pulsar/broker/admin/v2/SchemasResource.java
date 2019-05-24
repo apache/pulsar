@@ -49,10 +49,11 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.DeleteSchemaResponse;
@@ -230,7 +231,9 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(code = 409, message = "Incompatible schema"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 422, message = "Invalid schema data"),
     })
     public void postSchema(
         @PathParam("tenant") String tenant,
@@ -273,6 +276,11 @@ public class SchemasResource extends AdminResource {
         ).exceptionally(error -> {
             if (error instanceof IncompatibleSchemaException) {
                 response.resume(Response.status(Response.Status.CONFLICT).build());
+            } else if (error instanceof InvalidSchemaDataException) {
+                response.resume(Response.status(
+                    422, /* Unprocessable Entity */
+                    error.getMessage()
+                ).build());
             } else {
                 response.resume(
                     Response.serverError().build()

@@ -19,9 +19,6 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.gson.Gson;
-import org.apache.avro.SchemaParseException;
-import org.apache.avro.SchemaValidationException;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -42,7 +39,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         this.checkers = checkers;
     }
 
-    private KeyValue<byte[], byte[]> splitKeyValueSchema(byte[] bytes) {
+    private static KeyValue<byte[], byte[]> splitKeyValueSchema(byte[] bytes) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         int keyLength = byteBuffer.getInt();
         byte[] keySchema = new byte[keyLength];
@@ -54,14 +51,14 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         return new KeyValue<>(keySchema, valueSchema);
     }
 
-    private SchemaType fetchSchemaType(Map<String, String> properties, String key) {
+    private static SchemaType fetchSchemaType(Map<String, String> properties, String key) {
         if (properties.get(key) != null) {
             return SchemaType.valueOf(properties.get(key));
         }
         return SchemaType.BYTES;
     }
 
-    private SchemaData fetchSchemaData(
+    private static SchemaData fetchSchemaData(
             byte[] keyValue, SchemaType schemaType, Gson schemaGson, Map<String, String> properties, String key) {
         if (properties.get(key) != null) {
             return SchemaData.builder().data(keyValue)
@@ -73,8 +70,8 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
                 .props(Collections.emptyMap()).build();
     }
 
-    private KeyValue<SchemaData, SchemaData> splitKeyValueSchemaData(SchemaData schemaData) {
-        KeyValue<byte[], byte[]> keyValue = this.splitKeyValueSchema(schemaData.getData());
+    public static KeyValue<SchemaData, SchemaData> splitKeyValueSchemaData(SchemaData schemaData) {
+        KeyValue<byte[], byte[]> keyValue = splitKeyValueSchema(schemaData.getData());
         Map<String, String> properties = schemaData.getProps();
         SchemaType keyType = fetchSchemaType(properties, "key.schema.type");
         SchemaType valueType = fetchSchemaType(properties, "value.schema.type");

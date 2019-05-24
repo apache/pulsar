@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 
@@ -171,7 +172,10 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return PulsarApi.ServerError.ServiceNotReady;
-        } else if (t instanceof IncompatibleSchemaException) {
+        } else if (t instanceof IncompatibleSchemaException
+            || t instanceof InvalidSchemaDataException) {
+            // for backward compatible with old clients, invalid schema data
+            // is treated as "incompatible schema".
             return PulsarApi.ServerError.IncompatibleSchema;
         } else if (t instanceof ConsumerAssignException) {
             return ServerError.ConsumerAssignError;
