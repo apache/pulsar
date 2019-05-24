@@ -28,7 +28,7 @@ The available options are:
 * `ATLEAST_ONCE`
 * `EFFECTIVELY_ONCE`
 
-> By default, Pulsar Functions provide at-most-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees` flag, then the function will provide at-most-once guarantees.
+> By default, Pulsar Functions provide at-least-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees` flag, then the function will provide at-least-once guarantees.
 
 ## Updating the processing guarantees of a function
 

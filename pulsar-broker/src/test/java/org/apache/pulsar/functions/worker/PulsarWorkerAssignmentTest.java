@@ -97,9 +97,9 @@ public class PulsarWorkerAssignmentTest {
         config.setClusterName("use");
         final Set<String> superUsers = Sets.newHashSet("superUser");
         config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(brokerWebServicePort);
+        config.setWebServicePort(Optional.ofNullable(brokerWebServicePort));
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
+        config.setBrokerServicePort(Optional.ofNullable(brokerServicePort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
 

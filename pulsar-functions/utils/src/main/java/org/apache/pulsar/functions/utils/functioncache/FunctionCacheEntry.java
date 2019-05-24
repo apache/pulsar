@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
@@ -67,9 +70,16 @@ public class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY));
+    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = isNoneBlank(
+            System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
+                    ? Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
+                    : Collections.emptySet();
 
     FunctionCacheEntry(String narArchive, String initialInstanceId) throws IOException {
+        if (JAVA_INSTANCE_ADDITIONAL_JARS.isEmpty()) {
+            log.warn("java-instance jar path not set in system-property= {} ", JAVA_INSTANCE_JAR_PROPERTY);
+            throw new IllegalStateException(JAVA_INSTANCE_JAR_PROPERTY + " system property not set");
+        }
         this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), JAVA_INSTANCE_ADDITIONAL_JARS);
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);

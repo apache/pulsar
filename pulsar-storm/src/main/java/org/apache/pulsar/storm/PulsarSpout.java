@@ -20,6 +20,7 @@ package org.apache.pulsar.storm;
 
 import static java.lang.String.format;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -35,12 +36,13 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.storm.metric.api.IMetric;
-import org.apache.storm.shade.org.eclipse.jetty.util.log.Log;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -65,7 +67,6 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     public static final String CONSUMER_THROUGHPUT_BYTES = "consumerThroughput";
 
     private final ClientConfigurationData clientConf;
-    private final ConsumerConfigurationData<byte[]> consumerConf;
     private final PulsarSpoutConfiguration pulsarSpoutConf;
     private final long failedRetriesTimeoutNano;
     private final int maxFailedRetries;
@@ -77,7 +78,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private String componentId;
     private String spoutId;
     private SpoutOutputCollector collector;
-    private Consumer<byte[]> consumer;
+    private PulsarSpoutConsumer consumer;
     private volatile long messagesReceived = 0;
     private volatile long messagesEmitted = 0;
     private volatile long messagesFailed = 0;
@@ -93,12 +94,6 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
         this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
         this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
-        this.consumerConf = new ConsumerConfigurationData<>();
-        this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
-        this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
-        this.consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
-        this.consumerConf.setReceiverQueueSize(pulsarSpoutConf.getConsumerReceiverQueueSize());
-
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
         this.maxFailedRetries = pulsarSpoutConf.getMaxFailedRetries();
@@ -110,7 +105,12 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
             LOG.info("[{}] Closing Pulsar consumer for topic {}", spoutId, pulsarSpoutConf.getTopic());
             
             if (pulsarSpoutConf.isAutoUnsubscribe()) {
-                consumer.unsubscribe();
+                try {
+                    consumer.unsubscribe();    
+                }catch(PulsarClientException e) {
+                    LOG.error("[{}] Failed to unsubscribe {} on topic {}", spoutId,
+                            this.pulsarSpoutConf.getSubscriptionName(), pulsarSpoutConf.getTopic(), e);
+                }
             }
             
             if (!pulsarSpoutConf.isSharedConsumerEnabled() && consumer != null) {
@@ -259,16 +259,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         pendingMessageRetries.clear();
         failedMessages.clear();
         try {
-            sharedPulsarClient = SharedPulsarClient.get(componentId, clientConf);
-            if (pulsarSpoutConf.isSharedConsumerEnabled()) {
-                consumer = sharedPulsarClient.getSharedConsumer(consumerConf);
-            } else {
-                try {
-                    consumer = sharedPulsarClient.getClient().subscribeAsync(consumerConf).join();
-                } catch (CompletionException e) {
-                    throw (PulsarClientException) e.getCause();
-                }
-            }
+            consumer = createConsumer();
             LOG.info("[{}] Created a pulsar consumer on topic {} to receive messages with subscription {}", spoutId,
                     pulsarSpoutConf.getTopic(), pulsarSpoutConf.getSubscriptionName());
         } catch (PulsarClientException e) {
@@ -278,6 +269,27 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         }
         context.registerMetric(String.format("PulsarSpoutMetrics-%s-%s", componentId, context.getThisTaskIndex()), this,
                 pulsarSpoutConf.getMetricsTimeIntervalInSecs());
+    }
+
+    private PulsarSpoutConsumer createConsumer() throws PulsarClientException {
+        sharedPulsarClient = SharedPulsarClient.get(componentId, clientConf);
+        PulsarSpoutConsumer consumer;
+        if (pulsarSpoutConf.isSharedConsumerEnabled()) {
+            consumer = pulsarSpoutConf.isDurableSubscription()
+                    ? new SpoutConsumer(sharedPulsarClient.getSharedConsumer(newConsumerConfiguration(pulsarSpoutConf)))
+                    : new SpoutReader(sharedPulsarClient.getSharedReader(newReaderConfiguration(pulsarSpoutConf)));
+        } else {
+            try {
+                consumer = pulsarSpoutConf.isDurableSubscription()
+                        ? new SpoutConsumer(sharedPulsarClient.getClient()
+                                .subscribeAsync(newConsumerConfiguration(pulsarSpoutConf)).join())
+                        : new SpoutReader(sharedPulsarClient.getClient()
+                                .createReaderAsync(newReaderConfiguration(pulsarSpoutConf)).join());
+            } catch (CompletionException e) {
+                throw (PulsarClientException) e.getCause();
+            }
+        }
+        return consumer;
     }
 
     @Override
@@ -362,5 +374,85 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         ConcurrentMap metrics = getMetrics();
         resetMetrics();
         return metrics;
+    }
+
+    private ReaderConfigurationData<byte[]> newReaderConfiguration(PulsarSpoutConfiguration pulsarSpoutConf) {
+        ReaderConfigurationData<byte[]> readerConf = new ReaderConfigurationData<> ();
+        readerConf.setTopicName(pulsarSpoutConf.getTopic());
+        readerConf.setReaderName(pulsarSpoutConf.getSubscriptionName());
+        readerConf.setStartMessageId(pulsarSpoutConf.getNonDurableSubscriptionReadPosition());
+        return readerConf;
+    }
+
+    private ConsumerConfigurationData<byte[]> newConsumerConfiguration(PulsarSpoutConfiguration pulsarSpoutConf2) {
+        ConsumerConfigurationData<byte[]> consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
+        consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
+        consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
+        consumerConf.setReceiverQueueSize(pulsarSpoutConf.getConsumerReceiverQueueSize());
+        return consumerConf;
+    }
+
+    static class SpoutConsumer implements PulsarSpoutConsumer {
+        private Consumer<byte[]> consumer;
+
+        public SpoutConsumer(Consumer<byte[]> consumer) {
+            super();
+            this.consumer = consumer;
+        }
+        
+        @Override
+        public Message<byte[]> receive(int timeout, TimeUnit unit) throws PulsarClientException {
+            return consumer.receive(timeout, unit);
+        }
+
+        @Override
+        public void acknowledgeAsync(Message<?> msg) {
+            consumer.acknowledgeAsync(msg);
+        }
+
+        @Override
+        public void close() throws PulsarClientException {
+            consumer.close();
+        }
+
+        @Override
+        public void unsubscribe() throws PulsarClientException {
+            consumer.unsubscribe();
+        }
+
+    }
+
+    static class SpoutReader implements PulsarSpoutConsumer {
+        private Reader<byte[]> reader;
+
+        public SpoutReader(Reader<byte[]> reader) {
+            super();
+            this.reader = reader;
+        }
+
+        @Override
+        public Message<byte[]> receive(int timeout, TimeUnit unit) throws PulsarClientException {
+            return reader.readNext(timeout, unit);
+        }
+
+        @Override
+        public void acknowledgeAsync(Message<?> msg) {
+            // No-op
+        }
+
+        @Override
+        public void close() throws PulsarClientException {
+            try {
+                reader.close();
+            } catch (IOException e) {
+                throw new PulsarClientException(e);
+            }
+        }
+
+        @Override
+        public void unsubscribe() throws PulsarClientException {
+            // No-op
+        }
     }
 }

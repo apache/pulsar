@@ -36,6 +36,7 @@ import org.testng.annotations.Test;
 
 import java.util.Map;
 
+
 @Slf4j
 public class KeyValueSchemaTest {
 
@@ -151,8 +152,10 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testNotAllowNullJsonSchemaCreate() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
         Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build()),
@@ -302,7 +305,6 @@ public class KeyValueSchemaTest {
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
 
-
         Bar bar = new Bar();
         bar.setField1(true);
 
@@ -322,7 +324,7 @@ public class KeyValueSchemaTest {
         } catch (SchemaSerializationException e) {
             Assert.assertTrue(e.getMessage().contains("This method cannot be used under this SEPARATED encoding type"));
         }
-        KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(fooSchema.encode(foo), encodeBytes);
+        KeyValue<Foo, Bar>  keyValue = ((KeyValueSchema)keyValueSchema).decode(fooSchema.encode(foo), encodeBytes, null);
         Foo fooBack = keyValue.getKey();
         Bar barBack = keyValue.getValue();
         assertEquals(foo, fooBack);

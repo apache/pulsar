@@ -37,6 +37,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -92,6 +95,8 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
+@UtilityClass
+@Slf4j
 public class Commands {
 
     // default message size for transfer
@@ -418,12 +423,14 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
+                false /* isReplicated */, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+            InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -435,6 +442,7 @@ public class Commands {
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
+        subscribeBuilder.setReplicateSubscriptionState(isReplicated);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
@@ -1209,6 +1217,33 @@ public class Commands {
         }
 
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+    }
+
+    public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+        if (msgMetadata == null) {
+            return -1;
+        } else {
+            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
+            msgMetadata.recycle();
+            return numMessagesInBatch;
+        }
+    }
+
+    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        try {
+            // save the reader index and restore after parsing
+            int readerIdx = metadataAndPayload.readerIndex();
+            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+
+            return metadata;
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            return null;
+        }
     }
 
     public static int getCurrentProtocolVersion() {

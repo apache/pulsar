@@ -34,7 +34,6 @@ import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -109,22 +108,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
-    private Integer brokerServicePort = 6650;
+    private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf requests"
     )
-    private Integer brokerServicePortTls = null;
+    private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.of(8080);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private Integer webServicePortTls = null;
+    private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -380,6 +379,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
@@ -391,7 +391,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Default number of message-bytes dispatching throttling-limit for a subscription. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling.")
-    private long dispatchThrottlingRatePerSubscribeInByte = 0;
+    private long dispatchThrottlingRatePerSubscriptionInByte = 0;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message dispatch-throttling")
+    private int dispatchThrottlingRatePerReplicatorInMsg = 0;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Default number of message-bytes dispatching throttling-limit for every replicator in replication. \n\n"
+            + "Using a value of 0, is disabling replication message-byte dispatch-throttling")
+    private long dispatchThrottlingRatePerReplicatorInByte = 0;
 
     @FieldContext(
         dynamic = true,
@@ -871,6 +884,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)" 
+        )
+    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
         doc = "Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.\n\n"
@@ -1260,18 +1278,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getBrokerServicePort() {
-        return Optional.ofNullable(brokerServicePort);
+        return brokerServicePort;
     }
 
     public Optional<Integer> getBrokerServicePortTls() {
-        return Optional.ofNullable(brokerServicePortTls);
+        return brokerServicePortTls;
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 }
