@@ -198,6 +198,19 @@ public class Consumer {
             return writePromise;
         }
 
+        // Note
+        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
+        // is possible to disconnect at this time.
+        if (pendingAcks != null) {
+            for (int i = 0; i < entries.size(); i++) {
+                Entry entry = entries.get(i);
+                if (entry != null) {
+                    int batchSize = batchSizes.getBatchSize(i);
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                }
+            }
+        }
+
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
         incrementUnackedMessages(totalMessages);
@@ -212,10 +225,6 @@ public class Consumer {
                 }
 
                 int batchSize = batchSizes.getBatchSize(i);
-
-                if (pendingAcks != null) {
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
-                }
 
                 if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
                     log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
