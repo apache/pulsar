@@ -285,7 +285,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, null);
         dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
         verify(topic, atLeast(1)).getBrokerService();
     }
@@ -296,7 +296,7 @@ public class PersistentTopicTest {
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
         PersistentDispatcherSingleActiveConsumer dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                SubType.Exclusive, 1, topic);
+                SubType.Exclusive, 1, topic, null);
         Consumer consumer = mock(Consumer.class);
         dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer);
         verify(topic, atLeast(1)).getBrokerService();

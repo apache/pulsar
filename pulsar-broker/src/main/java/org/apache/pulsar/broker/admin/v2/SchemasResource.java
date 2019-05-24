@@ -145,7 +145,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
         String schemaId = buildSchemaId(tenant, namespace, topic);
-        ByteBuffer bbVersion = ByteBuffer.allocate(Long.SIZE);
+        ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
         bbVersion.putLong(Long.parseLong(version));
         SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(bbVersion.array());
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)

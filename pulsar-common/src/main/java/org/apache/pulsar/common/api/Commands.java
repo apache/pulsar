@@ -37,6 +37,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -92,6 +95,8 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
+@UtilityClass
+@Slf4j
 public class Commands {
 
     // default message size for transfer
@@ -1212,6 +1217,33 @@ public class Commands {
         }
 
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+    }
+
+    public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+        if (msgMetadata == null) {
+            return -1;
+        } else {
+            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
+            msgMetadata.recycle();
+            return numMessagesInBatch;
+        }
+    }
+
+    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        try {
+            // save the reader index and restore after parsing
+            int readerIdx = metadataAndPayload.readerIndex();
+            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+
+            return metadata;
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            return null;
+        }
     }
 
     public static int getCurrentProtocolVersion() {
