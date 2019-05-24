@@ -111,6 +111,8 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
             clear();
             return;
         }
+    } else {
+        LOG_DEBUG("Connection not ready for batch message container.")
     }
 
     Message msg;

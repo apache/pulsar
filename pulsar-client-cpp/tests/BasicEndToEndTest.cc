@@ -561,7 +561,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::DefaultMaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
@@ -1114,7 +1114,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = producerFuture.get(producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::DefaultMaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
@@ -1165,7 +1165,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
     result = client.createProducer(topicName, conf2, producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::DefaultMaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);

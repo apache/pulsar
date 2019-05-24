@@ -359,6 +359,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
                 cb(ResultMessageTooBig, msg);
                 return;
             }
+        } else {
+            LOG_DEBUG("Connection not ready for producer.")
         }
     }
 
