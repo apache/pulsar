@@ -2017,7 +2017,6 @@ TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
     client.shutdown();
 }
 
-
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
