@@ -120,7 +120,7 @@ public class KafkaAbstractSinkTest {
 
             @Override
             public void incrCounter(String key, long amount) {
-                
+
             }
 
             @Override
