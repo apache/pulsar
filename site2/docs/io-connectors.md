@@ -27,3 +27,4 @@ Pulsar Functions cluster.
 - [Redis Sink Connector](io-redis.md#sink)
 - [Solr Sink Connector](io-solr.md#sink)
 - [InfluxDB Sink Connector](io-influxdb.md#sink)
+- [JDBC Sink Connector](io-jdbc.md)
