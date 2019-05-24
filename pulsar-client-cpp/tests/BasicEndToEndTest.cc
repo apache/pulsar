@@ -1999,6 +1999,25 @@ TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
     client.shutdown();
 }
 
+TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
+    Client client(lookupUrl);
+    std::string pattern = "persistent://public/default/patternEmptyUnsubscribe.*";
+
+    std::string subName = "testPatternMultiTopicsConsumer";
+
+    ConsumerConfiguration consConfig;
+    Consumer consumer;
+    Result result = client.subscribeWithRegex(pattern, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 0 topics");
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
+
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
