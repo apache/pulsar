@@ -47,11 +47,11 @@ import java.util.List;
 
 @Slf4j
 @Path("/functions")
-public class FunctionApiV2Resource extends FunctionApiResource {
+public class FunctionsApiV2Resource extends FunctionApiResource {
 
     protected final FunctionsImplV2 functions;
 
-    public FunctionApiV2Resource() {
+    public FunctionsApiV2Resource() {
         this.functions = new FunctionsImplV2(this);
     }
 
