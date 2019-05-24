@@ -469,7 +469,8 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
             return false;
         }
     } else {
-        LOG_DEBUG("Connection not ready for Consumer - " << getConsumerId());
+        LOG_ERROR("Connection not ready for Consumer - " << getConsumerId());
+        return false;
     }
 
     if (!CompressionCodecProvider::getCodec(compressionType).decode(payload, uncompressedSize, payload)) {

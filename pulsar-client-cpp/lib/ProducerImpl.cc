@@ -360,7 +360,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
                 return;
             }
         } else {
-            LOG_DEBUG("Connection not ready for producer.")
+            LOG_ERROR("Connection not ready for producer.")
+            cb(ResultUnknownError, msg);
+            return;
         }
     }
 
