@@ -197,13 +197,15 @@ public class Consumer {
         }
 
         // Note
-        // Must ensure that the message to be sent is first written to the pendingAcks, because this consumer
+        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
         // is possible to disconnect at this time.
         if (pendingAcks != null) {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
-                int batchSize = batchSizes.getBatchSize(i);
-                pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                if (entry != null) {
+                    int batchSize = batchSizes.getBatchSize(i);
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                }
             }
         }
 
