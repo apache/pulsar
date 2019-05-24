@@ -102,12 +102,15 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload);
     impl_->payload = encryptedPayload;
 
-    if (impl_->payload.readableBytes() > maxMessageSize) {
-        // At this point the compressed batch is above the overall MaxMessageSize. There
-        // can only 1 single message in the batch at this point.
-        batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
-        clear();
-        return;
+    ClientConnectionPtr cnx = producer_.getCnx().lock();
+    if (cnx) {
+        if (impl_->payload.readableBytes() > cnx->getMaxMessageSize()) {
+            // At this point the compressed batch is above the overall MaxMessageSize. There
+            // can only 1 single message in the batch at this point.
+            batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
+            clear();
+            return;
+        }
     }
 
     Message msg;

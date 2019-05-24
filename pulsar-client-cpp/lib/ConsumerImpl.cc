@@ -459,12 +459,17 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
 
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
-    if (payloadSize > maxMessageSize) {
-        // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
-        LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
-                            << " at  " << msg.message_id().ledgerid() << ":" << msg.message_id().entryid());
-        discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
-        return false;
+    if (cnx) {
+        if (payloadSize > cnx->getMaxMessageSize()) {
+            // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
+            LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
+                                << " at  " << msg.message_id().ledgerid() << ":"
+                                << msg.message_id().entryid());
+            discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
+            return false;
+        }
+    } else {
+        LOG_DEBUG("Connection not ready for Consumer - " << getConsumerId());
     }
 
     if (!CompressionCodecProvider::getCodec(compressionType).decode(payload, uncompressedSize, payload)) {

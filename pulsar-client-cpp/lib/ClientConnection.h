@@ -48,8 +48,6 @@ using namespace pulsar;
 
 namespace pulsar {
 
-inline int maxMessageSize = Commands::DefaultMaxMessageSize;
-
 class PulsarFriend;
 
 class ExecutorService;
@@ -147,6 +145,8 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     int getServerProtocolVersion() const;
 
+    int getMaxMessageSize() const;
+
     Commands::ChecksumType getChecksumType() const;
 
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId);
@@ -239,6 +239,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
     int serverProtocolVersion_;
+    int maxMessageSize_;
 
     ExecutorServicePtr executor_;
 

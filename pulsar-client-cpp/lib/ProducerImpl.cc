@@ -338,7 +338,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     uint32_t uncompressedSize = payload.readableBytes();
     uint32_t payloadSize = uncompressedSize;
-
+    ClientConnectionPtr cnx = getCnx().lock();
     if (!batchMessageContainer) {
         // If batching is enabled we compress all the payloads together before sending the batch
         payload = CompressionCodecProvider::getCodec(conf_.getCompressionType()).encode(payload);
@@ -352,11 +352,13 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         }
         payload = encryptedPayload;
 
-        if (payloadSize > maxMessageSize) {
-            LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                << maxMessageSize << " bytes");
-            cb(ResultMessageTooBig, msg);
-            return;
+        if (cnx) {
+            if (payloadSize > cnx->getMaxMessageSize()) {
+                LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
+                                    << cnx->getMaxMessageSize() << " bytes");
+                cb(ResultMessageTooBig, msg);
+                return;
+            }
         }
     }
 
