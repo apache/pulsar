@@ -160,21 +160,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         PreparedStatement statement,
         Record<T> message, String action) throws Exception;
 
-    private int executeBatch(PreparedStatement preparedStatement, int count) {
-        try {
-            for (int updates : preparedStatement.executeBatch()) {
-                if (updates == Statement.SUCCESS_NO_INFO) {
-                    continue;
-                }
-                count += 1;
-            }
-            return count;
-        } catch (Exception e) {
-            log.error("Got exception ", e);
-            return 0;
-        }
-    }
-
     private void flush() {
         // if not in flushing state, do flush, else return;
         if (incomingList.size() > 0 && isFlushing.compareAndSet(false, true)) {
@@ -200,22 +185,18 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     String action = record.getProperties().get(ACTION);
                     if (action != null && action.equals(DELETE)) {
                         bindValue(deleteStatment, record, action);
-                        deleteStatment.addBatch();
+                        count += 1;
+                        deleteStatment.execute();
                     } else if (action != null && action.equals(UPDATE)) {
                         bindValue(updateStatment, record, action);
-                        updateStatment.addBatch();
+                        count += 1;
+                        updateStatment.execute();
                     } else if (action != null && action.equals(INSERT)){
                         bindValue(insertStatement, record, action);
-                        insertStatement.addBatch();
+                        count += 1;
+                        insertStatement.execute();
                     }
                 }
-                if (deleteStatment != null) {
-                    count = executeBatch(deleteStatment, count);
-                }
-                if (updateStatment != null) {
-                    count = executeBatch(updateStatment, count);
-                }
-                count = executeBatch(insertStatement, count);
                 connection.commit();
                 swapList.forEach(tRecord -> tRecord.ack());
             } catch (Exception e) {
