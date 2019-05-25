@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -409,8 +410,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         }
 
         sendMessagesToConsumers(readType, entries);
-
-        readMoreEntries();
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
@@ -418,6 +417,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         int entriesToDispatch = entries.size();
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
+        AtomicInteger messagesToConsumer = new AtomicInteger(entries.size());
 
         while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
@@ -450,7 +450,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), redeliveryTracker);
+                        sendMessageInfo.getTotalBytes(), redeliveryTracker).addListener(future -> {
+                            if (future.isSuccess() && messagesToConsumer.addAndGet(- messagesForC) == 0) {
+                                readMoreEntries();
+                            }
+                });
 
                 long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
@@ -481,6 +485,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 messagesToReplay.add(entry.getLedgerId(), entry.getEntryId());
                 entry.release();
             });
+            readMoreEntries();
         }
     }
 

@@ -105,8 +105,12 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
 
     @Override
     public Consumer select(byte[] stickyKey) {
+        return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
+    }
+
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
-            int slot = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
+            int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
