@@ -27,9 +27,11 @@ import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class IOConfigUtilsTest {
@@ -115,6 +117,44 @@ public class IOConfigUtilsTest {
         public String getSecret(String secretName) {
             return secretsMap.get(secretName);
         }
+
+        @Override
+        public void incrCounter(String key, long amount) { }
+
+        @Override
+        public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+            return null;
+        }
+
+        @Override
+        public long getCounter(String key) {
+            return 0;
+        }
+
+        @Override
+        public CompletableFuture<Long> getCounterAsync(String key) {
+            return null;
+        }
+
+        @Override
+        public void putState(String key, ByteBuffer value) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+            return null;
+        }
+
+        @Override
+        public ByteBuffer getState(String key) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
+        }
     }
 
     @Test
@@ -188,6 +228,45 @@ public class IOConfigUtilsTest {
         @Override
         public String getSecret(String secretName) {
             return secretsMap.get(secretName);
+        }
+
+        @Override
+        public void incrCounter(String key, long amount) {
+        }
+
+        @Override
+        public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+            return null;
+        }
+
+        @Override
+        public long getCounter(String key) {
+            return 0;
+        }
+
+        @Override
+        public CompletableFuture<Long> getCounterAsync(String key) {
+            return null;
+        }
+
+        @Override
+        public void putState(String key, ByteBuffer value) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+            return null;
+        }
+
+        @Override
+        public ByteBuffer getState(String key) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
         }
     }
 
