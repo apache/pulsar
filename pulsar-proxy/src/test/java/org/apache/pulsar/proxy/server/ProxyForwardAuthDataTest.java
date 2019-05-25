@@ -23,6 +23,7 @@ import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -105,8 +106,8 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);
 
-        proxyConfig.setServicePort(servicePort);
-        proxyConfig.setWebServicePort(webServicePort);
+        proxyConfig.setServicePort(Optional.ofNullable(servicePort));
+        proxyConfig.setWebServicePort(Optional.ofNullable(webServicePort));
         proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);

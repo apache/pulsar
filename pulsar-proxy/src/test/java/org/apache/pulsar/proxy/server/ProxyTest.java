@@ -25,6 +25,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
 import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -90,7 +91,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
 

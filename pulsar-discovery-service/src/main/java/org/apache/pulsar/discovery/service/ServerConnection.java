@@ -36,6 +36,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

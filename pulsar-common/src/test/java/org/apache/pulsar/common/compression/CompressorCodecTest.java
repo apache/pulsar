@@ -24,8 +24,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -39,7 +37,7 @@ public class CompressorCodecTest {
 
     @DataProvider(name = "codec")
     public Object[][] codecProvider() {
-        return new Object[][] { { CompressionType.NONE }, { CompressionType.LZ4 }, { CompressionType.ZLIB }, { CompressionType.ZSTD }};
+        return new Object[][] { { CompressionType.NONE }, { CompressionType.LZ4 }, { CompressionType.ZLIB }, { CompressionType.ZSTD }, { CompressionType.SNAPPY }};
     }
 
     @Test(dataProvider = "codec")

@@ -21,6 +21,8 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import java.util.Optional;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableMap;
 
@@ -32,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -62,8 +65,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
         conf.setTlsCertificateFilePath(getTlsFile("broker.cert"));
         conf.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));
@@ -77,10 +80,10 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(true);
-        proxyConfig.setServicePort(PortManager.nextFreePort());
-        proxyConfig.setServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setWebServicePort(PortManager.nextFreePort());
-        proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -150,6 +153,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
+
+            brokerAdmin.clusters().createCluster(configClusterName, new ClusterData(brokerUrl.toString()));
 
             brokerAdmin.tenants().createTenant("tenant1",
                                                new TenantInfo(ImmutableSet.of("user1"),

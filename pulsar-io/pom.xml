@@ -33,6 +33,7 @@
 
   <modules>
     <module>core</module>
+    <module>common</module>
     <module>docs</module>
     <module>twitter</module>
     <module>cassandra</module>

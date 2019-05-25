@@ -77,6 +77,7 @@ enum CompressionType {
 	LZ4    = 1;
 	ZLIB   = 2;
 	ZSTD   = 3;
+	SNAPPY   = 4;
 }
 
 message MessageMetadata {
@@ -113,8 +114,12 @@ message MessageMetadata {
 	optional bool partition_key_b64_encoded = 17 [ default = false ];
 	// Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
 	optional bytes ordering_key = 18;
-}
 
+    // Identify whether a message is a "marker" message used for
+    // internal metadata instead of application published data.
+    // Markers will generally not be propagated back to clients
+    optional int32 marker_type = 20;
+}
 
 message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
@@ -213,6 +218,7 @@ message CommandConnect {
 message CommandConnected {
 	required string server_version = 1;
 	optional int32 protocol_version = 2 [default = 0];
+	optional int32 max_message_size = 3;
 }
 
 message CommandAuthResponse {
@@ -271,6 +277,11 @@ message CommandSubscribe {
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
 	optional InitialPosition initialPosition = 13 [default = Latest];
+
+    // Mark the subscription as "replicated". Pulsar will make sure
+    // to periodically sync the state of replicated subscriptions
+    // across different clusters (when using geo-replication).
+    optional bool replicate_subscription_state = 14;
 }
 
 message CommandPartitionedTopicMetadata {

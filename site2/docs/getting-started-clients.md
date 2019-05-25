@@ -1,15 +1,15 @@
 ---
 id: client-libraries
 title: Pulsar client libraries
-sidebar_label: Client libraries
+sidebar_label: Use Pulsar with client libraries
 ---
 
 Pulsar supports the following client libraries:
 
-* [Java](#java-client)
-* [Go](#go-client)
-* [Python](#python-client)
-* [C++](#c-client)
+- [Java client](#java-client)
+- [Go client](#go-client)
+- [Python client](#python-client)
+- [C++ client](#c-client)
 
 ## Java client
 

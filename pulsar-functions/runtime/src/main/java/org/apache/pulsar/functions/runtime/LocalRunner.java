@@ -133,7 +133,7 @@ public class LocalRunner {
                 if (!file.exists()) {
                     throw new RuntimeException("Source archive does not exist");
                 }
-                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null));
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
             }
         } else {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);

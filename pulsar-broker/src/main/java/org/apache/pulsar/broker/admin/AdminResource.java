@@ -372,8 +372,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
         final String cluster = config.getClusterName();
         // attach default dispatch rate polices
-        if (policies.clusterDispatchRate.isEmpty()) {
-            policies.clusterDispatchRate.put(cluster, dispatchRate());
+        if (policies.topicDispatchRate.isEmpty()) {
+            policies.topicDispatchRate.put(cluster, dispatchRate());
         }
 
         if (policies.subscriptionDispatchRate.isEmpty()) {
@@ -400,7 +400,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected DispatchRate subscriptionDispatchRate() {
         return new DispatchRate(
                 pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
-                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInByte(),
                 1
         );
     }

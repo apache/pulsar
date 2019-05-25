@@ -370,7 +370,7 @@ public class ClustersBase extends AdminResource {
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
             if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
-                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", policyName, cluster);
+                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", clientAppId(), policyName, cluster);
                 throw new RestException(Status.NOT_FOUND,
                         "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
             }

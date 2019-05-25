@@ -20,43 +20,23 @@ package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
 
-import java.util.List;
+import java.util.Optional;
 
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Method;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.SecurityUtility;
-
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -77,8 +57,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
         buildConf(conf);
         super.internalSetup();
     }
@@ -131,10 +111,10 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBrokerServicePort(PortManager.nextFreePort());
-        conf.setBrokerServicePortTls(PortManager.nextFreePort());
-        conf.setWebServicePort(PortManager.nextFreePort());
-        conf.setWebServicePortTls(PortManager.nextFreePort());
+        conf.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");
@@ -143,6 +123,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant",
                                          new TenantInfo(ImmutableSet.of("admin"),
                                                         ImmutableSet.of("test")));
