@@ -116,6 +116,7 @@ class PULSAR_PUBLIC Message {
      * @return the ordering key of the message
      */
     const std::string& getOrderingKey() const;
+
     /**
      * Check whether the message has a ordering key
      *

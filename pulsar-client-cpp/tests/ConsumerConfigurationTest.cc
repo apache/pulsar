@@ -90,26 +90,6 @@ TEST(ConsumerConfigurationTest, testSubscribePersistentKeyShared) {
     consumer.close();
 }
 
-TEST(ConsumerConfigurationTest, testReadCompactPersistentKeyShared) {
-    std::string lookupUrl = "pulsar://localhost:6650";
-    std::string topicName = "read-compact-key-shared-topic";
-    std::string subName = "test-read-compact-key-shared";
-
-    Result result;
-
-    ConsumerConfiguration config;
-    config.setReadCompacted(true);
-    config.setConsumerType(ConsumerKeyShared);
-
-    ClientConfiguration clientConfig;
-    Client client(lookupUrl, clientConfig);
-
-    Consumer consumer;
-    result = client.subscribe(topicName, subName, config, consumer);
-    ASSERT_EQ(ResultInvalidConfiguration, result);
-    consumer.close();
-}
-
 TEST(ConsumerConfigurationTest, testReadCompactPersistentShared) {
     std::string lookupUrl = "pulsar://localhost:6650";
     std::string topicName = "persist-topic";
