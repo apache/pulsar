@@ -45,19 +45,19 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
-    private static final long serialVersionUID = 1L;
+    @Builder.Default private static final long serialVersionUID = 1L;
 
-    private Set<String> topicNames = Sets.newTreeSet();
+    @Builder.Default private Set<String> topicNames = Sets.newTreeSet();
 
     private Pattern topicsPattern;
 
     private String subscriptionName;
 
-    private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+    @Builder.Default private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
     @JsonIgnore
     private MessageListener<T> messageListener;
@@ -65,40 +65,40 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
 
-    private int receiverQueueSize = 1000;
+    @Builder.Default private int receiverQueueSize = 1000;
 
-    private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
+    @Builder.Default private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
-    private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
+    @Builder.Default private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
 
-    private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
+    @Builder.Default private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
-    private String consumerName = null;
+    @Builder.Default private String consumerName = null;
 
-    private long ackTimeoutMillis = 0;
+    @Builder.Default private long ackTimeoutMillis = 0;
 
-    private long tickDurationMillis = 1000;
+    @Builder.Default private long tickDurationMillis = 1000;
 
-    private int priorityLevel = 0;
+    @Builder.Default private int priorityLevel = 0;
 
     @JsonIgnore
-    private CryptoKeyReader cryptoKeyReader = null;
+    @Builder.Default private CryptoKeyReader cryptoKeyReader = null;
 
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    @Builder.Default private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
-    private SortedMap<String, String> properties = new TreeMap<>();
+    @Builder.Default private SortedMap<String, String> properties = new TreeMap<>();
 
-    private boolean readCompacted = false;
+    @Builder.Default private boolean readCompacted = false;
 
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+    @Builder.Default private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private int patternAutoDiscoveryPeriod = 1;
+    @Builder.Default private int patternAutoDiscoveryPeriod = 1;
 
-    private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
+    @Builder.Default private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
-    private DeadLetterPolicy deadLetterPolicy;
+    @Builder.Default private DeadLetterPolicy deadLetterPolicy;
 
-    private boolean autoUpdatePartitions = true;
+    @Builder.Default private boolean autoUpdatePartitions = true;
 
     private boolean replicateSubscriptionState = false;
 

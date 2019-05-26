@@ -28,14 +28,13 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * This is a simple holder of the client configuration values.
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ClientConfigurationData implements Serializable, Cloneable {
@@ -46,33 +45,31 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private transient Authentication authentication = new AuthenticationDisabled();
-    @JsonIgnore
-    private transient String authPluginClassName;
-    @JsonIgnore
-    private transient Map<String, String> authParams;
+    @Builder.Default private transient Authentication authentication = new AuthenticationDisabled();
+    private String authPluginClassName;
+    private String authParams;
 
-    private long operationTimeoutMs = 30000;
-    private long statsIntervalSeconds = 60;
+    @Builder.Default private long operationTimeoutMs = 30000;
+    @Builder.Default private long statsIntervalSeconds = 60;
 
-    private int numIoThreads = 1;
-    private int numListenerThreads = 1;
-    private int connectionsPerBroker = 1;
+    @Builder.Default private int numIoThreads = 1;
+    @Builder.Default private int numListenerThreads = 1;
+    @Builder.Default private int connectionsPerBroker = 1;
 
-    private boolean useTcpNoDelay = true;
+    @Builder.Default private boolean useTcpNoDelay = true;
 
-    private boolean useTls = false;
-    private String tlsTrustCertsFilePath = "";
-    private boolean tlsAllowInsecureConnection = false;
-    private boolean tlsHostnameVerificationEnable = false;
-    private int concurrentLookupRequest = 5000;
-    private int maxLookupRequest = 50000;
-    private int maxNumberOfRejectedRequestPerConnection = 50;
-    private int keepAliveIntervalSeconds = 30;
-    private int connectionTimeoutMs = 10000;
-    private int requestTimeoutMs = 60000;
-    private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
-    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
+    @Builder.Default private boolean useTls = false;
+    @Builder.Default private String tlsTrustCertsFilePath = "";
+    @Builder.Default private boolean tlsAllowInsecureConnection = false;
+    @Builder.Default private boolean tlsHostnameVerificationEnable = false;
+    @Builder.Default private int concurrentLookupRequest = 5000;
+    @Builder.Default private int maxLookupRequest = 50000;
+    @Builder.Default private int maxNumberOfRejectedRequestPerConnection = 50;
+    @Builder.Default private int keepAliveIntervalSeconds = 30;
+    @Builder.Default private int connectionTimeoutMs = 10000;
+    @Builder.Default private int requestTimeoutMs = 60000;
+    @Builder.Default private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
+    @Builder.Default private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
 
     public ClientConfigurationData clone() {
         try {

@@ -42,46 +42,46 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProducerConfigurationData implements Serializable, Cloneable {
 
-    private static final long serialVersionUID = 1L;
+    @Builder.Default private static final long serialVersionUID = 1L;
 
-    private String topicName = null;
+    @Builder.Default private String topicName = null;
 
-    private String producerName = null;
-    private long sendTimeoutMs = 30000;
-    private boolean blockIfQueueFull = false;
-    private int maxPendingMessages = 1000;
-    private int maxPendingMessagesAcrossPartitions = 50000;
-    private MessageRoutingMode messageRoutingMode = null;
-    private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
+    @Builder.Default private String producerName = null;
+    @Builder.Default private long sendTimeoutMs = 30000;
+    @Builder.Default private boolean blockIfQueueFull = false;
+    @Builder.Default private int maxPendingMessages = 1000;
+    @Builder.Default private int maxPendingMessagesAcrossPartitions = 50000;
+    @Builder.Default private MessageRoutingMode messageRoutingMode = null;
+    @Builder.Default private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
-    private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
-
-    @JsonIgnore
-    private MessageRouter customMessageRouter = null;
-
-    private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
-    private int batchingMaxMessages = 1000;
-    private boolean batchingEnabled = true; // enabled by default
+    @Builder.Default private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
 
     @JsonIgnore
-    private CryptoKeyReader cryptoKeyReader;
+    @Builder.Default private MessageRouter customMessageRouter = null;
+
+    @Builder.Default private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
+    @Builder.Default private int batchingMaxMessages = 1000;
+    @Builder.Default private boolean batchingEnabled = true; // enabled by default
 
     @JsonIgnore
-    private Set<String> encryptionKeys = new TreeSet<>();
+    @Builder.Default private CryptoKeyReader cryptoKeyReader;
 
-    private CompressionType compressionType = CompressionType.NONE;
+    @JsonIgnore
+    @Builder.Default private Set<String> encryptionKeys = new TreeSet<>();
+
+    @Builder.Default private CompressionType compressionType = CompressionType.NONE;
 
     // Cannot use Optional<Long> since it's not serializable
-    private Long initialSequenceId = null;
+    @Builder.Default private Long initialSequenceId = null;
 
-    private boolean autoUpdatePartitions = true;
+    @Builder.Default private boolean autoUpdatePartitions = true;
 
-    private SortedMap<String, String> properties = new TreeMap<>();
+    @Builder.Default private SortedMap<String, String> properties = new TreeMap<>();
 
     /**
      *
