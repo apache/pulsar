@@ -235,6 +235,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
@@ -242,6 +243,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
@@ -249,6 +251,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
