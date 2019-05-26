@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+
+import static org.testng.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
 
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -58,8 +63,9 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
 
         try (PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
+            V1Data v1Data = new V1Data("test1", 1);
             try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
-                p.send(new V1Data("test1", 1));
+                p.send(v1Data);
             }
 
             log.info("try with forward compat, should fail");
@@ -70,8 +76,25 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             }
 
             log.info("try with backward compat, should succeed");
+            V2Data v2Data = new V2Data("test2");
             try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
-                p.send(new V2Data("test2"));
+                p.send(v2Data);
+            }
+
+            Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+            try (Consumer<GenericRecord> consumer = pulsarClient.newConsumer(schema)
+                 .topic(topicName)
+                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                 .subscriptionName("sub")
+                 .subscribe()
+            ) {
+                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+
+                Message<GenericRecord> msg1 = consumer.receive();
+                v1Data.assertEqualToRecord(msg1.getValue());
+
+                Message<GenericRecord> msg2 = consumer.receive();
+                v2Data.assertEqualToRecord(msg2.getValue());
             }
         }
     }
@@ -85,18 +108,40 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
 
         try (PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
+            V1Data v1Data = new V1Data("test1", 1);
             try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
-                p.send(new V1Data("test1", 1));
+                p.send(v1Data);
             }
 
             log.info("try with forward compat, should succeed");
+            V3Data v3Data = new V3Data("test3", 1, 2);
             try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
-                p.send(new V3Data("test3", 1, 2));
+                p.send(v3Data);
             }
 
             log.info("try with backward compat, should succeed");
+            V2Data v2Data = new V2Data("test2");
             try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
-                p.send(new V2Data("test2"));
+                p.send(v2Data);
+            }
+
+            Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+            try (Consumer<GenericRecord> consumer = pulsarClient.newConsumer(schema)
+                 .topic(topicName)
+                 .subscriptionName("sub")
+                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                 .subscribe()
+            ) {
+                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+
+                Message<GenericRecord> msg1 = consumer.receive();
+                v1Data.assertEqualToRecord(msg1.getValue());
+
+                Message<GenericRecord> msg2 = consumer.receive();
+                v3Data.assertEqualToRecord(msg2.getValue());
+
+                Message<GenericRecord> msg3 = consumer.receive();
+                v2Data.assertEqualToRecord(msg3.getValue());
             }
         }
     }
@@ -111,8 +156,9 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         try (PulsarClient pulsarClient = PulsarClient.builder()
              .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
 
+            V1Data v1Data = new V1Data("test1", 1);
             try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
-                p.send(new V1Data("test1", 1));
+                p.send(v1Data);
             }
 
             log.info("try with backward compat, should fail");
@@ -123,13 +169,25 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             }
 
             log.info("try with forward compat, should succeed");
+            V3Data v3Data = new V3Data("test2", 1, 2);
             try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
-                p.send(new V3Data("test2", 1, 2));
+                p.send(v3Data);
             }
 
-            log.info("try with fully compat, should succeed");
-            try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-                p.send(new V4Data("test2", 1, (short)100));
+            Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+            try (Consumer<GenericRecord> consumer = pulsarClient.newConsumer(schema)
+                 .topic(topicName)
+                 .subscriptionName("sub")
+                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                 .subscribe()
+            ) {
+                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+
+                Message<GenericRecord> msg1 = consumer.receive();
+                v1Data.assertEqualToRecord(msg1.getValue());
+
+                Message<GenericRecord> msg2 = consumer.receive();
+                v3Data.assertEqualToRecord(msg2.getValue());
             }
         }
 
@@ -142,8 +200,10 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
 
         try (PulsarClient pulsarClient = PulsarClient.builder()
              .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build()) {
+
+            V1Data v1Data = new V1Data("test1", 1);
             try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
-                p.send(new V1Data("test1", 1));
+                p.send(v1Data);
             }
 
             log.info("try with backward compat only, should fail");
@@ -161,8 +221,25 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             }
 
             log.info("try with fully compat");
+            V4Data v4Data = new V4Data("test2", 1, (short) 100);
             try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-                p.send(new V4Data("test2", 1, (short)100));
+                p.send(v4Data);
+            }
+
+            Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+            try (Consumer<GenericRecord> consumer = pulsarClient.newConsumer(schema)
+                 .topic(topicName)
+                 .subscriptionName("sub")
+                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                 .subscribe()
+            ) {
+                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+
+                Message<GenericRecord> msg1 = consumer.receive();
+                v1Data.assertEqualToRecord(msg1.getValue());
+
+                Message<GenericRecord> msg2 = consumer.receive();
+                v4Data.assertEqualToRecord(msg2.getValue());
             }
         }
     }
@@ -204,7 +281,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             ObjectMapper mapper = new ObjectMapper();
             Map<String, String> schema = new HashMap<>();
             schema.put("type", "AVRO");
-            schema.put("schema", new String(Schema.AVRO(V4Data.class).getSchemaInfo().getSchema(), UTF_8));
+            schema.put("schema", Schema.AVRO(V4Data.class).getSchemaInfo().getSchemaDefinition());
             BrokerContainer b = pulsarCluster.getAnyBroker();
             String schemaFile = String.format("/tmp/schema-%s", UUID.randomUUID().toString());
             b.putFile(schemaFile, mapper.writeValueAsBytes(schema));
@@ -236,6 +313,14 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             this.foo = foo;
             this.bar = bar;
         }
+
+        void assertEqualToRecord(GenericRecord record) {
+            assertEquals(
+                2, record.getFields().size(),
+                record.getFields().size() + " fields in found : " + record.getFields());
+            assertEquals(foo, record.getField("foo"));
+            assertEquals(Integer.valueOf(bar), record.getField("bar"));
+        }
     }
 
     // backward compatible with V1Data
@@ -245,6 +330,13 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
 
         V2Data(String foo) {
             this.foo = foo;
+        }
+
+        void assertEqualToRecord(GenericRecord record) {
+            assertEquals(
+                1, record.getFields().size(),
+                record.getFields().size() + " fields in found : " + record.getFields());
+            assertEquals(foo, record.getField("foo"));
         }
     }
 
@@ -260,6 +352,15 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             this.bar = bar;
             this.baz = baz;
         }
+
+        void assertEqualToRecord(GenericRecord record) {
+            assertEquals(
+                3, record.getFields().size(),
+                record.getFields().size() + " fields in found : " + record.getFields());
+            assertEquals(foo, record.getField("foo"));
+            assertEquals(Integer.valueOf(bar), record.getField("bar"));
+            assertEquals(Long.valueOf(baz), record.getField("baz"));
+        }
     }
 
     // fully compatible with V1Data
@@ -274,6 +375,17 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             this.foo = foo;
             this.bar = bar;
             this.blah = blah;
+        }
+
+        void assertEqualToRecord(GenericRecord record) {
+            assertEquals(
+                3, record.getFields().size(),
+                record.getFields().size() + " fields in found : " + record.getFields());
+            assertEquals(foo, record.getField("foo"));
+            assertEquals(Integer.valueOf(bar), record.getField("bar"));
+            // NOTE: in generic record, avro returns integer. we can consider improving the
+            // the behavior in future to reflect the right java class.
+            assertEquals(Integer.valueOf(blah), record.getField("blah"));
         }
     }
 

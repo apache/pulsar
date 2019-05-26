@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
@@ -52,4 +55,19 @@ public class SchemaInfo {
      * Additional properties of the schema definition (implementation defined)
      */
     private Map<String, String> properties = Collections.emptyMap();
+
+    public String getSchemaDefinition() {
+        if (null == schema) {
+            return "";
+        }
+
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return new String(schema, UTF_8);
+            default:
+                return Base64.getEncoder().encodeToString(schema);
+        }
+    }
 }

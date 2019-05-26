@@ -33,7 +33,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
     @Test
     public void testConsumerSelect() throws ConsumerAssignException {
 
-        StickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector();
+        HashRangeStickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector();
         String key1 = "anyKey";
         Assert.assertNull(selector.select(key1.getBytes()));
 
@@ -41,9 +41,13 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer1);
         int consumer1Slot = DEFAULT_RANGE_SIZE;
         Assert.assertEquals(selector.select(key1.getBytes()), consumer1);
+        Assert.assertEquals(selector.getConsumerRange().size(), 1);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
 
         Consumer consumer2 = mock(Consumer.class);
         selector.addConsumer(consumer2);
+        Assert.assertEquals(selector.getConsumerRange().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
         int consumer2Slot = consumer1Slot >> 1;
 
         for (int i = 0; i < 100; i++) {
@@ -58,6 +62,8 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         Consumer consumer3 = mock(Consumer.class);
         selector.addConsumer(consumer3);
+        Assert.assertEquals(selector.getConsumerRange().size(), 3);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
         int consumer3Slot = consumer2Slot >> 1;
 
         for (int i = 0; i < 100; i++) {
@@ -74,6 +80,8 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
         Consumer consumer4 = mock(Consumer.class);
         selector.addConsumer(consumer4);
+        Assert.assertEquals(selector.getConsumerRange().size(), 4);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 4);
         int consumer4Slot = consumer1Slot - ((consumer1Slot - consumer2Slot) >> 1);
 
         for (int i = 0; i < 100; i++) {
@@ -91,6 +99,8 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         }
 
         selector.removeConsumer(consumer1);
+        Assert.assertEquals(selector.getConsumerRange().size(), 3);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
             int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
@@ -104,6 +114,8 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         }
 
         selector.removeConsumer(consumer2);
+        Assert.assertEquals(selector.getConsumerRange().size(), 2);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
             int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
@@ -115,6 +127,8 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         }
 
         selector.removeConsumer(consumer3);
+        Assert.assertEquals(selector.getConsumerRange().size(), 1);
+        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
         for (int i = 0; i < 100; i++) {
             String key = UUID.randomUUID().toString();
             Assert.assertEquals(selector.select(key.getBytes()), consumer4);

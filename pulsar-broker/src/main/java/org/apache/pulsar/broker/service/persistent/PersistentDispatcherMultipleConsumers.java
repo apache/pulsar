@@ -21,6 +21,9 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -42,11 +45,13 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
-import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
+import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -59,9 +64,6 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
-
 /**
  */
 public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
@@ -71,7 +73,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToReplay = new ConcurrentSortedLongPairSet(128, 2);
-    private final RedeliveryTracker redeliveryTracker;
+    protected final RedeliveryTracker redeliveryTracker;
 
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
@@ -95,7 +97,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         Normal, Replay
     }
 
-    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
+    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription) {
+        super(subscription);
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
@@ -440,14 +443,21 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     });
                 }
 
-                SendMessageInfo sentMsgInfo = c.sendMessages(entries.subList(start, start + messagesForC));
+                SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+                List<Entry> entriesForThisConsumer = entries.subList(start, start + messagesForC);
 
-                long msgSent = sentMsgInfo.getTotalSentMessages();
+                EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
+                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo);
+
+                c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), redeliveryTracker);
+
+                long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;
-                totalMessagesSent += sentMsgInfo.getTotalSentMessages();
-                totalBytesSent += sentMsgInfo.getTotalSentMessageBytes();
+                totalMessagesSent += sendMessageInfo.getTotalMessages();
+                totalBytesSent += sendMessageInfo.getTotalBytes();
             }
         }
 
