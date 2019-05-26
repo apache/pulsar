@@ -100,7 +100,7 @@ $ bin/pulsar standalone \
     }
 }
 </code></pre>
-<p>A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the <code>examples</code> folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:</p>
+<p>包含此函数和其他几个函数(用Java写的) 的 JAR 文件包含在你下载的二进制发行版里(在<code>examples</code>文件夹下)。 To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
