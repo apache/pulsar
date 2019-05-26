@@ -85,7 +85,7 @@ public abstract class BaseResource {
             // auth complete, return a new Builder
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at authn stage: {}",
+                    log.warn("[{}] Failed to perform http request at authn stage: {}", target.getUri(),
                         ex.getMessage());
                     builderFuture.completeExceptionally(new PulsarClientException(ex));
                     return;
