@@ -26,56 +26,44 @@ The Configuration is mostly related to Debezium task config, besides this we sho
 | `pulsar.service.url` | `true` | `null` | Pulsar cluster service url. |
 | `offset.storage.topic` | `true` | `null` | Record the last committed offsets that the connector successfully completed. |
 
-### Configuration Example
+### Configuration Example from MySql
 
 Here is a configuration Json example:
 
-```$json
+```json
 {
-    "tenant": "public",
-    "namespace": "default",
-    "name": "debezium-kafka-source",
-    "className": "org.apache.pulsar.io.kafka.connect.KafkaConnectSource" ,
-    "topicName": "kafka-connect-topic",
-    "configs":
-    {
-        "task.class": "io.debezium.connector.mysql.MySqlConnectorTask",
-        "database.hostname": "localhost",
-        "database.port": "3306",
-        "database.user": "debezium",
-        "database.password": "dbz",
-        "database.server.id": "184054",
-        "database.server.name": "dbserver1",
-        "database.whitelist": "inventory",
-        "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
-        "database.history.pulsar.topic": "history-topic",
-        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "offset.storage.topic": "offset-topic"
-    },
-    "archive": "connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar"
+    "task.class": "io.debezium.connector.mysql.MySqlConnectorTask",
+    "database.hostname": "localhost",
+    "database.port": "3306",
+    "database.user": "debezium",
+    "database.password": "dbz",
+    "database.server.id": "184054",
+    "database.server.name": "dbserver1",
+    "database.whitelist": "inventory",
+    "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+    "database.history.pulsar.topic": "history-topic",
+    "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "pulsar.service.url": "pulsar://127.0.0.1:6650",
+    "offset.storage.topic": "offset-topic"
 }
 ```
 
-You could also find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml), which has similar content below:
+You could also find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml), which has similar content below:
 
 ```$yaml
-tenant: "public"
+tenant: "pubilc"
 namespace: "default"
-name: "debezium-kafka-source"
-topicName: "kafka-connect-topic"
+name: "debezium-mysql-source"
+topicName: "debezium-mysql-topic"
 archive: "connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar"
 
-##autoAck: true
 parallelism: 1
 
 configs:
-  ## sourceTask
-  task.class: "io.debezium.connector.mysql.MySqlConnectorTask"
-
   ## config for mysql, docker image: debezium/example-mysql:0.8
+  task.class: "io.debezium.connector.mysql.MySqlConnectorTask"
   database.hostname: "localhost"
   database.port: "3306"
   database.user: "debezium"
@@ -96,7 +84,7 @@ configs:
   offset.storage.topic: "offset-topic"
 ```
 
-### Usage example
+### Usage example from MySql
 
 Here is a simple example to store MySQL change data using above example config.
 
@@ -112,7 +100,13 @@ Here is a simple example to store MySQL change data using above example config.
 
 - Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar`.
 ```$bash
- bin/pulsar-admin source localrun  --sourceConfigFile debezium-mysql-source-config.yaml
+ bin/pulsar-admin source localrun  --source-config-file debezium-mysql-source-config.yaml
+```
+
+- Or start pulsar debezium connector, with local run mode, and using above json config file. 
+
+```$bash
+bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar --name debezium-mysql-source --destination-topic-name debezium-mysql-topic --tenant public --namespace default --source-config '{"task.class": "io.debezium.connector.mysql.MySqlConnectorTask","database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
 ```
 
 - Subscribe the topic for table `inventory.products`.
@@ -136,3 +130,105 @@ mysql> UPDATE products SET name='1111111111' WHERE id=107;
 ```
 
 - In above subscribe topic terminal tab, we could find that 2 changes has been kept into products topic.
+
+### Configuration Example from PostgreSQL
+
+
+Here is a configuration Json example:
+
+```json
+{
+    "database.hostname": "localhost",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "postgres",
+    "database.dbname": "postgres",
+    "database.server.name": "dbserver1",
+    "schema.whitelist": "inventory",
+    "pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+
+
+You could also find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml), which has similar content below:
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-postgres-source"
+topicName: "debezium-postgres-topic"
+archive: "connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar"
+
+parallelism: 1
+
+configs:
+  ## config for pg, docker image: debezium/example-postgress:0.8
+  database.hostname: "localhost"
+  database.port: "5432"
+  database.user: "postgres"
+  database.password: "postgres"
+  database.dbname: "postgres"
+  database.server.name: "dbserver1"
+  schema.whitelist: "inventory"
+
+  ## PULSAR_SERVICE_URL_CONFIG
+  pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+### Usage example from PostgreSQL
+
+Here is a simple example to store PostgreSQL change data using above example config.
+
+- Start a PostgreSQL server with an example database, from which Debezium can capture changes.
+
+```$bash
+docker pull debezium/example-postgres:0.8
+docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example-postgres:0.8
+```
+
+- Start a Pulsar service locally in standalone mode.
+```$bash
+ bin/pulsar standalone
+```
+
+- Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar`.
+```$bash
+bin/pulsar-admin source localrun  --source-config-file debezium-postgres-source-config.yaml
+```
+
+- Or start pulsar debezium connector, with local run mode, and using above json configuration. 
+
+```$bash
+bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar --name debezium-postgres-source --destination-topic-name debezium-postgres-topic --tenant public --namespace default --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "postgres","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+```
+
+- Subscribe the topic for table `inventory.products`.
+```
+bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
+```
+
+This command will pop out PostgreSQL cli, in this cli, we could do a change in table products, use commands below to change the name of 1 items in table products:
+
+```
+psql -U postgres postgres
+postgres=# \c postgres;
+You are now connected to database "postgres" as user "postgres".
+postgres=# SET search_path TO inventory;
+SET
+postgres=# select * from products;
+ id  |        name        |                       description                       | weight
+-----+--------------------+---------------------------------------------------------+--------
+ 102 | car battery        | 12V car battery                                         |    8.1
+ 103 | 12-pack drill bits | 12-pack of drill bits with sizes ranging from #40 to #3 |    0.8
+ 104 | hammer             | 12oz carpenter's hammer                                 |   0.75
+ 105 | hammer             | 14oz carpenter's hammer                                 |  0.875
+ 106 | hammer             | 16oz carpenter's hammer                                 |      1
+ 107 | rocks              | box of assorted rocks                                   |    5.3
+ 108 | jacket             | water resistent black wind breaker                      |    0.1
+ 109 | spare tire         | 24 inch spare tire                                      |   22.2
+ 101 | 1111111111         | Small 2-wheel scooter                                   |   3.14
+(9 rows)
+
+postgres=# UPDATE products SET name='1111111111' WHERE id=107;
+UPDATE 1
+```
