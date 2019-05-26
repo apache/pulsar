@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -89,7 +90,7 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) {
-        Integer removeRange = consumerRange.get(consumer);
+        Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
                 Map.Entry<Integer, Consumer> lowerEntry = rangeMap.lowerEntry(removeRange);
@@ -98,7 +99,6 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
                 consumerRange.put(lowerEntry.getValue(), removeRange);
             } else {
                 rangeMap.remove(removeRange);
-                consumerRange.remove(consumer);
             }
         }
     }
@@ -146,5 +146,13 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     private boolean is2Power(int num) {
         if(num < 2) return false;
         return (num & num - 1) == 0;
+    }
+
+    Map<Consumer, Integer> getConsumerRange() {
+        return Collections.unmodifiableMap(consumerRange);
+    }
+
+    Map<Integer, Consumer> getRangeConsumer() {
+        return Collections.unmodifiableMap(rangeMap);
     }
 }
