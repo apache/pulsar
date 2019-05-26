@@ -21,19 +21,23 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-import com.fasterxml.jackson.databind.util.EnumResolver;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+
+import com.fasterxml.jackson.databind.util.EnumResolver;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import io.netty.util.internal.StringUtil;
 
@@ -139,6 +143,8 @@ public final class FieldParser {
                     String v = (String) properties.get(f.getName());
                     if (!StringUtils.isBlank(v)) {
                         f.set(obj, value(v, f));
+                    } else {
+                        setEmptyValue(v, f, obj);
                     }
                 } catch (Exception e) {
                     throw new IllegalArgumentException(format("failed to initialize %s field while setting value %s",
@@ -160,19 +166,58 @@ public final class FieldParser {
     public static Object value(String strValue, Field field) {
         checkNotNull(field);
         // if field is not primitive type
-        if (field.getGenericType() instanceof ParameterizedType) {
+        Type fieldType = field.getGenericType();
+        if (fieldType instanceof ParameterizedType) {
             Class<?> clazz = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
             // convert to list
-            if (field.getType().equals(List.class))
+            if (field.getType().equals(List.class)) {
                 return stringToList(strValue, clazz);
-            // convert to set
-            else if (field.getType().equals(Set.class))
+            } // convert to set
+            else if (field.getType().equals(Set.class)) {
                 return stringToSet(strValue, clazz);
-            else
+            } else if (field.getType().equals(Optional.class)) {
+                Type typeClazz = ((ParameterizedType) fieldType).getActualTypeArguments()[0];
+                if (typeClazz instanceof ParameterizedType) {
+                    throw new IllegalArgumentException(format("unsupported non-primitive Optional<%s> for %s",
+                            typeClazz.getClass(), field.getName()));
+                }
+                return Optional.ofNullable(convert(strValue, (Class) typeClazz));
+            } else {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
+            }
         } else {
             return convert(strValue, field.getType());
+        }
+    }
+
+    /**
+     * Sets the empty/null value if field is allowed to be set empty
+     * 
+     * @param strValue
+     * @param field
+     * @param obj
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
+    public static <T> void setEmptyValue(String strValue, Field field, T obj)
+            throws IllegalArgumentException, IllegalAccessException {
+        checkNotNull(field);
+        // if field is not primitive type
+        Type fieldType = field.getGenericType();
+        if (fieldType instanceof ParameterizedType) {
+            if (field.getType().equals(List.class)) {
+                field.set(obj, Lists.newArrayList());
+            } else if (field.getType().equals(Set.class)) {
+                field.set(obj, Sets.newHashSet());
+            } else if (field.getType().equals(Optional.class)) {
+                field.set(obj, Optional.empty());
+            } else {
+                throw new IllegalArgumentException(
+                        format("unsupported field-type %s for %s", field.getType(), field.getName()));
+            }
+        } else if (Number.class.isAssignableFrom(field.getType()) || fieldType.getClass().equals(String.class)) {
+            field.set(obj, null);
         }
     }
 

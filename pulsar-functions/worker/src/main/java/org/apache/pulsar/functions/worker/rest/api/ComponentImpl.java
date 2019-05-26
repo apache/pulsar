@@ -1478,6 +1478,10 @@ public abstract class ComponentImpl {
             }
         } catch (RestException e) {
             throw e;
+        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException e) {
+            log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+            throw new RestException(Status.NOT_FOUND, e.getMessage());
         } catch (Exception e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);

@@ -393,4 +393,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             interceptors.onNegativeAcksSend(this, messageIds);
         }
     }
+
+    protected void onAckTimeoutSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors. onAckTimeoutSend(this, messageIds);
+        }
+    }
 }

@@ -156,7 +156,7 @@ Writing Pulsar Functions in Java involves implementing one of two interfaces:
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
 * The {@inject: javadoc:Function:/pulsar-functions/org/apache/pulsar/functions/api/Function} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {@inject: javadoc:Context:/pulsar-functions/org/apache/pulsar/functions/api/Context} object that you can use in a [variety of ways](#context)
 
-### Getting started
+### Get started
 
 In order to write Pulsar Functions in Java, you'll need to install the proper [dependencies](#dependencies) and package your function [as a JAR](#packaging).
 
@@ -520,7 +520,7 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 * A `process` function that takes an input (message data from the function's input topic(s)), applies some kind of logic to it, and either returns an object (to be published to the function's output topic) or `pass`es and thus doesn't produce a message
 * A `Function` class that has a `process` method that provides a message input to process and a [context](#context) object
 
-### Getting started
+### Get started
 
 Regardless of which [deployment mode](functions-deploying.md) you're using, 'pulsar-client' python library has to installed on any machine that's running Pulsar Functions written in Python.
 

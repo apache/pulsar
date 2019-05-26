@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
@@ -79,9 +80,9 @@ public class BacklogQuotaManagerTest {
             config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(BROKER_WEBSERVICE_PORT);
+            config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
             config.setClusterName("usc");
-            config.setBrokerServicePort(BROKER_SERVICE_PORT);
+            config.setBrokerServicePort(Optional.ofNullable(BROKER_SERVICE_PORT));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);

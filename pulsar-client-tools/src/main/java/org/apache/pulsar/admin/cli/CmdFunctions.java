@@ -815,7 +815,7 @@ public class CmdFunctions extends CmdBase {
                     FunctionState functionState = admin.functions()
                                                        .getFunctionState(tenant, namespace, functionName, key);
                     Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                    gson.toJson(functionState);
+                    System.out.println(gson.toJson(functionState));
                 } catch (PulsarAdminException pae) {
                     if (pae.getStatusCode() == 404 && watch) {
                         System.err.println(pae.getMessage());

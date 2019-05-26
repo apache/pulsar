@@ -27,7 +27,6 @@ import lombok.Getter;
 import org.apache.avro.protobuf.ProtobufData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -96,7 +95,8 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
 
     @Override
     protected SchemaReader<T> loadReader(byte[] schemaVersion) {
-        throw new RuntimeException("ProtobufSchema don't support schema versioning");    }
+        throw new RuntimeException("ProtobufSchema don't support schema versioning");
+    }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());

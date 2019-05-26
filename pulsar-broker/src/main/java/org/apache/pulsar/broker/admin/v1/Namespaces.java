@@ -435,7 +435,7 @@ public class Namespaces extends NamespacesBase {
     public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, DispatchRate dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetDispatchRate(dispatchRate);
+        internalSetTopicDispatchRate(dispatchRate);
     }
 
     @GET
@@ -446,7 +446,7 @@ public class Namespaces extends NamespacesBase {
     public DispatchRate getDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        return internalGetDispatchRate();
+        return internalGetTopicDispatchRate();
     }
 
     @POST

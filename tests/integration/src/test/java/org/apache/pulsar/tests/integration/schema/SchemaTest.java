@@ -31,9 +31,16 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.schema.Schemas.Person;
 import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
+import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.joda.time.chrono.ISOChronology;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.math.BigDecimal;
 
 /**
  * Test Pulsar Schema.
@@ -155,6 +162,60 @@ public class SchemaTest extends PulsarTestSuite {
             assertEquals("man", personConsumeSchema.getGender());
             log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
         }
+    }
+
+    @Test
+    public void testAvroLogicalType() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = "test-logical-type-schema";
+        final String fqtn = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topic
+        ).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(pulsarCluster.getClusterName())
+        );
+
+        AvroLogicalType messageForSend = AvroLogicalType.builder()
+                .decimal(new BigDecimal("12.34"))
+                .timestampMicros(System.currentTimeMillis() * 1000)
+                .timestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()))
+                .timeMillis(LocalTime.now())
+                .timeMicros(System.currentTimeMillis() * 1000)
+                .date(LocalDate.now())
+                .build();
+
+        try (Producer<AvroLogicalType> producer = client
+                .newProducer(Schema.AVRO(AvroLogicalType.class))
+                .topic(fqtn)
+                .create()
+        ) {
+            producer.send(messageForSend);
+            log.info("Successfully published avro logical type message : {}", messageForSend);
+        }
+
+        try (Consumer<AvroLogicalType> consumer = client
+                .newConsumer(Schema.AVRO(AvroLogicalType.class))
+                .topic(fqtn)
+                .subscribe()
+        ) {
+            AvroLogicalType received = consumer.receive().getValue();
+            assertEquals(messageForSend.getDecimal(), received.getDecimal());
+            assertEquals(messageForSend.getTimeMicros(), received.getTimeMicros());
+            assertEquals(messageForSend.getTimeMillis(), received.getTimeMillis());
+            assertEquals(messageForSend.getTimestampMicros(), received.getTimestampMicros());
+            assertEquals(messageForSend.getTimestampMillis(), received.getTimestampMillis());
+            assertEquals(messageForSend.getDate(), received.getDate());
+
+            log.info("Successfully consumer avro logical type message : {}", received);
+        }
+
+
     }
 
 }

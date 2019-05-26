@@ -24,6 +24,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -225,8 +226,8 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
-		proxyConfig.setServicePort(servicePort);
-		proxyConfig.setWebServicePort(webServicePort);
+		proxyConfig.setServicePort(Optional.of(servicePort));
+		proxyConfig.setWebServicePort(Optional.of(webServicePort));
 		proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
 		proxyConfig.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		proxyConfig.setSaslJaasServerSectionName("PulsarProxy");

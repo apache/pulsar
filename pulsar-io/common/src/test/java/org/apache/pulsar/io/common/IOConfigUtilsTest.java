@@ -20,14 +20,18 @@ package org.apache.pulsar.io.common;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class IOConfigUtilsTest {
@@ -66,7 +70,7 @@ public class IOConfigUtilsTest {
 
         static Map<String, String> secretsMap = new HashMap<>();
         static {
-            secretsMap.put("password", "my-password");
+            secretsMap.put("password", "my-source-password");
         }
 
         @Override
@@ -113,17 +117,55 @@ public class IOConfigUtilsTest {
         public String getSecret(String secretName) {
             return secretsMap.get(secretName);
         }
+
+        @Override
+        public void incrCounter(String key, long amount) { }
+
+        @Override
+        public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+            return null;
+        }
+
+        @Override
+        public long getCounter(String key) {
+            return 0;
+        }
+
+        @Override
+        public CompletableFuture<Long> getCounterAsync(String key) {
+            return null;
+        }
+
+        @Override
+        public void putState(String key, ByteBuffer value) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+            return null;
+        }
+
+        @Override
+        public ByteBuffer getState(String key) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
+        }
     }
 
     @Test
-    public void loadWithSecrets() {
+    public void testSourceLoadWithSecrets() {
 
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
         TestConfig testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
-        Assert.assertEquals(testConfig.password, "my-password");
+        Assert.assertEquals(testConfig.password, "my-source-password");
 
         configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
@@ -133,7 +175,120 @@ public class IOConfigUtilsTest {
         testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
-        Assert.assertEquals(testConfig.password, "my-password");
+        Assert.assertEquals(testConfig.password, "my-source-password");
+        Assert.assertEquals(testConfig.sensitiveLong, 5L);
+    }
+
+    static class TestSinkContext implements SinkContext {
+        static Map<String, String> secretsMap = new HashMap<>();
+        static {
+            secretsMap.put("password", "my-sink-password");
+        }
+
+        @Override
+        public int getInstanceId() {
+            return 0;
+        }
+
+        @Override
+        public int getNumInstances() {
+            return 0;
+        }
+
+        @Override
+        public void recordMetric(String metricName, double value) {
+
+        }
+
+        @Override
+        public Collection<String> getInputTopics() {
+            return null;
+        }
+
+        @Override
+        public String getTenant() {
+            return null;
+        }
+
+        @Override
+        public String getNamespace() {
+            return null;
+        }
+
+        @Override
+        public String getSinkName() {
+            return null;
+        }
+
+        @Override
+        public Logger getLogger() {
+            return null;
+        }
+
+        @Override
+        public String getSecret(String secretName) {
+            return secretsMap.get(secretName);
+        }
+
+        @Override
+        public void incrCounter(String key, long amount) {
+        }
+
+        @Override
+        public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+            return null;
+        }
+
+        @Override
+        public long getCounter(String key) {
+            return 0;
+        }
+
+        @Override
+        public CompletableFuture<Long> getCounterAsync(String key) {
+            return null;
+        }
+
+        @Override
+        public void putState(String key, ByteBuffer value) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+            return null;
+        }
+
+        @Override
+        public ByteBuffer getState(String key) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
+        }
+    }
+
+    @Test
+    public void testSinkLoadWithSecrets() {
+
+        Map<String, Object> configMap = new HashMap<>();
+        configMap.put("notSensitive", "foo");
+        TestConfig testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSinkContext());
+
+        Assert.assertEquals(testConfig.notSensitive, "foo");
+        Assert.assertEquals(testConfig.password, "my-sink-password");
+
+        configMap = new HashMap<>();
+        configMap.put("notSensitive", "foo");
+        configMap.put("password", "another-password");
+        configMap.put("sensitiveLong", 5L);
+
+        testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSinkContext());
+
+        Assert.assertEquals(testConfig.notSensitive, "foo");
+        Assert.assertEquals(testConfig.password, "my-sink-password");
         Assert.assertEquals(testConfig.sensitiveLong, 5L);
     }
 }
