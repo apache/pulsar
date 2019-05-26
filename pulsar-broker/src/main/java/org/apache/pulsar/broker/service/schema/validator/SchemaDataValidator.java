@@ -70,7 +70,7 @@ public interface SchemaDataValidator {
                 validateSchemaData(kvSchema.getValue());
                 break;
             default:
-                break;
+                throw new InvalidSchemaDataException("Unknown schema type : " + schemaData.getType());
         }
     }
 
