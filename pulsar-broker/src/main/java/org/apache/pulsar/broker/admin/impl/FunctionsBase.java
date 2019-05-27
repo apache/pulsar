@@ -78,11 +78,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The function's name")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "Uploads Pulsar Functions file data")
             final @FormDataParam("data") InputStream uploadedInputStream,
-            @ApiParam(value = "The instance file detail")
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-            @ApiParam(value = "Uploads Pulsar Function by URL")
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
@@ -160,12 +157,14 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\"inputs\": \"persistent://public/default/input-topic\", " +
-                                            "\"parallelism\": \" 4 \", " +
-                                            "\"output\": \"persistent://public/default/output-topic\", " +
-                                            "\"jar\": \" java-function-1.0-SNAPSHOT.jar \", " +
-                                            "\"classname\": \" org.example.test.ExclamationFunction \", " +
-                                            "\"log-topic\": \" persistent://public/default/log-topic \"}"
+                                    value = "{\n"
+                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
+                                            + "  \"parallelism\": 4\n"
+                                            + "  \"output\": persistent://public/default/output-topic\n"
+                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
+                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
+                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
+                                            + "}\n"
                             )
                     )
             )
@@ -191,11 +190,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The function's name")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "Uploads Pulsar Functions file data")
             final @FormDataParam("data") InputStream uploadedInputStream,
-            @ApiParam(value = "The instance file detail")
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-            @ApiParam(value = "Uploads Pulsar Function by URL")
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
@@ -273,12 +269,14 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\"inputs\": \"persistent://public/default/input-topic\", " +
-                                            "\"parallelism\": \" 4 \", " +
-                                            "\"output\": \"persistent://public/default/output-topic\", " +
-                                            "\"jar\": \" java-function-1.0-SNAPSHOT.jar \", " +
-                                            "\"classname\": \" org.example.test.ExclamationFunction \", " +
-                                            "\"log-topic\": \" persistent://public/default/log-topic \"}"
+                                    value = "{\n"
+                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
+                                            + "  \"parallelism\": 4\n"
+                                            + "  \"output\": persistent://public/default/output-topic\n"
+                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
+                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
+                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
+                                            + "}\n"
                             )
                     )
             )
