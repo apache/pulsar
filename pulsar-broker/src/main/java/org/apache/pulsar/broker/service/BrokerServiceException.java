@@ -38,6 +38,10 @@ public class BrokerServiceException extends Exception {
         super(t);
     }
 
+    public BrokerServiceException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
     public static class ConsumerBusyException extends BrokerServiceException {
         public ConsumerBusyException(String msg) {
             super(msg);
@@ -155,6 +159,10 @@ public class BrokerServiceException extends Exception {
     }
 
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
+        return getClientErrorCode(t, true);
+    }
+
+    private static PulsarApi.ServerError getClientErrorCode(Throwable t, boolean checkCauseIfUnknown) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
         } else if (t instanceof NamingException) {
@@ -180,7 +188,11 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof ConsumerAssignException) {
             return ServerError.ConsumerAssignError;
         } else {
-            return PulsarApi.ServerError.UnknownError;
+            if (checkCauseIfUnknown) {
+                return getClientErrorCode(t.getCause(), false);
+            } else {
+                return PulsarApi.ServerError.UnknownError;
+            }
         }
     }
 }

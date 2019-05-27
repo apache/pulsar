@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service.schema.exceptions;
 
+import org.apache.pulsar.broker.service.BrokerServiceException;
+
 /**
  * Schema related exceptions.
  */
-public class SchemaException extends Exception {
+public class SchemaException extends BrokerServiceException {
 
     private static final long serialVersionUID = -6587520779026691815L;
 
