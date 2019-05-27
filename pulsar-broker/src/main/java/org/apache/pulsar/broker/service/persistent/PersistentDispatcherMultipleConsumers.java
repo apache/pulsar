@@ -417,7 +417,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         int entriesToDispatch = entries.size();
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
-        AtomicInteger messagesToConsumer = new AtomicInteger(entries.size());
 
         while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
@@ -450,11 +449,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), redeliveryTracker).addListener(future -> {
-                            if (future.isSuccess() && messagesToConsumer.addAndGet(- messagesForC) == 0) {
-                                readMoreEntries();
-                            }
-                });
+                        sendMessageInfo.getTotalBytes(), redeliveryTracker);
 
                 long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
@@ -485,8 +480,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 messagesToReplay.add(entry.getLedgerId(), entry.getEntryId());
                 entry.release();
             });
-            readMoreEntries();
         }
+        readMoreEntries();
     }
 
     @Override
