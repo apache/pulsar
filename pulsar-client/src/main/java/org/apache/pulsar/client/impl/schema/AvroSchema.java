@@ -102,11 +102,16 @@ public class AvroSchema<T> extends StructSchema<T> {
     protected SchemaReader<T> loadReader(byte[] schemaVersion) {
         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
         if (schemaInfo != null) {
-            return new AvroReader<>(parseAvroSchema(new String(schemaInfo.getSchema())), schema);
+            log.info("Load schema reader for version({}), schema is : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                schemaInfo.getSchemaDefinition());
+            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
         } else {
+            log.warn("No schema found for version({}), use latest schema : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                this.schemaInfo.getSchemaDefinition());
             return reader;
         }
     }
-
 
 }

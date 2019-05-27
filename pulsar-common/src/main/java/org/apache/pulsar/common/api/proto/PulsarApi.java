@@ -14,12 +14,14 @@ public final class PulsarApi {
     LZ4(1, 1),
     ZLIB(2, 2),
     ZSTD(3, 3),
+    SNAPPY(4, 4),
     ;
     
     public static final int NONE_VALUE = 0;
     public static final int LZ4_VALUE = 1;
     public static final int ZLIB_VALUE = 2;
     public static final int ZSTD_VALUE = 3;
+    public static final int SNAPPY_VALUE = 4;
     
     
     public final int getNumber() { return value; }
@@ -30,6 +32,7 @@ public final class PulsarApi {
         case 1: return LZ4;
         case 2: return ZLIB;
         case 3: return ZSTD;
+        case 4: return SNAPPY;
         default: return null;
       }
     }
@@ -3092,6 +3095,10 @@ public final class PulsarApi {
     // optional bytes ordering_key = 18;
     boolean hasOrderingKey();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey();
+    
+    // optional int32 marker_type = 20;
+    boolean hasMarkerType();
+    int getMarkerType();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3412,6 +3419,16 @@ public final class PulsarApi {
       return orderingKey_;
     }
     
+    // optional int32 marker_type = 20;
+    public static final int MARKER_TYPE_FIELD_NUMBER = 20;
+    private int markerType_;
+    public boolean hasMarkerType() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public int getMarkerType() {
+      return markerType_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -3430,6 +3447,7 @@ public final class PulsarApi {
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       partitionKeyB64Encoded_ = false;
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      markerType_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3523,6 +3541,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         output.writeBytes(18, orderingKey_);
       }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeInt32(20, markerType_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -3603,6 +3624,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(18, orderingKey_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(20, markerType_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -3751,6 +3776,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00008000);
         orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00010000);
+        markerType_ = 0;
+        bitField0_ = (bitField0_ & ~0x00020000);
         return this;
       }
       
@@ -3856,6 +3883,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00002000;
         }
         result.orderingKey_ = orderingKey_;
+        if (((from_bitField0_ & 0x00020000) == 0x00020000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.markerType_ = markerType_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -3933,6 +3964,9 @@ public final class PulsarApi {
         }
         if (other.hasOrderingKey()) {
           setOrderingKey(other.getOrderingKey());
+        }
+        if (other.hasMarkerType()) {
+          setMarkerType(other.getMarkerType());
         }
         return this;
       }
@@ -4076,6 +4110,11 @@ public final class PulsarApi {
             case 146: {
               bitField0_ |= 0x00010000;
               orderingKey_ = input.readBytes();
+              break;
+            }
+            case 160: {
+              bitField0_ |= 0x00020000;
+              markerType_ = input.readInt32();
               break;
             }
           }
@@ -4680,6 +4719,27 @@ public final class PulsarApi {
       public Builder clearOrderingKey() {
         bitField0_ = (bitField0_ & ~0x00010000);
         orderingKey_ = getDefaultInstance().getOrderingKey();
+        
+        return this;
+      }
+      
+      // optional int32 marker_type = 20;
+      private int markerType_ ;
+      public boolean hasMarkerType() {
+        return ((bitField0_ & 0x00020000) == 0x00020000);
+      }
+      public int getMarkerType() {
+        return markerType_;
+      }
+      public Builder setMarkerType(int value) {
+        bitField0_ |= 0x00020000;
+        markerType_ = value;
+        
+        return this;
+      }
+      public Builder clearMarkerType() {
+        bitField0_ = (bitField0_ & ~0x00020000);
+        markerType_ = 0;
         
         return this;
       }
@@ -6534,7 +6594,7 @@ public final class PulsarApi {
     boolean hasProtocolVersion();
     int getProtocolVersion();
     
-    // optional int32 max_message_size = 3 [default = 5242880];
+    // optional int32 max_message_size = 3;
     boolean hasMaxMessageSize();
     int getMaxMessageSize();
   }
@@ -6615,7 +6675,7 @@ public final class PulsarApi {
       return protocolVersion_;
     }
     
-    // optional int32 max_message_size = 3 [default = 5242880];
+    // optional int32 max_message_size = 3;
     public static final int MAX_MESSAGE_SIZE_FIELD_NUMBER = 3;
     private int maxMessageSize_;
     public boolean hasMaxMessageSize() {
@@ -6628,7 +6688,7 @@ public final class PulsarApi {
     private void initFields() {
       serverVersion_ = "";
       protocolVersion_ = 0;
-      maxMessageSize_ = 5242880;
+      maxMessageSize_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6797,7 +6857,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
-        maxMessageSize_ = 5242880;
+        maxMessageSize_ = 0;
         bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
@@ -6970,8 +7030,8 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional int32 max_message_size = 3 [default = 5242880];
-      private int maxMessageSize_ = 5242880;
+      // optional int32 max_message_size = 3;
+      private int maxMessageSize_ ;
       public boolean hasMaxMessageSize() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
@@ -6986,7 +7046,7 @@ public final class PulsarApi {
       }
       public Builder clearMaxMessageSize() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        maxMessageSize_ = 5242880;
+        maxMessageSize_ = 0;
         
         return this;
       }
