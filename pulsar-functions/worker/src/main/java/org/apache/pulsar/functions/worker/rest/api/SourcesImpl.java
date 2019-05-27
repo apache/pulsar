@@ -44,7 +44,7 @@ import java.util.function.Supplier;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class SourceImpl extends ComponentImpl {
+public class SourcesImpl extends ComponentImpl {
     private class GetSourceStatus extends GetStatus<SourceStatus, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> {
 
         @Override
@@ -208,7 +208,7 @@ public class SourceImpl extends ComponentImpl {
         }
     }
 
-    public SourceImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public SourcesImpl(Supplier<WorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SOURCE);
     }
 
