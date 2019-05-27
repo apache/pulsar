@@ -11,13 +11,13 @@
   },
   "basePath" : "/admin/v3",
   "tags" : [ {
-    "name" : "sink"
+    "name" : "sinks"
   } ],
   "schemes" : [ "http", "https" ],
   "paths" : {
-    "/sink/builtinsinks" : {
+    "/sinks/builtinsinks" : {
       "get" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",
         "description" : "",
         "operationId" : "getSinkList",
@@ -45,9 +45,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}" : {
+    "/sinks/{tenant}/{namespace}" : {
       "get" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Lists all Pulsar Sinks currently deployed in a given namespace",
         "description" : "",
         "operationId" : "listSinks",
@@ -80,9 +80,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}" : {
       "get" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Fetches information about a Pulsar Sink currently running in cluster mode",
         "description" : "",
         "operationId" : "getSinkInfo",
@@ -126,7 +126,7 @@
         }
       },
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Creates a new Pulsar Sink in cluster mode",
         "description" : "",
         "operationId" : "registerSink",
@@ -164,7 +164,7 @@
         }
       },
       "put" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Updates a Pulsar Sink currently running in cluster mode",
         "description" : "",
         "operationId" : "updateSink",
@@ -199,7 +199,7 @@
         }
       },
       "delete" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Deletes a Pulsar Sink currently running in cluster mode",
         "description" : "",
         "operationId" : "deregisterSink",
@@ -240,9 +240,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/restart" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/restart" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Restart all sink instances",
         "description" : "",
         "operationId" : "restartSink",
@@ -277,9 +277,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/start" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/start" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Start all sink instances",
         "description" : "",
         "operationId" : "startSink",
@@ -314,9 +314,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/status" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/status" : {
       "get" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Displays the status of a Pulsar Sink running in cluster mode",
         "description" : "",
         "operationId" : "getSinkStatus",
@@ -357,9 +357,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/stop" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/stop" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Stop all sink instances",
         "description" : "",
         "operationId" : "stopSink",
@@ -394,9 +394,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/restart" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/restart" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Restart sink instance",
         "description" : "",
         "operationId" : "restartSink",
@@ -436,9 +436,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/start" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/start" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Start sink instance",
         "description" : "",
         "operationId" : "startSink",
@@ -478,9 +478,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/status" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/status" : {
       "get" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Displays the status of a Pulsar Sink instance",
         "description" : "",
         "operationId" : "getSinkInstanceStatus",
@@ -526,9 +526,9 @@
         }
       }
     },
-    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/stop" : {
+    "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/stop" : {
       "post" : {
-        "tags" : [ "sink" ],
+        "tags" : [ "sinks" ],
         "summary" : "Stop sink instance",
         "description" : "",
         "operationId" : "stopSink",

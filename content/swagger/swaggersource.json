@@ -11,13 +11,13 @@
   },
   "basePath" : "/admin/v3",
   "tags" : [ {
-    "name" : "source"
+    "name" : "sources"
   } ],
   "schemes" : [ "http", "https" ],
   "paths" : {
-    "/source/builtinsources" : {
+    "/sources/builtinsources" : {
       "get" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
         "description" : "",
         "operationId" : "getSourceList",
@@ -45,9 +45,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}" : {
+    "/sources/{tenant}/{namespace}" : {
       "get" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Lists all Pulsar Sources currently deployed in a given namespace",
         "description" : "",
         "operationId" : "listSources",
@@ -80,9 +80,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}" : {
+    "/sources/{tenant}/{namespace}/{sourceName}" : {
       "get" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Fetches information about a Pulsar Source currently running in cluster mode",
         "description" : "",
         "operationId" : "getSourceInfo",
@@ -126,7 +126,7 @@
         }
       },
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Creates a new Pulsar Source in cluster mode",
         "description" : "",
         "operationId" : "registerSource",
@@ -164,7 +164,7 @@
         }
       },
       "put" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Updates a Pulsar Source currently running in cluster mode",
         "description" : "",
         "operationId" : "updateSource",
@@ -199,7 +199,7 @@
         }
       },
       "delete" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Deletes a Pulsar Source currently running in cluster mode",
         "description" : "",
         "operationId" : "deregisterSource",
@@ -240,9 +240,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/restart" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/restart" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Restart all source instances",
         "description" : "",
         "operationId" : "restartSource",
@@ -277,9 +277,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/start" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/start" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Start all source instances",
         "description" : "",
         "operationId" : "startSource",
@@ -314,9 +314,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/status" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/status" : {
       "get" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Displays the status of a Pulsar Source running in cluster mode",
         "description" : "",
         "operationId" : "getSourceStatus",
@@ -357,9 +357,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/stop" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/stop" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Stop all source instances",
         "description" : "",
         "operationId" : "stopSource",
@@ -394,9 +394,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/{instanceId}/restart" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/restart" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Restart source instance",
         "description" : "",
         "operationId" : "restartSource",
@@ -436,9 +436,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/{instanceId}/start" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/start" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Start source instance",
         "description" : "",
         "operationId" : "startSource",
@@ -478,9 +478,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/{instanceId}/status" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/status" : {
       "get" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Displays the status of a Pulsar Source instance",
         "description" : "",
         "operationId" : "getSourceInstanceStatus",
@@ -526,9 +526,9 @@
         }
       }
     },
-    "/source/{tenant}/{namespace}/{sourceName}/{instanceId}/stop" : {
+    "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/stop" : {
       "post" : {
-        "tags" : [ "source" ],
+        "tags" : [ "sources" ],
         "summary" : "Stop source instance",
         "description" : "",
         "operationId" : "stopSource",
