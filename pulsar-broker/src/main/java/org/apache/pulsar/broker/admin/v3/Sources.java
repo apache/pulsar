@@ -16,22 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v3;
+package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
+import org.apache.pulsar.broker.admin.impl.SourcesBase;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-@Api(value = "/sink", description = "Sink admin apis", tags = "sink")
+@Path("/sources")
+@Api(value = "/sources", description = "Sources admin apis", tags = "sources")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Path("/sink")
-@Deprecated
-/**
- * @deprecated in favor of {@link SinksApiV3Resource}
- */
-public class SinkApiV3Resource extends SinksApiV3Resource {
+public class Sources extends SourcesBase {
 }
