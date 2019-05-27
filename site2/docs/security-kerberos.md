@@ -107,6 +107,7 @@ It is also a choice to have 2 separate JAAS configuration files: the file for br
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker. 
  - Set `saslJaasBrokerSectionName` that corresponding to the section in JAAS configuration file for broker.
+ - Set `superUserRoles` that corresponding to the name registered in kdc.
  
  Here is an example:
 
@@ -115,6 +116,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasBrokerSectionName=PulsarBroker
+superUserRoles=client/{clientip}@EXAMPLE.COM
 ```
 
 2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
@@ -155,6 +157,18 @@ The following is an example of creating a Java client:
  ```
 
 Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file are reachable by the operating system user who is starting pulsar client.
+
+If you are using command line, you can continue with these step:
+1. Config your `client.conf`: 
+```shell
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
+```
+2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
+```shell
+   -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
+```
+You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_tools_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh)
 
 ## Kerberos configuration for working with Pulsar Proxy
 
