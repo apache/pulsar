@@ -69,7 +69,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @Builder.Default private boolean batchingEnabled = true; // enabled by default
 
     @JsonIgnore
-    @Builder.Default private CryptoKeyReader cryptoKeyReader;
+    private CryptoKeyReader cryptoKeyReader;
 
     @JsonIgnore
     @Builder.Default private Set<String> encryptionKeys = new TreeSet<>();

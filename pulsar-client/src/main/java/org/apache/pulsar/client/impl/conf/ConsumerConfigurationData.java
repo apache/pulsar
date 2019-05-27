@@ -96,7 +96,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @Builder.Default private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
-    @Builder.Default private DeadLetterPolicy deadLetterPolicy;
+    private DeadLetterPolicy deadLetterPolicy;
 
     @Builder.Default private boolean autoUpdatePartitions = true;
 
