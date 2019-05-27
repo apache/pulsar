@@ -107,7 +107,6 @@ It is also a choice to have 2 separate JAAS configuration files: the file for br
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker. 
  - Set `saslJaasBrokerSectionName` that corresponding to the section in JAAS configuration file for broker.
- - Set `superUserRoles` that corresponding to the name registered in kdc.
  
  Here is an example:
 
@@ -116,7 +115,6 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasBrokerSectionName=PulsarBroker
-superUserRoles=client/{clientip}@EXAMPLE.COM
 ```
 
 2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
@@ -284,6 +282,13 @@ saslJaasBrokerSectionName=PulsarBroker
 ## Regarding authorization and role token
 
 For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
+
+If you enabled authorizationEnabled you need set `superUserRoles` that corresponding to the name registered in kdc
+
+For example:
+```bash
+superUserRoles=client/{clientIp}@EXAMPLE.COM
+```
 
 ## Regarding authorization between BookKeeper and ZooKeeper
 
