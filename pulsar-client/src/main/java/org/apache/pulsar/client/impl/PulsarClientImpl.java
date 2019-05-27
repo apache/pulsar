@@ -149,7 +149,6 @@ public class PulsarClientImpl implements PulsarClient {
         if (StringUtils.isBlank(conf.getAuthPluginClassName()) || StringUtils.isBlank( conf.getAuthParams())) {
             return;
         }
-            return;
 
         conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
     }
